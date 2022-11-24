@@ -15,7 +15,7 @@
 #include "driver/sdmmc_host.h"
 #endif
 
-static const char *TAG = "example";
+static const char *TAG = "SDCARD";
 
 #define MOUNT_POINT "/sdcard"
 
@@ -47,11 +47,19 @@ static const char *TAG = "example";
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO 19
-#define PIN_NUM_MOSI 23
-#define PIN_NUM_CLK  18
-#define PIN_NUM_CS   5
+#define PIN_NUM_MISO 37
+#define PIN_NUM_MOSI 35
+#define PIN_NUM_CLK  36
+#define PIN_NUM_CS   34
 #endif //USE_SPI_MODE
+
+static FILE* f = NULL;
+static sdmmc_card_t* card;
+static const char mount_point[] = MOUNT_POINT;
+sdmmc_host_t host;
+spi_bus_config_t bus_cfg ;
+
+char strbuffer[16];
 
 void esp_sd_card_init(void)
 {
@@ -65,11 +73,10 @@ void esp_sd_card_init(void)
 #else
         .format_if_mount_failed = false,
 #endif // EXAMPLE_FORMAT_IF_MOUNT_FAILED
-        .max_files = 5,
+        .max_files = 1,
         .allocation_unit_size = 16 * 1024
     };
-    sdmmc_card_t* card;
-    const char mount_point[] = MOUNT_POINT;
+    
     ESP_LOGI(TAG, "Initializing SD card");
 
     // Use settings defined above to initialize SD card and mount FAT filesystem.
@@ -101,14 +108,18 @@ void esp_sd_card_init(void)
     ESP_LOGI(TAG, "Using SPI peripheral");
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    host.slot = SPI2_HOST;
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_NUM_MOSI,
         .miso_io_num = PIN_NUM_MISO,
         .sclk_io_num = PIN_NUM_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 4000,
+        .max_transfer_sz = 4*1024,
     };
+
+    // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+    
     ret = spi_bus_initialize(host.slot, &bus_cfg, SPI_DMA_CHAN);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize bus.");
@@ -141,51 +152,115 @@ void esp_sd_card_init(void)
     // Use POSIX and C standard library functions to work with files.
     // First create a file.
     ESP_LOGI(TAG, "Opening file");
-    FILE* f = fopen(MOUNT_POINT"/hello.txt", "w");
+    f = fopen(MOUNT_POINT"/hello.txt", "w");
     if (f == NULL) {
         ESP_LOGE(TAG, "Failed to open file for writing");
         return;
     }
-    fprintf(f, "Hello %s!\n", card->cid.name);
-    fclose(f);
-    ESP_LOGI(TAG, "File written");
 
-    // Check if destination file exists before renaming
-    struct stat st;
-    if (stat(MOUNT_POINT"/foo.txt", &st) == 0) {
-        // Delete it if it exists
-        unlink(MOUNT_POINT"/foo.txt");
-    }
-
-    // Rename original file
-    ESP_LOGI(TAG, "Renaming file");
-    if (rename(MOUNT_POINT"/hello.txt", MOUNT_POINT"/foo.txt") != 0) {
-        ESP_LOGE(TAG, "Rename failed");
+    if (setvbuf(f, NULL, _IOFBF, 4096) != 0)
+    {
+        ESP_LOGE(TAG, "setvbuf failed");
+        perror ("The following error occurred");
         return;
     }
+//     fprintf(f, "Hello %s!\n", card->cid.name);
+//     fclose(f);
+//     ESP_LOGI(TAG, "File written");
 
-    // Open renamed file for reading
-    ESP_LOGI(TAG, "Reading file");
-    f = fopen(MOUNT_POINT"/foo.txt", "r");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for reading");
-        return;
-    }
-    char line[64];
-    fgets(line, sizeof(line), f);
-    fclose(f);
-    // strip newline
-    char* pos = strchr(line, '\n');
-    if (pos) {
-        *pos = '\0';
-    }
-    ESP_LOGI(TAG, "Read from file: '%s'", line);
+//     // Check if destination file exists before renaming
+//     struct stat st;
+//     if (stat(MOUNT_POINT"/foo.txt", &st) == 0) {
+//         // Delete it if it exists
+//         unlink(MOUNT_POINT"/foo.txt");
+//     }
 
-    // All done, unmount partition and disable SDMMC or SPI peripheral
-    esp_vfs_fat_sdcard_unmount(mount_point, card);
-    ESP_LOGI(TAG, "Card unmounted");
-#ifdef USE_SPI_MODE
-    //deinitialize the bus after all devices are removed
-    spi_bus_free(host.slot);
-#endif
+//     // Rename original file
+//     ESP_LOGI(TAG, "Renaming file");
+//     if (rename(MOUNT_POINT"/hello.txt", MOUNT_POINT"/foo.txt") != 0) {
+//         ESP_LOGE(TAG, "Rename failed");
+//         return;
+//     }
+
+//     // Open renamed file for reading
+//     ESP_LOGI(TAG, "Reading file");
+//     f = fopen(MOUNT_POINT"/foo.txt", "r");
+//     if (f == NULL) {
+//         ESP_LOGE(TAG, "Failed to open file for reading");
+//         return;
+//     }
+//     char line[64];
+//     fgets(line, sizeof(line), f);
+//     fclose(f);
+//     // strip newline
+//     char* pos = strchr(line, '\n');
+//     if (pos) {
+//         *pos = '\0';
+//     }
+//     ESP_LOGI(TAG, "Read from file: '%s'", line);
+
+//     // All done, unmount partition and disable SDMMC or SPI peripheral
+//     esp_vfs_fat_sdcard_unmount(mount_point, card);
+//     ESP_LOGI(TAG, "Card unmounted");
+// #ifdef USE_SPI_MODE
+//     //deinitialize the bus after all devices are removed
+//     spi_bus_free(host.slot);
+// #endif
+}
+
+int esp_sd_card_close_unmount(void)
+{
+    if (f !=NULL)
+    {
+        fclose(f);
+        esp_vfs_fat_sdcard_unmount(mount_point, card);
+        ESP_LOGI(TAG, "File closed and card unmounted");
+        return 0;
+    } else {
+        ESP_LOGE(TAG, "Could not close file and/or unmount card.");
+        return 1;
+    }
+    
+}
+
+int esp_sd_card_write(const void * data, size_t len)
+{
+    size_t write_result = fwrite(data,len, 1, f);
+    if (write_result != 1)
+    {
+        ESP_LOGE(TAG,"Error writing to backing store %d %d\n", (int)len, write_result);
+        perror ("The following error occurred");
+        return 0;
+    }
+    return len;
+}
+
+int esp_sd_card_csv_write(const void * data, size_t len)
+{
+    
+    int32_t* int32_data  = (int32_t*) data;
+
+    for (int i = 0; i<len; i++)
+    {
+        // make string out of number
+        //snprintf(strbuffer, sizeof(strbuffer), "%0d.%010llu,", (int32_data[i] >> 27), (((int32_data[i] & 0x7FFFFFF) * 100000000L)/(1 << 27) ));
+        snprintf(strbuffer, 11, "%d.%06d,", int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))));
+        
+        //ESP_LOGI(TAG, "%d, %s", int32_data[i], strbuffer);
+        // if (write_result != 1)
+        // {
+        //     ESP_LOGE(TAG,"Error writing to backing store %d %d\n", (int)len, write_result);
+        //     perror ("The following error occurred");
+        //     return 0;
+        // }
+        if ((i % 8) == 0 && (i!=0))
+        {
+            fprintf(f,"\n");
+        }
+        fprintf(f, strbuffer);
+        
+    }
+   
+  
+   return len;
 }

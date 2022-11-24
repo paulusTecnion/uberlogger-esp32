@@ -1,9 +1,10 @@
 {
-    "files.associations": {
-        "sdspi_host.h": "c",
-        "spi_master.h": "c",
-        "esp_vfs_fat.h": "c",
-        "sdkconfig.h": "c",
-        "esp_sd_card.h": "c"
-    }
+  "files.associations": {
+    "sdspi_host.h": "c",
+    "spi_master.h": "c",
+    "esp_vfs_fat.h": "c",
+    "sdkconfig.h": "c",
+    "esp_sd_card.h": "c",
+    "freertos.h": "c"
+  }
 }

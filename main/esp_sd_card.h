@@ -1,1 +1,0 @@
-void esp_sd_card_init();
