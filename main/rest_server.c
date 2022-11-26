@@ -154,18 +154,7 @@ static esp_err_t system_info_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Simple handler for getting temperature data */
-static esp_err_t temperature_data_get_handler(httpd_req_t *req)
-{
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "raw", esp_random() % 20);
-    const char *sys_info = cJSON_Print(root);
-    httpd_resp_sendstr(req, sys_info);
-    free((void *)sys_info);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
+
 
 esp_err_t start_rest_server(const char *base_path)
 {
@@ -181,32 +170,32 @@ esp_err_t start_rest_server(const char *base_path)
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
 
-    /* URI handler for fetching system info */
-    httpd_uri_t system_info_get_uri = {
-        .uri = "/api/v1/system/info",
-        .method = HTTP_GET,
-        .handler = system_info_get_handler,
-        .user_ctx = rest_context
-    };
-    httpd_register_uri_handler(server, &system_info_get_uri);
+    // /* URI handler for fetching system info */
+    // httpd_uri_t system_info_get_uri = {
+    //     .uri = "/api/v1/system/info",
+    //     .method = HTTP_GET,
+    //     .handler = system_info_get_handler,
+    //     .user_ctx = rest_context
+    // };
+    // httpd_register_uri_handler(server, &system_info_get_uri);
 
-    /* URI handler for fetching temperature data */
-    httpd_uri_t temperature_data_get_uri = {
-        .uri = "/api/v1/temp/raw",
-        .method = HTTP_GET,
-        .handler = temperature_data_get_handler,
-        .user_ctx = rest_context
-    };
-    httpd_register_uri_handler(server, &temperature_data_get_uri);
+    // /* URI handler for fetching temperature data */
+    // httpd_uri_t temperature_data_get_uri = {
+    //     .uri = "/api/v1/temp/raw",
+    //     .method = HTTP_GET,
+    //     .handler = temperature_data_get_handler,
+    //     .user_ctx = rest_context
+    // };
+    // httpd_register_uri_handler(server, &temperature_data_get_uri);
 
-    /* URI handler for light brightness control */
-    httpd_uri_t light_brightness_post_uri = {
-        .uri = "/api/v1/light/brightness",
-        .method = HTTP_POST,
-        .handler = light_brightness_post_handler,
-        .user_ctx = rest_context
-    };
-    httpd_register_uri_handler(server, &light_brightness_post_uri);
+    // /* URI handler for light brightness control */
+    // httpd_uri_t light_brightness_post_uri = {
+    //     .uri = "/api/v1/light/brightness",
+    //     .method = HTTP_POST,
+    //     .handler = light_brightness_post_handler,
+    //     .user_ctx = rest_context
+    // };
+    // httpd_register_uri_handler(server, &light_brightness_post_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {

@@ -1,3 +1,4 @@
+#include "logger.h"
 #include <stdio.h>
 
 #include <stdint.h>
@@ -12,24 +13,184 @@
 #include "esp_sd_card.h"
 #include "driver/spi_master.h"
 
-#define BUFFERSIZE 16
-#define SDBUFFERSIZE 8192
+#define SPI_BUFFERSIZE 16
+#define SD_BUFFERSIZE 8192
 
 
-DMA_ATTR uint8_t sendbuf[BUFFERSIZE];
-DMA_ATTR uint8_t recvbuf[BUFFERSIZE];
-uint8_t tbuffer[SDBUFFERSIZE];
-int32_t tbuffer_i32[SDBUFFERSIZE];
+DMA_ATTR uint8_t sendbuf[SPI_BUFFERSIZE];
+DMA_ATTR uint8_t recvbuf[SPI_BUFFERSIZE];
+uint8_t tbuffer[SD_BUFFERSIZE];
+int32_t tbuffer_i32[SD_BUFFERSIZE];
 char strbuffer[16];
+LoggerState _currentLoggerState = LOGGER_IDLE;
+LoggerState _nextLoggerState = LOGGER_IDLE;
+uint8_t _logCsv = 1;
+uint32_t ulNotificationValue;
+uint32_t writeptr = 0;
+int64_t t0, t1,t2,t3;
+spi_device_handle_t handle;
+spi_transaction_t _spi_transaction;
+const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 200 );
+extern TaskHandle_t xHandle_stm32;
+
+/*
+This ISR is called when the handshake line goes high.
+*/
+static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
+{
+     BaseType_t xYieldRequired = pdFALSE;
+
+     
+    //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
+    //looking at the time between interrupts and refusing any interrupt too close to another one.
+    // static uint32_t lasthandshaketime_us;
+    // uint32_t currtime_us = esp_timer_get_time();
+    // uint32_t diff = currtime_us - lasthandshaketime_us;
+    // if (diff < 1000) {
+    //     return; //ignore everything <1ms after an earlier irq
+    // }
+    // lasthandshaketime_us = currtime_us;
+
+    //Give the semaphore.
+    // BaseType_t mustYield = false;
+    // xSemaphoreGiveFromISR(rdySem, &mustYield);
+    // if (mustYield) {
+    //     portYIELD_FROM_ISR();
+    // }
+      vTaskNotifyGiveFromISR( xHandle_stm32,
+                                //    xArrayIndex,
+                                   &xYieldRequired );
+    
+    portYIELD_FROM_ISR(xYieldRequired);
+}
+
+LoggerState LoggerGetState()
+{
+    return _currentLoggerState;
+}
+
+uint8_t Logger_setCsvLog(uint8_t value)
+{
+    if (value == 0 || value == 1)
+    {
+        _logCsv = value;
+        return RET_OK;
+    } else{
+        return RET_NOK;
+    }
+    
+}
+
+uint8_t Logger_getCsvLog()
+{
+    return _logCsv;
+}
+
+uint8_t Logger_start()
+{
+    if (_currentLoggerState == LOGGER_IDLE)
+    {
+        gpio_set_level(GPIO_ADC_EN, 1);
+        _nextLoggerState = LOGGER_LOGGING;
+        return RET_OK;
+    } 
+    else 
+    {
+        return RET_NOK;
+    }
+}
+
+uint8_t Logger_stop()
+{
+    if (_currentLoggerState == LOGGER_LOGGING)
+    {
+        gpio_set_level(GPIO_ADC_EN, 0);
+        _nextLoggerState = LOGGER_IDLE;
+        return RET_OK;
+    } 
+    else 
+    {
+        return RET_NOK;
+    }
+}
+
+void Logger_log()
+{
+    esp_err_t ret;
+    ulNotificationValue = ulTaskNotifyTake( 
+                                            // xArrayIndex,
+                                            pdTRUE,
+                                            xMaxBlockTime );
+    if( ulNotificationValue == 1 )
+    {
+        /* The transmission ended as expected. */
+        ret=spi_device_transmit(handle, &_spi_transaction);
+        
+        // Check if we are writing CSVs or raw data. 
+        if (_logCsv)
+        {
+             for (int j = 0; j < (SPI_BUFFERSIZE); j = j + 2)
+            {
+                // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
+                // Or in fixed point Q6.26 notation 488281 = 1 LSB
+                t0 = ((int32_t)recvbuf[j] | ((int32_t)recvbuf[j + 1] << 8));
+                t1 = t0 * (20LL * 1000000LL);
+                t2 = t1 / ((1 << 12) - 1);
+                t3 = t2 - 10000000LL;
+                tbuffer_i32[writeptr] = (int32_t)t3;
+                // ESP_LOGI(TAG, "%d, %d, %lld, %d", recvbuf[j], recvbuf[j+1], t3, tbuffer_i32[writeptr]);
+                writeptr++;
+                writeptr = writeptr % SD_BUFFERSIZE;
+            }
+        } else { // raw bytes writing
+            memcpy(tbuffer+writeptr, recvbuf, SPI_BUFFERSIZE);
+            writeptr = (writeptr + SPI_BUFFERSIZE) % SD_BUFFERSIZE;
+        }
+
+        // if previous write was halfway the SD buffersize, then start writing
+        // Need to change this writes / second or so.
+        if (writeptr == (SD_BUFFERSIZE / 2))
+        {
+            if (_logCsv)
+            {
+                esp_sd_card_csv_write(tbuffer_i32, SD_BUFFERSIZE / 2);
+            }  else {
+
+            }   esp_sd_card_write(tbuffer, SD_BUFFERSIZE / 2);
+            ESP_LOGI(TAG, "Half");
+        }
+        
+        // If we reached the end of the SD buffer then write again.
+        if (writeptr == 0)        
+        {
+            if (_logCsv)
+            {
+                esp_sd_card_csv_write(tbuffer_i32+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
+            } else {
+                esp_sd_card_write(tbuffer+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
+            }
+            
+            ESP_LOGI(TAG, "Full");
+        }
+
+
+    }
+    else
+    {
+        /* The call to ulTaskNotifyTake() timed out. */
+        // Is the STM32 hanging? 
+
+    }
+
+    
+}
 
 void task_logging(void * pvParameters)
 {
-    esp_err_t ret;
-    spi_device_handle_t handle;
+    
+    
 
-    uint32_t ulNotificationValue;
-    uint32_t writeptr = 0;
-    int64_t t0, t1,t2,t3;
+    esp_err_t ret;
     //Configuration for the SPI bus
     spi_bus_config_t buscfg={
         .mosi_io_num=GPIO_MOSI,
@@ -59,13 +220,31 @@ void task_logging(void * pvParameters)
         .pin_bit_mask=(1<<GPIO_ADC_EN)
     };
 
-    const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 200 );
+    //GPIO config for the handshake line.
+    gpio_config_t io_conf={
+        .intr_type=GPIO_INTR_POSEDGE,
+        .mode=GPIO_MODE_INPUT,
+        .pull_up_en=1,
+        .pin_bit_mask=(1<<GPIO_DATA_RDY_PIN)
+    };
+
+    // Init STM32 ADC enable pin
+    gpio_set_level(GPIO_ADC_EN, 0);
+    // Initialize SD card
+    esp_sd_card_init();
+
+     //Set up handshake line (DATA_RDY) interrupt.
+    gpio_config(&io_conf);
+    gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE);
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL);
+
 
     gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
 
-    spi_transaction_t t;
-    memset(&t, 0, sizeof(t));
+
+    memset(&_spi_transaction, 0, sizeof(_spi_transaction));
 
     // //Create the semaphore.
     // // rdySem=xSemaphoreCreateBinary();
@@ -79,204 +258,49 @@ void task_logging(void * pvParameters)
     ret = spi_device_acquire_bus(handle, portMAX_DELAY);
     assert(ret==ESP_OK);
 
-    t.length=sizeof(sendbuf)*8; // size in bits
-    t.rxlength = sizeof(recvbuf)*8; // size in bits
-    t.tx_buffer=sendbuf;
-    t.rx_buffer=recvbuf;
-    t.tx_buffer=NULL;
-    t.rx_buffer=recvbuf;
+    _spi_transaction.length=sizeof(sendbuf)*8; // size in bits
+    _spi_transaction.rxlength = sizeof(recvbuf)*8; // size in bits
+    _spi_transaction.tx_buffer=sendbuf;
+    _spi_transaction.rx_buffer=recvbuf;
+    _spi_transaction.tx_buffer=NULL;
+    _spi_transaction.rx_buffer=recvbuf;
     writeptr = 0;
-    
+    ESP_LOGI(TAG, "Logger task started");
     while(1) {
        
-        ulNotificationValue = ulTaskNotifyTake( 
-                                                // xArrayIndex,
-                                                   pdTRUE,
-                                                   xMaxBlockTime );
-        if( ulNotificationValue == 1 )
-        {
-            /* The transmission ended as expected. */
-            ret=spi_device_transmit(handle, &t);
-            
-           
 
-            for (int j = 0; j < (BUFFERSIZE); j = j + 2)
-            {
-                // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
-                // Or in fixed point Q6.26 notation 488281 = 1 LSB
-                //tbuffer_i32[j] =  (int32_t)((int32_t)recvbuf[j-writeptr] | ((int32_t)recvbuf[(j-writeptr)+1] << 8)) * 4882;
-                //  tbuffer_i32[j] = ((int32_t)recvbuf[x-writeptr] | ((int32_t)recvbuf[(x-writeptr)+1] << 8)) * (10LL * 1000000LL) / (1 << 12) - 10000000;
-                t0 = ((int32_t)recvbuf[j] | ((int32_t)recvbuf[j + 1] << 8));
-                t1 = t0 * (20LL * 1000000LL);
-                t2 = t1 / ((1 << 12) - 1);
-                t3 = t2 - 10000000LL;
-                tbuffer_i32[writeptr] = (int32_t)t3;
-                // ESP_LOGI(TAG, "%d, %d, %lld, %d", recvbuf[j], recvbuf[j+1], t3, tbuffer_i32[writeptr]);
-                writeptr++;
+        switch (_currentLoggerState)
+        {
+            case LOGGER_IDLE:
+                vTaskDelay(500 / portTICK_PERIOD_MS);
                 
-            }
+            break;
 
-            writeptr = writeptr % SDBUFFERSIZE;
-            
+            case LOGGER_LOGGING:
+                
+                Logger_log();
+                if (_nextLoggerState !=LOGGER_LOGGING)
+                {
+                    // to be replaced by file close
+                    esp_sd_card_close_unmount();
+                }
+            break;
 
-            // if previous write was 
-            if (writeptr == (SDBUFFERSIZE / 2))
-            {
-                esp_sd_card_csv_write(tbuffer_i32, SDBUFFERSIZE / 2);
-                ESP_LOGI(TAG, "Half");
-            }
-            
-            if (writeptr == 0)        
-            {
-                esp_sd_card_csv_write(tbuffer_i32+SDBUFFERSIZE/2, SDBUFFERSIZE / 2);
-                ESP_LOGI(TAG, "Full");
-            }
+            default:
 
-
+            break;
+            // should not come here
         }
-        else
+
+        if (_nextLoggerState != _currentLoggerState)
         {
-            /* The call to ulTaskNotifyTake() timed out. */
-
+            ESP_LOGI(TAG, "Changing LOGGER state from %d to %d", _currentLoggerState, _nextLoggerState);
+            _currentLoggerState = _nextLoggerState;
         }
-        
+
+
     }
      
     
 }
 
-// void task_direct_logging(void * pvParameters)
-// {
-//     esp_err_t ret;
-//     spi_device_handle_t handle;
-
-//     uint32_t ulNotificationValue;
-//     uint32_t writeptr = NULL;
-//     //Configuration for the SPI bus
-//     spi_bus_config_t buscfg={
-//         .mosi_io_num=GPIO_MOSI,
-//         .miso_io_num=GPIO_MISO,
-//         .sclk_io_num=GPIO_SCLK,
-//         .quadwp_io_num=-1,
-//         .quadhd_io_num=-1,
-//         .max_transfer_sz = 16,
-//         .flags = SPICOMMON_BUSFLAG_MASTER
-//     };
-
-//     //Configuration for the SPI device on the other side of the bus
-//     spi_device_interface_config_t devcfg={
-//         .command_bits=0,
-//         .address_bits=0,
-//         .dummy_bits=0,
-//         // .clock_speed_hz=400000,
-//         .clock_speed_hz=8000000,
-//         .duty_cycle_pos=128,        //50% duty cycle
-//         .mode=0,
-//         .spics_io_num=GPIO_CS,
-//         .cs_ena_posttrans=3,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
-//         .queue_size=4
-//     };
-
-  
-
-//     gpio_config_t adc_en_conf={
-//         .mode=GPIO_MODE_OUTPUT,
-//         .pin_bit_mask=(1<<GPIO_ADC_EN)
-//     };
-
-//     const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 200 );
-
-//     gpio_config(&adc_en_conf);
-//     gpio_set_level(GPIO_ADC_EN, 0);
-
-//     spi_transaction_t t;
-//     memset(&t, 0, sizeof(t));
-
-//     // //Create the semaphore.
-//     // // rdySem=xSemaphoreCreateBinary();
-
-//     // //Initialize the SPI bus and add the device we want to send stuff to.
-//     ret=spi_bus_initialize(SENDER_HOST, &buscfg, SPI_DMA_CH_AUTO);
-//     assert(ret==ESP_OK);
-//     ret=spi_bus_add_device(SENDER_HOST, &devcfg, &handle);
-//     assert(ret==ESP_OK);
-//     // // take the bus and never let go :-)
-//     ret = spi_device_acquire_bus(handle, portMAX_DELAY);
-//     assert(ret==ESP_OK);
-//     // //Assume the slave is ready for the first transmission: if the slave started up before us, we will not detect
-//     // //positive edge on the handshake line.
-//     // xSemaphoreGive(rdySem);
-    
-
-    
-
-//     t.length=sizeof(sendbuf)*8; // size in bits
-//     t.rxlength = sizeof(recvbuf)*8; // size in bits
-//     t.tx_buffer=sendbuf;
-//     t.rx_buffer=recvbuf;
-//     t.tx_buffer=NULL;
-//     t.rx_buffer=recvbuf;
-//     writeptr = 0;
-    
-//     while(1) {
-//         // int res = snprintf(sendbuf, sizeof(sendbuf),
-//         //         "Sender, transmission no. %04i.", n);
-        
-        
-//         //Wait for slave to be ready for next byte before sending
-//         // xSemaphoreTake(rdySem, portMAX_DELAY); //Wait until slave is ready
-//         //
-
-
-//         ulNotificationValue = ulTaskNotifyTake( 
-//                                                 // xArrayIndex,
-//                                                    pdTRUE,
-//                                                    xMaxBlockTime );
-//         if( ulNotificationValue == 1 )
-//         {
-//             /* The transmission ended as expected. */
-//             ret=spi_device_transmit(handle, &t);
-//             // ESP_LOGI("MAIN","%s, received length: %d", recvbuf, t.rxlength);
-//             // printf("Received: %s\n", recvbuf);
-//             memcpy(tbuffer+writeptr, recvbuf, BUFFERSIZE);
-//             writeptr = (writeptr + BUFFERSIZE) % SDBUFFERSIZE;
-            
-//             // if previous write was 
-//             if (writeptr == (SDBUFFERSIZE / 2))
-//             {
-//                 // ESP_LOGI(TAG, "Half");
-//                 // trigger buffer half way
-//                 // xTaskNotifyGive(task_sdcard_write_halfway);
-//                 esp_sd_card_write(tbuffer, SDBUFFERSIZE / 2);
-//             }
-            
-
-//             if (writeptr == NULL)        
-//             {
-//                 esp_sd_card_write(tbuffer+SDBUFFERSIZE/2, SDBUFFERSIZE / 2);
-//                 // ESP_LOGI(TAG, "Full");
-//                 //xTaskNotifyGive(task_sdcard_write_full);
-//                 // trigger buffer full
-//             }
-
-
-//         }
-//         else
-//         {
-//             /* The call to ulTaskNotifyTake() timed out. */
-
-//         }
-        
-//     }
-     
-
-//     // //Never reached.
-//     // ret=spi_bus_remove_device(handle);
-//     // // assert(ret==ESP_OK);
-//     // while(1)
-//     // {
-//     //     //vTaskDelay(100 / portTICK_PERIOD_MS);
-//     //     vTaskSuspend(NULL);
-//     // }
-    
-// }

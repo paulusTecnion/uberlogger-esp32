@@ -13,6 +13,7 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "esp_sd_card.h"
+#include "logger.h"
 #include "hw_config.h"
 
 
@@ -39,20 +40,24 @@ static int adc_enable_pin(int argc, char **argv)
     return 0;
 }
 
-static void register_restart(void)
+static int logger_csvlog_en(int argc, char **argv)
 {
- int num_args = 0;
-    
-    adc_en_args.end = arg_end(num_args);
+    int nerrors = arg_parse(argc, argv, (void **) &adc_en_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, adc_en_args.end, argv[0]);
+        return 1;
+    }
+    if (adc_en_args.adc_en_level) {
+        
+        ESP_LOGI(TAG, "LOGGER CSV %d", adc_en_args.adc_en_level->ival[0]);
+        Logger_setCsvLog(adc_en_args.adc_en_level->ival[0]);
+        // ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
+    }
 
-    const esp_console_cmd_t cmd = {
-        .command = "restart",
-        .help = "Restart ESP32",
-        .hint = NULL,
-        .func = &esp_restart
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+    return 0;
 }
+
+
 
 static void register_adc_en_pin(void)
 {
@@ -72,6 +77,45 @@ static void register_adc_en_pin(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+static void register_log_setcsv(void)
+{
+ int num_args = 1;
+    adc_en_args.adc_en_level =
+        
+    arg_int0(NULL, NULL, "<0|1>", "Set CSV mode enabled (=1) or disabled (=0)");
+    adc_en_args.end = arg_end(num_args);
+
+    const esp_console_cmd_t cmd = {
+        .command = "logger_setcsv",
+        .help = "Set CSV log mode",
+        .hint = NULL,
+        .func = &logger_csvlog_en,
+        .argtable = &adc_en_args
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_log_start(void)
+{
+     const esp_console_cmd_t cmd = {
+        .command = "logger_start",
+        .help = "Start logger",
+        .hint = NULL,
+        .func = &Logger_start,
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_log_stop(void)
+{
+     const esp_console_cmd_t cmd = {
+        .command = "logger_stop",
+        .help = "Stop logger",
+        .hint = NULL,
+        .func = &Logger_stop,
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
 
 static void register_sd_card_init(void)
 {
@@ -98,6 +142,21 @@ static void register_sd_card_close(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+static void register_restart(void)
+{
+ int num_args = 0;
+    
+    adc_en_args.end = arg_end(num_args);
+
+    const esp_console_cmd_t cmd = {
+        .command = "restart",
+        .help = "Restart ESP32",
+        .hint = NULL,
+        .func = &esp_restart
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
 void init_console(){
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
@@ -120,6 +179,9 @@ void init_console(){
     register_adc_en_pin();
     register_sd_card_close();
     register_restart();
+    register_log_setcsv();
+    register_log_start();
+    register_log_stop();
     register_sd_card_init();
     esp_console_register_help_command();
 
