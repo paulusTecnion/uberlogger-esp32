@@ -6,5 +6,6 @@
     "sdkconfig.h": "c",
     "esp_sd_card.h": "c",
     "freertos.h": "c"
-  }
+  },
+  "idf.adapterTargetName": "esp32s2"
 }

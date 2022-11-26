@@ -246,13 +246,7 @@ int esp_sd_card_csv_write(const void * data, size_t len)
         //snprintf(strbuffer, sizeof(strbuffer), "%0d.%010llu,", (int32_data[i] >> 27), (((int32_data[i] & 0x7FFFFFF) * 100000000L)/(1 << 27) ));
         snprintf(strbuffer, 11, "%d.%06d,", int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))));
         
-        //ESP_LOGI(TAG, "%d, %s", int32_data[i], strbuffer);
-        // if (write_result != 1)
-        // {
-        //     ESP_LOGE(TAG,"Error writing to backing store %d %d\n", (int)len, write_result);
-        //     perror ("The following error occurred");
-        //     return 0;
-        // }
+   
         if ((i % 8) == 0 && (i!=0))
         {
             fprintf(f,"\n");
@@ -264,3 +258,4 @@ int esp_sd_card_csv_write(const void * data, size_t len)
   
    return len;
 }
+
