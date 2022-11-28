@@ -5,7 +5,9 @@
     "esp_vfs_fat.h": "c",
     "sdkconfig.h": "c",
     "esp_sd_card.h": "c",
-    "freertos.h": "c"
+    "freertos.h": "c",
+    "stddef.h": "c",
+    "settings.h": "c"
   },
   "idf.adapterTargetName": "esp32s2"
 }

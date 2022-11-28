@@ -4,6 +4,7 @@ idf_component_register(SRCS
                             "logger.c"
                             "main.c"
                             "rest_server.c"
+                            "settings.c"
                             
                     INCLUDE_DIRS "")
 
