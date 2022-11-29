@@ -102,7 +102,7 @@ uint8_t Logger_exitSettingsMode()
 
 void Logger_spi_cmd(stm32cmd_t cmd)
 {
-    memcpy(sendbuf, (uint8_t)cmd, 1);
+    memset(sendbuf, (uint8_t)cmd, 1);
     spi_device_transmit(handle, &_spi_transaction);
     // wait for 5 ms for stm32 to process data
     ets_delay_us(5000000);
@@ -113,17 +113,15 @@ void Logger_spi_cmd(stm32cmd_t cmd)
 uint8_t Logger_syncSettings()
 {
     // Send command to STM32 to go into settings mode
-    
-
-
-    _spi_transaction.length=8; //sizeof(sendbuf)*8; // size in bits
-    _spi_transaction.rxlength = 8; //sizeof(recvbuf)*8; // size in bits
+    _spi_transaction.length=sizeof(sendbuf)*8; //sizeof(sendbuf)*8; // size in bits
+    _spi_transaction.rxlength = sizeof(recvbuf)*8; //sizeof(recvbuf)*8; // size in bits
     _spi_transaction.tx_buffer=sendbuf;
     _spi_transaction.rx_buffer=recvbuf;
     _spi_transaction.tx_buffer=NULL;
     _spi_transaction.rx_buffer=recvbuf;
-
+    ESP_LOGI(TAG, "Setting SETTINGS mode");
     Logger_spi_cmd(STM32_CMD_SETTINGS_MODE);
+    
     if (recvbuf[0] != STM32_RESP_OK)
     {
         ESP_LOGI(TAG, "Unable to put STM32 into SETTINGS mode");
@@ -151,7 +149,7 @@ uint8_t Logger_syncSettings()
         ESP_LOGI(TAG, "Unable to set STM32 in measure mode");
         return RET_NOK;
     }
-
+    ESP_LOGI(TAG, "Sync done");
     // Exit settings mode 
     return RET_OK;
 }

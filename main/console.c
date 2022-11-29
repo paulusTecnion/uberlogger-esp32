@@ -157,6 +157,21 @@ static void register_restart(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+static void register_stm32_sync(void)
+{
+    int num_args = 0;
+    
+    adc_en_args.end = arg_end(num_args);
+
+    const esp_console_cmd_t cmd = {
+        .command = "stm32_sync",
+        .help = "STM32 sync settings",
+        .hint = NULL,
+        .func = &Logger_syncSettings
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
 void init_console(){
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
@@ -177,12 +192,13 @@ void init_console(){
 
 
     register_adc_en_pin();
-    register_sd_card_close();
-    register_restart();
     register_log_setcsv();
     register_log_start();
     register_log_stop();
+    register_restart();
     register_sd_card_init();
+    register_sd_card_close();
+    register_stm32_sync();
     esp_console_register_help_command();
 
     // esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();

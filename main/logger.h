@@ -25,7 +25,7 @@ typedef enum stm32cmd {
 } stm32cmd_t;
 
 typedef enum stm32resp {
-    STM32_RESP_OK = 0,
+    STM32_RESP_OK = 1,
     STM32_RESP_NOK
  } stm32resp_t;
 
