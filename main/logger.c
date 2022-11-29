@@ -100,17 +100,12 @@ uint8_t Logger_exitSettingsMode()
     }
 }
 
-uint8_t Logger_sendSTM32cmd(stm32cmd_t cmd)
-{
-
-}
-
 void Logger_spi_cmd(stm32cmd_t cmd)
 {
-    memcpy(sendbuf, cmd, 1);
+    memcpy(sendbuf, (uint8_t)cmd, 1);
     spi_device_transmit(handle, &_spi_transaction);
     ets_delay_us(5000000);
-    memcpy(sendbuf, STM32_CMD_NOP, 1);
+    memset(sendbuf, 0, 1);
     spi_device_transmit(handle, &_spi_transaction);
 }
 
