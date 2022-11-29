@@ -23,6 +23,7 @@
 #include "esp_timer.h"
 #include "u8g2_esp32_hal.h"
 #include "hw_config.h"
+#include "settings.h"
 
 #include "esp_vfs_semihost.h"
 #include "esp_vfs_fat.h"
@@ -109,6 +110,7 @@ static void initialise_mdns(void)
 void wifi_init_softap(void)
 {
      //Initialize NVS
+ 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
       ESP_ERROR_CHECK(nvs_flash_erase());
@@ -202,7 +204,8 @@ void app_main(void)
 
     
     // wifi_init_softap();
-    
+    settings_init();
+
     // Register console commands
     init_console(); 
     

@@ -1,6 +1,6 @@
 #include "logger.h"
 #include <stdio.h>
-
+#include "common.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -12,6 +12,7 @@
 #include "hw_config.h"
 #include "esp_sd_card.h"
 #include "driver/spi_master.h"
+#include "settings.h"
 
 #define SPI_BUFFERSIZE 16
 #define SD_BUFFERSIZE 8192
@@ -19,12 +20,13 @@
 
 DMA_ATTR uint8_t sendbuf[SPI_BUFFERSIZE];
 DMA_ATTR uint8_t recvbuf[SPI_BUFFERSIZE];
+// tbuffer and tbuffer_i32 may be merged in the future
 uint8_t tbuffer[SD_BUFFERSIZE];
 int32_t tbuffer_i32[SD_BUFFERSIZE];
 char strbuffer[16];
 LoggerState _currentLoggerState = LOGGER_IDLE;
 LoggerState _nextLoggerState = LOGGER_IDLE;
-uint8_t _logCsv = 1;
+// uint8_t _logCsv = 1;
 uint32_t ulNotificationValue;
 uint32_t writeptr = 0;
 int64_t t0, t1,t2,t3;
@@ -69,12 +71,51 @@ LoggerState LoggerGetState()
     return _currentLoggerState;
 }
 
-uint8_t Logger_setCsvLog(uint8_t value)
+uint8_t Logger_enterSettingsMode()
 {
-    if (value == 0 || value == 1)
+    // Typical usage, go to settings mode, set settings, sync settings, exit settings mode
+    if (_currentLoggerState == LOGGER_IDLE)
     {
-        _logCsv = value;
+        _nextLoggerState = LOGGER_SETTINGS;
         return RET_OK;
+    } else {
+        return RET_NOK;
+    }
+}
+
+uint8_t Logger_exitSettingsMode()
+{
+     // Typical usage, go to settings mode, set settings, sync settings, exit settings mode
+    if (_currentLoggerState == LOGGER_SETTINGS)
+    {
+        if (Logger_syncSettings() == RET_OK)
+        {
+            _nextLoggerState = LOGGER_IDLE;
+            return RET_OK;
+        } else {
+            return RET_NOK;
+        }
+    } else {
+        return RET_NOK;
+    }
+}
+
+uint8_t Logger_syncSettings()
+{
+    // Send command to STM32 to go into settings mode
+
+    // Send settings one by one and confirm
+    
+
+    // Exit settings mode 
+    return RET_OK;
+}
+
+uint8_t Logger_setCsvLog(log_mode_t value)
+{
+    if (value == LOGMODE_CSV || value == LOGMODE_RAW)
+    {
+        return settings_set_logmode(value);
     } else{
         return RET_NOK;
     }
@@ -83,7 +124,7 @@ uint8_t Logger_setCsvLog(uint8_t value)
 
 uint8_t Logger_getCsvLog()
 {
-    return _logCsv;
+    return settings_get_logmode();
 }
 
 uint8_t Logger_start()
@@ -116,7 +157,7 @@ uint8_t Logger_stop()
 
 void Logger_log()
 {
-    esp_err_t ret;
+   
     ulNotificationValue = ulTaskNotifyTake( 
                                             // xArrayIndex,
                                             pdTRUE,
@@ -124,15 +165,22 @@ void Logger_log()
     if( ulNotificationValue == 1 )
     {
         /* The transmission ended as expected. */
-        ret=spi_device_transmit(handle, &_spi_transaction);
+        spi_device_transmit(handle, &_spi_transaction);
         
         // Check if we are writing CSVs or raw data. 
-        if (_logCsv)
+        if (settings_get_logmode() == LOGMODE_CSV)
         {
              for (int j = 0; j < (SPI_BUFFERSIZE); j = j + 2)
             {
                 // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
                 // Or in fixed point Q6.26 notation 488281 = 1 LSB
+                
+                // What we want to achieve here is 20V/4095 - 10V, but then in fixed point notation. 
+                // To achieve that we will multiply the numbers by 1000000.
+                // Instead of dividing the number by 4095 or use 0.0488281, we divide by the byte shift of 1<<12 which is more accurate with int32_t. 
+                
+                // Next steps can be merged, but are now seperated for checking values
+                // First shift the bytes to get the ADC value
                 t0 = ((int32_t)recvbuf[j] | ((int32_t)recvbuf[j + 1] << 8));
                 t1 = t0 * (20LL * 1000000LL);
                 t2 = t1 / ((1 << 12) - 1);
@@ -151,7 +199,7 @@ void Logger_log()
         // Need to change this writes / second or so.
         if (writeptr == (SD_BUFFERSIZE / 2))
         {
-            if (_logCsv)
+            if (settings_get_logmode() == LOGMODE_CSV)
             {
                 esp_sd_card_csv_write(tbuffer_i32, SD_BUFFERSIZE / 2);
             }  else {
@@ -163,7 +211,7 @@ void Logger_log()
         // If we reached the end of the SD buffer then write again.
         if (writeptr == 0)        
         {
-            if (_logCsv)
+            if (settings_get_logmode() == LOGMODE_CSV)
             {
                 esp_sd_card_csv_write(tbuffer_i32+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
             } else {
@@ -285,6 +333,12 @@ void task_logging(void * pvParameters)
                     esp_sd_card_close_unmount();
                 }
             break;
+
+            case LOGGER_SETTINGS:
+
+            
+            break;
+
 
             default:
 

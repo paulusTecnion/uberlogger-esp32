@@ -7,7 +7,14 @@
     "esp_sd_card.h": "c",
     "freertos.h": "c",
     "stddef.h": "c",
-    "settings.h": "c"
+    "settings.h": "c",
+    "chrono": "c",
+    "functional": "c",
+    "optional": "c",
+    "system_error": "c",
+    "type_traits": "c",
+    "xlocmon": "c",
+    "xtr1common": "c"
   },
   "idf.adapterTargetName": "esp32s2"
 }
