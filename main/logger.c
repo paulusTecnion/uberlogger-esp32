@@ -104,6 +104,7 @@ void Logger_spi_cmd(stm32cmd_t cmd)
 {
     memcpy(sendbuf, (uint8_t)cmd, 1);
     spi_device_transmit(handle, &_spi_transaction);
+    // wait for 5 ms for stm32 to process data
     ets_delay_us(5000000);
     memset(sendbuf, 0, 1);
     spi_device_transmit(handle, &_spi_transaction);
