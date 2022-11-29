@@ -105,6 +105,15 @@ uint8_t Logger_sendSTM32cmd(stm32cmd_t cmd)
 
 }
 
+void Logger_spi_cmd(stm32cmd_t cmd)
+{
+    memcpy(sendbuf, cmd, 1);
+    spi_device_transmit(handle, &_spi_transaction);
+    ets_delay_us(5000000);
+    memcpy(sendbuf, STM32_CMD_NOP, 1);
+    spi_device_transmit(handle, &_spi_transaction);
+}
+
 uint8_t Logger_syncSettings()
 {
     // Send command to STM32 to go into settings mode
@@ -118,49 +127,32 @@ uint8_t Logger_syncSettings()
     _spi_transaction.tx_buffer=NULL;
     _spi_transaction.rx_buffer=recvbuf;
 
-    memcpy(sendbuf, STM32_CMD_SETTINGS_MODE, 1);
-    spi_device_transmit(handle, &_spi_transaction);
-    ets_delay_us(5000000);
-    memcpy(sendbuf, STM32_CMD_NOP, 1);
-    spi_device_transmit(handle, &_spi_transaction);
+    Logger_spi_cmd(STM32_CMD_SETTINGS_MODE);
     if (recvbuf[0] != STM32_RESP_OK)
     {
         ESP_LOGI(TAG, "Unable to put STM32 into SETTINGS mode");
         return RET_NOK;
     }
 
-    memcpy(sendbuf, STM32_CMD_SET_RESOLUTION, 1);
-    spi_device_transmit(handle, &_spi_transaction);
-    ets_delay_us(5000000);
-    memcpy(sendbuf, STM32_CMD_NOP, 1);
-    spi_device_transmit(handle, &_spi_transaction);
+    Logger_spi_cmd(STM32_CMD_SET_RESOLUTION);
     if (recvbuf[0] != STM32_RESP_OK)
     {
         ESP_LOGI(TAG, "Unable to set STM32 ADC resolution");
         return RET_NOK;
     }
 
-    memcpy(sendbuf, STM32_CMD_SET_SAMPLE_RATE, 4);
-    spi_device_transmit(handle, &_spi_transaction);
-    ets_delay_us(5000000);
-    memcpy(sendbuf, STM32_CMD_NOP, 1);
-    spi_device_transmit(handle, &_spi_transaction);
+    Logger_spi_cmd(STM32_CMD_SET_SAMPLE_RATE);
     if (recvbuf[0] != STM32_RESP_OK)
     {
         ESP_LOGI(TAG, "Unable to set STM32 sample rate");
         return RET_NOK;
     }
 
-
     // Send settings one by one and confirm
-    memcpy(sendbuf, STM32_CMD_MEASURE_MODE, 1);
-    spi_device_transmit(handle, &_spi_transaction);
-    ets_delay_us(5000000);
-    memcpy(sendbuf, STM32_CMD_NOP, 1);
-    spi_device_transmit(handle, &_spi_transaction);
+    Logger_spi_cmd(STM32_CMD_MEASURE_MODE);
     if (recvbuf[0] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG, "Unable to set STM32 sample rate");
+        ESP_LOGI(TAG, "Unable to set STM32 in measure mode");
         return RET_NOK;
     }
 
