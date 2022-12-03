@@ -17,6 +17,7 @@
 #define SPI_BUFFERSIZE 16
 #define SD_BUFFERSIZE 8192
 
+static const char* TAG_LOG = "LOGGER";
 
 DMA_ATTR uint8_t sendbuf[SPI_BUFFERSIZE];
 DMA_ATTR uint8_t recvbuf[SPI_BUFFERSIZE];
@@ -102,54 +103,61 @@ uint8_t Logger_exitSettingsMode()
 
 void Logger_spi_cmd(stm32cmd_t cmd)
 {
-    memset(sendbuf, (uint8_t)cmd, 1);
+    
+    sendbuf[0] = (uint8_t)cmd;
     spi_device_transmit(handle, &_spi_transaction);
     // wait for 5 ms for stm32 to process data
-    ets_delay_us(5000000);
-    memset(sendbuf, 0, 1);
+    ets_delay_us(5000);
+
+    sendbuf[0] = 0;
     spi_device_transmit(handle, &_spi_transaction);
 }
 
 uint8_t Logger_syncSettings()
 {
     // Send command to STM32 to go into settings mode
-    _spi_transaction.length=sizeof(sendbuf)*8; //sizeof(sendbuf)*8; // size in bits
-    _spi_transaction.rxlength = sizeof(recvbuf)*8; //sizeof(recvbuf)*8; // size in bits
+    _spi_transaction.length=1*8; //sizeof(sendbuf)*8; // size in bits
+    _spi_transaction.rxlength = 1*8; //sizeof(recvbuf)*8; // size in bits
     _spi_transaction.tx_buffer=sendbuf;
     _spi_transaction.rx_buffer=recvbuf;
-    _spi_transaction.tx_buffer=NULL;
-    _spi_transaction.rx_buffer=recvbuf;
-    ESP_LOGI(TAG, "Setting SETTINGS mode");
+    ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
     Logger_spi_cmd(STM32_CMD_SETTINGS_MODE);
     
     if (recvbuf[0] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG, "Unable to put STM32 into SETTINGS mode");
+        ESP_LOGI(TAG_LOG, "Unable to put STM32 into SETTINGS mode");
         return RET_NOK;
-    }
+    } 
+    ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
+    
 
     Logger_spi_cmd(STM32_CMD_SET_RESOLUTION);
     if (recvbuf[0] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG, "Unable to set STM32 ADC resolution");
+        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution");
         return RET_NOK;
-    }
+    } 
+    
+    ESP_LOGI(TAG_LOG, "ADC resolution set");
+    
 
     Logger_spi_cmd(STM32_CMD_SET_SAMPLE_RATE);
     if (recvbuf[0] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG, "Unable to set STM32 sample rate");
+        ESP_LOGI(TAG_LOG, "Unable to set STM32 sample rate");
         return RET_NOK;
     }
+
+    ESP_LOGI(TAG_LOG, "Sample rate set");
 
     // Send settings one by one and confirm
     Logger_spi_cmd(STM32_CMD_MEASURE_MODE);
     if (recvbuf[0] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG, "Unable to set STM32 in measure mode");
+        ESP_LOGI(TAG_LOG, "Unable to set STM32 in measure mode");
         return RET_NOK;
     }
-    ESP_LOGI(TAG, "Sync done");
+    ESP_LOGI(TAG_LOG, "Sync done");
     // Exit settings mode 
     return RET_OK;
 }
@@ -231,7 +239,7 @@ void Logger_log()
                 t2 = t1 / ((1 << 12) - 1);
                 t3 = t2 - 10000000LL;
                 tbuffer_i32[writeptr] = (int32_t)t3;
-                // ESP_LOGI(TAG, "%d, %d, %lld, %d", recvbuf[j], recvbuf[j+1], t3, tbuffer_i32[writeptr]);
+                // ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", recvbuf[j], recvbuf[j+1], t3, tbuffer_i32[writeptr]);
                 writeptr++;
                 writeptr = writeptr % SD_BUFFERSIZE;
             }
@@ -250,7 +258,7 @@ void Logger_log()
             }  else {
 
             }   esp_sd_card_write(tbuffer, SD_BUFFERSIZE / 2);
-            ESP_LOGI(TAG, "Half");
+            ESP_LOGI(TAG_LOG, "Half");
         }
         
         // If we reached the end of the SD buffer then write again.
@@ -263,7 +271,7 @@ void Logger_log()
                 esp_sd_card_write(tbuffer+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
             }
             
-            ESP_LOGI(TAG, "Full");
+            ESP_LOGI(TAG_LOG, "Full");
         }
 
 
@@ -358,7 +366,7 @@ void task_logging(void * pvParameters)
     _spi_transaction.tx_buffer=NULL;
     _spi_transaction.rx_buffer=recvbuf;
     writeptr = 0;
-    ESP_LOGI(TAG, "Logger task started");
+    ESP_LOGI(TAG_LOG, "Logger task started");
     while(1) {
        
 
@@ -393,7 +401,7 @@ void task_logging(void * pvParameters)
 
         if (_nextLoggerState != _currentLoggerState)
         {
-            ESP_LOGI(TAG, "Changing LOGGER state from %d to %d", _currentLoggerState, _nextLoggerState);
+            ESP_LOGI(TAG_LOG, "Changing LOGGER state from %d to %d", _currentLoggerState, _nextLoggerState);
             _currentLoggerState = _nextLoggerState;
         }
 
