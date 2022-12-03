@@ -17,6 +17,7 @@
 #include "hw_config.h"
 
 
+static const char* TAG_CONSOLE = "CONSOLE";
 
 static struct {
     struct arg_int *adc_en_level;
@@ -32,7 +33,7 @@ static int adc_enable_pin(int argc, char **argv)
     }
     if (adc_en_args.adc_en_level) {
         
-        ESP_LOGI(TAG, "ADC OUTPUT %d", adc_en_args.adc_en_level->ival[0]);
+        ESP_LOGI(TAG_CONSOLE, "ADC OUTPUT %d", adc_en_args.adc_en_level->ival[0]);
         gpio_set_level(GPIO_ADC_EN, adc_en_args.adc_en_level->ival[0]);
         // ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
     }
@@ -49,7 +50,7 @@ static int logger_csvlog_en(int argc, char **argv)
     }
     if (adc_en_args.adc_en_level) {
         
-        ESP_LOGI(TAG, "LOGGER CSV %d", adc_en_args.adc_en_level->ival[0]);
+        ESP_LOGI(TAG_CONSOLE, "LOGGER CSV %d", adc_en_args.adc_en_level->ival[0]);
         Logger_setCsvLog(adc_en_args.adc_en_level->ival[0]);
         // ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
     }
@@ -185,9 +186,9 @@ void init_console(){
     #if CONFIG_CONSOLE_STORE_HISTORY
     initialize_filesystem();
     repl_config.history_save_path = HISTORY_PATH;
-    ESP_LOGI(TAG, "Command history enabled");
+    ESP_LOGI(TAG_CONSOLE, "Command history enabled");
     #else
-    ESP_LOGI(TAG, "Command history disabled");
+    ESP_LOGI(TAG_CONSOLE, "Command history disabled");
     #endif
 
 

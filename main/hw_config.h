@@ -12,7 +12,7 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define GPIO_OLED_SDA 41
 #define GPIO_OLED_SCL 42
 
-static const char* TAG = "MAIN";
+
 #define PROMPT_STR "uberlogger"
 
 #elif CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C2 || CONFIG_IDF_TARGET_ESP32H2

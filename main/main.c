@@ -68,6 +68,7 @@
 TaskHandle_t xHandle_stm32 = NULL;
 TaskHandle_t xHandle_oled = NULL;
 
+static const char* TAG = "MAIN";
 #define MDNS_INSTANCE "esp home web server"
 
 // Prototypes for functions in other files
