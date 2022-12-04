@@ -21,7 +21,7 @@ static const char* TAG_LOG = "LOGGER";
 
 DMA_ATTR uint8_t sendbuf[SPI_BUFFERSIZE];
 DMA_ATTR uint8_t recvbuf[SPI_BUFFERSIZE];
-// tbuffer and tbuffer_i32 may be merged in the future
+// tbuffer and tbuffer_i32 should be merged in the future
 uint8_t tbuffer[SD_BUFFERSIZE];
 int32_t tbuffer_i32[SD_BUFFERSIZE];
 char strbuffer[16];
@@ -33,20 +33,22 @@ uint32_t writeptr = 0;
 int64_t t0, t1,t2,t3;
 spi_device_handle_t handle;
 spi_transaction_t _spi_transaction;
-const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 200 );
+const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 1000 );
 extern TaskHandle_t xHandle_stm32;
+
+volatile uint8_t test ;
 
 /*
 This ISR is called when the handshake line goes high.
 */
-static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
-{
-     BaseType_t xYieldRequired = pdFALSE;
+// static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
+// {
+    //  BaseType_t xYieldRequired = pdFALSE;
 
      
     //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
     //looking at the time between interrupts and refusing any interrupt too close to another one.
-    // static uint32_t lasthandshaketime_us;
+    // static uint32_t lasthandshaketime_us = 0;
     // uint32_t currtime_us = esp_timer_get_time();
     // uint32_t diff = currtime_us - lasthandshaketime_us;
     // if (diff < 1000) {
@@ -60,12 +62,15 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
     // if (mustYield) {
     //     portYIELD_FROM_ISR();
     // }
-      vTaskNotifyGiveFromISR( xHandle_stm32,
-                                //    xArrayIndex,
-                                   &xYieldRequired );
     
-    portYIELD_FROM_ISR(xYieldRequired);
-}
+    // test = 1;
+    
+    // vTaskNotifyGiveFromISR( xHandle_stm32,
+    //                             //    xArrayIndex,
+    //                                &xYieldRequired );
+    
+    // portYIELD_FROM_ISR(xYieldRequired);
+// }
 
 LoggerState LoggerGetState()
 {
@@ -182,7 +187,7 @@ uint8_t Logger_start()
 {
     if (_currentLoggerState == LOGGER_IDLE)
     {
-        gpio_set_level(GPIO_ADC_EN, 1);
+        //gpio_set_level(GPIO_ADC_EN, 1);
         _nextLoggerState = LOGGER_LOGGING;
         return RET_OK;
     } 
@@ -210,15 +215,34 @@ uint8_t Logger_stop()
 
 void Logger_log()
 {
-   
-    ulNotificationValue = ulTaskNotifyTake( 
-                                            // xArrayIndex,
-                                            pdTRUE,
-                                            xMaxBlockTime );
-    if( ulNotificationValue == 1 )
+    // Enable ADC enable pin
+    
+    // ulNotificationValue = ulTaskNotifyTake( 
+    //                                         // xArrayIndex,
+    //                                         pdTRUE,
+    //                                         xMaxBlockTime );
+    
+    static uint32_t lasthandshaketime_us;
+    lasthandshaketime_us = esp_timer_get_time();
+    test = 1;
+    while(!gpio_get_level(GPIO_DATA_RDY_PIN))
+    {
+        
+        uint32_t currtime_us = esp_timer_get_time();
+        uint32_t diff = currtime_us - lasthandshaketime_us;
+        
+        if (diff > 1000000) {
+            test = 0;
+            break; //ignore everything <1ms after an earlier irq
+        }
+    }
+
+    if( test == 1 )
     {
         /* The transmission ended as expected. */
+        //ESP_LOGI(TAG_LOG, "SPI retrieval");
         spi_device_transmit(handle, &_spi_transaction);
+
         
         // Check if we are writing CSVs or raw data. 
         if (settings_get_logmode() == LOGMODE_CSV)
@@ -229,14 +253,14 @@ void Logger_log()
                 // Or in fixed point Q6.26 notation 488281 = 1 LSB
                 
                 // What we want to achieve here is 20V/4095 - 10V, but then in fixed point notation. 
-                // To achieve that we will multiply the numbers by 1000000.
-                // Instead of dividing the number by 4095 or use 0.0488281, we divide by the byte shift of 1<<12 which is more accurate with int32_t. 
+                // To achieve that, we will multiply the numbers by 1000000.
+                // Then, instead of dividing the number by 4095 or use 0.0488281, we divide by the byte shift of 1<<12 which is more accurate with int32_t. 
                 
                 // Next steps can be merged, but are now seperated for checking values
                 // First shift the bytes to get the ADC value
                 t0 = ((int32_t)recvbuf[j] | ((int32_t)recvbuf[j + 1] << 8));
                 t1 = t0 * (20LL * 1000000LL);
-                t2 = t1 / ((1 << 12) - 1);
+                t2 = t1 / ((1 << 12) - 1); // -1 for 4095 steps
                 t3 = t2 - 10000000LL;
                 tbuffer_i32[writeptr] = (int32_t)t3;
                 // ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", recvbuf[j], recvbuf[j+1], t3, tbuffer_i32[writeptr]);
@@ -280,8 +304,9 @@ void Logger_log()
     {
         /* The call to ulTaskNotifyTake() timed out. */
         // Is the STM32 hanging? 
-
+            ESP_LOGI(TAG_LOG, "INT timeout");
     }
+    
 
     
 }
@@ -290,7 +315,7 @@ void task_logging(void * pvParameters)
 {
     
     
-
+    test = 0;
     esp_err_t ret;
     //Configuration for the SPI bus
     spi_bus_config_t buscfg={
@@ -308,7 +333,7 @@ void task_logging(void * pvParameters)
         .command_bits=0,
         .address_bits=0,
         .dummy_bits=0,
-        .clock_speed_hz=400000,
+        .clock_speed_hz=32000000, //400000,
         .duty_cycle_pos=128,        //50% duty cycle
         .mode=0,
         .spics_io_num=GPIO_CS,
@@ -321,34 +346,31 @@ void task_logging(void * pvParameters)
         .pin_bit_mask=(1<<GPIO_ADC_EN)
     };
 
+    
+
     //GPIO config for the handshake line.
-    gpio_config_t io_conf={
-        .intr_type=GPIO_INTR_POSEDGE,
-        .mode=GPIO_MODE_INPUT,
-        .pull_up_en=1,
-        .pin_bit_mask=(1<<GPIO_DATA_RDY_PIN)
-    };
+    // gpio_config_t io_conf={
+    //     .intr_type=GPIO_INTR_POSEDGE,
+    //     .mode=GPIO_MODE_INPUT,
+    //     .pull_up_en=0,
+    //     .pin_bit_mask=(1<<GPIO_DATA_RDY_PIN)
+    // };
 
     // Init STM32 ADC enable pin
+    // ret = gpio_config(&io_conf);
+    gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
+    // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE);
+    // gpio_install_isr_service(0);
+    // gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL);
+    
+    ret = gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
-    // Initialize SD card
+
+    
+   // Initialize SD card
     esp_sd_card_init();
 
-     //Set up handshake line (DATA_RDY) interrupt.
-    gpio_config(&io_conf);
-    gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE);
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL);
-
-
-    gpio_config(&adc_en_conf);
-    gpio_set_level(GPIO_ADC_EN, 0);
-
-
     memset(&_spi_transaction, 0, sizeof(_spi_transaction));
-
-    // //Create the semaphore.
-    // // rdySem=xSemaphoreCreateBinary();
 
     // //Initialize the SPI bus and add the device we want to send stuff to.
     ret=spi_bus_initialize(SENDER_HOST, &buscfg, SPI_DMA_CH_AUTO);
@@ -359,13 +381,10 @@ void task_logging(void * pvParameters)
     ret = spi_device_acquire_bus(handle, portMAX_DELAY);
     assert(ret==ESP_OK);
 
-    _spi_transaction.length=sizeof(sendbuf)*8; // size in bits
-    _spi_transaction.rxlength = sizeof(recvbuf)*8; // size in bits
-    _spi_transaction.tx_buffer=sendbuf;
-    _spi_transaction.rx_buffer=recvbuf;
-    _spi_transaction.tx_buffer=NULL;
-    _spi_transaction.rx_buffer=recvbuf;
-    writeptr = 0;
+    //Set up handshake line (DATA_RDY) interrupt.
+    //gpio_config(&io_conf);
+    
+    
     ESP_LOGI(TAG_LOG, "Logger task started");
     while(1) {
        
@@ -374,17 +393,30 @@ void task_logging(void * pvParameters)
         {
             case LOGGER_IDLE:
                 vTaskDelay(500 / portTICK_PERIOD_MS);
-                
+                if (_nextLoggerState == LOGGER_LOGGING)
+                {
+                    // upon changing state to logging, make sure these settings are correct. 
+                    _spi_transaction.length=sizeof(sendbuf)*8; // size in bits
+                    _spi_transaction.rxlength = sizeof(recvbuf)*8; // size in bits
+                    _spi_transaction.tx_buffer=sendbuf;
+                    _spi_transaction.rx_buffer=recvbuf;
+                    _spi_transaction.tx_buffer=NULL;
+                    _spi_transaction.rx_buffer=recvbuf;
+                    writeptr = 0;
+                    gpio_set_level(GPIO_ADC_EN, 1);
+                }
             break;
 
             case LOGGER_LOGGING:
                 
                 Logger_log();
-                if (_nextLoggerState !=LOGGER_LOGGING)
-                {
-                    // to be replaced by file close
-                    esp_sd_card_close_unmount();
-                }
+
+                // Do NOT add more code here! Time critical!!
+                // if (_nextLoggerState !=LOGGER_LOGGING)
+                // {
+                //     // to be replaced by file close
+                //     esp_sd_card_close_unmount();
+                // }
             break;
 
             case LOGGER_SETTINGS:
