@@ -1,5 +1,6 @@
 #include "settings.h"
 
+static const char* TAG_SETTINGS = "SETTINGS";
 Settings_t _settings;
 
 void settings_init()
@@ -26,10 +27,23 @@ uint8_t settings_set_logmode(log_mode_t mode)
     return RET_OK;
 }
 
+uint8_t settings_set_resolution(adc_resolution_t res)
+{
+    if (res > 0 && res < ADC_RESOLUTION_NUM_ITEMS)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC RESOLUTION = %d", res);
+        _settings.adc_resolution = res;
+        return RET_OK;    
+    }
+
+    return RET_NOK;
+}
+
 uint8_t settings_set_samplerate(adc_sample_rate_t rate)
 {
     if (rate > 0 && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
     {
+        ESP_LOGI(TAG_SETTINGS, "ADC SAMPLE RATE= %d", rate);
         _settings.log_sample_rate = rate;
         return RET_OK;
     } else {
