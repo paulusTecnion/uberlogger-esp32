@@ -12,6 +12,7 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define GPIO_OLED_SDA 41
 #define GPIO_OLED_SCL 42
 
+#define SPI_STM32_BUS_FREQUENCY 16000000
 
 #define PROMPT_STR "uberlogger"
 
