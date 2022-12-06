@@ -145,6 +145,15 @@ CONFIG_PARTITION_TABLE_MD5=y
 #
 # Example Configuration
 #
+CONFIG_ESP_WIFI_SSID="myssid"
+CONFIG_ESP_WIFI_PASSWORD="mypassword"
+CONFIG_ESP_WIFI_CHANNEL=1
+CONFIG_ESP_MAX_STA_CONN=4
+# end of Example Configuration
+
+#
+# Example Configuration
+#
 CONFIG_EXAMPLE_MDNS_HOST_NAME="esp-home"
 CONFIG_EXAMPLE_WEB_DEPLOY_SEMIHOST=y
 # CONFIG_EXAMPLE_WEB_DEPLOY_SF is not set

@@ -19,6 +19,7 @@
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
 #include "protocol_examples_common.h"
+#include "esp_sd_card.h"
 #if CONFIG_EXAMPLE_WEB_DEPLOY_SD
 #include "driver/sdmmc_host.h"
 #endif
@@ -125,6 +126,7 @@ esp_err_t init_fs(void)
 
 void app_main(void)
 {
+    
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -132,7 +134,11 @@ void app_main(void)
     netbiosns_init();
     netbiosns_set_name(CONFIG_EXAMPLE_MDNS_HOST_NAME);
 
+   
+
+    
     ESP_ERROR_CHECK(example_connect());
     ESP_ERROR_CHECK(init_fs());
+     esp_sd_card_init();
     ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
 }
