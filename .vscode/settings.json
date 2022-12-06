@@ -14,7 +14,10 @@
     "system_error": "c",
     "type_traits": "c",
     "xlocmon": "c",
-    "xtr1common": "c"
+    "xtr1common": "c",
+    "hw_config.h": "c",
+    "timer.h": "c",
+    "argtable3.h": "c"
   },
   "idf.adapterTargetName": "esp32s2"
 }
