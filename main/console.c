@@ -15,6 +15,7 @@
 #include "esp_sd_card.h"
 #include "logger.h"
 #include "hw_config.h"
+#include "settings.h"
 
 
 static const char* TAG_CONSOLE = "CONSOLE";
@@ -26,7 +27,7 @@ static struct {
 
 static struct {
     struct arg_str *arg0;
-    struct arg_int *arg1;
+    struct arg_int *val;
     struct arg_end *end;
 } settings_args;
 
@@ -45,6 +46,29 @@ static int adc_enable_pin(int argc, char **argv)
     }
 
     return 0;
+}
+
+static int cmd_sample_rate(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **) &settings_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, settings_args.end, argv[0]);
+        return 1;
+    }
+    
+    if (!strcmp(settings_args.arg0->sval[0],  "rate"))
+    {
+        return settings_set_samplerate(settings_args.val->ival[0]);
+    } else if (!strcmp(settings_args.arg0->sval[0], "res"))  {   
+        return settings_set_resolution(settings_args.val->ival[0]);
+    } else {
+        return 1;
+    }
+    
+        // ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
+    
+    
+
 }
 
 static int logger_csvlog_en(int argc, char **argv)
@@ -84,25 +108,24 @@ static void register_adc_en_pin(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
-static void register_adc_en_pin(void)
+static void register_settings_sample_rate(void)
 {
  int num_args = 2;
     settings_args.arg0 =
         
-    arg_int0(NULL, NULL, "<rate|res>", "Sample rate or resolution");
+    arg_str0(NULL, NULL, "<rate|res>", "Sample rate or resolution");
 
-    settings_args.arg1 =
+    settings_args.samplerate =
         
-    arg_int0(NULL, NULL, "<rate|res>", "Sample rate or resolution");
-    arg_int1(NULL, NULL, "<rate|res>", "Sample rate or resolution");
-    adc_en_args.end = arg_end(num_args);
+    arg_int1(NULL, NULL, "<n>", "Sample rate in Hz");
+    settings_args.end = arg_end(num_args);
 
     const esp_console_cmd_t cmd = {
         .command = "settings",
-        .help = "Control adc enable pin",
+        .help = "Set resolution or sample rate",
         .hint = NULL,
-        .func = &adc_enable_pin,
-        .argtable = &adc_en_args
+        .func = &cmd_sample_rate,
+        .argtable = &settings_args
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
@@ -228,6 +251,7 @@ void init_console(){
     register_restart();
     register_sd_card_init();
     register_sd_card_close();
+    register_settings_sample_rate();
     register_stm32_sync();
     esp_console_register_help_command();
 
