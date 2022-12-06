@@ -115,7 +115,7 @@ static void register_settings_sample_rate(void)
         
     arg_str0(NULL, NULL, "<rate|res>", "Sample rate or resolution");
 
-    settings_args.samplerate =
+    settings_args.val =
         
     arg_int1(NULL, NULL, "<n>", "Sample rate in Hz");
     settings_args.end = arg_end(num_args);
