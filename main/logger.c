@@ -7,7 +7,6 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/semphr.h"
 #include "driver/gpio.h"
 #include "hw_config.h"
 #include "esp_sd_card.h"
@@ -41,9 +40,9 @@ volatile uint8_t test ;
 /*
 This ISR is called when the handshake line goes high.
 */
-// static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
-// {
-    //  BaseType_t xYieldRequired = pdFALSE;
+static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
+{
+     BaseType_t xYieldRequired = pdFALSE;
 
      
     //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
@@ -65,12 +64,12 @@ This ISR is called when the handshake line goes high.
     
     // test = 1;
     
-    // vTaskNotifyGiveFromISR( xHandle_stm32,
+    vTaskNotifyGiveFromISR( xHandle_stm32,
     //                             //    xArrayIndex,
-    //                                &xYieldRequired );
+                                   &xYieldRequired );
     
-    // portYIELD_FROM_ISR(xYieldRequired);
-// }
+    portYIELD_FROM_ISR(xYieldRequired);
+}
 
 LoggerState LoggerGetState()
 {
@@ -112,7 +111,7 @@ void Logger_spi_cmd(stm32cmd_t cmd)
     sendbuf[0] = (uint8_t)cmd;
     spi_device_transmit(handle, &_spi_transaction);
     // wait for 5 ms for stm32 to process data
-    ets_delay_us(5000);
+    ets_delay_us(10000);
 
     sendbuf[0] = 0;
     spi_device_transmit(handle, &_spi_transaction);
@@ -238,6 +237,7 @@ void Logger_log()
     }
 
     if( test == 1 )
+    // if (ulNotificationValue)
     {
         /* The transmission ended as expected. */
         //ESP_LOGI(TAG_LOG, "SPI retrieval");
@@ -333,7 +333,7 @@ void task_logging(void * pvParameters)
         .command_bits=0,
         .address_bits=0,
         .dummy_bits=0,
-        .clock_speed_hz=32000000, //400000,
+        .clock_speed_hz=SPI_STM32_BUS_FREQUENCY, //400000,
         .duty_cycle_pos=128,        //50% duty cycle
         .mode=0,
         .spics_io_num=GPIO_CS,
@@ -349,12 +349,12 @@ void task_logging(void * pvParameters)
     
 
     //GPIO config for the handshake line.
-    // gpio_config_t io_conf={
-    //     .intr_type=GPIO_INTR_POSEDGE,
-    //     .mode=GPIO_MODE_INPUT,
-    //     .pull_up_en=0,
-    //     .pin_bit_mask=(1<<GPIO_DATA_RDY_PIN)
-    // };
+    gpio_config_t io_conf={
+        .intr_type=GPIO_INTR_POSEDGE,
+        .mode=GPIO_MODE_INPUT,
+        .pull_up_en=0,
+        .pin_bit_mask=(1<<GPIO_DATA_RDY_PIN)
+    };
 
     // Init STM32 ADC enable pin
     // ret = gpio_config(&io_conf);
