@@ -24,6 +24,12 @@ static struct {
     struct arg_end *end;
 } adc_en_args;
 
+static struct {
+    struct arg_str *arg0;
+    struct arg_int *arg1;
+    struct arg_end *end;
+} settings_args;
+
 static int adc_enable_pin(int argc, char **argv)
 {
     int nerrors = arg_parse(argc, argv, (void **) &adc_en_args);
@@ -70,6 +76,29 @@ static void register_adc_en_pin(void)
 
     const esp_console_cmd_t cmd = {
         .command = "adc_en",
+        .help = "Control adc enable pin",
+        .hint = NULL,
+        .func = &adc_enable_pin,
+        .argtable = &adc_en_args
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_adc_en_pin(void)
+{
+ int num_args = 2;
+    settings_args.arg0 =
+        
+    arg_int0(NULL, NULL, "<rate|res>", "Sample rate or resolution");
+
+    settings_args.arg1 =
+        
+    arg_int0(NULL, NULL, "<rate|res>", "Sample rate or resolution");
+    arg_int1(NULL, NULL, "<rate|res>", "Sample rate or resolution");
+    adc_en_args.end = arg_end(num_args);
+
+    const esp_console_cmd_t cmd = {
+        .command = "settings",
         .help = "Control adc enable pin",
         .hint = NULL,
         .func = &adc_enable_pin,
