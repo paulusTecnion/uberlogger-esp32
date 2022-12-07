@@ -12,6 +12,7 @@
 #include "esp_sd_card.h"
 #include "driver/spi_master.h"
 #include "settings.h"
+#include "extimer.h"
 
 #define SPI_BUFFERSIZE 16
 #define SD_BUFFERSIZE 8192
@@ -221,16 +222,36 @@ void Logger_log()
     //                                         pdTRUE,
     //                                         xMaxBlockTime );
     
-    static uint32_t lasthandshaketime_us;
-    lasthandshaketime_us = esp_timer_get_time();
+    // static uint32_t lasthandshaketime_us;
+    // lasthandshaketime_us = esp_timer_get_time();
+    // test = 1;
+    // while(!gpio_get_level(GPIO_DATA_RDY_PIN))
+    // {
+        
+    //     uint32_t currtime_us = esp_timer_get_time();
+    //     uint32_t diff = currtime_us - lasthandshaketime_us;
+        
+    //     if (diff > 1000000) {
+    //         test = 0;
+    //         break; //ignore everything <1ms after an earlier irq
+    //     }
+    // }
+
+    
     test = 1;
+    uint32_t diff = 0;
+    
     while(!gpio_get_level(GPIO_DATA_RDY_PIN))
     {
+        extimer_init(10);
+        ulNotificationValue = ulTaskNotifyTake( 
+                                            // xArrayIndex,
+                                            pdTRUE,
+                                            xMaxBlockTime );
+    
+        diff++;
         
-        uint32_t currtime_us = esp_timer_get_time();
-        uint32_t diff = currtime_us - lasthandshaketime_us;
-        
-        if (diff > 1000000) {
+        if (diff > 10000) {
             test = 0;
             break; //ignore everything <1ms after an earlier irq
         }
@@ -383,6 +404,7 @@ void task_logging(void * pvParameters)
 
     //Set up handshake line (DATA_RDY) interrupt.
     //gpio_config(&io_conf);
+    
     
     
     ESP_LOGI(TAG_LOG, "Logger task started");

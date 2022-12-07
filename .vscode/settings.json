@@ -17,7 +17,8 @@
     "xtr1common": "c",
     "hw_config.h": "c",
     "timer.h": "c",
-    "argtable3.h": "c"
+    "argtable3.h": "c",
+    "extimer.h": "c"
   },
   "idf.adapterTargetName": "esp32s2"
 }

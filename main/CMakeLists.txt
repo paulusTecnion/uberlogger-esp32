@@ -5,7 +5,7 @@ idf_component_register(SRCS
                             "main.c"
                             "rest_server.c"
                             "settings.c"
-                            
+                            "ctimer.c"
                     INCLUDE_DIRS "")
 
 if(CONFIG_EXAMPLE_WEB_DEPLOY_SF)
