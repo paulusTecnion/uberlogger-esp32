@@ -106,27 +106,35 @@ uint8_t Logger_exitSettingsMode()
     }
 }
 
-void Logger_spi_cmd(stm32cmd_t cmd)
+void Logger_spi_cmd(stm32cmd_t cmd, spi_transaction_t *trans)
 {
-    
-    sendbuf[0] = (uint8_t)cmd;
-    spi_device_transmit(handle, &_spi_transaction);
+    uint8_t * ptr;
+    ptr = trans->tx_buffer;
+    ptr[0] = cmd;
+    spi_device_transmit(handle, trans);
     // wait for 5 ms for stm32 to process data
-    ets_delay_us(10000);
+    // ets_delay_us(10000);
+    while(!gpio_get_level(GPIO_DATA_RDY_PIN));
+    // vTaskDelay( 5 / portTICK_PERIOD_MS);
 
-    sendbuf[0] = 0;
-    spi_device_transmit(handle, &_spi_transaction);
+    
+    spi_device_transmit(handle, trans);
 }
 
 uint8_t Logger_syncSettings()
 {
     // Send command to STM32 to go into settings mode
-    _spi_transaction.length=1*8; //sizeof(sendbuf)*8; // size in bits
-    _spi_transaction.rxlength = 1*8; //sizeof(recvbuf)*8; // size in bits
-    _spi_transaction.tx_buffer=sendbuf;
-    _spi_transaction.rx_buffer=recvbuf;
+    
+    uint8_t rxBuf[0], txBuf[0];
+    spi_transaction_t cmd;
+    cmd.rx_buffer = rxBuf;
+    cmd.tx_buffer = txBuf;
+    cmd.rxlength = 1;
+
+    
+
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
-    Logger_spi_cmd(STM32_CMD_SETTINGS_MODE);
+    Logger_spi_cmd(STM32_CMD_SETTINGS_MODE, &cmd);
     
     if (recvbuf[0] != STM32_RESP_OK)
     {
@@ -136,7 +144,7 @@ uint8_t Logger_syncSettings()
     ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
     
 
-    Logger_spi_cmd(STM32_CMD_SET_RESOLUTION);
+    Logger_spi_cmd(STM32_CMD_SET_RESOLUTION, &cmd);
     if (recvbuf[0] != STM32_RESP_OK)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution");
@@ -146,7 +154,7 @@ uint8_t Logger_syncSettings()
     ESP_LOGI(TAG_LOG, "ADC resolution set");
     
 
-    Logger_spi_cmd(STM32_CMD_SET_SAMPLE_RATE);
+    Logger_spi_cmd(STM32_CMD_SET_SAMPLE_RATE, &cmd);
     if (recvbuf[0] != STM32_RESP_OK)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 sample rate");
@@ -156,7 +164,7 @@ uint8_t Logger_syncSettings()
     ESP_LOGI(TAG_LOG, "Sample rate set");
 
     // Send settings one by one and confirm
-    Logger_spi_cmd(STM32_CMD_MEASURE_MODE);
+    Logger_spi_cmd(STM32_CMD_MEASURE_MODE, &cmd);
     if (recvbuf[0] != STM32_RESP_OK)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 in measure mode");
@@ -238,22 +246,35 @@ void Logger_log()
     // }
 
     
+    static uint32_t lasthandshaketime_us, diff;
+    // lasthandshaketime_us = esp_timer_get_time();
     test = 1;
-    uint32_t diff = 0;
+    // uint32_t diff = 0;
     
     while(!gpio_get_level(GPIO_DATA_RDY_PIN))
     {
-        extimer_init(10);
-        ulNotificationValue = ulTaskNotifyTake( 
-                                            // xArrayIndex,
-                                            pdTRUE,
-                                            xMaxBlockTime );
+        // extimer_init(10);
+        // ulNotificationValue = ulTaskNotifyTake( 
+        //                                     // xArrayIndex,
+        //                                     pdTRUE,
+        //                                     xMaxBlockTime );
     
-        diff++;
+
+        // diff++;
         
-        if (diff > 10000) {
+        // if (diff > 10000) {
+        // uint32_t currtime_us = esp_timer_get_time();
+        // uint32_t diff = currtime_us - lasthandshaketime_us;
+        
+        // if (diff > 1000000) {
+        //     test = 0;
+        //     break; //ignore everything <1ms after an earlier irq
+        // }
+        vTaskDelay(1 / portTICK_PERIOD_MS);
+        diff++;
+         if (diff > 1000) {
             test = 0;
-            break; //ignore everything <1ms after an earlier irq
+            break; 
         }
     }
 
@@ -281,7 +302,7 @@ void Logger_log()
                 // First shift the bytes to get the ADC value
                 t0 = ((int32_t)recvbuf[j] | ((int32_t)recvbuf[j + 1] << 8));
                 t1 = t0 * (20LL * 1000000LL);
-                t2 = t1 / ((1 << 12) - 1); // -1 for 4095 steps
+                t2 = t1 / ((1 << settings_get_resolution_uint8()) - 1); // -1 for 4095 steps
                 t3 = t2 - 10000000LL;
                 tbuffer_i32[writeptr] = (int32_t)t3;
                 // ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", recvbuf[j], recvbuf[j+1], t3, tbuffer_i32[writeptr]);
@@ -359,7 +380,8 @@ void task_logging(void * pvParameters)
         .mode=0,
         .spics_io_num=GPIO_CS,
         .cs_ena_posttrans=3,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
-        .queue_size=4
+        .queue_size=1,
+        // .flags = SPI_DEVICE_HALFDUPLEX 
     };  
 
     gpio_config_t adc_en_conf={
