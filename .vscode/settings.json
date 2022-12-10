@@ -18,7 +18,12 @@
     "hw_config.h": "c",
     "timer.h": "c",
     "argtable3.h": "c",
-    "extimer.h": "c"
+    "extimer.h": "c",
+    "task.h": "c",
+    "esp_log.h": "c",
+    "string.h": "c",
+    "stdio.h": "c",
+    "logger.h": "c"
   },
   "idf.adapterTargetName": "esp32s2"
 }
