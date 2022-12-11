@@ -114,13 +114,16 @@ void Logger_spi_cmd(stm32cmd_t cmd)
     // trans->rxlength = 1;
     // spi_device_transmit(handle, trans);
     sendbuf[0] = (uint8_t) cmd;
+    _spi_transaction.tx_buffer = sendbuf;
     _spi_transaction.length = 8; // in bits!
-    _spi_transaction.rxlength = 8;
-    // spi_device_transmit(handle, &_spi_transaction);
-    assert(spi_device_polling_transmit(handle, &_spi_transaction) == ESP_OK);
+    _spi_transaction.rxlength = 0;
+    _spi_transaction.rx_buffer = NULL;
+    assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
+    // assert(spi_device_polling_transmit(handle, &_spi_transaction) == ESP_OK);
     // wait for 5 ms for stm32 to process data
-    ets_delay_us(10000);
-    // while(!gpio_get_level(GPIO_DATA_RDY_PIN));
+    // ets_delay_us(10000);
+    while(!gpio_get_level(GPIO_DATA_RDY_PIN));
+    // ets_delay_us(10000);
     // vTaskDelay( 5 / portTICK_PERIOD_MS);
 
     // Tx length = 0
@@ -128,10 +131,22 @@ void Logger_spi_cmd(stm32cmd_t cmd)
     // Rx length = 1
     // trans->rxlength=1;
     // spi_device_transmit(handle, trans);
-    _spi_transaction.length = 8; // in bits!
+    
+    sendbuf[0] = STM32_CMD_NOP;
     _spi_transaction.rxlength = 8;
+    _spi_transaction.rx_buffer = recvbuf;
     // spi_device_transmit(handle, &_spi_transaction);
-    assert(spi_device_polling_transmit(handle, &_spi_transaction) == ESP_OK);
+    // assert(spi_device_polling_transmit(handle, &_spi_transaction) == ESP_OK);
+    
+
+}
+
+void Logger_spi_flush_slave()
+{
+    _spi_transaction.tx_buffer = NULL;
+    assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
+    while(!gpio_get_level(GPIO_DATA_RDY_PIN));
+    assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
 }
 
 uint8_t Logger_syncSettings()
@@ -153,7 +168,11 @@ uint8_t Logger_syncSettings()
     
     if (recvbuf[0] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG_LOG, "Unable to put STM32 into SETTINGS mode");
+        ESP_LOGI(TAG_LOG, "Unable to put STM32 into SETTINGS mode. ");
+        for (int i=0; i<16;i++)
+        {
+            ESP_LOGI(TAG_LOG, "%d", recvbuf[i]);
+        }
         return RET_NOK;
     } 
     ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
@@ -162,7 +181,7 @@ uint8_t Logger_syncSettings()
     Logger_spi_cmd(STM32_CMD_SET_RESOLUTION);
     if (recvbuf[0] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution");
+        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", recvbuf[0]);
         return RET_NOK;
     } 
     
@@ -378,12 +397,12 @@ void Logger_log()
 // static void cs_high(spi_transaction_t* t)
 // {
 //     // ESP_LOGI(TAG_LOG, "cs high %d.", GPIO_CS);
-//     gpio_set_level(GPIO_CS, 1);
+//     gpio_set_level(GPIO_CS, 0);
 // }
 
 // static void cs_low(spi_transaction_t* t)
 // {
-//     gpio_set_level(GPIO_CS, 0);
+//     gpio_set_level(GPIO_CS, 1);
 //     // ESP_LOGI(TAG_LOG, "cs low %d.", GPIO_CS);
 // }
 
@@ -413,11 +432,10 @@ void task_logging(void * pvParameters)
         .duty_cycle_pos=128,        //50% duty cycle
         .mode=0,
         .spics_io_num=-1,
-        .cs_ena_posttrans=3,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
-        .queue_size=1,
-        .flags = 0,
-        // .pre_cb = cs_high,
-        // .post_cb = cs_low,
+        .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
+        .queue_size=3,
+        .flags = SPI_DEVICE_NO_DUMMY,
+        .input_delay_ns=10
     };  
 
     gpio_config_t adc_en_conf={

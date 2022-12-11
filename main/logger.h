@@ -17,7 +17,7 @@ enum LoggerStates
 };
 
 typedef enum stm32cmd {
-    STM32_CMD_NOP,
+    STM32_CMD_NOP=0,
     STM32_CMD_SETTINGS_MODE,
     STM32_CMD_MEASURE_MODE,
     STM32_CMD_SET_RESOLUTION,
