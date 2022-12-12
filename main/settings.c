@@ -52,6 +52,11 @@ uint8_t settings_set_resolution(adc_resolution_t res)
        
 }
 
+adc_resolution_t settings_get_resolution()
+{
+    return _settings.adc_resolution;
+}
+
 uint8_t settings_get_resolution_uint8()
 {
     return _settings.adc_resolution_uint8;

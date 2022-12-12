@@ -25,7 +25,8 @@
     "stdio.h": "c",
     "logger.h": "c",
     "netbiosns.h": "c",
-    "protocol_examples_common.h": "c"
+    "protocol_examples_common.h": "c",
+    "stdint.h": "c"
   },
   "idf.adapterTargetName": "esp32s2"
 }

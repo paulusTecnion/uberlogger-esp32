@@ -61,6 +61,7 @@ typedef struct Settings_t Settings_t;
 void settings_init();
 Settings_t * settings_get();
 log_mode_t settings_get_logmode();
+adc_resolution_t settings_get_resolution();
 uint8_t settings_get_resolution_uint8();
 uint8_t settings_set_resolution(adc_resolution_t res);
 uint8_t settings_set_logmode(log_mode_t mode);
