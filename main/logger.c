@@ -116,14 +116,18 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     sendbuf[0] = (uint8_t) cmd;
     sendbuf[1] = data;
     _spi_transaction.length = 16; // in bits!
-    _spi_transaction.rxlength = 0;
-    _spi_transaction.rx_buffer = NULL;
+    _spi_transaction.rxlength = 16;
+    _spi_transaction.rx_buffer = recvbuf;
     _spi_transaction.tx_buffer = sendbuf;
+    //   ESP_LOGI(TAG_LOG,"About to send the command in 1 second");
+    //   vTaskDelay( 1000 / portTICK_PERIOD_MS);
+     while(gpio_get_level(GPIO_DATA_RDY_PIN));
     assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
     // assert(spi_device_polling_transmit(handle, &_spi_transaction) == ESP_OK);
     // wait for 5 ms for stm32 to process data
     // ets_delay_us(10000);
     while(!gpio_get_level(GPIO_DATA_RDY_PIN));
+    // ESP_LOGI(TAG_LOG,"Pass 1/2 CMD");
     // ets_delay_us(10000);
     // vTaskDelay( 5 / portTICK_PERIOD_MS);
 
@@ -132,12 +136,22 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     // Rx length = 1
     // trans->rxlength=1;
     // spi_device_transmit(handle, trans);
-    
+    // while(gpio_get_level(GPIO_DATA_RDY_PIN));
+
+    // vTaskDelay( 20 / portTICK_PERIOD_MS);
+
     sendbuf[0] = STM32_CMD_NOP;
     sendbuf[1] = 0;
-    _spi_transaction.rxlength = 8;
+    _spi_transaction.rxlength = 16;
     _spi_transaction.rx_buffer = recvbuf;
     spi_device_transmit(handle, &_spi_transaction);
+    // Wait until data_rdy pin is low again, then data transmission is complete
+    while(gpio_get_level(GPIO_DATA_RDY_PIN));
+    // ESP_LOGI(TAG_LOG,"Pass 2/2 CMD. Done sending. Waiting 2 seconds");
+    // vTaskDelay( 2000 / portTICK_PERIOD_MS);
+    // ESP_LOGI(TAG_LOG,"Pass 2/2 CMD");
+    
+    // vTaskDelay( 20 / portTICK_PERIOD_MS);
     // assert(spi_device_polling_transmit(handle, &_spi_transaction) == ESP_OK);
     
 
@@ -149,6 +163,15 @@ void Logger_spi_flush_slave()
     assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
     while(!gpio_get_level(GPIO_DATA_RDY_PIN));
     assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
+}
+
+void Logger_print_rx_buffer()
+{
+    ESP_LOGI(TAG_LOG, "recvbuf:");
+    for (int i=0; i<16;i++)
+    {
+        ESP_LOGI(TAG_LOG, "%d", recvbuf[i]);
+    }
 }
 
 uint8_t Logger_syncSettings()
@@ -167,23 +190,21 @@ uint8_t Logger_syncSettings()
 
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
     Logger_spi_cmd(STM32_CMD_SETTINGS_MODE, 0);
-    
-    if (recvbuf[0] != STM32_RESP_OK)
+    // Logger_print_rx_buffer();
+    if (recvbuf[0] != STM32_RESP_OK && recvbuf[1] == STM32_CMD_SETTINGS_MODE)
     {
         ESP_LOGI(TAG_LOG, "Unable to put STM32 into SETTINGS mode. ");
-        for (int i=0; i<16;i++)
-        {
-            ESP_LOGI(TAG_LOG, "%d", recvbuf[i]);
-        }
+        Logger_print_rx_buffer();
         return RET_NOK;
     } 
     ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
     
-
+// Logger_print_rx_buffer();
     Logger_spi_cmd(STM32_CMD_SET_RESOLUTION, (uint8_t)settings_get_resolution());
-    if (recvbuf[0] != STM32_RESP_OK)
+    if (recvbuf[0] != STM32_RESP_OK && recvbuf[1] == STM32_CMD_SET_RESOLUTION)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", recvbuf[0]);
+        Logger_print_rx_buffer();
         return RET_NOK;
     } 
     
@@ -191,9 +212,11 @@ uint8_t Logger_syncSettings()
     
 
     Logger_spi_cmd(STM32_CMD_SET_SAMPLE_RATE, (uint8_t)settings_get_samplerate());
-    if (recvbuf[0] != STM32_RESP_OK)
+    // Logger_print_rx_buffer();
+    if (recvbuf[0] != STM32_RESP_OK && recvbuf[1] == STM32_CMD_SET_SAMPLE_RATE)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 sample rate. ");
+        Logger_print_rx_buffer();
         return RET_NOK;
     }
 
@@ -201,9 +224,11 @@ uint8_t Logger_syncSettings()
 
     // Send settings one by one and confirm
     Logger_spi_cmd(STM32_CMD_MEASURE_MODE, 0);
-    if (recvbuf[0] != STM32_RESP_OK)
+    // Logger_print_rx_buffer();
+    if (recvbuf[0] != STM32_RESP_OK && recvbuf[1] == STM32_CMD_MEASURE_MODE)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 in measure mode");
+        Logger_print_rx_buffer();
         return RET_NOK;
     }
     ESP_LOGI(TAG_LOG, "Sync done");
@@ -436,7 +461,7 @@ void task_logging(void * pvParameters)
         .spics_io_num=-1,
         .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
-        .flags = SPI_DEVICE_NO_DUMMY,
+        .flags = 0,
         .input_delay_ns=10
     };  
 
