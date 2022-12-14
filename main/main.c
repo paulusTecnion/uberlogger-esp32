@@ -206,6 +206,7 @@ void app_main(void)
     
     // wifi_init_softap();
     settings_init();
+    
 
     // Register console commands
     init_console(); 

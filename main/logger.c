@@ -272,6 +272,7 @@ uint8_t Logger_stop()
     {
         gpio_set_level(GPIO_ADC_EN, 0);
         _nextLoggerState = LOGGER_IDLE;
+        ESP_LOGI(TAG_LOG, "Logger_stop() called");
         return RET_OK;
     } 
     else 
@@ -307,15 +308,14 @@ void Logger_log()
     // }
 
     
-    static uint32_t lasthandshaketime_us, diff;
-    // lasthandshaketime_us = esp_timer_get_time();
-    test = 1;
-    // uint32_t diff = 0;
-    diff = 0;
+    static uint32_t lasthandshaketime_us, currtime_us ;
+    lasthandshaketime_us = esp_timer_get_time();
+    uint32_t timediff =0;
+    
     
     while(!gpio_get_level(GPIO_DATA_RDY_PIN))
     {
-        ESP_LOGI(TAG_LOG,"Data not ready");
+        // ESP_LOGI(TAG_LOG,"Data not ready");
         // extimer_init(10);
         // ulNotificationValue = ulTaskNotifyTake( 
         //                                     // xArrayIndex,
@@ -326,27 +326,56 @@ void Logger_log()
         // diff++;
         
         // if (diff > 10000) {
-        // uint32_t currtime_us = esp_timer_get_time();
-        // uint32_t diff = currtime_us - lasthandshaketime_us;
+        currtime_us = esp_timer_get_time();
+        timediff = currtime_us - lasthandshaketime_us;
         
-        // if (diff > 1000000) {
+        if (timediff > 1000000) {
+            ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn HIGH");
+            // Logger_stop();
+            // return;
+            lasthandshaketime_us = esp_timer_get_time();
         //     test = 0;
         //     break; //ignore everything <1ms after an earlier irq
-        // }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        diff++;
-         if (diff > 2) {
-            test = 0;
-            break; 
         }
+       
     }
 
-    if( test == 1 )
+    // if( test == 1 )
     // if (ulNotificationValue)
-    {
+    // while(!gpio_get_level(GPIO_DATA_RDY_PIN));
+
+    // {
         /* The transmission ended as expected. */
         //ESP_LOGI(TAG_LOG, "SPI retrieval");
-        spi_device_transmit(handle, &_spi_transaction);
+        assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
+        // wait until transaction is complete
+        lasthandshaketime_us = esp_timer_get_time();
+        while(gpio_get_level(GPIO_DATA_RDY_PIN))
+        {
+        // ESP_LOGI(TAG_LOG,"Data not ready");
+        // extimer_init(10);
+        // ulNotificationValue = ulTaskNotifyTake( 
+        //                                     // xArrayIndex,
+        //                                     pdTRUE,
+        //                                     xMaxBlockTime );
+    
+
+        // diff++;
+        
+        // if (diff > 10000) {
+            currtime_us = esp_timer_get_time();
+            timediff = currtime_us - lasthandshaketime_us;
+        
+            if (timediff > 1000000) {
+                ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn LOW");
+                // Logger_stop();
+                // return;
+                lasthandshaketime_us = esp_timer_get_time();
+            //     test = 0;
+            //     break; //ignore everything <1ms after an earlier irq
+            }
+       
+        }
         // if (spi_device_polling_transmit(handle, &_spi_transaction) != ESP_OK)
         // {
         //     ESP_LOGE(TAG_LOG, "Error retrieving data from STM32!");
@@ -357,6 +386,7 @@ void Logger_log()
         // Check if we are writing CSVs or raw data. 
         if (settings_get_logmode() == LOGMODE_CSV)
         {
+            // ESP_LOGI(TAG_LOG,"ADC Reading:");
              for (int j = 0; j < (SPI_BUFFERSIZE); j = j + 2)
             {
                 // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
@@ -409,13 +439,13 @@ void Logger_log()
         }
 
 
-    }
-    else
-    {
-        /* The call to ulTaskNotifyTake() timed out. */
-        // Is the STM32 hanging? 
-            ESP_LOGI(TAG_LOG, "INT timeout");
-    }
+    // }
+    // else
+    // {
+    //     /* The call to ulTaskNotifyTake() timed out. */
+    //     // Is the STM32 hanging? 
+    //         ESP_LOGI(TAG_LOG, "INT timeout");
+    // }
     
 
     
@@ -511,6 +541,13 @@ void task_logging(void * pvParameters)
     
     
     ESP_LOGI(TAG_LOG, "Logger task started");
+    if (Logger_syncSettings() )
+    {
+        ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
+    } else {
+        ESP_LOGI(TAG_LOG, "STM32 settings synced");
+    }
+    
     while(1) {
        
 
