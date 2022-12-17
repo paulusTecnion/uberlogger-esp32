@@ -35,7 +35,7 @@ spi_device_handle_t handle;
 spi_transaction_t _spi_transaction;
 const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 1000 );
 extern TaskHandle_t xHandle_stm32;
-const UBaseType_t xArrayIndex = 0;
+// const UBaseType_t xArrayIndex = 0;
 
 volatile uint8_t test ;
 
@@ -65,9 +65,9 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
     //     portYIELD_FROM_ISR();
     // }
     
-    // test = 1;
-    vTaskNotifyGiveIndexedFromISR( xHandle_stm32,
-                                   xArrayIndex,
+    
+    vTaskNotifyGiveFromISR( xHandle_stm32,
+                                //    xArrayIndex,
                                    &xYieldRequired );
     
     portYIELD_FROM_ISR(xYieldRequired);
@@ -266,7 +266,7 @@ uint8_t Logger_start()
 {
     if (_currentLoggerState == LOGGER_IDLE)
     {
-        gpio_set_level(GPIO_ADC_EN, 1);
+        // gpio_set_level(GPIO_ADC_EN, 1);
         _nextLoggerState = LOGGER_LOGGING;
         return RET_OK;
     } 
@@ -281,7 +281,7 @@ uint8_t Logger_stop()
     if (_currentLoggerState == LOGGER_LOGGING)
     {
         // Disable interrupt data ready pin
-        gpio_set_level(GPIO_ADC_EN, 0);
+        // gpio_set_level(GPIO_ADC_EN, 0);
         _nextLoggerState = LOGGER_IDLE;
         ESP_LOGI(TAG_LOG, "Logger_stop() called");
         return RET_OK;
@@ -292,10 +292,37 @@ uint8_t Logger_stop()
     }
 }
 
+uint8_t Logger_flush_buffer_to_sd_card()
+{
+    ESP_LOGI(TAG_LOG, "Flusing buffer to SD card");
+
+    uint16_t writeSize = 0, writeOffset=0;
+    if(writeptr > SD_BUFFERSIZE /2)
+    {
+        writeSize = SD_BUFFERSIZE - writeptr;
+        writeOffset = SD_BUFFERSIZE / 2;
+    } else {
+        writeSize = writeptr;
+    }
+
+    ESP_LOGI(TAG_LOG, "WriteSize %d, writeOffset %d", writeSize, writeOffset);
+
+    if (settings_get_logmode() == LOGMODE_CSV)
+    {
+        esp_sd_card_csv_write(tbuffer_i32+writeOffset, writeSize);
+    }  else {
+
+    }   esp_sd_card_write(tbuffer+writeOffset, writeSize);
+
+    esp_sd_card_close_unmount();
+    return RET_OK;
+   
+}
+
 void Logger_log()
 {   
-    ulNotificationValue = ulTaskNotifyTakeIndexed( 
-                                            xArrayIndex,
+    ulNotificationValue = ulTaskNotifyTake( 
+                                            // xArrayIndex,
                                             pdTRUE,
                                             xMaxBlockTime );
     
@@ -304,34 +331,34 @@ void Logger_log()
     lasthandshaketime_us = esp_timer_get_time();
     uint32_t timediff =0;
     
-    ESP_LOGI(TAG_LOG, "Wait for high");
-    while(!gpio_get_level(GPIO_DATA_RDY_PIN))
-    {
-        currtime_us = esp_timer_get_time();
-        timediff = currtime_us - lasthandshaketime_us;
-        
-        if (timediff > 1000000) {
-            ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn HIGH");
-            // Logger_stop();
-            return;
-            lasthandshaketime_us = esp_timer_get_time();
-        }  
-    }
-
-    // if (ulNotificationValue)
+    // ESP_LOGI(TAG_LOG, "Wait for high");
+    // while(!gpio_get_level(GPIO_DATA_RDY_PIN))
     // {
+    //     currtime_us = esp_timer_get_time();
+    //     timediff = currtime_us - lasthandshaketime_us;
+        
+    //     if (timediff > 1000000) {
+    //         ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn HIGH");
+    //         // Logger_stop();
+    //         return;
+    //         lasthandshaketime_us = esp_timer_get_time();
+    //     }  
+    // }
+
+    if (ulNotificationValue)
+    {
         ESP_LOGI(TAG_LOG, "SPI TRANS");
         assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
-    // } else {
+    } else {
         /* The call to ulTaskNotifyTake() timed out. */
         // Is the STM32 hanging? 
-            // ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn HIGH");
-            // Logger_stop();
-            // return;
-    // }
+             ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn HIGH");
+            Logger_stop();
+             return;
+    }
     
     // wait until transaction is complete
-    ESP_LOGI(TAG_LOG, "Wait for low");
+    // ESP_LOGI(TAG_LOG, "Wait for low");
     lasthandshaketime_us = esp_timer_get_time();
     while(gpio_get_level(GPIO_DATA_RDY_PIN))
     {
@@ -341,14 +368,15 @@ void Logger_log()
     
         if (timediff > 1000000) {
             ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn LOW");
-            // Logger_stop();
+            Logger_stop();
             return;
             lasthandshaketime_us = esp_timer_get_time();
         }
        
     }
-    // ulNotificationValue = ulTaskNotifyTakeIndexed( 
-    //                                     xArrayIndex,
+
+    // ulNotificationValue = ulTaskNotifyTake( 
+    //                                     // xArrayIndex,
     //                                     pdTRUE,
     //                                     xMaxBlockTime );
     // if (ulNotificationValue)
@@ -508,6 +536,7 @@ void task_logging(void * pvParameters)
         {
             case LOGGER_IDLE:
                 vTaskDelay(500 / portTICK_PERIOD_MS);
+                
                 if (_nextLoggerState == LOGGER_LOGGING)
                 {
                     // upon changing state to logging, make sure these settings are correct. 
@@ -518,24 +547,27 @@ void task_logging(void * pvParameters)
                     _spi_transaction.tx_buffer=NULL;
                     _spi_transaction.rx_buffer=recvbuf;
                     writeptr = 0;
+                    // esp_sd_card_mount_open_file();
                     // enable data_rdy interrupt
-                    // assert(Logger_datardy_int(1) == RET_OK);
+                    assert(Logger_datardy_int(1) == RET_OK);
                     // Enable logging
-                    // gpio_set_level(GPIO_ADC_EN, 1);
+                    gpio_set_level(GPIO_ADC_EN, 1);
                 }
             break;
 
             case LOGGER_LOGGING:
                 
                 Logger_log();
-                // if (_nextLoggerState == LOGGER_IDLE)
-                // {
+                if (_nextLoggerState == LOGGER_IDLE)
+                {
                     // Disable logging (should change this)
-                    // gpio_set_level(GPIO_ADC_EN, 0);
+                    gpio_set_level(GPIO_ADC_EN, 0);
                     // disable data_rdy interrupt
-                    // assert(Logger_datardy_int(0) == RET_OK);
+                    assert(Logger_datardy_int(0) == RET_OK);
+                    // Flush buffer to sd card
+                    Logger_flush_buffer_to_sd_card();
                     
-                // }
+                }
 
             break;
 
