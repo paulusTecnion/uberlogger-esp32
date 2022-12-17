@@ -28,18 +28,19 @@ char strbuffer[16];
 LoggerState _currentLoggerState = LOGGER_IDLE;
 LoggerState _nextLoggerState = LOGGER_IDLE;
 // uint8_t _logCsv = 1;
-uint32_t ulNotificationValue;
+uint32_t ulNotificationValue = 0;
 uint32_t writeptr = 0;
 int64_t t0, t1,t2,t3;
 spi_device_handle_t handle;
 spi_transaction_t _spi_transaction;
 const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 1000 );
 extern TaskHandle_t xHandle_stm32;
+const UBaseType_t xArrayIndex = 0;
 
 volatile uint8_t test ;
 
 /*
-This ISR is called when the handshake line goes high.
+This ISR is called when the handshake line goes high OR low
 */
 static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
 {
@@ -51,8 +52,9 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
     // static uint32_t lasthandshaketime_us = 0;
     // uint32_t currtime_us = esp_timer_get_time();
     // uint32_t diff = currtime_us - lasthandshaketime_us;
-    // if (diff < 1000) {
-    //     return; //ignore everything <1ms after an earlier irq
+    // // Limit till 200kHz
+    // if (diff < 5) {
+    //     return; 
     // }
     // lasthandshaketime_us = currtime_us;
 
@@ -64,12 +66,36 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
     // }
     
     // test = 1;
-    
-    vTaskNotifyGiveFromISR( xHandle_stm32,
-    //                             //    xArrayIndex,
+    vTaskNotifyGiveIndexedFromISR( xHandle_stm32,
+                                   xArrayIndex,
                                    &xYieldRequired );
     
     portYIELD_FROM_ISR(xYieldRequired);
+}
+
+uint8_t Logger_datardy_int(uint8_t value) 
+{
+    if (value == 1)
+    {
+        ESP_LOGI(TAG_LOG, "Enabling data_rdy interrupts");
+        // Trigger on up and down edges
+        if (gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
+        gpio_install_isr_service(0) == ESP_OK &&
+        gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) == ESP_OK){
+            return RET_OK;
+        } else {
+            return RET_NOK;
+        }
+        
+    } else if (value == 0) {
+        ESP_LOGI(TAG_LOG, "Disabling data_rdy interrupts");
+        gpio_isr_handler_remove(GPIO_DATA_RDY_PIN);
+        gpio_uninstall_isr_service();
+        return RET_OK;
+    } else {
+        return RET_NOK;
+    }
+
 }
 
 LoggerState LoggerGetState()
@@ -147,12 +173,7 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     spi_device_transmit(handle, &_spi_transaction);
     // Wait until data_rdy pin is low again, then data transmission is complete
     while(gpio_get_level(GPIO_DATA_RDY_PIN));
-    // ESP_LOGI(TAG_LOG,"Pass 2/2 CMD. Done sending. Waiting 2 seconds");
-    // vTaskDelay( 2000 / portTICK_PERIOD_MS);
-    // ESP_LOGI(TAG_LOG,"Pass 2/2 CMD");
-    
-    // vTaskDelay( 20 / portTICK_PERIOD_MS);
-    // assert(spi_device_polling_transmit(handle, &_spi_transaction) == ESP_OK);
+
     
 
 }
@@ -177,17 +198,6 @@ void Logger_print_rx_buffer()
 uint8_t Logger_syncSettings()
 {
     // Send command to STM32 to go into settings mode
-    
-    // uint8_t rxBuf[0], txBuf[0];
-    // spi_transaction_t cmd;
-    // cmd.rx_buffer = rxBuf;
-    // cmd.tx_buffer = txBuf;
-    // cmd.length = 1;
-    // cmd.rxlength = 1;
-    // cmd.flags = SPI_TRANS_USE_TXDATA | SPI_TRANS_USE_RXDATA;
-
-    
-
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
     Logger_spi_cmd(STM32_CMD_SETTINGS_MODE, 0);
     // Logger_print_rx_buffer();
@@ -270,6 +280,7 @@ uint8_t Logger_stop()
 {
     if (_currentLoggerState == LOGGER_LOGGING)
     {
+        // Disable interrupt data ready pin
         gpio_set_level(GPIO_ADC_EN, 0);
         _nextLoggerState = LOGGER_IDLE;
         ESP_LOGI(TAG_LOG, "Logger_stop() called");
@@ -281,108 +292,67 @@ uint8_t Logger_stop()
     }
 }
 
-
-
 void Logger_log()
-{
-    // Enable ADC enable pin
+{   
+    ulNotificationValue = ulTaskNotifyTakeIndexed( 
+                                            xArrayIndex,
+                                            pdTRUE,
+                                            xMaxBlockTime );
     
-    // ulNotificationValue = ulTaskNotifyTake( 
-    //                                         // xArrayIndex,
-    //                                         pdTRUE,
-    //                                         xMaxBlockTime );
-    
-    // static uint32_t lasthandshaketime_us;
-    // lasthandshaketime_us = esp_timer_get_time();
-    // test = 1;
-    // while(!gpio_get_level(GPIO_DATA_RDY_PIN))
-    // {
-        
-    //     uint32_t currtime_us = esp_timer_get_time();
-    //     uint32_t diff = currtime_us - lasthandshaketime_us;
-        
-    //     if (diff > 1000000) {
-    //         test = 0;
-    //         break; //ignore everything <1ms after an earlier irq
-    //     }
-    // }
-
-    
+    // Polling method (blocking)
     static uint32_t lasthandshaketime_us, currtime_us ;
     lasthandshaketime_us = esp_timer_get_time();
     uint32_t timediff =0;
     
-    
+    ESP_LOGI(TAG_LOG, "Wait for high");
     while(!gpio_get_level(GPIO_DATA_RDY_PIN))
     {
-        // ESP_LOGI(TAG_LOG,"Data not ready");
-        // extimer_init(10);
-        // ulNotificationValue = ulTaskNotifyTake( 
-        //                                     // xArrayIndex,
-        //                                     pdTRUE,
-        //                                     xMaxBlockTime );
-    
-
-        // diff++;
-        
-        // if (diff > 10000) {
         currtime_us = esp_timer_get_time();
         timediff = currtime_us - lasthandshaketime_us;
         
         if (timediff > 1000000) {
             ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn HIGH");
             // Logger_stop();
-            // return;
+            return;
             lasthandshaketime_us = esp_timer_get_time();
-        //     test = 0;
-        //     break; //ignore everything <1ms after an earlier irq
+        }  
+    }
+
+    // if (ulNotificationValue)
+    // {
+        ESP_LOGI(TAG_LOG, "SPI TRANS");
+        assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
+    // } else {
+        /* The call to ulTaskNotifyTake() timed out. */
+        // Is the STM32 hanging? 
+            // ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn HIGH");
+            // Logger_stop();
+            // return;
+    // }
+    
+    // wait until transaction is complete
+    ESP_LOGI(TAG_LOG, "Wait for low");
+    lasthandshaketime_us = esp_timer_get_time();
+    while(gpio_get_level(GPIO_DATA_RDY_PIN))
+    {
+        
+        currtime_us = esp_timer_get_time();
+        timediff = currtime_us - lasthandshaketime_us;
+    
+        if (timediff > 1000000) {
+            ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn LOW");
+            // Logger_stop();
+            return;
+            lasthandshaketime_us = esp_timer_get_time();
         }
        
     }
-
-    // if( test == 1 )
+    // ulNotificationValue = ulTaskNotifyTakeIndexed( 
+    //                                     xArrayIndex,
+    //                                     pdTRUE,
+    //                                     xMaxBlockTime );
     // if (ulNotificationValue)
-    // while(!gpio_get_level(GPIO_DATA_RDY_PIN));
-
     // {
-        /* The transmission ended as expected. */
-        //ESP_LOGI(TAG_LOG, "SPI retrieval");
-        assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
-        // wait until transaction is complete
-        lasthandshaketime_us = esp_timer_get_time();
-        while(gpio_get_level(GPIO_DATA_RDY_PIN))
-        {
-        // ESP_LOGI(TAG_LOG,"Data not ready");
-        // extimer_init(10);
-        // ulNotificationValue = ulTaskNotifyTake( 
-        //                                     // xArrayIndex,
-        //                                     pdTRUE,
-        //                                     xMaxBlockTime );
-    
-
-        // diff++;
-        
-        // if (diff > 10000) {
-            currtime_us = esp_timer_get_time();
-            timediff = currtime_us - lasthandshaketime_us;
-        
-            if (timediff > 1000000) {
-                ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn LOW");
-                // Logger_stop();
-                // return;
-                lasthandshaketime_us = esp_timer_get_time();
-            //     test = 0;
-            //     break; //ignore everything <1ms after an earlier irq
-            }
-       
-        }
-        // if (spi_device_polling_transmit(handle, &_spi_transaction) != ESP_OK)
-        // {
-        //     ESP_LOGE(TAG_LOG, "Error retrieving data from STM32!");
-        //     return;
-        // };
-
-        
         // Check if we are writing CSVs or raw data. 
         if (settings_get_logmode() == LOGMODE_CSV)
         {
@@ -438,30 +408,20 @@ void Logger_log()
             ESP_LOGI(TAG_LOG, "Full");
         }
 
-
     // }
     // else
     // {
     //     /* The call to ulTaskNotifyTake() timed out. */
     //     // Is the STM32 hanging? 
-    //         ESP_LOGI(TAG_LOG, "INT timeout");
+    //         ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn LOW");
+    //         Logger_stop();
+    //         return;
     // }
     
 
     
 }
 
-// static void cs_high(spi_transaction_t* t)
-// {
-//     // ESP_LOGI(TAG_LOG, "cs high %d.", GPIO_CS);
-//     gpio_set_level(GPIO_CS, 0);
-// }
-
-// static void cs_low(spi_transaction_t* t)
-// {
-//     gpio_set_level(GPIO_CS, 1);
-//     // ESP_LOGI(TAG_LOG, "cs low %d.", GPIO_CS);
-// }
 
 void task_logging(void * pvParameters)
 {
@@ -511,11 +471,7 @@ void task_logging(void * pvParameters)
     };
 
     // Init STM32 ADC enable pin
-    // ret = gpio_config(&io_conf);
     gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
-    // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE);
-    // gpio_install_isr_service(0);
-    // gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL);
     
     ret = gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
@@ -535,9 +491,6 @@ void task_logging(void * pvParameters)
     ret = spi_device_acquire_bus(handle, portMAX_DELAY);
     assert(ret==ESP_OK);
 
-    //Set up handshake line (DATA_RDY) interrupt.
-    //gpio_config(&io_conf);
-    
     
     
     ESP_LOGI(TAG_LOG, "Logger task started");
@@ -565,19 +518,25 @@ void task_logging(void * pvParameters)
                     _spi_transaction.tx_buffer=NULL;
                     _spi_transaction.rx_buffer=recvbuf;
                     writeptr = 0;
+                    // enable data_rdy interrupt
+                    // assert(Logger_datardy_int(1) == RET_OK);
+                    // Enable logging
+                    // gpio_set_level(GPIO_ADC_EN, 1);
                 }
             break;
 
             case LOGGER_LOGGING:
                 
                 Logger_log();
-
-                // Do NOT add more code here! Time critical!!
-                // if (_nextLoggerState !=LOGGER_LOGGING)
+                // if (_nextLoggerState == LOGGER_IDLE)
                 // {
-                //     // to be replaced by file close
-                //     esp_sd_card_close_unmount();
+                    // Disable logging (should change this)
+                    // gpio_set_level(GPIO_ADC_EN, 0);
+                    // disable data_rdy interrupt
+                    // assert(Logger_datardy_int(0) == RET_OK);
+                    
                 // }
+
             break;
 
             case LOGGER_SETTINGS:

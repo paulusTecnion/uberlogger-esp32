@@ -31,6 +31,20 @@ typedef enum stm32resp {
 
 typedef uint8_t LoggerState;
 
+
+/**
+ * @brief Enable or disable the interrupt for the data ready pin.
+ *
+ *
+ * @note This function is non-blocking
+ *
+ * @param value 0 for disable, 1 for enable
+ * @return
+ *         - RET_NOK  if interrupt setting failed
+ *         - RET_OK                on success
+ */
+uint8_t Logger_datardy_int(uint8_t value);
+
 LoggerState LoggerGetState();
 uint8_t Logger_start();
 uint8_t Logger_stop();
