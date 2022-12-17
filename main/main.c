@@ -215,7 +215,7 @@ void app_main(void)
     // ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
 
     // Start tasks
-    xTaskCreate(task_logging, "task_logging", 3500, NULL, 4, &xHandle_stm32);
+    xTaskCreate(task_logging, "task_logging", 3500, NULL, 6, &xHandle_stm32);
     xTaskCreate(task_hmi, "task_hmi", 4000, NULL, tskIDLE_PRIORITY, &xHandle_oled);
 
     
