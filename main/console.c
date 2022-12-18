@@ -188,9 +188,9 @@ static void register_sd_card_close(void)
 
     const esp_console_cmd_t cmd = {
         .command = "sd_close",
-        .help = "Close file and unmount sd card",
+        .help = "Close file",
         .hint = NULL,
-        .func = &esp_sd_card_close_unmount,
+        .func = &esp_sd_card_close_file,
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }

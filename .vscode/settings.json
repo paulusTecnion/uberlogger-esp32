@@ -27,7 +27,10 @@
     "netbiosns.h": "c",
     "protocol_examples_common.h": "c",
     "stdint.h": "c",
-    "esp_intr_alloc.h": "c"
+    "esp_intr_alloc.h": "c",
+    "*.inc": "c",
+    "fileman.h": "c",
+    "*.ipp": "c"
   },
   "idf.adapterTargetName": "esp32s2"
 }

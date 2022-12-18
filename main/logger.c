@@ -13,6 +13,7 @@
 #include "driver/spi_master.h"
 #include "settings.h"
 #include "extimer.h"
+#include "fileman.h"
 
 #define SPI_BUFFERSIZE 16
 #define SD_BUFFERSIZE 8192
@@ -178,14 +179,6 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
 
 }
 
-void Logger_spi_flush_slave()
-{
-    _spi_transaction.tx_buffer = NULL;
-    assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
-    while(!gpio_get_level(GPIO_DATA_RDY_PIN));
-    assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
-}
-
 void Logger_print_rx_buffer()
 {
     ESP_LOGI(TAG_LOG, "recvbuf:");
@@ -309,12 +302,12 @@ uint8_t Logger_flush_buffer_to_sd_card()
 
     if (settings_get_logmode() == LOGMODE_CSV)
     {
-        esp_sd_card_csv_write(tbuffer_i32+writeOffset, writeSize);
+        fileman_csv_write(tbuffer_i32+writeOffset, writeSize);
     }  else {
+        fileman_write(tbuffer+writeOffset, writeSize);
+    }   
 
-    }   esp_sd_card_write(tbuffer+writeOffset, writeSize);
 
-    esp_sd_card_close_unmount();
     return RET_OK;
    
 }
@@ -416,10 +409,10 @@ void Logger_log()
         {
             if (settings_get_logmode() == LOGMODE_CSV)
             {
-                esp_sd_card_csv_write(tbuffer_i32, SD_BUFFERSIZE / 2);
+                fileman_csv_write(tbuffer_i32, SD_BUFFERSIZE / 2);
             }  else {
 
-            }   esp_sd_card_write(tbuffer, SD_BUFFERSIZE / 2);
+            }   fileman_write(tbuffer, SD_BUFFERSIZE / 2);
             ESP_LOGI(TAG_LOG, "Half");
         }
         
@@ -428,9 +421,9 @@ void Logger_log()
         {
             if (settings_get_logmode() == LOGMODE_CSV)
             {
-                esp_sd_card_csv_write(tbuffer_i32+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
+                fileman_csv_write(tbuffer_i32+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
             } else {
-                esp_sd_card_write(tbuffer+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
+                fileman_write(tbuffer+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
             }
             
             ESP_LOGI(TAG_LOG, "Full");
@@ -505,8 +498,7 @@ void task_logging(void * pvParameters)
     gpio_set_level(GPIO_ADC_EN, 0);
 
     
-   // Initialize SD card
-    esp_sd_card_init();
+  
 
     memset(&_spi_transaction, 0, sizeof(_spi_transaction));
 
@@ -519,8 +511,13 @@ void task_logging(void * pvParameters)
     ret = spi_device_acquire_bus(handle, portMAX_DELAY);
     assert(ret==ESP_OK);
 
-    
-    
+    // Initialize SD card
+    esp_sd_card_init();
+    esp_sd_card_mount();
+    // need to check if sdcard is mounted
+    ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+    esp_sd_card_unmount();
+
     ESP_LOGI(TAG_LOG, "Logger task started");
     if (Logger_syncSettings() )
     {
@@ -539,6 +536,13 @@ void task_logging(void * pvParameters)
                 
                 if (_nextLoggerState == LOGGER_LOGGING)
                 {
+                    esp_sd_card_mount();
+                    if (fileman_open_file() != ESP_OK)
+                    { 
+                        esp_sd_card_unmount();
+                        _nextLoggerState = LOGGER_IDLE;
+                        break;
+                    }
                     // upon changing state to logging, make sure these settings are correct. 
                     _spi_transaction.length=sizeof(sendbuf)*8; // size in bits
                     _spi_transaction.rxlength = sizeof(recvbuf)*8; // size in bits
@@ -566,6 +570,8 @@ void task_logging(void * pvParameters)
                     assert(Logger_datardy_int(0) == RET_OK);
                     // Flush buffer to sd card
                     Logger_flush_buffer_to_sd_card();
+                    fileman_close_file();
+                    esp_sd_card_unmount();
                     
                 }
 

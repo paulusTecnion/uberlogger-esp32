@@ -53,21 +53,13 @@ static const char *TAG = "SDCARD";
 #define PIN_NUM_CS   34
 #endif //USE_SPI_MODE
 
-static FILE* f = NULL;
+
 static sdmmc_card_t* card;
 static const char mount_point[] = MOUNT_POINT;
 sdmmc_host_t host;
 spi_bus_config_t bus_cfg ;
-
-char strbuffer[16];
-
-void esp_sd_card_init(void)
-{
-    esp_err_t ret;
-    // Options for mounting the filesystem.
-    // If format_if_mount_failed is set to true, SD card will be partitioned and
-    // formatted in case when mounting fails.
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+sdspi_device_config_t slot_config ;
+esp_vfs_fat_sdmmc_mount_config_t mount_config = {
 #ifdef CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED
         .format_if_mount_failed = true,
 #else
@@ -76,6 +68,34 @@ void esp_sd_card_init(void)
         .max_files = 1,
         .allocation_unit_size = 16 * 1024
     };
+
+
+
+void esp_sd_card_mount()
+{
+    esp_err_t ret;
+    ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount filesystem. "
+                "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+                "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+        }
+        return;
+    }
+}
+
+
+
+void esp_sd_card_init(void)
+{
+    esp_err_t ret= ESP_OK;
+    // Options for mounting the filesystem.
+    // If format_if_mount_failed is set to true, SD card will be partitioned and
+    // formatted in case when mounting fails.
+    
     
     ESP_LOGI(TAG, "Initializing SD card");
 
@@ -117,7 +137,7 @@ void esp_sd_card_init(void)
         .quadhd_io_num = -1,
         .max_transfer_sz = 4*1024,
     };
-
+    
     // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
     
     ret = spi_bus_initialize(host.slot, &bus_cfg, SPI_DMA_CHAN);
@@ -132,38 +152,15 @@ void esp_sd_card_init(void)
     slot_config.gpio_cs = PIN_NUM_CS;
     slot_config.host_id = host.slot;
 
-    ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
+    
 #endif //USE_SPI_MODE
 
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount filesystem. "
-                "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-                "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
-        }
-        return;
-    }
+    
 
     // Card has been initialized, print its properties
-    sdmmc_card_print_info(stdout, card);
+    // sdmmc_card_print_info(stdout, card);
 
-    // Use POSIX and C standard library functions to work with files.
-    // First create a file.
-    ESP_LOGI(TAG, "Opening file");
-    f = fopen(MOUNT_POINT"/hello.txt", "w");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for writing");
-        return;
-    }
-
-    if (setvbuf(f, NULL, _IOFBF, 4096) != 0)
-    {
-        ESP_LOGE(TAG, "setvbuf failed");
-        perror ("The following error occurred");
-        return;
-    }
+   
 //     fprintf(f, "Hello %s!\n", card->cid.name);
 //     fclose(f);
 //     ESP_LOGI(TAG, "File written");
@@ -206,121 +203,17 @@ void esp_sd_card_init(void)
 //     //deinitialize the bus after all devices are removed
 //     spi_bus_free(host.slot);
 // #endif
+    
 }
 
-int esp_sd_card_mount_open_file(void)
+int esp_sd_card_unmount(void)
 {
-     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-#ifdef CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED
-        .format_if_mount_failed = true,
-#else
-        .format_if_mount_failed = false,
-#endif // EXAMPLE_FORMAT_IF_MOUNT_FAILED
-        .max_files = 1,
-        .allocation_unit_size = 16 * 1024
-    };
-    esp_err_t ret;
-    // This initializes the slot without card detect (CD) and write protect (WP) signals.
-    // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
-    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs = PIN_NUM_CS;
-    slot_config.host_id = host.slot;
-
-    ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
-
-
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount filesystem. "
-                "If you want the card to be formatted, set the EXAMPLE_FORMAT_IF_MOUNT_FAILED menuconfig option.");
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-                "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
-        }
-        return;
-    }
-
-    // Card has been initialized, print its properties
-    sdmmc_card_print_info(stdout, card);
-
-    // Use POSIX and C standard library functions to work with files.
-    // First create a file.
-    ESP_LOGI(TAG, "Opening file");
-    f = fopen(MOUNT_POINT"/hello.txt", "w");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for writing");
-        return;
-    }
-
-    if (setvbuf(f, NULL, _IOFBF, 4096) != 0)
-    {
-        ESP_LOGE(TAG, "setvbuf failed");
-        perror ("The following error occurred");
-        return;
-    }
-}
-
-int esp_sd_card_close_unmount(void)
-{
-    if (f !=NULL)
-    {
-        fclose(f);
+  
+       
         esp_vfs_fat_sdcard_unmount(mount_point, card);
         ESP_LOGI(TAG, "File closed and card unmounted");
         return 0;
-    } else {
-        ESP_LOGE(TAG, "Could not close file and/or unmount card.");
-        return 1;
-    }
-    
 }
 
-int esp_sd_card_close_file(void)
-{
-    if (f!=NULL)
-    {
-        fclose(f);
-        ESP_LOGI(TAG, "File closed");
-        return 1;
-    } else {
-        ESP_LOGE(TAG, "Could not close file!");
-        return 0;
-    }
-}
 
-int esp_sd_card_write(const void * data, size_t len)
-{
-    size_t write_result = fwrite(data,len, 1, f);
-    if (write_result != 1)
-    {
-        ESP_LOGE(TAG,"Error writing to backing store %d %d\n", (int)len, write_result);
-        perror ("The following error occurred");
-        return 0;
-    }
-    return len;
-}
-
-int esp_sd_card_csv_write(const void * data, size_t len)
-{
-    
-    int32_t* int32_data  = (int32_t*) data;
-
-    for (int i = 0; i<len; i++)
-    {
-        // make string out of number
-        //snprintf(strbuffer, sizeof(strbuffer), "%0d.%010llu,", (int32_data[i] >> 27), (((int32_data[i] & 0x7FFFFFF) * 100000000L)/(1 << 27) ));
-        snprintf(strbuffer, 11, "%d.%06d,", int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))));
-        
-   
-        if ((i % 8) == 0 && (i!=0))
-        {
-            fprintf(f,"\n");
-        }
-        fprintf(f, strbuffer);
-        
-    }
-   
-  
-   return len;
-}
 
