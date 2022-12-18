@@ -16,6 +16,7 @@
 #include "logger.h"
 #include "hw_config.h"
 #include "settings.h"
+#include "fileman.h"
 
 
 static const char* TAG_CONSOLE = "CONSOLE";
@@ -190,7 +191,7 @@ static void register_sd_card_close(void)
         .command = "sd_close",
         .help = "Close file",
         .hint = NULL,
-        .func = &esp_sd_card_close_file,
+        .func = &fileman_close_file,
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }

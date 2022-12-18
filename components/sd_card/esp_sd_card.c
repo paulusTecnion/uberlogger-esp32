@@ -74,6 +74,21 @@ esp_vfs_fat_sdmmc_mount_config_t mount_config = {
 void esp_sd_card_mount()
 {
     esp_err_t ret;
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    host.slot = SPI2_HOST;
+    spi_bus_config_t bus_cfg = {
+        .mosi_io_num = PIN_NUM_MOSI,
+        .miso_io_num = PIN_NUM_MISO,
+        .sclk_io_num = PIN_NUM_CLK,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 4*1024,
+    };
+
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.gpio_cs = PIN_NUM_CS;
+    slot_config.host_id = host.slot;
+
     ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
     if (ret != ESP_OK) {
         if (ret == ESP_FAIL) {
@@ -148,10 +163,11 @@ void esp_sd_card_init(void)
 
     // This initializes the slot without card detect (CD) and write protect (WP) signals.
     // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
-    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs = PIN_NUM_CS;
-    slot_config.host_id = host.slot;
+    // sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    // slot_config.gpio_cs = PIN_NUM_CS;
+    // slot_config.host_id = host.slot;
 
+  
     
 #endif //USE_SPI_MODE
 
