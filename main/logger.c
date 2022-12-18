@@ -79,7 +79,7 @@ uint8_t Logger_datardy_int(uint8_t value)
     {
         ESP_LOGI(TAG_LOG, "Enabling data_rdy interrupts");
         // Trigger on up and down edges
-        if (gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
+        if (gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_ANYEDGE) == ESP_OK &&
         gpio_install_isr_service(0) == ESP_OK &&
         gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) == ESP_OK){
             return RET_OK;
@@ -359,28 +359,28 @@ void Logger_log()
     
     // wait until transaction is complete
     // ESP_LOGI(TAG_LOG, "Wait for low");
-    lasthandshaketime_us = esp_timer_get_time();
-    while(gpio_get_level(GPIO_DATA_RDY_PIN))
-    {
-        
-        currtime_us = esp_timer_get_time();
-        timediff = currtime_us - lasthandshaketime_us;
-    
-        if (timediff > 1000000) {
-            ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn LOW");
-            Logger_stop();
-            return;
-            lasthandshaketime_us = esp_timer_get_time();
-        }
-       
-    }
-
-    // ulNotificationValue = ulTaskNotifyTake( 
-    //                                     // xArrayIndex,
-    //                                     pdTRUE,
-    //                                     xMaxBlockTime );
-    // if (ulNotificationValue)
+    // lasthandshaketime_us = esp_timer_get_time();
+    // while(gpio_get_level(GPIO_DATA_RDY_PIN))
     // {
+        
+    //     currtime_us = esp_timer_get_time();
+    //     timediff = currtime_us - lasthandshaketime_us;
+    
+    //     if (timediff > 1000000) {
+    //         ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn LOW");
+    //         Logger_stop();
+    //         return;
+    //         lasthandshaketime_us = esp_timer_get_time();
+    //     }
+       
+    // }
+
+    ulNotificationValue = ulTaskNotifyTake( 
+                                        // xArrayIndex,
+                                        pdTRUE,
+                                        xMaxBlockTime );
+    if (ulNotificationValue)
+    {
         // Check if we are writing CSVs or raw data. 
         if (settings_get_logmode() == LOGMODE_CSV)
         {
@@ -436,15 +436,15 @@ void Logger_log()
             ESP_LOGI(TAG_LOG, "Full");
         }
 
-    // }
-    // else
-    // {
-    //     /* The call to ulTaskNotifyTake() timed out. */
-    //     // Is the STM32 hanging? 
-    //         ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn LOW");
-    //         Logger_stop();
-    //         return;
-    // }
+    }
+    else
+    {
+        /* The call to ulTaskNotifyTake() timed out. */
+        // Is the STM32 hanging? 
+            ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn LOW");
+            Logger_stop();
+            return;
+    }
     
 
     
@@ -492,7 +492,7 @@ void task_logging(void * pvParameters)
 
     //GPIO config for the handshake line.
     gpio_config_t io_conf={
-        .intr_type=GPIO_INTR_POSEDGE,
+        // .intr_type=GPIO_INTR_POSEDGE,
         .mode=GPIO_MODE_INPUT,
         .pull_up_en=0,
         .pin_bit_mask=(1<<GPIO_DATA_RDY_PIN)
