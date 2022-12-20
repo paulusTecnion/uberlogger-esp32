@@ -147,16 +147,19 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     _spi_transaction.rx_buffer = recvbuf;
     _spi_transaction.tx_buffer = sendbuf;
     //   ESP_LOGI(TAG_LOG,"About to send the command in 1 second");
-    //   vTaskDelay( 1000 / portTICK_PERIOD_MS);
-     while(gpio_get_level(GPIO_DATA_RDY_PIN));
+    
+    
+    // Wait until data ready pin is LOW
+    while(gpio_get_level(GPIO_DATA_RDY_PIN));
     assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
     // assert(spi_device_polling_transmit(handle, &_spi_transaction) == ESP_OK);
     // wait for 5 ms for stm32 to process data
-    // ets_delay_us(10000);
+    // Wait until data is ready for transmission
+    vTaskDelay( 10 / portTICK_PERIOD_MS);
     while(!gpio_get_level(GPIO_DATA_RDY_PIN));
-    // ESP_LOGI(TAG_LOG,"Pass 1/2 CMD");
+    ESP_LOGI(TAG_LOG,"Pass 1/2 CMD");
     // ets_delay_us(10000);
-    // vTaskDelay( 5 / portTICK_PERIOD_MS);
+    
 
     // Tx length = 0
     // trans->length = 1;
@@ -166,16 +169,15 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     // while(gpio_get_level(GPIO_DATA_RDY_PIN));
 
     // vTaskDelay( 20 / portTICK_PERIOD_MS);
-
+    vTaskDelay( 10 / portTICK_PERIOD_MS);
     sendbuf[0] = STM32_CMD_NOP;
     sendbuf[1] = 0;
     _spi_transaction.rxlength = 16;
     _spi_transaction.rx_buffer = recvbuf;
-    spi_device_transmit(handle, &_spi_transaction);
     // Wait until data_rdy pin is low again, then data transmission is complete
+    spi_device_transmit(handle, &_spi_transaction);
     while(gpio_get_level(GPIO_DATA_RDY_PIN));
-
-    
+    ESP_LOGI(TAG_LOG,"Pass 2/2 CMD");    
 
 }
 
@@ -194,17 +196,16 @@ uint8_t Logger_syncSettings()
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
     Logger_spi_cmd(STM32_CMD_SETTINGS_MODE, 0);
     // Logger_print_rx_buffer();
-    if (recvbuf[0] != STM32_RESP_OK && recvbuf[1] == STM32_CMD_SETTINGS_MODE)
+    if (recvbuf[0] != STM32_RESP_OK || recvbuf[1] != STM32_CMD_SETTINGS_MODE)
     {
         ESP_LOGI(TAG_LOG, "Unable to put STM32 into SETTINGS mode. ");
         Logger_print_rx_buffer();
         return RET_NOK;
     } 
     ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
-    
-// Logger_print_rx_buffer();
     Logger_spi_cmd(STM32_CMD_SET_RESOLUTION, (uint8_t)settings_get_resolution());
-    if (recvbuf[0] != STM32_RESP_OK && recvbuf[1] == STM32_CMD_SET_RESOLUTION)
+    // Logger_print_rx_buffer();
+    if (recvbuf[0] != STM32_RESP_OK || recvbuf[1] != STM32_CMD_SET_RESOLUTION)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", recvbuf[0]);
         Logger_print_rx_buffer();
@@ -216,7 +217,7 @@ uint8_t Logger_syncSettings()
 
     Logger_spi_cmd(STM32_CMD_SET_SAMPLE_RATE, (uint8_t)settings_get_samplerate());
     // Logger_print_rx_buffer();
-    if (recvbuf[0] != STM32_RESP_OK && recvbuf[1] == STM32_CMD_SET_SAMPLE_RATE)
+    if (recvbuf[0] != STM32_RESP_OK || recvbuf[1] != STM32_CMD_SET_SAMPLE_RATE)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 sample rate. ");
         Logger_print_rx_buffer();
@@ -228,7 +229,7 @@ uint8_t Logger_syncSettings()
     // Send settings one by one and confirm
     Logger_spi_cmd(STM32_CMD_MEASURE_MODE, 0);
     // Logger_print_rx_buffer();
-    if (recvbuf[0] != STM32_RESP_OK && recvbuf[1] == STM32_CMD_MEASURE_MODE)
+    if (recvbuf[0] != STM32_RESP_OK || recvbuf[1] != STM32_CMD_MEASURE_MODE)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 in measure mode");
         Logger_print_rx_buffer();
@@ -319,7 +320,7 @@ void Logger_log()
                                             pdTRUE,
                                             xMaxBlockTime );
     
-    // Polling method (blocking)
+    // // Polling method (blocking)
     static uint32_t lasthandshaketime_us, currtime_us ;
     lasthandshaketime_us = esp_timer_get_time();
     uint32_t timediff =0;
@@ -337,10 +338,10 @@ void Logger_log()
     //         lasthandshaketime_us = esp_timer_get_time();
     //     }  
     // }
-
+    gpio_set_level(GPIO_CS, 1);
     if (ulNotificationValue)
     {
-        ESP_LOGI(TAG_LOG, "SPI TRANS");
+        // ESP_LOGI(TAG_LOG, "SPI TRANS");
         assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
     } else {
         /* The call to ulTaskNotifyTake() timed out. */
@@ -352,28 +353,28 @@ void Logger_log()
     
     // wait until transaction is complete
     // ESP_LOGI(TAG_LOG, "Wait for low");
-    // lasthandshaketime_us = esp_timer_get_time();
-    // while(gpio_get_level(GPIO_DATA_RDY_PIN))
-    // {
-        
-    //     currtime_us = esp_timer_get_time();
-    //     timediff = currtime_us - lasthandshaketime_us;
-    
-    //     if (timediff > 1000000) {
-    //         ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn LOW");
-    //         Logger_stop();
-    //         return;
-    //         lasthandshaketime_us = esp_timer_get_time();
-    //     }
-       
-    // }
-
-    ulNotificationValue = ulTaskNotifyTake( 
-                                        // xArrayIndex,
-                                        pdTRUE,
-                                        xMaxBlockTime );
-    if (ulNotificationValue)
+    lasthandshaketime_us = esp_timer_get_time();
+    while(gpio_get_level(GPIO_DATA_RDY_PIN))
     {
+        
+        currtime_us = esp_timer_get_time();
+        timediff = currtime_us - lasthandshaketime_us;
+    
+        if (timediff > 1000000) {
+            ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn LOW");
+            Logger_stop();
+            return;
+            lasthandshaketime_us = esp_timer_get_time();
+        }
+       
+    }
+
+    // ulNotificationValue = ulTaskNotifyTake( 
+    //                                     // xArrayIndex,
+    //                                     pdTRUE,
+    //                                     xMaxBlockTime );
+    // if (ulNotificationValue)
+    // {
         // Check if we are writing CSVs or raw data. 
         if (settings_get_logmode() == LOGMODE_CSV)
         {
@@ -413,7 +414,7 @@ void Logger_log()
             }  else {
 
             }   fileman_write(tbuffer, SD_BUFFERSIZE / 2);
-            ESP_LOGI(TAG_LOG, "Half");
+            // ESP_LOGI(TAG_LOG, "Half");
         }
         
         // If we reached the end of the SD buffer then write again.
@@ -426,20 +427,21 @@ void Logger_log()
                 fileman_write(tbuffer+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
             }
             
-            ESP_LOGI(TAG_LOG, "Full");
+            // ESP_LOGI(TAG_LOG, "Full");
         }
 
-    }
-    else
-    {
-        /* The call to ulTaskNotifyTake() timed out. */
-        // Is the STM32 hanging? 
-            ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn LOW");
-            Logger_stop();
-            return;
-    }
+    // }
+    // else
+    // {
+    //     /* The call to ulTaskNotifyTake() timed out. */
+    //     // Is the STM32 hanging? 
+    //         ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn LOW");
+    //         Logger_stop();
+    //         return;
+    // }
     
-
+    gpio_set_level(GPIO_CS, 0);
+    
     
 }
 
@@ -497,7 +499,8 @@ void task_logging(void * pvParameters)
     ret = gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
 
-    
+    gpio_set_direction(GPIO_CS, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_CS, 0);
   
 
     memset(&_spi_transaction, 0, sizeof(_spi_transaction));
@@ -511,10 +514,10 @@ void task_logging(void * pvParameters)
     ret = spi_device_acquire_bus(handle, portMAX_DELAY);
     assert(ret==ESP_OK);
 
-    // Initialize SD card
+    // // Initialize SD card
     esp_sd_card_init();
     esp_sd_card_mount();
-    // need to check if sdcard is mounted
+    // // need to check if sdcard is mounted
     ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
     esp_sd_card_unmount();
 

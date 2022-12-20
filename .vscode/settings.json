@@ -30,7 +30,11 @@
     "esp_intr_alloc.h": "c",
     "*.inc": "c",
     "fileman.h": "c",
-    "*.ipp": "c"
+    "*.ipp": "c",
+    "cstdio": "c",
+    "fstream": "c",
+    "sdmmc_host.h": "c",
+    "sdmmc_cmd.h": "c"
   },
   "idf.adapterTargetName": "esp32s2"
 }

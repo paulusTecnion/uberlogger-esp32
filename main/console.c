@@ -66,10 +66,8 @@ static int cmd_sample_rate(int argc, char **argv)
         return 1;
     }
     
-        // ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
+    // ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
     
-    
-
 }
 
 static int logger_csvlog_en(int argc, char **argv)
