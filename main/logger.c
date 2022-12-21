@@ -460,7 +460,8 @@ void task_logging(void * pvParameters)
         .quadwp_io_num=-1,
         .quadhd_io_num=-1,
         .max_transfer_sz = 16,
-        .flags = SPICOMMON_BUSFLAG_MASTER
+        .flags = SPICOMMON_BUSFLAG_MASTER,
+        .intr_flags = ESP_INTR_FLAG_IRAM
     };
 
     //Configuration for the SPI device on the other side of the bus

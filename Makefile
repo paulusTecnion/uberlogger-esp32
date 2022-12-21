@@ -9,11 +9,11 @@ EXTRA_COMPONENT_DIRS = $(IDF_PATH)/examples/common_components/protocol_examples_
 include $(IDF_PATH)/make/project.mk
 
 ifdef CONFIG_EXAMPLE_WEB_DEPLOY_SF
-WEB_SRC_DIR = $(shell pwd)/front/web-demo
-ifneq ($(wildcard $(WEB_SRC_DIR)/dist/.*),)
+WEB_SRC_DIR = $(shell pwd)/front/sample
+ifneq ($(wildcard $(WEB_SRC_DIR)/build/.*),)
 SPIFFS_IMAGE_FLASH_IN_PROJECT := 1
-$(eval $(call spiffs_create_partition_image,www,$(WEB_SRC_DIR)/dist))
+$(eval $(call spiffs_create_partition_image,www,$(WEB_SRC_DIR)/build))
 else
-$(error $(WEB_SRC_DIR)/dist doesn't exist. Please run 'npm run build' in $(WEB_SRC_DIR))
+$(error $(WEB_SRC_DIR)/build doesn't exist. Please run 'npm run build' in $(WEB_SRC_DIR))
 endif
 endif

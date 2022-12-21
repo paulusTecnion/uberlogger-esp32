@@ -92,20 +92,20 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
     }
 }
 
-static void initialise_mdns(void)
-{
-    mdns_init();
-    mdns_hostname_set(CONFIG_EXAMPLE_MDNS_HOST_NAME);
-    mdns_instance_name_set(MDNS_INSTANCE);
+// static void initialise_mdns(void)
+// {
+//     mdns_init();
+//     mdns_hostname_set(CONFIG_EXAMPLE_MDNS_HOST_NAME);
+//     mdns_instance_name_set(MDNS_INSTANCE);
 
-    mdns_txt_item_t serviceTxtData[] = {
-        {"board", "esp32"},
-        {"path", "/"}
-    };
+//     mdns_txt_item_t serviceTxtData[] = {
+//         {"board", "esp32"},
+//         {"path", "/"}
+//     };
 
-    ESP_ERROR_CHECK(mdns_service_add("ESP32-WebServer", "_http", "_tcp", 80, serviceTxtData,
-                                     sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
-}
+//     ESP_ERROR_CHECK(mdns_service_add("ESP32-WebServer", "_http", "_tcp", 80, serviceTxtData,
+//                                      sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
+// }
 
 
 void wifi_init_softap(void)
@@ -124,7 +124,7 @@ void wifi_init_softap(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_ap();
 
-    initialise_mdns();
+    // initialise_mdns();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -204,15 +204,16 @@ void app_main(void)
     
 
     
-    // wifi_init_softap();
+    wifi_init_softap();
+    
     settings_init();
     
 
     // Register console commands
     init_console(); 
     
-    // ESP_ERROR_CHECK(init_fs());
-    // ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
+    ESP_ERROR_CHECK(init_fs());
+    ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
 
     // Start tasks
     xTaskCreate(task_logging, "task_logging", 3500, NULL, 6, &xHandle_stm32);

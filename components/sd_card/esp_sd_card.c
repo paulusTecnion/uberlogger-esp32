@@ -82,7 +82,7 @@ void esp_sd_card_mount()
         .sclk_io_num = PIN_NUM_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 4*1024,
+        .max_transfer_sz = 16*1024,
     };
 
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
