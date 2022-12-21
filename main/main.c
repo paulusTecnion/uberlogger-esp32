@@ -197,6 +197,7 @@ void app_main(void)
 {
 
     
+    
 
     // ESP_ERROR_CHECK(nvs_flash_init());
     // ESP_ERROR_CHECK(esp_netif_init());
@@ -206,11 +207,16 @@ void app_main(void)
     
     // wifi_init_softap();
     
-    settings_init();
+    
     
 
     // Register console commands
     init_console(); 
+    settings_init();
+    ESP_LOGI(TAG, "\r\n"
+    "#################################\r\n"
+    "#           UberLogger          #\r\n"
+    "#################################");
     
     // ESP_ERROR_CHECK(init_fs());
     // ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
