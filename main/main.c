@@ -211,7 +211,7 @@ void app_main(void)
     
 
     // Register console commands
-    init_console(); 
+    init_console();
     settings_init();
     ESP_LOGI(TAG, "\r\n"
     "#################################\r\n"
