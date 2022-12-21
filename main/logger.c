@@ -133,6 +133,16 @@ uint8_t Logger_exitSettingsMode()
     }
 }
 
+uint8_t Logger_isLogging(void)
+{
+    if (_currentLoggerState == LOGGER_LOGGING)
+    {
+        return RET_OK;
+    } else {
+        return RET_NOK;
+    }
+}
+
 void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
 {
     // uint8_t * ptr;

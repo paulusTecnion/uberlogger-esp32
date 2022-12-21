@@ -204,7 +204,7 @@ void app_main(void)
     
 
     
-    wifi_init_softap();
+    // wifi_init_softap();
     
     settings_init();
     
@@ -212,8 +212,8 @@ void app_main(void)
     // Register console commands
     init_console(); 
     
-    ESP_ERROR_CHECK(init_fs());
-    ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
+    // ESP_ERROR_CHECK(init_fs());
+    // ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
 
     // Start tasks
     xTaskCreate(task_logging, "task_logging", 3500, NULL, 6, &xHandle_stm32);

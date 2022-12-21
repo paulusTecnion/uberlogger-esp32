@@ -49,6 +49,7 @@ LoggerState LoggerGetState();
 uint8_t Logger_start();
 uint8_t Logger_stop();
 uint8_t Logger_flush_buffer_to_sd_card();
+uint8_t Logger_isLogging(void);
 uint8_t Logger_setCsvLog(log_mode_t value);
 uint8_t Logger_getCsvLog();
 uint8_t Logger_syncSettings();

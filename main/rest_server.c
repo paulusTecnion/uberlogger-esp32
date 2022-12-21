@@ -13,6 +13,7 @@
 #include "esp_log.h"
 #include "esp_vfs.h"
 #include "cJSON.h"
+#include "logger.h"
 
 static const char *REST_TAG = "esp-rest";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
@@ -154,6 +155,32 @@ static esp_err_t system_info_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t Logger_start_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+    cJSON *root = cJSON_CreateObject();
+    Logger_start();
+    cJSON_AddStringToObject(root, "ack", "ok");
+    const char *sys_info = cJSON_Print(root);
+    httpd_resp_sendstr(req, sys_info);
+    free((void *)sys_info);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+static esp_err_t Logger_stop_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+    cJSON *root = cJSON_CreateObject();
+    Logger_stop();
+    cJSON_AddStringToObject(root, "ack", "ok");
+    const char *sys_info = cJSON_Print(root);
+    httpd_resp_sendstr(req, sys_info);
+    free((void *)sys_info);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
 
 
 esp_err_t start_rest_server(const char *base_path)
@@ -189,13 +216,21 @@ esp_err_t start_rest_server(const char *base_path)
     // httpd_register_uri_handler(server, &temperature_data_get_uri);
 
     // /* URI handler for light brightness control */
-    // httpd_uri_t light_brightness_post_uri = {
-    //     .uri = "/api/v1/light/brightness",
+    // httpd_uri_t logger_start_uri = {
+    //     .uri = "/api/v1/logger/start",
     //     .method = HTTP_POST,
-    //     .handler = light_brightness_post_handler,
+    //     .handler = Logger_start_handler,
     //     .user_ctx = rest_context
     // };
-    // httpd_register_uri_handler(server, &light_brightness_post_uri);
+    // httpd_register_uri_handler(server, &logger_start_uri);
+
+    // httpd_uri_t logger_stop_uri = {
+    //     .uri = "/api/v1/logger/stop",
+    //     .method = HTTP_POST,
+    //     .handler = Logger_stop_handler,
+    //     .user_ctx = rest_context
+    // };
+    // httpd_register_uri_handler(server, &logger_stop_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {

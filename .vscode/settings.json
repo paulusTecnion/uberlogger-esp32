@@ -34,7 +34,8 @@
     "cstdio": "c",
     "fstream": "c",
     "sdmmc_host.h": "c",
-    "sdmmc_cmd.h": "c"
+    "sdmmc_cmd.h": "c",
+    "gpio.h": "c"
   },
   "idf.adapterTargetName": "esp32s2"
 }
