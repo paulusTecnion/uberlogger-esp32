@@ -16,6 +16,14 @@ enum LoggerStates
     LOGGER_NUM_STATES
 };
 
+enum LoggingStates{
+    LOGGING_START = 0,
+    LOGGING_RX0_WAIT,
+    LOGGING_RX1_WAIT,
+    LOGGING_STOP,
+    LOGGING_NUM_STATES
+};
+
 typedef enum stm32cmd {
     STM32_CMD_NOP=0,
     STM32_CMD_SETTINGS_MODE,
@@ -29,7 +37,8 @@ typedef enum stm32resp {
     STM32_RESP_NOK
  } stm32resp_t;
 
-typedef uint8_t LoggerState;
+typedef uint8_t LoggerState_t;
+typedef uint8_t LoggingState_t;
 
 
 /**
@@ -45,10 +54,13 @@ typedef uint8_t LoggerState;
  */
 uint8_t Logger_datardy_int(uint8_t value);
 
-LoggerState LoggerGetState();
+LoggerState_t LoggerGetState();
 uint8_t Logger_start();
 uint8_t Logger_stop();
-uint8_t Logger_flush_buffer_to_sd_card();
+// uint8_t Logger_flush_buffer_to_sd_card();
+uint8_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size);
+uint8_t Logger_flush_buffer_to_sd_card_int32(int32_t * buffer, size_t size);
+
 uint8_t Logger_isLogging(void);
 uint8_t Logger_setCsvLog(log_mode_t value);
 uint8_t Logger_getCsvLog();
