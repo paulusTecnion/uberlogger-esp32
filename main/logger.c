@@ -367,6 +367,8 @@ void Logger_log()
 {   
 
     static uint8_t log_counter = 0;
+    static bool buffer_no = false;
+
     ulNotificationValue = ulTaskNotifyTake( 
                                             // xArrayIndex,
                                             pdTRUE,
@@ -374,80 +376,71 @@ void Logger_log()
 
     if (ulNotificationValue)
     {
-        log_counter++;
-        if (log_counter != int_counter)
-        {
-            ESP_LOGE(TAG_LOG, "Missing SPI transaction! Stopping");
-            Logger_stop();
-            return;
-        }
 
-            switch (_currentLoggingState)
+        switch (_currentLoggingState)
         {
-            case LOGGING_START:
-        
-                    ESP_LOGI(TAG_LOG, "Queuing spi transactions..");
-                    // assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
-                    assert(spi_device_queue_trans(handle, &_spi_transaction_rx0, 0) == ESP_OK);
-                    assert(spi_device_queue_trans(handle, &_spi_transaction_rx1, 0) == ESP_OK);
-                    _nextLoggingState = LOGGING_RX0_WAIT;
-                
-            break;
-
             case LOGGING_RX0_WAIT:
-                // if (ulNotificationValue)
                 {
                     // Check if our transaction is done
                     spi_transaction_t * ptr = &_spi_transaction_rx0;
                     if(spi_device_get_trans_result(handle, &ptr, 0) == ESP_OK)
                     {
-                        // Requeue Rx0
-                        assert(spi_device_queue_trans(handle, &_spi_transaction_rx0, 0) == ESP_OK);
-                        if (settings_get_logmode() == LOGMODE_CSV)
+                        // one block of 512 bytes is retrieved, increase message count
+                        log_counter++; // received bytes = log_counter*512
+                        if (log_counter != (int_counter - 1))
                         {
-                            // Process data first
-                            Logger_raw_to_csv(recvbuf0, SPI_BUFFERSIZE_RX);
-                            // Write it SD
-                            Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, SPI_BUFFERSIZE_RX);
-                        } else {
-                            Logger_flush_buffer_to_sd_card_uint8(recvbuf0, SPI_BUFFERSIZE_RX);
-                        }                    
-                        _nextLoggingState = LOGGING_RX1_WAIT;
+                            ESP_LOGE(TAG_LOG, "Missing SPI transaction! Stopping");
+                            Logger_stop();
+                            return;
+                        }
+
+                        // execute only when a full block of SPI_BUFFERSIZE_RX is retrieved
+                        if(log_counter*stm_txlength >= SPI_BUFFERSIZE_RX){
+                            log_counter = 0;
+
+                            if (settings_get_logmode() == LOGMODE_CSV)
+                            {
+
+                                // Process data first
+                                if(buffer_no==false){
+                                    Logger_raw_to_csv(recvbuf0, SPI_BUFFERSIZE_RX);
+                                }else if(buffer_no==true){
+                                    Logger_raw_to_csv(recvbuf1, SPI_BUFFERSIZE_RX);
+                                }
+                                // Write it SD
+                                Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, SPI_BUFFERSIZE_RX);
+                            } else {
+                                Logger_flush_buffer_to_sd_card_uint8(recvbuf0, SPI_BUFFERSIZE_RX);
+                            }                    
+
+                            buffer_no++;
+                        }
+
+                        _nextLoggingState = LOGGING_RX0_WAIT;
                     } else {
                         ESP_LOGE(TAG_LOG, "RX0 timed out!");
                         _nextLoggingState = LOGGING_STOP;
                         return;
                     }
                 }
-            break;
 
-            case LOGGING_RX1_WAIT:
-                // if (ulNotificationValue)
-                // {
-                    {
-                    spi_transaction_t * ptr = &_spi_transaction_rx1;
-                    if(spi_device_get_trans_result(handle, &ptr, 0) == ESP_OK)
-                    {
-                        assert(spi_device_queue_trans(handle, &_spi_transaction_rx1, 0) == ESP_OK);
-                        if (settings_get_logmode() == LOGMODE_CSV)
-                        {
-                            // Process data first
-                            Logger_raw_to_csv(recvbuf1, SPI_BUFFERSIZE_RX);
-                            // Write it SD
-                            Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, SPI_BUFFERSIZE_RX);
-                        } else {
-                            Logger_flush_buffer_to_sd_card_uint8(recvbuf1, SPI_BUFFERSIZE_RX);
-                        }
+            case LOGGING_START:
+                    ESP_LOGI(TAG_LOG, "Queuing spi transactions..");
+                    // assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
 
-                        _nextLoggingState = LOGGING_RX0_WAIT;
-                    } else {
-                        ESP_LOGE(TAG_LOG, "RX1 timed out!");
-                        _nextLoggingState = LOGGING_STOP;
-                        return;
+                    _spi_transaction_rx.rxlength=stm_txlength;
+                    
+                    if(buffer_no==false){
+                        _spi_transaction_rx.rx_buffer=recvbuf0+(log_counter*stm_txlength);
+                    }else if(buffer_no == true){
+                        _spi_transaction_rx.rx_buffer=recvbuf1+(log_counter*stm_txlength);
                     }
-                }
-                
+
+                    assert(spi_device_queue_trans(handle, &_spi_transaction_rx, 0) == ESP_OK);
+
+                    _nextLoggingState = LOGGING_RX0_WAIT;
             break;
+
 
             case LOGGING_STOP:
                 
