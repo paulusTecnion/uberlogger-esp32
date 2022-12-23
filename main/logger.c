@@ -17,6 +17,7 @@
 
 #define SPI_BUFFERSIZE_TX 16
 #define SPI_BUFFERSIZE_RX 8192
+#define STM_TXLENGTH 1024
 // #define SD_BUFFERSIZE 8192
 
 static const char* TAG_LOG = "LOGGER";
@@ -25,6 +26,7 @@ DMA_ATTR uint8_t sendbuf[SPI_BUFFERSIZE_TX];
 // Two buffers for receiving
 DMA_ATTR uint8_t recvbuf0[SPI_BUFFERSIZE_RX];
 DMA_ATTR uint8_t recvbuf1[SPI_BUFFERSIZE_RX];
+
 
 
 // tbuffer and tbuffer_i32 should be merged in the future
@@ -47,7 +49,7 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 1000 );
 extern TaskHandle_t xHandle_stm32;
 // const UBaseType_t xArrayIndex = 0;
 
-uint8_t int_counter =0;
+uint8_t volatile int_counter =0;
 
 /*
 This ISR is called when the handshake line goes high OR low
@@ -338,9 +340,10 @@ uint8_t Logger_flush_buffer_to_sd_card_int32(int32_t * buffer, size_t size)
     return RET_OK;
 }
 
-uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size)
+uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
 {
      // ESP_LOGI(TAG_LOG,"ADC Reading:");
+        writeptr = 0;
         for (int j = 0; j < (size); j = j + 2)
         {
             // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
@@ -356,8 +359,10 @@ uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size)
             t1 = t0 * (20LL * 1000000LL);
             t2 = t1 / ((1 << settings_get_resolution_uint8()) - 1); // -1 for 4095 steps
             t3 = t2 - 10000000LL;
-            tbuffer_i32[writeptr] = (int32_t)t3;
-            // ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", recvbuf[j], recvbuf[j+1], t3, tbuffer_i32[writeptr]);
+            tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH] = (int32_t)t3;
+            
+            // ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", buffer[j], buffer[j+1], t3, tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH]);
+            writeptr++;
         }
 
         return RET_OK;
@@ -365,9 +370,10 @@ uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size)
 
 void Logger_log()
 {   
-
+    
     static uint8_t log_counter = 0;
     static bool buffer_no = false;
+    static uint8_t count_offset = 1;
 
     ulNotificationValue = ulTaskNotifyTake( 
                                             // xArrayIndex,
@@ -387,33 +393,38 @@ void Logger_log()
                     {
                         // one block of 512 bytes is retrieved, increase message count
                         log_counter++; // received bytes = log_counter*512
-                        if (log_counter != (int_counter - 1))
+                        ESP_LOGI(TAG_LOG, "%d vs. %d", log_counter, (int_counter-1));
+                        if (log_counter != (int_counter - count_offset))
                         {
-                            ESP_LOGE(TAG_LOG, "Missing SPI transaction! Stopping");
-                            Logger_stop();
-                            return;
+
+                            ESP_LOGE(TAG_LOG, "Missing SPI transaction (%d vs. %d)! Stopping", log_counter, (int_counter-1));
+                            // Logger_stop();
+                            // return;
                         }
 
                         // execute only when a full block of SPI_BUFFERSIZE_RX is retrieved
-                        if(log_counter*stm_txlength >= SPI_BUFFERSIZE_RX){
-                            log_counter = 0;
+                         // Process data first
+                         if (settings_get_logmode() == LOGMODE_CSV)
+                         {
+                            if(buffer_no==false){
+                                Logger_raw_to_csv(recvbuf0+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
+                            }else if(buffer_no==true){
+                                Logger_raw_to_csv(recvbuf1+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
+                            }
+                        }
 
+                        if(log_counter*STM_TXLENGTH >= SPI_BUFFERSIZE_RX){
+                            log_counter = 0;
+                            int_counter = 0;
                             if (settings_get_logmode() == LOGMODE_CSV)
                             {
-
-                                // Process data first
-                                if(buffer_no==false){
-                                    Logger_raw_to_csv(recvbuf0, SPI_BUFFERSIZE_RX);
-                                }else if(buffer_no==true){
-                                    Logger_raw_to_csv(recvbuf1, SPI_BUFFERSIZE_RX);
-                                }
                                 // Write it SD
                                 Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, SPI_BUFFERSIZE_RX);
                             } else {
                                 Logger_flush_buffer_to_sd_card_uint8(recvbuf0, SPI_BUFFERSIZE_RX);
                             }                    
 
-                            buffer_no++;
+                            buffer_no = !buffer_no;
                         }
 
                         _nextLoggingState = LOGGING_RX0_WAIT;
@@ -427,16 +438,19 @@ void Logger_log()
             case LOGGING_START:
                     ESP_LOGI(TAG_LOG, "Queuing spi transactions..");
                     // assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
-
-                    _spi_transaction_rx.rxlength=stm_txlength;
+                    if (int_counter==0)
+                    {
+                        count_offset = 0;
+                    } 
+                    _spi_transaction_rx0.rxlength=STM_TXLENGTH;
                     
                     if(buffer_no==false){
-                        _spi_transaction_rx.rx_buffer=recvbuf0+(log_counter*stm_txlength);
+                        _spi_transaction_rx0.rx_buffer=recvbuf0+(log_counter*STM_TXLENGTH);
                     }else if(buffer_no == true){
-                        _spi_transaction_rx.rx_buffer=recvbuf1+(log_counter*stm_txlength);
+                        _spi_transaction_rx0.rx_buffer=recvbuf1+(log_counter*STM_TXLENGTH);
                     }
 
-                    assert(spi_device_queue_trans(handle, &_spi_transaction_rx, 0) == ESP_OK);
+                    assert(spi_device_queue_trans(handle, &_spi_transaction_rx0, 0) == ESP_OK);
 
                     _nextLoggingState = LOGGING_RX0_WAIT;
             break;
@@ -449,8 +463,9 @@ void Logger_log()
 
         if (_nextLoggingState != _currentLoggingState)
         {
+            
+            ESP_LOGI(TAG_LOG, "LOGGING state changing from %d to %d", _currentLoggingState, _nextLoggingState);
             _currentLoggingState = _nextLoggingState;
-            ESP_LOGI(TAG_LOG, "LOGGING state changed from %d to %d", _currentLoggingState, _nextLoggingState);
         }
     }
     
