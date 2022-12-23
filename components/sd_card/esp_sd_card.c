@@ -76,6 +76,7 @@ void esp_sd_card_mount()
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI2_HOST;
+    
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_NUM_MOSI,
         .miso_io_num = PIN_NUM_MISO,
@@ -150,7 +151,7 @@ void esp_sd_card_init(void)
         .sclk_io_num = PIN_NUM_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 4*1024,
+        .max_transfer_sz = 8*1024,
     };
     
     // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
