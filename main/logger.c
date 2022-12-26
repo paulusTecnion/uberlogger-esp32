@@ -310,7 +310,7 @@ uint8_t Logger_stop()
 
 uint8_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size)
 {
-    ESP_LOGI(TAG_LOG, "Flusing buffer to SD card");
+    // ESP_LOGI(TAG_LOG, "Flusing buffer to SD card");
 
     // uint16_t writeSize = 0, writeOffset=0;
     // if(writeptr > SD_BUFFERSIZE /2)
@@ -322,7 +322,7 @@ uint8_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size)
     // }
 
     // ESP_LOGI(TAG_LOG, "WriteSize %d, writeOffset %d", writeSize, writeOffset);
-    ESP_LOGI(TAG_LOG, "Size: %d", size);
+    // ESP_LOGI(TAG_LOG, "Size: %d", size);
 
     
     fileman_write(buffer, size);
@@ -361,7 +361,7 @@ uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
             t3 = t2 - 10000000LL;
             tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH] = (int32_t)t3;
             
-            // ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", buffer[j], buffer[j+1], t3, tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH]);
+            ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", buffer[j], buffer[j+1], t3, tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH]);
             writeptr++;
         }
 
@@ -391,9 +391,10 @@ void Logger_log()
                     spi_transaction_t * ptr = &_spi_transaction_rx0;
                     if(spi_device_get_trans_result(handle, &ptr, 0) == ESP_OK)
                     {
+                        ESP_LOGI(TAG_LOG, "%d %d", recvbuf0[0], recvbuf0[1]);
                         // one block of 512 bytes is retrieved, increase message count
                         log_counter++; // received bytes = log_counter*512
-                        ESP_LOGI(TAG_LOG, "%d vs. %d", log_counter, (int_counter-1));
+                        // ESP_LOGI(TAG_LOG, "%d vs. %d", log_counter, (int_counter-1));
                         if (log_counter != (int_counter - count_offset))
                         {
 
@@ -436,13 +437,15 @@ void Logger_log()
                 }
 
             case LOGGING_START:
-                    ESP_LOGI(TAG_LOG, "Queuing spi transactions..");
+                    // ESP_LOGI(TAG_LOG, "Queuing spi transactions..");
                     // assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
                     if (int_counter==0)
                     {
                         count_offset = 0;
                     } 
-                    _spi_transaction_rx0.rxlength=STM_TXLENGTH;
+                    _spi_transaction_rx0.length = STM_TXLENGTH*8;
+                    _spi_transaction_rx0.rxlength=STM_TXLENGTH*8;
+                    _spi_transaction_rx0.tx_buffer = NULL;
                     
                     if(buffer_no==false){
                         _spi_transaction_rx0.rx_buffer=recvbuf0+(log_counter*STM_TXLENGTH);
@@ -713,15 +716,15 @@ void task_logging(void * pvParameters)
                     }
                     // upon changing state to logging, make sure these settings are correct. 
                     // _spi_transaction_rx0.length=sizeof(sendbuf)*8; // size in bits
-                    _spi_transaction_rx0.length=sizeof(recvbuf0)*8; // size in bits
-                    _spi_transaction_rx0.rxlength = sizeof(recvbuf0)*8; // size in bits
+                    _spi_transaction_rx0.length=STM_TXLENGTH*8; // size in bits
+                    _spi_transaction_rx0.rxlength = STM_TXLENGTH*8; // size in bits
                     // _spi_transaction.tx_buffer=sendbuf;
                     _spi_transaction_rx0.rx_buffer=recvbuf0;
                     _spi_transaction_rx0.tx_buffer=NULL;
 
                     // _spi_transaction_rx1.length=sizeof(sendbuf)*8; // size in bits
-                    _spi_transaction_rx1.length=sizeof(recvbuf0)*8; // size in bits
-                    _spi_transaction_rx1.rxlength = sizeof(recvbuf1)*8; // size in bits
+                    _spi_transaction_rx1.length = STM_TXLENGTH*8; // size in bits
+                    _spi_transaction_rx1.rxlength = STM_TXLENGTH*8; // size in bits
                     // _spi_transaction.tx_buffer=sendbuf;
                     _spi_transaction_rx1.rx_buffer=recvbuf1;
                     _spi_transaction_rx1.tx_buffer=NULL;
