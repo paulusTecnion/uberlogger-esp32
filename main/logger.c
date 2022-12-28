@@ -361,7 +361,7 @@ uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
             t3 = t2 - 10000000LL;
             tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH] = (int32_t)t3;
             
-            ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", buffer[j], buffer[j+1], t3, tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH]);
+            // ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", buffer[j], buffer[j+1], t3, tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH]);
             writeptr++;
         }
 
@@ -380,60 +380,60 @@ void Logger_log()
                                             pdTRUE,
                                             xMaxBlockTime );
 
-    if (ulNotificationValue)
-    {
+         if (ulNotificationValue)
+                {
 
         switch (_currentLoggingState)
         {
             case LOGGING_RX0_WAIT:
                 {
-                    // Check if our transaction is done
-                    spi_transaction_t * ptr = &_spi_transaction_rx0;
-                    if(spi_device_get_trans_result(handle, &ptr, 0) == ESP_OK)
-                    {
-                        ESP_LOGI(TAG_LOG, "%d %d", recvbuf0[0], recvbuf0[1]);
-                        // one block of 512 bytes is retrieved, increase message count
-                        log_counter++; // received bytes = log_counter*512
-                        // ESP_LOGI(TAG_LOG, "%d vs. %d", log_counter, (int_counter-1));
-                        if (log_counter != (int_counter - count_offset))
+                        // Check if our transaction is done
+                        spi_transaction_t * ptr = &_spi_transaction_rx0;
+                        if(spi_device_get_trans_result(handle, &ptr, portMAX_DELAY) == ESP_OK)
                         {
+                            ESP_LOGI(TAG_LOG, "%d, %d, %d, log_counter:%d", recvbuf0[(log_counter*STM_TXLENGTH)], recvbuf0[(log_counter*STM_TXLENGTH+2)], recvbuf0[(log_counter*STM_TXLENGTH)+2+1], log_counter);
+                            // one block of 512 bytes is retrieved, increase message count
+                            log_counter++; // received bytes = log_counter*512
+                            // ESP_LOGI(TAG_LOG, "%d vs. %d", log_counter, (int_counter-1));
+                            if (log_counter != (int_counter - count_offset))
+                            {
 
-                            ESP_LOGE(TAG_LOG, "Missing SPI transaction (%d vs. %d)! Stopping", log_counter, (int_counter-1));
-                            // Logger_stop();
-                            // return;
-                        }
-
-                        // execute only when a full block of SPI_BUFFERSIZE_RX is retrieved
-                         // Process data first
-                         if (settings_get_logmode() == LOGMODE_CSV)
-                         {
-                            if(buffer_no==false){
-                                Logger_raw_to_csv(recvbuf0+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
-                            }else if(buffer_no==true){
-                                Logger_raw_to_csv(recvbuf1+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
+                                ESP_LOGE(TAG_LOG, "Missing SPI transaction (%d vs. %d)! Stopping", log_counter, (int_counter-1));
+                                // Logger_stop();
+                                // return;
                             }
-                        }
 
-                        if(log_counter*STM_TXLENGTH >= SPI_BUFFERSIZE_RX){
-                            log_counter = 0;
-                            int_counter = 0;
+                            // execute only when a full block of SPI_BUFFERSIZE_RX is retrieved
+                            // Process data first
                             if (settings_get_logmode() == LOGMODE_CSV)
                             {
-                                // Write it SD
-                                Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, SPI_BUFFERSIZE_RX);
-                            } else {
-                                Logger_flush_buffer_to_sd_card_uint8(recvbuf0, SPI_BUFFERSIZE_RX);
-                            }                    
+                                // if(buffer_no==false){
+                                    Logger_raw_to_csv(recvbuf0+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
+                                // }else if(buffer_no==true){
+                                    // Logger_raw_to_csv(recvbuf1+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
+                                // }
+                            }
 
-                            buffer_no = !buffer_no;
+                            if(log_counter*STM_TXLENGTH >= SPI_BUFFERSIZE_RX){
+                                log_counter = 0;
+                                int_counter = 0;
+                                if (settings_get_logmode() == LOGMODE_CSV)
+                                {
+                                    // Write it SD
+                                    Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, SPI_BUFFERSIZE_RX);
+                                } else {
+                                    Logger_flush_buffer_to_sd_card_uint8(recvbuf0, SPI_BUFFERSIZE_RX);
+                                }                    
+
+                                buffer_no = !buffer_no;
+                            }
+
+                            _nextLoggingState = LOGGING_RX0_WAIT;
+                        } else {
+                            ESP_LOGE(TAG_LOG, "RX0 timed out!");
+                            _nextLoggingState = LOGGING_STOP;
+                            return;
                         }
-
-                        _nextLoggingState = LOGGING_RX0_WAIT;
-                    } else {
-                        ESP_LOGE(TAG_LOG, "RX0 timed out!");
-                        _nextLoggingState = LOGGING_STOP;
-                        return;
-                    }
                 }
 
             case LOGGING_START:
@@ -446,12 +446,12 @@ void Logger_log()
                     _spi_transaction_rx0.length = STM_TXLENGTH*8;
                     _spi_transaction_rx0.rxlength=STM_TXLENGTH*8;
                     _spi_transaction_rx0.tx_buffer = NULL;
-                    
-                    if(buffer_no==false){
+                    // 
+                    // if(buffer_no==false){
                         _spi_transaction_rx0.rx_buffer=recvbuf0+(log_counter*STM_TXLENGTH);
-                    }else if(buffer_no == true){
-                        _spi_transaction_rx0.rx_buffer=recvbuf1+(log_counter*STM_TXLENGTH);
-                    }
+                    // }else if(buffer_no == true){
+                        // _spi_transaction_rx0.rx_buffer=recvbuf1+(log_counter*STM_TXLENGTH);
+                    // }
 
                     assert(spi_device_queue_trans(handle, &_spi_transaction_rx0, 0) == ESP_OK);
 
@@ -470,7 +470,7 @@ void Logger_log()
             ESP_LOGI(TAG_LOG, "LOGGING state changing from %d to %d", _currentLoggingState, _nextLoggingState);
             _currentLoggingState = _nextLoggingState;
         }
-    }
+                }
     
 
 

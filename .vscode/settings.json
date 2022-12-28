@@ -38,5 +38,7 @@
     "gpio.h": "c",
     "random": "c"
   },
-  "idf.adapterTargetName": "esp32s2"
+  "idf.adapterTargetName": "esp32s2",
+  "idf.flashType": "UART",
+  "idf.portWin": "COM7"
 }
