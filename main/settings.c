@@ -7,7 +7,7 @@ void settings_init()
 {
     _settings.adc_resolution = ADC_12_BITS;
     _settings.adc_resolution_uint8 = 12;
-    _settings.log_sample_rate = ADC_SAMPLE_RATE_25Hz; // 10Hz 
+    _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
     _settings.logMode = LOGMODE_CSV;
 }

@@ -37,16 +37,17 @@ int32_t tbuffer_i32[SPI_BUFFERSIZE_RX];
 char strbuffer[16];
 LoggerState_t _currentLoggerState = LOGGER_IDLE;
 LoggerState_t _nextLoggerState = LOGGER_IDLE;
-LoggingState_t _currentLoggingState = LOGGING_START;
-LoggingState_t _nextLoggingState = LOGGING_START;
+LoggingState_t _currentLoggingState = LOGGING_STOP;
+LoggingState_t _nextLoggingState = LOGGING_STOP;
 
 uint32_t ulNotificationValue = 0;
 uint32_t writeptr = 0;
 int64_t t0, t1,t2,t3;
 spi_device_handle_t handle;
 spi_transaction_t _spi_transaction_rx0, _spi_transaction_rx1;
-const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 1000 );
+const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 100 );
 extern TaskHandle_t xHandle_stm32;
+bool int_level = 0;
 // const UBaseType_t xArrayIndex = 0;
 
 uint8_t volatile int_counter =0;
@@ -77,7 +78,10 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
     //     portYIELD_FROM_ISR();
     // }
     
-    int_counter++;
+    // int_level inits at 0. So first trigger it will become 1 and then 0 again etc. 
+    int_level = !int_level;
+
+    if (int_level) int_counter++;
     
     vTaskNotifyGiveFromISR( xHandle_stm32,
                                 //    xArrayIndex,
@@ -92,7 +96,7 @@ uint8_t Logger_datardy_int(uint8_t value)
     {
         ESP_LOGI(TAG_LOG, "Enabling data_rdy interrupts");
         // Trigger on up and down edges
-        if (gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
+        if (gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_ANYEDGE) == ESP_OK &&
         gpio_install_isr_service(0) == ESP_OK &&
         gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) == ESP_OK){
             return RET_OK;
@@ -380,8 +384,20 @@ void Logger_log()
                                             pdTRUE,
                                             xMaxBlockTime );
 
-         if (ulNotificationValue)
-                {
+        if (ulNotificationValue)
+        {
+            if (int_level)
+            {
+                // ESP_LOGI(TAG_LOG, "HIGH TRIGGER");
+                _nextLoggingState = LOGGING_START;
+            }  else  {
+                // ESP_LOGI(TAG_LOG, "LOW TRIGGER");
+            }
+        }  else {
+            // _currentLoggingState = LOGGING_RX0_WAIT;
+            // _currentLoggingState = LOGGING_STOP;
+            // ESP_LOGI(TAG_LOG, "No DATA RDY intterupt");
+        }
 
         switch (_currentLoggingState)
         {
@@ -391,14 +407,21 @@ void Logger_log()
                         spi_transaction_t * ptr = &_spi_transaction_rx0;
                         if(spi_device_get_trans_result(handle, &ptr, portMAX_DELAY) == ESP_OK)
                         {
-                            ESP_LOGI(TAG_LOG, "%d, %d, %d, log_counter:%d", recvbuf0[(log_counter*STM_TXLENGTH)], recvbuf0[(log_counter*STM_TXLENGTH+2)], recvbuf0[(log_counter*STM_TXLENGTH)+2+1], log_counter);
+                            // ESP_LOGI(TAG_LOG, "log_counter:%d", log_counter);
+                            // for (int i=0; i<16; i = i + 2)
+                            // {
+                            //     ESP_LOGI(TAG_LOG, "%d, %d", recvbuf0[(log_counter*STM_TXLENGTH+i)], recvbuf0[(log_counter*STM_TXLENGTH)+i+1]);
+
+                            // }
+                            
+                            
                             // one block of 512 bytes is retrieved, increase message count
                             log_counter++; // received bytes = log_counter*512
                             // ESP_LOGI(TAG_LOG, "%d vs. %d", log_counter, (int_counter-1));
-                            if (log_counter != (int_counter - count_offset))
+                            if (log_counter != (int_counter))
                             {
 
-                                ESP_LOGE(TAG_LOG, "Missing SPI transaction (%d vs. %d)! Stopping", log_counter, (int_counter-1));
+                                ESP_LOGE(TAG_LOG, "Missing SPI transaction (%d vs. %d)! Stopping", log_counter, (int_counter));
                                 // Logger_stop();
                                 // return;
                             }
@@ -428,13 +451,15 @@ void Logger_log()
                                 buffer_no = !buffer_no;
                             }
 
-                            _nextLoggingState = LOGGING_RX0_WAIT;
+                            _nextLoggingState = LOGGING_STOP;
                         } else {
                             ESP_LOGE(TAG_LOG, "RX0 timed out!");
                             _nextLoggingState = LOGGING_STOP;
                             return;
                         }
+                        _nextLoggingState = LOGGING_STOP;
                 }
+                break;
 
             case LOGGING_START:
                     // ESP_LOGI(TAG_LOG, "Queuing spi transactions..");
@@ -452,10 +477,12 @@ void Logger_log()
                     // }else if(buffer_no == true){
                         // _spi_transaction_rx0.rx_buffer=recvbuf1+(log_counter*STM_TXLENGTH);
                     // }
-
+                    ESP_LOGI(TAG_LOG, "Queuing SPI trans");
                     assert(spi_device_queue_trans(handle, &_spi_transaction_rx0, 0) == ESP_OK);
 
                     _nextLoggingState = LOGGING_RX0_WAIT;
+                    
+
             break;
 
 
@@ -464,13 +491,16 @@ void Logger_log()
             break;
         }
 
+       
+       
+
         if (_nextLoggingState != _currentLoggingState)
         {
             
             ESP_LOGI(TAG_LOG, "LOGGING state changing from %d to %d", _currentLoggingState, _nextLoggingState);
             _currentLoggingState = _nextLoggingState;
         }
-                }
+                
     
 
 
@@ -638,11 +668,11 @@ void task_logging(void * pvParameters)
         .clock_speed_hz=SPI_STM32_BUS_FREQUENCY, //400000,
         .duty_cycle_pos=128,        //50% duty cycle
         .mode=0,
-        .spics_io_num=-1,
+        .spics_io_num=GPIO_CS,
         .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
         .flags = 0,
-        .input_delay_ns=10
+        .input_delay_ns=3
     };  
 
     gpio_config_t adc_en_conf={
@@ -714,6 +744,7 @@ void task_logging(void * pvParameters)
                         _nextLoggerState = LOGGER_IDLE;
                         break;
                     }
+                    _nextLoggingState = LOGGING_STOP;
                     // upon changing state to logging, make sure these settings are correct. 
                     // _spi_transaction_rx0.length=sizeof(sendbuf)*8; // size in bits
                     _spi_transaction_rx0.length=STM_TXLENGTH*8; // size in bits
@@ -729,7 +760,7 @@ void task_logging(void * pvParameters)
                     _spi_transaction_rx1.rx_buffer=recvbuf1;
                     _spi_transaction_rx1.tx_buffer=NULL;
                     // writeptr = 0;
-                    _nextLoggingState = LOGGING_START;
+                    _nextLoggingState = LOGGING_STOP;
                     // esp_sd_card_mount_open_file();
                     // enable data_rdy interrupt
                     assert(Logger_datardy_int(1) == RET_OK);
