@@ -668,11 +668,11 @@ void task_logging(void * pvParameters)
         .clock_speed_hz=SPI_STM32_BUS_FREQUENCY, //400000,
         .duty_cycle_pos=128,        //50% duty cycle
         .mode=0,
-        .spics_io_num=GPIO_CS,
+        .spics_io_num=-1,//GPIO_CS,
         .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
         .flags = 0,
-        .input_delay_ns=3
+        .input_delay_ns=10
     };  
 
     gpio_config_t adc_en_conf={
