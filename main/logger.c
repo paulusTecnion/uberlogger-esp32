@@ -348,6 +348,7 @@ uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
 {
      // ESP_LOGI(TAG_LOG,"ADC Reading:");
         writeptr = 0;
+        ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
         for (int j = 0; j < (size); j = j + 2)
         {
             // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
@@ -363,9 +364,10 @@ uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
             t1 = t0 * (20LL * 1000000LL);
             t2 = t1 / ((1 << settings_get_resolution_uint8()) - 1); // -1 for 4095 steps
             t3 = t2 - 10000000LL;
-            tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH] = (int32_t)t3;
+            // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
+            tbuffer_i32[writeptr+(log_counter*(STM_TXLENGTH/2))] = (int32_t)t3;
             
-            // ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", buffer[j], buffer[j+1], t3, tbuffer_i32[writeptr+(log_counter-1)*STM_TXLENGTH]);
+            ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", buffer[j], buffer[j+1], t3, tbuffer_i32[writeptr+(log_counter)*(STM_TXLENGTH/2)]);
             writeptr++;
         }
 
@@ -416,9 +418,9 @@ void Logger_log()
                             
                             
                             // one block of 512 bytes is retrieved, increase message count
-                            log_counter++; // received bytes = log_counter*512
+                          
                             // ESP_LOGI(TAG_LOG, "%d vs. %d", log_counter, (int_counter-1));
-                            if (log_counter != (int_counter))
+                            if (log_counter != (int_counter-1))
                             {
 
                                 ESP_LOGE(TAG_LOG, "Missing SPI transaction (%d vs. %d)! Stopping", log_counter, (int_counter));
@@ -436,6 +438,8 @@ void Logger_log()
                                     // Logger_raw_to_csv(recvbuf1+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
                                 // }
                             }
+
+                            log_counter++; // received bytes = log_counter*512
 
                             if(log_counter*STM_TXLENGTH >= SPI_BUFFERSIZE_RX){
                                 log_counter = 0;
@@ -501,142 +505,6 @@ void Logger_log()
             _currentLoggingState = _nextLoggingState;
         }
                 
-    
-
-
-    
-    // // Polling method (blocking)
-    // static uint32_t lasthandshaketime_us, currtime_us ;
-    // lasthandshaketime_us = esp_timer_get_time();
-    // uint32_t timediff =0;
-    
-    // ESP_LOGI(TAG_LOG, "Wait for high");
-    // while(!gpio_get_level(GPIO_DATA_RDY_PIN))
-    // {
-    //     currtime_us = esp_timer_get_time();
-    //     timediff = currtime_us - lasthandshaketime_us;
-        
-    //     if (timediff > 1000000) {
-    //         ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn HIGH");
-    //         // Logger_stop();
-    //         return;
-    //         lasthandshaketime_us = esp_timer_get_time();
-    //     }  
-    // }
-    // gpio_set_level(GPIO_CS, 1);
-
-    // if (ulNotificationValue)
-    // {
-    //     // ESP_LOGI(TAG_LOG, "SPI TRANS");
-    //     // assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
-    //     assert(spi_device_queue_trans(handle, &_spi_transaction_rx0, 0) == ESP_OK);
-
-    // } else {
-    //     /* The call to ulTaskNotifyTake() timed out. */
-    //     // Is the STM32 hanging? 
-    //          ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn HIGH");
-    //         Logger_stop();
-    //          return;
-    // }
-
-    // Wait for stm32
-    // Start rx0, queue rx1
-    // Wait for rx0
-    // if rx0 => write sdcard
-    // queue rx 0
-    // wait for rx1
-    // if rx1 => write sdcard
-    // queue rx1
-    // Go back to rx0 wait
-    
-    // wait until transaction is complete
-    // ESP_LOGI(TAG_LOG, "Wait for low");
-    // lasthandshaketime_us = esp_timer_get_time();
-    // while(gpio_get_level(GPIO_DATA_RDY_PIN))
-    // {
-        
-    //     currtime_us = esp_timer_get_time();
-    //     timediff = currtime_us - lasthandshaketime_us;
-    
-    //     if (timediff > 1000000) {
-    //         ESP_LOGE(TAG_LOG, "STM32 timeout. Data ready did not turn LOW");
-    //         Logger_stop();
-    //         return;
-    //         lasthandshaketime_us = esp_timer_get_time();
-    //     }
-       
-    // }
-
-    // ulNotificationValue = ulTaskNotifyTake( 
-    //                                     // xArrayIndex,
-    //                                     pdTRUE,
-    //                                     xMaxBlockTime );
-    // if (ulNotificationValue)
-    // {
-        // Check if we are writing CSVs or raw data. 
-        // if (settings_get_logmode() == LOGMODE_CSV)
-        // {
-        //     // ESP_LOGI(TAG_LOG,"ADC Reading:");
-        //      for (int j = 0; j < (SPI_BUFFERSIZE); j = j + 2)
-        //     {
-        //         // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
-        //         // Or in fixed point Q6.26 notation 488281 = 1 LSB
-                
-        //         // What we want to achieve here is 20V/4095 - 10V, but then in fixed point notation. 
-        //         // To achieve that, we will multiply the numbers by 1000000.
-        //         // Then, instead of dividing the number by 4095 or use 0.0488281, we divide by the byte shift of 1<<12 which is more accurate with int32_t. 
-                
-        //         // Next steps can be merged, but are now seperated for checking values
-        //         // First shift the bytes to get the ADC value
-        //         t0 = ((int32_t)recvbuf[j] | ((int32_t)recvbuf[j + 1] << 8));
-        //         t1 = t0 * (20LL * 1000000LL);
-        //         t2 = t1 / ((1 << settings_get_resolution_uint8()) - 1); // -1 for 4095 steps
-        //         t3 = t2 - 10000000LL;
-        //         tbuffer_i32[writeptr] = (int32_t)t3;
-        //         // ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", recvbuf[j], recvbuf[j+1], t3, tbuffer_i32[writeptr]);
-        //         writeptr++;
-        //         writeptr = writeptr % SD_BUFFERSIZE;
-        //     }
-        // } else { // raw bytes writing
-        //     memcpy(tbuffer+writeptr, recvbuf, SPI_BUFFERSIZE);
-        //     writeptr = (writeptr + SPI_BUFFERSIZE) % SD_BUFFERSIZE;
-        // }
-
-        // if previous write was halfway the SD buffersize, then start writing
-        // // Need to change this writes / second or so.
-        // if (writeptr == (SD_BUFFERSIZE / 2))
-        // {
-        //     if (settings_get_logmode() == LOGMODE_CSV)
-        //     {
-        //         fileman_csv_write(tbuffer_i32, SD_BUFFERSIZE / 2);
-        //     }  else {
-
-        //     }   fileman_write(tbuffer, SD_BUFFERSIZE / 2);
-        //     // ESP_LOGI(TAG_LOG, "Half");
-        // }
-        
-        // // If we reached the end of the SD buffer then write again.
-        // if (writeptr == 0)        
-        // {
-        //     if (settings_get_logmode() == LOGMODE_CSV)
-        //     {
-        //         fileman_csv_write(tbuffer_i32+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
-        //     } else {
-        //         fileman_write(tbuffer+SD_BUFFERSIZE/2, SD_BUFFERSIZE / 2);
-        //     }
-            
-        //     // ESP_LOGI(TAG_LOG, "Full");
-        // }
-
-    // }
-    // else
-    // {
-    //     /* The call to ulTaskNotifyTake() timed out. */
-    //     // Is the STM32 hanging? 
-    //         ESP_LOGE(TAG_LOG, "STM32 timeout. DATA_RDY did not turn LOW");
-    //         Logger_stop();
-    //         return;
-    // }
     
     gpio_set_level(GPIO_CS, 0);
     
