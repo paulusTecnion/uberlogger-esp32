@@ -37,8 +37,8 @@ int32_t tbuffer_i32[SPI_BUFFERSIZE_RX];
 char strbuffer[16];
 LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
 LoggerState_t _nextLogTaskState = LOGTASK_IDLE;
-LoggingState_t _currentLoggingState = LOGGING_STOP;
-LoggingState_t _nextLoggingState = LOGGING_STOP;
+LoggingState_t _currentLoggingState = LOGGING_IDLE;
+LoggingState_t _nextLoggingState = LOGGING_IDLE;
 
 uint32_t ulNotificationValue = 0;
 uint32_t writeptr = 0;
@@ -373,7 +373,7 @@ uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
         return RET_OK;
 }
 
-void Logger_log()
+esp_err_t Logger_log()
 {   
     
     static uint8_t log_counter = 0;
@@ -397,8 +397,9 @@ void Logger_log()
         }  else {
             // Throw error
 
-            _currentLoggingState = LOGGING_STOP;
-            ESP_LOGI(TAG_LOG, "No DATA RDY intterupt");
+            _currentLoggingState = LOGGING_IDLE;
+
+            // ESP_LOGI(TAG_LOG, "No DATA RDY intterupt");
         }
 
         switch (_currentLoggingState)
@@ -428,7 +429,7 @@ void Logger_log()
                 {
                         // Check if our transaction is done
                         spi_transaction_t * ptr = &_spi_transaction_rx0;
-                        if(spi_device_get_trans_result(handle, &ptr, portMAX_DELAY) == ESP_OK)
+                        if(spi_device_get_trans_result(handle, &ptr, 1000 / portTICK_PERIOD_MS) == ESP_OK)
                         {
                             // ESP_LOGI(TAG_LOG, "log_counter:%d", log_counter);
                             // for (int i=0; i<16; i = i + 2)
@@ -445,8 +446,7 @@ void Logger_log()
                             {
 
                                 ESP_LOGE(TAG_LOG, "Missing SPI transaction (%d vs. %d)! Stopping", log_counter, (int_counter));
-                                Logger_stop();
-                                return;
+                                return ESP_FAIL;
                             }
 
                             // execute only when a full block of SPI_BUFFERSIZE_RX is retrieved
@@ -476,18 +476,18 @@ void Logger_log()
                                 buffer_no = !buffer_no;
                             }
 
-                            _nextLoggingState = LOGGING_STOP;
+                            _nextLoggingState = LOGGING_IDLE;
                         } else {
                             ESP_LOGE(TAG_LOG, "RX0 timed out!");
-                            _nextLoggingState = LOGGING_STOP;
-                            return;
+                            _nextLoggingState = LOGGING_IDLE;
+                            return ESP_ERR_TIMEOUT;
                         }
-                        _nextLoggingState = LOGGING_STOP;
+                        _nextLoggingState = LOGGING_IDLE;
                 }
                 break;
 
 
-            case LOGGING_STOP:
+            case LOGGING_IDLE:
                 
             break;
         }
@@ -504,6 +504,8 @@ void Logger_log()
                 
     
     gpio_set_level(GPIO_CS, 0);
+
+    return ESP_OK;
     
     
 }
@@ -580,7 +582,6 @@ void task_logging(void * pvParameters)
     // // Initialize SD card
     if (esp_sd_card_mount() == ESP_OK)
     {
-        // // need to check if sdcard is mounted
         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
         esp_sd_card_unmount();
     }
@@ -606,6 +607,7 @@ void task_logging(void * pvParameters)
                 {
                     if (esp_sd_card_mount() == ESP_OK)
                     {
+                        ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
                          if (fileman_open_file() != ESP_OK)
                         { 
                             if (esp_sd_card_unmount() == ESP_OK)
@@ -615,7 +617,7 @@ void task_logging(void * pvParameters)
 
                             break;
                         }
-                        _nextLoggingState = LOGGING_STOP;
+                        _nextLoggingState = LOGGING_IDLE;
                         // upon changing state to logging, make sure these settings are correct. 
                         // _spi_transaction_rx0.length=sizeof(sendbuf)*8; // size in bits
                         _spi_transaction_rx0.length=STM_TXLENGTH*8; // size in bits
@@ -625,7 +627,7 @@ void task_logging(void * pvParameters)
                         _spi_transaction_rx0.tx_buffer=NULL;
 
                         // writeptr = 0;
-                        _nextLoggingState = LOGGING_STOP;
+                        _nextLoggingState = LOGGING_IDLE;
                         // esp_sd_card_mount_open_file();
                         // enable data_rdy interrupt
                         assert(Logger_datardy_int(1) == RET_OK);
@@ -641,7 +643,11 @@ void task_logging(void * pvParameters)
 
             case LOGTASK_LOGGING:
                 
-                Logger_log();
+                if (Logger_log() != ESP_OK)
+                {
+                    Logger_stop();
+                }
+
                 if (_nextLogTaskState == LOGTASK_IDLE)
                 {
                     // Disable logging (should change this)
@@ -677,7 +683,7 @@ void task_logging(void * pvParameters)
 
         if (_nextLogTaskState != _currentLogTaskState)
         {
-            ESP_LOGI(TAG_LOG, "Changing LOGGER state from %d to %d", _currentLogTaskState, _nextLogTaskState);
+            ESP_LOGI(TAG_LOG, "Changing LOGTASK state from %d to %d", _currentLogTaskState, _nextLogTaskState);
             _currentLogTaskState = _nextLogTaskState;
         }
 
