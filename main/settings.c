@@ -20,7 +20,12 @@ uint8_t settings_get_enabled_adc_channels()
 
 uint8_t settings_set_enabled_adc_channels(adc_channel_t channel, uint8_t value)
 {
-    _settings.adc_channels_enabled = 0xFF & ((0x01 << channel) & value);
+    // strategie: zet bitje van channel X naar 0 en dan set of unset hem. 
+    _settings.adc_channels_enabled = _settings.adc_channels_enabled & ~(0x01 << channel);
+    // Set bit of channel to correct value
+    _settings.adc_channels_enabled |= ((value << channel));
+
+    return RET_OK;
 }
 
 Settings_t* settings_get(){
