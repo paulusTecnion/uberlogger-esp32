@@ -199,10 +199,11 @@ void init_console(){
 
     // register_log_start();
     // register_log_stop();
+    register_logger_cmd();
     register_restart();
     register_settings_sample_rate();
     register_stm32_sync();
-    register_logger_cmd();
+
     esp_console_register_help_command();
 
     // esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
