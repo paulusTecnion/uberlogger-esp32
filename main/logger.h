@@ -7,14 +7,16 @@
 #include <string.h>
 #include "settings.h"
 
-enum LoggerStates
+
+enum LogTaskStates
 {
-    LOGGER_INIT = 0,
-    LOGGER_IDLE,
-    LOGGER_LOGGING,
-    LOGGER_SETTINGS,
-    LOGGER_NUM_STATES
+    LOGTASK_INIT = 0,
+    LOGTASK_IDLE,
+    LOGTASK_LOGGING,
+    LOGTASK_SETTINGS,
+    LOGTASK_NUM_STATES
 };
+
 
 enum LoggingStates{
     LOGGING_START = 0,

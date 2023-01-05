@@ -36,7 +36,11 @@
     "sdmmc_host.h": "c",
     "sdmmc_cmd.h": "c",
     "gpio.h": "c",
-    "random": "c"
+    "random": "c",
+    "string_view": "c",
+    "regex": "c",
+    "xlocale": "c",
+    "xstring": "c"
   },
   "idf.adapterTargetName": "esp32s2",
   "idf.flashType": "UART",

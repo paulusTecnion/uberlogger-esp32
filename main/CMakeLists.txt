@@ -1,7 +1,7 @@
 idf_component_register(SRCS 
                             "console.c"
                             "hmi.c"                            
-                            "logger.c"
+                            "logger.c"                    
                             "main.c"
                             "rest_server.c"
                             "settings.c"
