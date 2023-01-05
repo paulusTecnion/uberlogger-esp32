@@ -40,7 +40,12 @@ log_mode_t settings_get_logmode()
 uint8_t settings_set_logmode(log_mode_t mode)
 {
     _settings.logMode = mode;
-
+    if (mode == LOGMODE_CSV)
+    {
+        ESP_LOGI(TAG_SETTINGS, "Logmode set to CSV");
+    } else {
+        ESP_LOGI(TAG_SETTINGS, "Logmode set to RAW");
+    }
     return RET_OK;
 }
 
