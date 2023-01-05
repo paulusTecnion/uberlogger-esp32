@@ -432,12 +432,12 @@ esp_err_t Logger_log()
                         spi_transaction_t * ptr = &_spi_transaction_rx0;
                         if(spi_device_get_trans_result(handle, &ptr, 1000 / portTICK_PERIOD_MS) == ESP_OK)
                         {
-                            ESP_LOGI(TAG_LOG, "log_counter:%d", log_counter);
-                            for (int i=0; i<16; i = i + 2)
-                            {
-                                ESP_LOGI(TAG_LOG, "%d, %d", recvbuf0[(log_counter*STM_TXLENGTH+i)], recvbuf0[(log_counter*STM_TXLENGTH)+i+1]);
+                            // ESP_LOGI(TAG_LOG, "log_counter:%d", log_counter);
+                            // for (int i=0; i<16; i = i + 2)
+                            // {
+                            //     ESP_LOGI(TAG_LOG, "%d, %d", recvbuf0[(log_counter*STM_TXLENGTH+i)], recvbuf0[(log_counter*STM_TXLENGTH)+i+1]);
 
-                            }
+                            // }
                             
                             
                             // one block of 512 bytes is retrieved, increase message count
