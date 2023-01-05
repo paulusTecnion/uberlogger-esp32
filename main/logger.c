@@ -216,7 +216,9 @@ uint8_t Logger_syncSettings()
     } 
     ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
 
-    Logger_spi_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, (uint8_t)settings_get());
+
+
+    Logger_spi_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, settings_get_enabled_adc_channels());
     // Logger_print_rx_buffer();
     if (recvbuf0[0] != STM32_RESP_OK || recvbuf0[1] != STM32_CMD_SET_ADC_CHANNELS_ENABLED)
     {
@@ -224,6 +226,8 @@ uint8_t Logger_syncSettings()
         Logger_print_rx_buffer(recvbuf0);
         return RET_NOK;
     }
+
+    ESP_LOGI(TAG_LOG, "ADC channels set");
 
     Logger_spi_cmd(STM32_CMD_SET_RESOLUTION, (uint8_t)settings_get_resolution());
     // Logger_print_rx_buffer();
