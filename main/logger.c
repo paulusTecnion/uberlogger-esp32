@@ -35,8 +35,8 @@ DMA_ATTR uint8_t recvbuf1[SPI_BUFFERSIZE_RX];
 // Same size as SPI buffer but then int32 size
 int32_t tbuffer_i32[SPI_BUFFERSIZE_RX];
 char strbuffer[16];
-LoggerState_t _currentLoggerState = LOGGER_IDLE;
-LoggerState_t _nextLoggerState = LOGGER_IDLE;
+LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
+LoggerState_t _nextLogTaskState = LOGTASK_IDLE;
 LoggingState_t _currentLoggingState = LOGGING_STOP;
 LoggingState_t _nextLoggingState = LOGGING_STOP;
 
@@ -71,13 +71,6 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
     // }
     // lasthandshaketime_us = currtime_us;
 
-    //Give the semaphore.
-    // BaseType_t mustYield = false;
-    // xSemaphoreGiveFromISR(rdySem, &mustYield);
-    // if (mustYield) {
-    //     portYIELD_FROM_ISR();
-    // }
-    
     // int_level inits at 0. So first trigger it will become 1 and then 0 again etc. 
     int_level = !int_level;
 
@@ -115,17 +108,17 @@ uint8_t Logger_datardy_int(uint8_t value)
 
 }
 
-LoggerState_t LoggerGetState()
+LoggerState_t LogTaskGetState()
 {
-    return _currentLoggerState;
+    return _currentLogTaskState;
 }
 
 uint8_t Logger_enterSettingsMode()
 {
     // Typical usage, go to settings mode, set settings, sync settings, exit settings mode
-    if (_currentLoggerState == LOGGER_IDLE)
+    if (_currentLogTaskState == LOGTASK_IDLE)
     {
-        _nextLoggerState = LOGGER_SETTINGS;
+        _nextLogTaskState = LOGTASK_SETTINGS;
         return RET_OK;
     } else {
         return RET_NOK;
@@ -135,11 +128,11 @@ uint8_t Logger_enterSettingsMode()
 uint8_t Logger_exitSettingsMode()
 {
      // Typical usage, go to settings mode, set settings, sync settings, exit settings mode
-    if (_currentLoggerState == LOGGER_SETTINGS)
+    if (_currentLogTaskState == LOGTASK_SETTINGS)
     {
         if (Logger_syncSettings() == RET_OK)
         {
-            _nextLoggerState = LOGGER_IDLE;
+            _nextLogTaskState = LOGTASK_IDLE;
             return RET_OK;
         } else {
             return RET_NOK;
@@ -151,7 +144,7 @@ uint8_t Logger_exitSettingsMode()
 
 uint8_t Logger_isLogging(void)
 {
-    if (_currentLoggerState == LOGGER_LOGGING)
+    if (_currentLogTaskState == LOGTASK_LOGGING)
     {
         return RET_OK;
     } else {
@@ -186,13 +179,6 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     ESP_LOGI(TAG_LOG,"Pass 1/2 CMD");
     // ets_delay_us(10000);
     
-
-    // Tx length = 0
-    // trans->length = 1;
-    // Rx length = 1
-    // trans->rxlength=1;
-    // spi_device_transmit(handle, trans);
-    // while(gpio_get_level(GPIO_DATA_RDY_PIN));
 
     // vTaskDelay( 20 / portTICK_PERIOD_MS);
     vTaskDelay( 10 / portTICK_PERIOD_MS);
@@ -229,6 +215,16 @@ uint8_t Logger_syncSettings()
         return RET_NOK;
     } 
     ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
+
+    Logger_spi_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, (uint8_t)settings_get());
+    // Logger_print_rx_buffer();
+    if (recvbuf0[0] != STM32_RESP_OK || recvbuf0[1] != STM32_CMD_SET_ADC_CHANNELS_ENABLED)
+    {
+        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", recvbuf0[0]);
+        Logger_print_rx_buffer(recvbuf0);
+        return RET_NOK;
+    }
+
     Logger_spi_cmd(STM32_CMD_SET_RESOLUTION, (uint8_t)settings_get_resolution());
     // Logger_print_rx_buffer();
     if (recvbuf0[0] != STM32_RESP_OK || recvbuf0[1] != STM32_CMD_SET_RESOLUTION)
@@ -284,10 +280,10 @@ uint8_t Logger_getCsvLog()
 
 uint8_t Logger_start()
 {
-    if (_currentLoggerState == LOGGER_IDLE)
+    if (_currentLogTaskState == LOGTASK_IDLE)
     {
         // gpio_set_level(GPIO_ADC_EN, 1);
-        _nextLoggerState = LOGGER_LOGGING;
+        _nextLogTaskState = LOGTASK_LOGGING;
         return RET_OK;
     } 
     else 
@@ -298,11 +294,10 @@ uint8_t Logger_start()
 
 uint8_t Logger_stop()
 {
-    if (_currentLoggerState == LOGGER_LOGGING)
+    if (_currentLogTaskState == LOGTASK_LOGGING)
     {
         // Disable interrupt data ready pin
-        // gpio_set_level(GPIO_ADC_EN, 0);
-        _nextLoggerState = LOGGER_IDLE;
+        _nextLogTaskState = LOGTASK_IDLE;
         ESP_LOGI(TAG_LOG, "Logger_stop() called");
         return RET_OK;
     } 
@@ -396,13 +391,35 @@ void Logger_log()
                 // ESP_LOGI(TAG_LOG, "LOW TRIGGER");
             }
         }  else {
-            // _currentLoggingState = LOGGING_RX0_WAIT;
-            // _currentLoggingState = LOGGING_STOP;
-            // ESP_LOGI(TAG_LOG, "No DATA RDY intterupt");
+            // Throw error
+
+            _currentLoggingState = LOGGING_STOP;
+            ESP_LOGI(TAG_LOG, "No DATA RDY intterupt");
         }
 
         switch (_currentLoggingState)
         {
+           
+            case LOGGING_START:
+                    // ESP_LOGI(TAG_LOG, "Queuing spi transactions..");
+                    // assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
+                    if (int_counter==0)
+                    {
+                        count_offset = 0;
+                    } 
+                    _spi_transaction_rx0.length = STM_TXLENGTH*8;
+                    _spi_transaction_rx0.rxlength=STM_TXLENGTH*8;
+                    _spi_transaction_rx0.tx_buffer = NULL;                 
+                    _spi_transaction_rx0.rx_buffer=recvbuf0+(log_counter*STM_TXLENGTH);
+
+                    ESP_LOGI(TAG_LOG, "Queuing SPI trans");
+                    assert(spi_device_queue_trans(handle, &_spi_transaction_rx0, 0) == ESP_OK);
+
+                    _nextLoggingState = LOGGING_RX0_WAIT;
+                    
+
+            break;
+            
             case LOGGING_RX0_WAIT:
                 {
                         // Check if our transaction is done
@@ -424,8 +441,8 @@ void Logger_log()
                             {
 
                                 ESP_LOGE(TAG_LOG, "Missing SPI transaction (%d vs. %d)! Stopping", log_counter, (int_counter));
-                                // Logger_stop();
-                                // return;
+                                Logger_stop();
+                                return;
                             }
 
                             // execute only when a full block of SPI_BUFFERSIZE_RX is retrieved
@@ -464,30 +481,6 @@ void Logger_log()
                         _nextLoggingState = LOGGING_STOP;
                 }
                 break;
-
-            case LOGGING_START:
-                    // ESP_LOGI(TAG_LOG, "Queuing spi transactions..");
-                    // assert(spi_device_transmit(handle, &_spi_transaction) == ESP_OK);
-                    if (int_counter==0)
-                    {
-                        count_offset = 0;
-                    } 
-                    _spi_transaction_rx0.length = STM_TXLENGTH*8;
-                    _spi_transaction_rx0.rxlength=STM_TXLENGTH*8;
-                    _spi_transaction_rx0.tx_buffer = NULL;
-                    // 
-                    // if(buffer_no==false){
-                        _spi_transaction_rx0.rx_buffer=recvbuf0+(log_counter*STM_TXLENGTH);
-                    // }else if(buffer_no == true){
-                        // _spi_transaction_rx0.rx_buffer=recvbuf1+(log_counter*STM_TXLENGTH);
-                    // }
-                    ESP_LOGI(TAG_LOG, "Queuing SPI trans");
-                    assert(spi_device_queue_trans(handle, &_spi_transaction_rx0, 0) == ESP_OK);
-
-                    _nextLoggingState = LOGGING_RX0_WAIT;
-                    
-
-            break;
 
 
             case LOGGING_STOP:
@@ -598,18 +591,18 @@ void task_logging(void * pvParameters)
     while(1) {
        
 
-        switch (_currentLoggerState)
+        switch (_currentLogTaskState)
         {
-            case LOGGER_IDLE:
+            case LOGTASK_IDLE:
                 vTaskDelay(500 / portTICK_PERIOD_MS);
                 
-                if (_nextLoggerState == LOGGER_LOGGING)
+                if (_nextLogTaskState == LOGTASK_LOGGING)
                 {
                     esp_sd_card_mount();
                     if (fileman_open_file() != ESP_OK)
                     { 
                         esp_sd_card_unmount();
-                        _nextLoggerState = LOGGER_IDLE;
+                        _nextLogTaskState = LOGTASK_IDLE;
                         break;
                     }
                     _nextLoggingState = LOGGING_STOP;
@@ -621,12 +614,6 @@ void task_logging(void * pvParameters)
                     _spi_transaction_rx0.rx_buffer=recvbuf0;
                     _spi_transaction_rx0.tx_buffer=NULL;
 
-                    // _spi_transaction_rx1.length=sizeof(sendbuf)*8; // size in bits
-                    _spi_transaction_rx1.length = STM_TXLENGTH*8; // size in bits
-                    _spi_transaction_rx1.rxlength = STM_TXLENGTH*8; // size in bits
-                    // _spi_transaction.tx_buffer=sendbuf;
-                    _spi_transaction_rx1.rx_buffer=recvbuf1;
-                    _spi_transaction_rx1.tx_buffer=NULL;
                     // writeptr = 0;
                     _nextLoggingState = LOGGING_STOP;
                     // esp_sd_card_mount_open_file();
@@ -637,10 +624,10 @@ void task_logging(void * pvParameters)
                 }
             break;
 
-            case LOGGER_LOGGING:
+            case LOGTASK_LOGGING:
                 
                 Logger_log();
-                if (_nextLoggerState == LOGGER_IDLE)
+                if (_nextLogTaskState == LOGTASK_IDLE)
                 {
                     // Disable logging (should change this)
                     gpio_set_level(GPIO_ADC_EN, 0);
@@ -661,7 +648,7 @@ void task_logging(void * pvParameters)
 
             break;
 
-            case LOGGER_SETTINGS:
+            case LOGTASK_SETTINGS:
 
             
             break;
@@ -673,10 +660,10 @@ void task_logging(void * pvParameters)
             // should not come here
         }
 
-        if (_nextLoggerState != _currentLoggerState)
+        if (_nextLogTaskState != _currentLogTaskState)
         {
-            ESP_LOGI(TAG_LOG, "Changing LOGGER state from %d to %d", _currentLoggerState, _nextLoggerState);
-            _currentLoggerState = _nextLoggerState;
+            ESP_LOGI(TAG_LOG, "Changing LOGGER state from %d to %d", _currentLogTaskState, _nextLogTaskState);
+            _currentLogTaskState = _nextLogTaskState;
         }
 
 

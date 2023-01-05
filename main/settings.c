@@ -9,7 +9,18 @@ void settings_init()
     _settings.adc_resolution_uint8 = 12;
     _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
+    _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     _settings.logMode = LOGMODE_CSV;
+}
+
+uint8_t settings_get_enabled_adc_channels()
+{
+    return _settings.adc_channels_enabled;
+}
+
+uint8_t settings_set_enabled_adc_channels(adc_channel_t channel, uint8_t value)
+{
+    _settings.adc_channels_enabled = 0xFF & ((0x01 << channel) & value);
 }
 
 Settings_t* settings_get(){

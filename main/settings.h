@@ -8,6 +8,18 @@
 #include "freertos/FreeRTOS.h"
 #include "common.h"
 
+typedef enum adc_channel_e {
+	ADC_CHANNEL_0 = 0,
+	ADC_CHANNEL_1,
+	ADC_CHANNEL_2,
+	ADC_CHANNEL_3,
+	ADC_CHANNEL_4,
+	ADC_CHANNEL_5,
+	ADC_CHANNEL_6,
+	ADC_CHANNEL_7
+
+} adc_channel_t;
+
 typedef enum adc_resolution_e {
     ADC_12_BITS = 1,
     ADC_16_BITS = 2,
@@ -51,7 +63,8 @@ struct Settings_t {
 	uint8_t adc_resolution_uint8;
     adc_sample_rate_t log_sample_rate; // can make this one out of fixed options
     uint8_t adc_channel_type; // indicate whether channel 0..7 are normal ADC (bit = 0) or NTC (bit = 1). LSB = channel 0, MSB = channel 7
-    uint8_t logMode;
+    uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
+	uint8_t logMode;
 };
 
 typedef struct Settings_t Settings_t;
