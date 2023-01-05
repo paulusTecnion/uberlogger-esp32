@@ -22,32 +22,17 @@
 static const char* TAG_CONSOLE = "CONSOLE";
 
 static struct {
-    struct arg_int *adc_en_level;
-    struct arg_end *end;
-} adc_en_args;
-
-static struct {
     struct arg_str *arg0;
     struct arg_int *val;
     struct arg_end *end;
 } settings_args;
 
-static int adc_enable_pin(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &adc_en_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, adc_en_args.end, argv[0]);
-        return 1;
-    }
-    if (adc_en_args.adc_en_level) {
-        
-        ESP_LOGI(TAG_CONSOLE, "ADC OUTPUT %d", adc_en_args.adc_en_level->ival[0]);
-        gpio_set_level(GPIO_ADC_EN, adc_en_args.adc_en_level->ival[0]);
-        // ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
-    }
+static struct {
+    struct arg_str *arg0;
+    struct arg_str *val;
+    struct arg_end *end;
+} logger_args;
 
-    return 0;
-}
 
 static int cmd_sample_rate(int argc, char **argv)
 {
@@ -70,42 +55,35 @@ static int cmd_sample_rate(int argc, char **argv)
     
 }
 
-static int logger_csvlog_en(int argc, char **argv)
+static int cmd_logger(int argc, char **argv)
 {
-    int nerrors = arg_parse(argc, argv, (void **) &adc_en_args);
+    int nerrors = arg_parse(argc, argv, (void **) &logger_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, adc_en_args.end, argv[0]);
+        arg_print_errors(stderr, logger_args.end, argv[0]);
         return 1;
     }
-    if (adc_en_args.adc_en_level) {
-        
-        ESP_LOGI(TAG_CONSOLE, "LOGGER CSV %d", adc_en_args.adc_en_level->ival[0]);
-        Logger_setCsvLog(adc_en_args.adc_en_level->ival[0]);
-        // ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
-    }
-
-    return 0;
+    
+    if (!strcmp(logger_args.arg0->sval[0],  "mode"))
+    {
+        if (!strcmp(logger_args.val->sval[0], "csv"))
+        {
+            return Logger_setCsvLog(LOGMODE_CSV);
+        } 
+        else  if (!strcmp(logger_args.val->sval[0], "raw")) 
+        {
+            return Logger_setCsvLog(LOGMODE_RAW);
+        } 
+    } else if (!strcmp(logger_args.arg0->sval[0], "start"))  {   
+        return Logger_start();
+    } else if (!strcmp(logger_args.arg0->sval[0], "stop")) {
+        return Logger_stop();
+    } 
+    
+    return RET_NOK;
+    // ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
+    
 }
 
-
-
-static void register_adc_en_pin(void)
-{
- int num_args = 1;
-    adc_en_args.adc_en_level =
-        
-    arg_int0(NULL, NULL, "<0|1>", "GPIO level to trigger wakeup");
-    adc_en_args.end = arg_end(num_args);
-
-    const esp_console_cmd_t cmd = {
-        .command = "adc_en",
-        .help = "Control adc enable pin",
-        .hint = NULL,
-        .func = &adc_enable_pin,
-        .argtable = &adc_en_args
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
 
 static void register_settings_sample_rate(void)
 {
@@ -129,20 +107,25 @@ static void register_settings_sample_rate(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
-static void register_log_setcsv(void)
+static void register_logger_cmd(void)
 {
- int num_args = 1;
-    adc_en_args.adc_en_level =
+    int num_args = 2;
+    logger_args.arg0 = 
+    arg_str0(NULL, NULL, "<mode|start|stop>", "Mode (csv/raw), start or stop logger.");
+    
+    logger_args.val =
         
-    arg_int0(NULL, NULL, "<0|1>", "Set CSV mode enabled (=1) or disabled (=0)");
-    adc_en_args.end = arg_end(num_args);
+    arg_str0(NULL, NULL, "<csv|raw>", "Set mode to csv or raw data");
+    logger_args.end = arg_end(num_args);
+
+    
 
     const esp_console_cmd_t cmd = {
-        .command = "logger_setcsv",
-        .help = "Set CSV log mode",
+        .command = "logger",
+        .help = "Controller logger mode or start/stop it.",
         .hint = NULL,
-        .func = &logger_csvlog_en,
-        .argtable = &adc_en_args
+        .func = &cmd_logger,
+        .argtable = &logger_args
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
@@ -169,36 +152,10 @@ static void register_log_stop(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
-static void register_sd_card_init(void)
-{
-     const esp_console_cmd_t cmd = {
-        .command = "sd_init",
-        .help = "Initialize SD card and file",
-        .hint = NULL,
-        .func = &esp_sd_card_init,
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
 
-static void register_sd_card_close(void)
-{
-    int num_args = 0;    
-    adc_en_args.end = arg_end(num_args);
-
-    const esp_console_cmd_t cmd = {
-        .command = "sd_close",
-        .help = "Close file",
-        .hint = NULL,
-        .func = &fileman_close_file,
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
 
 static void register_restart(void)
 {
- int num_args = 0;
-    
-    adc_en_args.end = arg_end(num_args);
 
     const esp_console_cmd_t cmd = {
         .command = "restart",
@@ -211,12 +168,9 @@ static void register_restart(void)
 
 static void register_stm32_sync(void)
 {
-    int num_args = 0;
-    
-    adc_en_args.end = arg_end(num_args);
 
     const esp_console_cmd_t cmd = {
-        .command = "stm32_sync",
+        .command = "sync",
         .help = "STM32 sync settings",
         .hint = NULL,
         .func = &Logger_syncSettings
@@ -243,15 +197,12 @@ void init_console(){
     #endif
 
 
-    register_adc_en_pin();
-    register_log_setcsv();
-    register_log_start();
-    register_log_stop();
+    // register_log_start();
+    // register_log_stop();
     register_restart();
-    register_sd_card_init();
-    register_sd_card_close();
     register_settings_sample_rate();
     register_stm32_sync();
+    register_logger_cmd();
     esp_console_register_help_command();
 
     // esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
