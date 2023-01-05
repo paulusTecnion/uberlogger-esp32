@@ -69,10 +69,15 @@ esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .allocation_unit_size = 16 * 1024
     };
 
+static bool esp_sd_spi_is_initialized = false;
+static bool esp_sd_card_is_mounted = false;
 
-
-void esp_sd_card_mount()
+esp_err_t esp_sd_card_mount()
 {
+    if (!esp_sd_spi_is_initialized)
+    {
+        esp_sd_card_init();
+    }
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI2_HOST;
@@ -99,13 +104,18 @@ void esp_sd_card_mount()
             ESP_LOGE(TAG, "Failed to initialize the card (%s). "
                 "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
         }
-        return;
+        return ret;
+    } else {
+        esp_sd_card_is_mounted = true;
+        return ESP_OK;
     }
+
+
 }
 
 
 
-void esp_sd_card_init(void)
+esp_err_t esp_sd_card_init(void)
 {
     esp_err_t ret= ESP_OK;
     // Options for mounting the filesystem.
@@ -159,7 +169,9 @@ void esp_sd_card_init(void)
     ret = spi_bus_initialize(host.slot, &bus_cfg, SPI_DMA_CHAN);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize bus.");
-        return;
+        return ret;
+    } else {
+        esp_sd_spi_is_initialized = true;
     }
 
     // This initializes the slot without card detect (CD) and write protect (WP) signals.
@@ -220,16 +232,24 @@ void esp_sd_card_init(void)
 //     //deinitialize the bus after all devices are removed
 //     spi_bus_free(host.slot);
 // #endif
+    return ESP_OK;
     
 }
 
-int esp_sd_card_unmount(void)
+esp_err_t esp_sd_card_unmount(void)
 {
   
-       
+       if (esp_sd_card_is_mounted)
+       {
         esp_vfs_fat_sdcard_unmount(mount_point, card);
         ESP_LOGI(TAG, "File closed and card unmounted");
-        return 0;
+        esp_sd_card_is_mounted = false;
+        return ESP_OK;
+       } else {
+        ESP_LOGE(TAG, "SD card not mounted!");
+        return ESP_FAIL;
+       }
+        
 }
 
 

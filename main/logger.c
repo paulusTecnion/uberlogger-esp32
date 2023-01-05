@@ -574,11 +574,13 @@ void task_logging(void * pvParameters)
     assert(ret==ESP_OK);
 
     // // Initialize SD card
-    esp_sd_card_init();
-    esp_sd_card_mount();
-    // // need to check if sdcard is mounted
-    ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
-    esp_sd_card_unmount();
+    if (esp_sd_card_mount() == ESP_OK)
+    {
+        // // need to check if sdcard is mounted
+        ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+        esp_sd_card_unmount();
+    }
+    
 
     ESP_LOGI(TAG_LOG, "Logger task started");
     if (Logger_syncSettings() )
@@ -598,29 +600,38 @@ void task_logging(void * pvParameters)
                 
                 if (_nextLogTaskState == LOGTASK_LOGGING)
                 {
-                    esp_sd_card_mount();
-                    if (fileman_open_file() != ESP_OK)
-                    { 
-                        esp_sd_card_unmount();
-                        _nextLogTaskState = LOGTASK_IDLE;
-                        break;
-                    }
-                    _nextLoggingState = LOGGING_STOP;
-                    // upon changing state to logging, make sure these settings are correct. 
-                    // _spi_transaction_rx0.length=sizeof(sendbuf)*8; // size in bits
-                    _spi_transaction_rx0.length=STM_TXLENGTH*8; // size in bits
-                    _spi_transaction_rx0.rxlength = STM_TXLENGTH*8; // size in bits
-                    // _spi_transaction.tx_buffer=sendbuf;
-                    _spi_transaction_rx0.rx_buffer=recvbuf0;
-                    _spi_transaction_rx0.tx_buffer=NULL;
+                    if (esp_sd_card_mount() == ESP_OK)
+                    {
+                         if (fileman_open_file() != ESP_OK)
+                        { 
+                            if (esp_sd_card_unmount() == ESP_OK)
+                            {
+                                _nextLogTaskState = LOGTASK_IDLE;
+                            }
 
-                    // writeptr = 0;
-                    _nextLoggingState = LOGGING_STOP;
-                    // esp_sd_card_mount_open_file();
-                    // enable data_rdy interrupt
-                    assert(Logger_datardy_int(1) == RET_OK);
-                    // Enable logging
-                    gpio_set_level(GPIO_ADC_EN, 1);
+                            break;
+                        }
+                        _nextLoggingState = LOGGING_STOP;
+                        // upon changing state to logging, make sure these settings are correct. 
+                        // _spi_transaction_rx0.length=sizeof(sendbuf)*8; // size in bits
+                        _spi_transaction_rx0.length=STM_TXLENGTH*8; // size in bits
+                        _spi_transaction_rx0.rxlength = STM_TXLENGTH*8; // size in bits
+                        // _spi_transaction.tx_buffer=sendbuf;
+                        _spi_transaction_rx0.rx_buffer=recvbuf0;
+                        _spi_transaction_rx0.tx_buffer=NULL;
+
+                        // writeptr = 0;
+                        _nextLoggingState = LOGGING_STOP;
+                        // esp_sd_card_mount_open_file();
+                        // enable data_rdy interrupt
+                        assert(Logger_datardy_int(1) == RET_OK);
+                        // Enable logging
+                        gpio_set_level(GPIO_ADC_EN, 1);
+                    } else {
+                          _nextLogTaskState = LOGTASK_IDLE;
+                    }
+                   
+                   
                 }
             break;
 
