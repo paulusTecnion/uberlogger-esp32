@@ -6,7 +6,6 @@ Settings_t _settings;
 void settings_init()
 {
     _settings.adc_resolution = ADC_12_BITS;
-    _settings.adc_resolution_uint8 = 12;
     _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
@@ -55,19 +54,17 @@ uint8_t settings_set_resolution(adc_resolution_t res)
     {
         case ADC_12_BITS:
             _settings.adc_resolution = res;
-            _settings.adc_resolution_uint8 = 12;
         break;
 
         case ADC_16_BITS:
             _settings.adc_resolution = res;
-            _settings.adc_resolution_uint8 = 16;
         break;
 
         default:
         return RET_NOK;
     }
     
-        ESP_LOGI(TAG_SETTINGS, "ADC RESOLUTION = %d", _settings.adc_resolution_uint8);
+        ESP_LOGI(TAG_SETTINGS, "ADC RESOLUTION = %d", _settings.adc_resolution);
         
     return RET_OK;    
        
@@ -78,10 +75,7 @@ adc_resolution_t settings_get_resolution()
     return _settings.adc_resolution;
 }
 
-uint8_t settings_get_resolution_uint8()
-{
-    return _settings.adc_resolution_uint8;
-}
+
 
 uint8_t settings_set_samplerate(adc_sample_rate_t rate)
 {

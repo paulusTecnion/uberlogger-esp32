@@ -361,7 +361,7 @@ uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
             // First shift the bytes to get the ADC value
             t0 = ((int32_t)buffer[j] | ((int32_t)buffer[j + 1] << 8));
             t1 = t0 * (20LL * 1000000LL);
-            t2 = t1 / ((1 << settings_get_resolution_uint8()) - 1); // -1 for 4095 steps
+            t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
             t3 = t2 - 10000000LL;
             // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
             tbuffer_i32[writeptr+(log_counter*(STM_TXLENGTH/2))] = (int32_t)t3;

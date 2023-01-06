@@ -21,9 +21,8 @@ typedef enum adc_channel_e {
 } adc_channel_t;
 
 typedef enum adc_resolution_e {
-    ADC_12_BITS = 1,
-    ADC_16_BITS = 2,
-    ADC_RESOLUTION_NUM_ITEMS
+    ADC_12_BITS = 12,
+    ADC_16_BITS = 16
 } adc_resolution_t;
 
 typedef enum adc_sample_rate_e {
@@ -76,7 +75,6 @@ Settings_t * settings_get();
 uint8_t settings_get_enabled_adc_channels();
 log_mode_t settings_get_logmode();
 adc_resolution_t settings_get_resolution();
-uint8_t settings_get_resolution_uint8();
 uint8_t settings_set_resolution(adc_resolution_t res);
 uint8_t settings_set_logmode(log_mode_t mode);
 uint8_t settings_set_samplerate(adc_sample_rate_t rate);
