@@ -23,7 +23,7 @@ typedef enum adc_channel_e {
 typedef enum adc_resolution_e {
     ADC_12_BITS = 12,
     ADC_16_BITS = 16
-} adc_resolution_t;
+	} adc_resolution_t;
 
 typedef enum adc_sample_rate_e {
     ADC_SAMPLE_RATE_1Hz = 1,
