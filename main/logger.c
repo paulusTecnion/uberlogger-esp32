@@ -16,16 +16,20 @@
 #include "fileman.h"
 
 #define SPI_BUFFERSIZE_TX 16
-#define SPI_BUFFERSIZE_RX 8192
-#define STM_TXLENGTH 1024
+#define SPI_BUFFERSIZE_RX 8*1020 //8192
+#define STM_TXLENGTH 1020
 // #define SD_BUFFERSIZE 8192
 
 static const char* TAG_LOG = "LOGGER";
 
 DMA_ATTR uint8_t sendbuf[SPI_BUFFERSIZE_TX];
 // Two buffers for receiving
-DMA_ATTR uint8_t recvbuf0[SPI_BUFFERSIZE_RX];
-DMA_ATTR uint8_t recvbuf1[SPI_BUFFERSIZE_RX];
+// DMA_ATTR uint8_t recvbuf0[SPI_BUFFERSIZE_RX];
+DMA_ATTR struct {
+    uint8_t adc[960];
+    uint8_t gpio[60];
+} recvbuf0;
+
 
 
 
@@ -33,7 +37,7 @@ DMA_ATTR uint8_t recvbuf1[SPI_BUFFERSIZE_RX];
 // uint8_t tbuffer[SD_BUFFERSIZE];
 
 // Same size as SPI buffer but then int32 size
-int32_t tbuffer_i32[SPI_BUFFERSIZE_RX];
+int32_t tbuffer_i32[460*8];
 char strbuffer[16];
 LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
 LoggerState_t _nextLogTaskState = LOGTASK_IDLE;
@@ -163,7 +167,7 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     sendbuf[1] = data;
     _spi_transaction_rx0.length = 16; // in bits!
     _spi_transaction_rx0.rxlength = 16;
-    _spi_transaction_rx0.rx_buffer = recvbuf0;
+    _spi_transaction_rx0.rx_buffer = recvbuf0.gpio;
     _spi_transaction_rx0.tx_buffer = sendbuf;
     //   ESP_LOGI(TAG_LOG,"About to send the command in 1 second");
     
@@ -185,7 +189,7 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     sendbuf[0] = STM32_CMD_NOP;
     sendbuf[1] = 0;
     _spi_transaction_rx0.rxlength = 16;
-    _spi_transaction_rx0.rx_buffer = recvbuf0;
+    _spi_transaction_rx0.rx_buffer = recvbuf0.gpio;
     // Wait until data_rdy pin is low again, then data transmission is complete
     spi_device_transmit(handle, &_spi_transaction_rx0);
     while(gpio_get_level(GPIO_DATA_RDY_PIN));
@@ -208,10 +212,10 @@ uint8_t Logger_syncSettings()
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
     Logger_spi_cmd(STM32_CMD_SETTINGS_MODE, 0);
     // Logger_print_rx_buffer();
-    if (recvbuf0[0] != STM32_RESP_OK || recvbuf0[1] != STM32_CMD_SETTINGS_MODE)
+    if (recvbuf0.gpio[0] != STM32_RESP_OK || recvbuf0.gpio[1] != STM32_CMD_SETTINGS_MODE)
     {
         ESP_LOGI(TAG_LOG, "Unable to put STM32 into SETTINGS mode. ");
-        Logger_print_rx_buffer(recvbuf0);
+        Logger_print_rx_buffer(recvbuf0.gpio);
         return RET_NOK;
     } 
     ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
@@ -220,10 +224,10 @@ uint8_t Logger_syncSettings()
 
     Logger_spi_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, settings_get_enabled_adc_channels());
     // Logger_print_rx_buffer();
-    if (recvbuf0[0] != STM32_RESP_OK || recvbuf0[1] != STM32_CMD_SET_ADC_CHANNELS_ENABLED)
+    if (recvbuf0.gpio[0] != STM32_RESP_OK || recvbuf0.gpio[1] != STM32_CMD_SET_ADC_CHANNELS_ENABLED)
     {
-        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", recvbuf0[0]);
-        Logger_print_rx_buffer(recvbuf0);
+        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", recvbuf0.gpio[0]);
+        Logger_print_rx_buffer(recvbuf0.gpio);
         return RET_NOK;
     }
 
@@ -231,10 +235,10 @@ uint8_t Logger_syncSettings()
 
     Logger_spi_cmd(STM32_CMD_SET_RESOLUTION, (uint8_t)settings_get_resolution());
     // Logger_print_rx_buffer();
-    if (recvbuf0[0] != STM32_RESP_OK || recvbuf0[1] != STM32_CMD_SET_RESOLUTION)
+    if (recvbuf0.gpio[0] != STM32_RESP_OK || recvbuf0.gpio[1] != STM32_CMD_SET_RESOLUTION)
     {
-        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", recvbuf0[0]);
-        Logger_print_rx_buffer(recvbuf0);
+        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", recvbuf0.gpio[0]);
+        Logger_print_rx_buffer(recvbuf0.gpio);
         return RET_NOK;
     } 
     
@@ -243,10 +247,10 @@ uint8_t Logger_syncSettings()
 
     Logger_spi_cmd(STM32_CMD_SET_SAMPLE_RATE, (uint8_t)settings_get_samplerate());
     // Logger_print_rx_buffer();
-    if (recvbuf0[0] != STM32_RESP_OK || recvbuf0[1] != STM32_CMD_SET_SAMPLE_RATE)
+    if (recvbuf0.gpio[0] != STM32_RESP_OK || recvbuf0.gpio[1] != STM32_CMD_SET_SAMPLE_RATE)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 sample rate. ");
-        Logger_print_rx_buffer(recvbuf0);
+        Logger_print_rx_buffer(recvbuf0.gpio);
         return RET_NOK;
     }
 
@@ -255,10 +259,10 @@ uint8_t Logger_syncSettings()
     // Send settings one by one and confirm
     Logger_spi_cmd(STM32_CMD_MEASURE_MODE, 0);
     // Logger_print_rx_buffer();
-    if (recvbuf0[0] != STM32_RESP_OK || recvbuf0[1] != STM32_CMD_MEASURE_MODE)
+    if (recvbuf0.gpio[0] != STM32_RESP_OK || recvbuf0.gpio[1] != STM32_CMD_MEASURE_MODE)
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 in measure mode");
-        Logger_print_rx_buffer(recvbuf0);
+        Logger_print_rx_buffer(recvbuf0.gpio);
         return RET_NOK;
     }
     ESP_LOGI(TAG_LOG, "Sync done");
@@ -343,12 +347,13 @@ uint8_t Logger_flush_buffer_to_sd_card_int32(int32_t * buffer, size_t size)
     return RET_OK;
 }
 
-uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
+// uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
+uint8_t Logger_raw_to_csv(uint8_t log_counter)
 {
      // ESP_LOGI(TAG_LOG,"ADC Reading:");
         writeptr = 0;
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
-        for (int j = 0; j < (size); j = j + 2)
+        for (int j = 0; j < (960); j = j + 2)
         {
             // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
             // Or in fixed point Q6.26 notation 488281 = 1 LSB
@@ -359,14 +364,14 @@ uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
             
             // Next steps can be merged, but are now seperated for checking values
             // First shift the bytes to get the ADC value
-            t0 = ((int32_t)buffer[j] | ((int32_t)buffer[j + 1] << 8));
+            t0 = ((int32_t)recvbuf0.adc[j] | ((int32_t)recvbuf0.adc[j + 1] << 8));
             t1 = t0 * (20LL * 1000000LL);
             t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
             t3 = t2 - 10000000LL;
             // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
-            tbuffer_i32[writeptr+(log_counter*(STM_TXLENGTH/2))] = (int32_t)t3;
+            tbuffer_i32[writeptr+(log_counter*(960/2))] = (int32_t)t3;
             
-            ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", buffer[j], buffer[j+1], t3, tbuffer_i32[writeptr+(log_counter)*(STM_TXLENGTH/2)]);
+            ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", recvbuf0.adc[j], recvbuf0.adc[j+1], t3, tbuffer_i32[writeptr+(log_counter)*(960/2)]);
             writeptr++;
         }
 
@@ -416,7 +421,8 @@ esp_err_t Logger_log()
                     _spi_transaction_rx0.length = STM_TXLENGTH*8;
                     _spi_transaction_rx0.rxlength=STM_TXLENGTH*8;
                     _spi_transaction_rx0.tx_buffer = NULL;                 
-                    _spi_transaction_rx0.rx_buffer=recvbuf0+(log_counter*STM_TXLENGTH);
+                    // _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0+(log_counter*STM_TXLENGTH);
+                    _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0;
 
                     ESP_LOGI(TAG_LOG, "Queuing SPI trans");
                     assert(spi_device_queue_trans(handle, &_spi_transaction_rx0, 0) == ESP_OK);
@@ -432,10 +438,10 @@ esp_err_t Logger_log()
                         spi_transaction_t * ptr = &_spi_transaction_rx0;
                         if(spi_device_get_trans_result(handle, &ptr, 1000 / portTICK_PERIOD_MS) == ESP_OK)
                         {
-                            // ESP_LOGI(TAG_LOG, "log_counter:%d", log_counter);
-                            // for (int i=0; i<16; i = i + 2)
+                            ESP_LOGI(TAG_LOG, "log_counter:%d", log_counter);
+                            // for (int i=0; i<100; i = i + 2)
                             // {
-                            //     ESP_LOGI(TAG_LOG, "%d, %d", recvbuf0[(log_counter*STM_TXLENGTH+i)], recvbuf0[(log_counter*STM_TXLENGTH)+i+1]);
+                            //     ESP_LOGI(TAG_LOG, "%d, %d", recvbuf0.adc[(log_counter*STM_TXLENGTH+i)], recvbuf0.adc[(log_counter*STM_TXLENGTH)+i+1]);
 
                             // }
                             
@@ -455,7 +461,8 @@ esp_err_t Logger_log()
                             if (settings_get_logmode() == LOGMODE_CSV)
                             {
                                 // if(buffer_no==false){
-                                    Logger_raw_to_csv(recvbuf0+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
+                                    // Logger_raw_to_csv((uint8_t*)&recvbuf0+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
+                                    Logger_raw_to_csv(log_counter);
                                 // }else if(buffer_no==true){
                                     // Logger_raw_to_csv(recvbuf1+(log_counter*STM_TXLENGTH), STM_TXLENGTH, log_counter);
                                 // }
@@ -463,15 +470,15 @@ esp_err_t Logger_log()
 
                             log_counter++; // received bytes = log_counter*512
 
-                            if(log_counter*STM_TXLENGTH >= SPI_BUFFERSIZE_RX){
+                            if(log_counter*960 >= SPI_BUFFERSIZE_RX){
                                 log_counter = 0;
                                 int_counter = 0;
                                 if (settings_get_logmode() == LOGMODE_CSV)
                                 {
                                     // Write it SD
-                                    Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, SPI_BUFFERSIZE_RX);
+                                    Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, 8*460);
                                 } else {
-                                    Logger_flush_buffer_to_sd_card_uint8(recvbuf0, SPI_BUFFERSIZE_RX);
+                                    Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&recvbuf0, SPI_BUFFERSIZE_RX);
                                 }                    
 
                                 buffer_no = !buffer_no;
@@ -624,7 +631,7 @@ void task_logging(void * pvParameters)
                         _spi_transaction_rx0.length=STM_TXLENGTH*8; // size in bits
                         _spi_transaction_rx0.rxlength = STM_TXLENGTH*8; // size in bits
                         // _spi_transaction.tx_buffer=sendbuf;
-                        _spi_transaction_rx0.rx_buffer=recvbuf0;
+                        _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0;
                         _spi_transaction_rx0.tx_buffer=NULL;
 
                         // writeptr = 0;
@@ -658,9 +665,9 @@ void task_logging(void * pvParameters)
                     // Flush buffer to sd card
                     if (settings_get_logmode() == LOGMODE_CSV)
                     {
-                        Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, SPI_BUFFERSIZE_RX);
+                        Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, 8*460);
                     } else {
-                        Logger_flush_buffer_to_sd_card_uint8(recvbuf0, SPI_BUFFERSIZE_RX);
+                        Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&recvbuf0, SPI_BUFFERSIZE_RX);
                     }
                     
                     fileman_close_file();

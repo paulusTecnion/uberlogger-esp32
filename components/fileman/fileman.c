@@ -121,7 +121,7 @@ int fileman_csv_write(const void * data, size_t len)
         // make string out of number
         //snprintf(strbuffer, sizeof(strbuffer), "%0d.%010llu,", (int32_data[i] >> 27), (((int32_data[i] & 0x7FFFFFF) * 100000000L)/(1 << 27) ));
         snprintf(strbuffer, 11, "%d.%06d,", int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))));
-        
+       
    
         if ((i % 8) == 0 && (i!=0))
         {
@@ -130,6 +130,8 @@ int fileman_csv_write(const void * data, size_t len)
         fprintf(f, strbuffer);
         
     }
+
+     ESP_LOGI("SD", "%d, %s\r\n", int32_data[len-1], strbuffer); 
    
   
    return len;
