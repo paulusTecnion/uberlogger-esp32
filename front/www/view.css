@@ -1,0 +1,369 @@
+body
+{
+	background:#336699;
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:normal;
+	margin:8px auto 16px auto;
+	text-align:center;
+	min-width:340px;
+	max-width:95%;
+}
+
+#shadow_top
+{
+	display:block;
+	height:30px;
+	margin:0 5px 0 5px;
+	width:auto;
+	background-image:url("top.png");
+	background-position:bottom;
+	background-repeat:no-repeat;
+	background-size:contain;
+}
+
+#shadow_bottom
+{
+	display:block;
+	height:30px;
+	margin:0 5px 0 5px;
+	width:auto;
+	background-image:url("bottom.png");
+	background-position:top;
+	background-repeat:no-repeat;
+	background-size:contain;
+}
+
+#content
+{
+	text-align:left;
+	padding:0 5px 0 5px;
+}
+
+
+#top
+{
+	margin:0 -5px 0 -5px;
+	background:#fff;
+	width:auto;
+}
+
+#topbar
+{
+	display:block;
+	background-color:hsl(214, 64%, 65%);
+	padding:0 0;
+	margin:0 0;
+	height:30px;
+}
+
+#toptitle
+{
+	font-size:160%;
+	font-weight:800;
+	margin:5px 0 10px 0;
+	text-align: center;
+}
+
+#topmenubar
+{
+	display:block;
+	background-color:hsl(214, 64%, 95%);
+	padding:10px 10px;
+	margin:0 0 10px 0;
+}
+
+#topmenubar button
+{
+	margin: 10px 0 5px 0;
+	height: 30px;
+	font-size: 105%;
+}
+
+
+#window
+{
+	margin:0 5px 0 5px;
+	padding:0 5px 10px 5px;
+
+	background:#fff;
+	width:auto;
+}
+
+
+#plotly
+{
+	height:90vh;
+}
+
+#footer
+{
+	width:95%;
+	clear:both;
+	color:#999999;
+	text-align:center;
+
+	border-top:2px dotted #ccc;
+	margin-top: 10px;
+	padding-top: 10px;
+	padding-bottom: 0px;
+	font-size: 85%;
+}
+
+img
+{
+	border:none;
+}
+
+
+
+/* styling of text */
+
+.form_description
+{
+	display:block;
+	margin:0 0 0 0;
+}
+
+h1
+{
+	font-size:160%;
+	font-weight:800;
+	margin:0 0 10px 0;
+}
+
+h2
+{
+	padding-top: 10px;
+	padding-bottom: 10px;
+	border-bottom:2px dotted #ccc;
+	font-size:140%;
+	font-weight:400;
+	margin:50px 0 10px 0;
+}
+
+h2.first
+{
+	margin-top: 0px; 
+}
+
+h3
+{
+	padding-top: 10px;
+	font-size:120%;
+	font-weight:400;
+	margin:15px 0 15px 0;
+}
+
+h3.first
+{
+	margin-top:0px;
+}
+
+
+p
+{
+	font-size:95%;
+	line-height:130%;
+	margin:5px 0 10px;
+}
+
+
+
+.group p{
+	margin:0.1em 0 1em 0;
+}
+
+.group
+{
+	display: block;
+	border-bottom:2px dotted #ccc;
+}
+
+
+.group.invisible
+{
+	display: none;
+}
+
+.group.visible
+{
+	display: block;
+}
+
+.group.visible.last
+{
+	border-bottom:none;
+}
+
+
+/* styling of table */
+table, td, th
+{
+	border: 1px solid gray;
+	border-collapse: separate;
+}
+
+table td, table th
+{
+	padding: 10px;
+}
+
+
+/* pageturner buttons */
+
+.group.pageturner{
+	width: 100%;
+	height: 55px;
+	position: relative;
+  padding-bottom: 5px;
+}
+
+.group.pageturner > .pageturner_button_previous
+{
+	display: inline-block;
+
+	margin: 0 0 0 0;
+	padding: 0 0 0 0;
+	position: absolute;
+}
+
+.group.pageturner > .pageturner_button_next
+{
+	display: inline-block;
+
+	margin: 0 0 0 0;
+	padding: 0 0 0 0;
+	position: absolute;
+
+	left: 140px;
+}
+
+.group.pageturner input
+{
+	width: 120px;
+}
+
+
+.block
+{
+	display:inline-block;
+	padding: 10px 10px;
+	margin: 0 5px;
+	background-color: #efefef;
+	border-style: groove;
+	border-radius: 10px;
+	vertical-align: top;
+}
+
+/* form inputs/labels */
+
+label
+{
+	clear:both;
+	color:#444;
+	display:block;
+	line-height: 1.4em;
+	padding: 6px 0 2px 0;
+}
+
+
+label.choice
+{
+	clear:both;
+	color:#444;
+	display:block;
+	line-height: 1.4em;
+	margin: -30px 0 0 25px;
+	padding: 0 0 15px 0;
+}
+
+
+label.checkbox
+{
+	clear:both;
+	color:#444;
+	display:block;
+	line-height: 1.4em;
+	margin: -30px 0 0 25px;
+	padding: 0 0 8px 0;
+}
+
+
+input[type=text]
+{
+	width: 90%;
+	margin: 2px 0 8px 0;
+	padding: .25rem;	
+}
+
+input[type=submit]
+{
+	margin: 10px 0 5px 0;
+	height: 40px;
+}
+
+input[type=button]
+{
+	margin: 10px 0 5px 0;
+	height: 40px;
+}
+
+input[type=checkbox]
+{
+	margin: 0 0 0 0;
+	height: 30px;
+	vertical-align: center;	
+}
+
+input[type=radio]
+{
+	margin: 0 0 0 0;
+	height: 35px;
+	vertical-align: top;
+}
+
+.button
+{
+	margin: 10px 0 5px 0;
+	height: 40px;
+}
+
+.parameters_configuration .explanation
+{
+	margin-top: 20px;
+	margin-bottom: 0px;
+	display: block;
+}
+
+.parameters_configuration .description
+{
+	border:none;
+	color:#222;
+	display:inline-block;
+	width: 225px;
+	line-height:150%;
+	padding:7px 0 1px;
+	font-family: monospace;
+	font-size: larger;
+}
+
+.parameters_configuration .element
+{
+	display:inline-block;
+	width:50px;
+	margin-right: 5px;
+}
+
+.parameters_configuration div
+{
+
+	display:block;
+}
+
+.parameters_configuration .figure
+{
+	display: block;
+	width: 100%;
+	max-width: 480px;
+	margin: 25px 0 15px 0;
+}

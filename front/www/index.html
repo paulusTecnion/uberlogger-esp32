@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=1, target-densityDpi=device-dpi" /> 	
+	<title>UberLogger One - control and configuration</title>
+	<link rel="stylesheet" type="text/css" href="view.css" media="all">
+</head>
+
+<body>
+
+<div id="content">
+	<div id="shadow_top"></div>
+	<div id="window">
+
+		<div id="top">
+			<div id="topbar"></div>
+			<div id="toptitle">UberLogger One</div>
+			<div id="topmenubar">
+				<button onclick="renderPage('overview.html');">Overview</button>
+				<button onclick="renderPage('config.html');">Configuration</button>
+				<button onclick="renderPage('log.html');">SD card logging</button>
+				<button onclick="renderPage('liveview.html');">View live data</button>
+			</div>
+		</div>
+		
+		<div id="render"></div>
+
+		<div id="footer">
+			<b>UberLogger</b> by Tecnion
+		</div>
+	</div>
+	<div id="shadow_bottom"></div>
+</div>
+
+<!--- JavaScript includes --->
+<script src="js/jquery-3.6.1.min.js"></script>
+<script src="js/generic.js"></script>
+
+<script>
+	renderPage('overview.html');
+</script>
+
+</body>
+</html>
