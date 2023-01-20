@@ -111,10 +111,11 @@ esp_err_t fileman_search_last_sequence_file(void)
     return len;
 }
 
-int fileman_csv_write(const void * data, size_t len)
+int fileman_csv_write_header()
 {
+    return fprintf(f, "adc0,adc1,adc2,adc3,adc4,adc5,adc6,adc7,io0,io1,io2,io3,io4,io5\r\n");
     
-    int32_t* int32_data  = (int32_t*) data;
+}
 
     for (int i = 0; i<len; i++)
     {

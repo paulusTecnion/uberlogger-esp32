@@ -625,6 +625,7 @@ void task_logging(void * pvParameters)
 
                             break;
                         }
+                        fileman_csv_write_header();
                         _nextLoggingState = LOGGING_IDLE;
                         // upon changing state to logging, make sure these settings are correct. 
                         // _spi_transaction_rx0.length=sizeof(sendbuf)*8; // size in bits
