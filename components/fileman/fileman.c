@@ -6,7 +6,7 @@ static const char *TAG_FILE = "FILEMAN";
 static uint32_t file_seq_num=0;
 static FILE* f = NULL;
 char file_name[16];
-char strbuffer[16];
+char strbuffer[100];
 
 void fileman_create_filename()
 {
@@ -117,23 +117,84 @@ int fileman_csv_write_header()
     
 }
 
-    for (int i = 0; i<len; i++)
+int fileman_csv_write(const void * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio)
+{
+    
+    int32_t* int32_data  = (int32_t*) dataAdc;
+    int j =0;
+    for (int i = 0; i<lenAdc; i=i+8)
     {
         // make string out of number
         //snprintf(strbuffer, sizeof(strbuffer), "%0d.%010llu,", (int32_data[i] >> 27), (((int32_data[i] & 0x7FFFFFF) * 100000000L)/(1 << 27) ));
-        snprintf(strbuffer, 11, "%d.%06d,", int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))));
-       
-   
-        if ((i % 8) == 0 && (i!=0))
+        if (int32_data[i] > -1000000 && int32_data[i]<0)
         {
-            fprintf(f,"\n");
+            snprintf(strbuffer, (8*11+2*6+1+1), "\-%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d,%d,%d,%d,%d,%d\r\n", 
+            int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))),
+            int32_data[i+1] / 1000000, abs((int32_data[i+1] - ((int32_data[i+1]/ 1000000)*1000000))),
+            int32_data[i+2] / 1000000, abs((int32_data[i+2] - ((int32_data[i+2]/ 1000000)*1000000))),
+            int32_data[i+3] / 1000000, abs((int32_data[i+3] - ((int32_data[i+3]/ 1000000)*1000000))),
+            int32_data[i+4] / 1000000, abs((int32_data[i+4] - ((int32_data[i+4]/ 1000000)*1000000))),
+            int32_data[i+5] / 1000000, abs((int32_data[i+5] - ((int32_data[i+5]/ 1000000)*1000000))),
+            int32_data[i+6] / 1000000, abs((int32_data[i+6] - ((int32_data[i+6]/ 1000000)*1000000))),
+            int32_data[i+7] / 1000000, abs((int32_data[i+7] - ((int32_data[i+7]/ 1000000)*1000000))),
+            (dataGpio[j] & 0x04) && 1,
+            (dataGpio[j] & 0x08) && 1,
+            (dataGpio[j] & 0x10) && 1,
+            (dataGpio[j] & 0x20) && 1,
+            (dataGpio[j] & 0x40) && 1,
+            (dataGpio[j] & 0x80) && 1
+            );
         }
+        else
+        {
+            snprintf(strbuffer, (8*11+2*6+1), "%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d,%d,%d,%d,%d,%d\r\n", 
+            int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))),
+            int32_data[i+1] / 1000000, abs((int32_data[i+1] - ((int32_data[i+1]/ 1000000)*1000000))),
+            int32_data[i+2] / 1000000, abs((int32_data[i+2] - ((int32_data[i+2]/ 1000000)*1000000))),
+            int32_data[i+3] / 1000000, abs((int32_data[i+3] - ((int32_data[i+3]/ 1000000)*1000000))),
+            int32_data[i+4] / 1000000, abs((int32_data[i+4] - ((int32_data[i+4]/ 1000000)*1000000))),
+            int32_data[i+5] / 1000000, abs((int32_data[i+5] - ((int32_data[i+5]/ 1000000)*1000000))),
+            int32_data[i+6] / 1000000, abs((int32_data[i+6] - ((int32_data[i+6]/ 1000000)*1000000))),
+            int32_data[i+7] / 1000000, abs((int32_data[i+7] - ((int32_data[i+7]/ 1000000)*1000000))),
+            (dataGpio[j] & 0x04) && 1,
+            (dataGpio[j] & 0x08) && 1,
+            (dataGpio[j] & 0x10) && 1,
+            (dataGpio[j] & 0x20) && 1,
+            (dataGpio[j] & 0x40) && 1,
+            (dataGpio[j] & 0x80) && 1
+            );
+        }
+
+
+        // snprintf(strbuffer, (8*11+2*6+1), "%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d,%d,%d,%d,%d,%d\n", 
+        //     int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))),
+        //     int32_data[i+1] / 1000000, abs((int32_data[i+1] - ((int32_data[i+1]/ 1000000)*1000000))),
+        //     int32_data[i+2] / 1000000, abs((int32_data[i+2] - ((int32_data[i+2]/ 1000000)*1000000))),
+        //     int32_data[i+3] / 1000000, abs((int32_data[i+3] - ((int32_data[i+3]/ 1000000)*1000000))),
+        //     int32_data[i+4] / 1000000, abs((int32_data[i+4] - ((int32_data[i+4]/ 1000000)*1000000))),
+        //     int32_data[i+5] / 1000000, abs((int32_data[i+5] - ((int32_data[i+5]/ 1000000)*1000000))),
+        //     int32_data[i+6] / 1000000, abs((int32_data[i+6] - ((int32_data[i+6]/ 1000000)*1000000))),
+        //     int32_data[i+7] / 1000000, abs((int32_data[i+7] - ((int32_data[i+7]/ 1000000)*1000000))),
+        //     (dataGpio[j] & 0x04) && 1,
+        //     (dataGpio[j] & 0x08) && 1,
+        //     (dataGpio[j] & 0x10) && 1,
+        //     (dataGpio[j] & 0x20) && 1,
+        //     (dataGpio[j] & 0x40) && 1,
+        //     (dataGpio[j] & 0x80) && 1
+        //     );
+       
+           j++;
+        // if ((i % 8) == 0 && (i!=0))
+        // {
+            //  fprintf(f,"\n");
+         
+        // }
         fprintf(f, strbuffer);
         
     }
-
-     ESP_LOGI("SD", "%d, %s\r\n", int32_data[len-1], strbuffer); 
-   
+    // Final new line
+    // fprintf(f,"\n");
+    
   
-   return len;
+   return lenAdc;
 }
