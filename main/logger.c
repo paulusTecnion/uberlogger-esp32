@@ -37,7 +37,7 @@ DMA_ATTR struct {
 // uint8_t tbuffer[SD_BUFFERSIZE];
 
 // Same size as SPI buffer but then int32 size
-int32_t tbuffer_i32[460*8];
+int32_t tbuffer_i32[480*8];
 char strbuffer[16];
 LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
 LoggerState_t _nextLogTaskState = LOGTASK_IDLE;
@@ -302,11 +302,13 @@ uint8_t Logger_start()
 
 uint8_t Logger_stop()
 {
+     ESP_LOGI(TAG_LOG, "Logger_stop() called");
+     
     if (_currentLogTaskState == LOGTASK_LOGGING)
     {
         // Disable interrupt data ready pin
         _nextLogTaskState = LOGTASK_IDLE;
-        ESP_LOGI(TAG_LOG, "Logger_stop() called");
+       
         return RET_OK;
     } 
     else 
@@ -342,7 +344,7 @@ uint8_t Logger_flush_buffer_to_sd_card_int32(int32_t * buffer, size_t size)
 {
     ESP_LOGI(TAG_LOG, "Flusing CSV buffer to SD card");
     ESP_LOGI(TAG_LOG, "Size: %d", size);
-    fileman_csv_write(buffer, size);
+    fileman_csv_write(buffer, size, recvbuf0.gpio, 60);
 
     return RET_OK;
 }
@@ -351,29 +353,36 @@ uint8_t Logger_flush_buffer_to_sd_card_int32(int32_t * buffer, size_t size)
 uint8_t Logger_raw_to_csv(uint8_t log_counter)
 {
      // ESP_LOGI(TAG_LOG,"ADC Reading:");
+        int j;
         writeptr = 0;
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
-        for (int j = 0; j < (960); j = j + 2)
+        for (j = 0; j < (960); j = j + 2)
         {
             // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
             // Or in fixed point Q6.26 notation 488281 = 1 LSB
-            
-            // What we want to achieve here is 20V/4095 - 10V, but then in fixed point notation. 
+            // Note: 4095 = -10 and 0 = 10V (theoratically, without input impedance)
+
+            // What we want to achieve here is -20V/4095 + 10V, but then in fixed point notation. 
             // To achieve that, we will multiply the numbers by 1000000.
             // Then, instead of dividing the number by 4095 or use 0.0488281, we divide by the byte shift of 1<<12 which is more accurate with int32_t. 
             
             // Next steps can be merged, but are now seperated for checking values
             // First shift the bytes to get the ADC value
             t0 = ((int32_t)recvbuf0.adc[j] | ((int32_t)recvbuf0.adc[j + 1] << 8));
-            t1 = t0 * (20LL * 1000000LL);
+            t1 = t0 * (-20LL * 1000000LL); // note the minus for inverted input!
             t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
-            t3 = t2 - 10000000LL;
+            t3 = t2 + 10000000LL;
             // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
             tbuffer_i32[writeptr+(log_counter*(960/2))] = (int32_t)t3;
             
-            ESP_LOGI(TAG_LOG, "%d, %d, %lld, %d", recvbuf0.adc[j], recvbuf0.adc[j+1], t3, tbuffer_i32[writeptr+(log_counter)*(960/2)]);
+            
             writeptr++;
         }
+    //     writeptr--;
+    //     j = j - 2;
+    // ESP_LOGI(TAG_LOG, "%d, %d, %d, %d, %lld, %d", writeptr, j, recvbuf0.adc[j], recvbuf0.adc[j+1], t3, tbuffer_i32[writeptr+(log_counter)*(960/2)]);
+
+        
 
         return RET_OK;
 }
@@ -439,10 +448,9 @@ esp_err_t Logger_log()
                         if(spi_device_get_trans_result(handle, &ptr, 1000 / portTICK_PERIOD_MS) == ESP_OK)
                         {
                             ESP_LOGI(TAG_LOG, "log_counter:%d", log_counter);
-                            // for (int i=0; i<100; i = i + 2)
+                            // for (int i=0; i<960; i = i + 16)
                             // {
-                            //     ESP_LOGI(TAG_LOG, "%d, %d", recvbuf0.adc[(log_counter*STM_TXLENGTH+i)], recvbuf0.adc[(log_counter*STM_TXLENGTH)+i+1]);
-
+                            //     ESP_LOGI(TAG_LOG, "%d", (recvbuf0.adc[i] | (recvbuf0.adc[i + 1] << 8)));
                             // }
                             
                             
@@ -470,17 +478,17 @@ esp_err_t Logger_log()
 
                             log_counter++; // received bytes = log_counter*512
 
-                            if(log_counter*960 >= SPI_BUFFERSIZE_RX){
+                            if(log_counter*STM_TXLENGTH >= SPI_BUFFERSIZE_RX){
                                 log_counter = 0;
                                 int_counter = 0;
                                 if (settings_get_logmode() == LOGMODE_CSV)
                                 {
                                     // Write it SD
-                                    Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, 8*460);
+                                    Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, 6*480);
                                 } else {
                                     Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&recvbuf0, SPI_BUFFERSIZE_RX);
                                 }                    
-
+                                
                                 buffer_no = !buffer_no;
                             }
 
@@ -666,7 +674,7 @@ void task_logging(void * pvParameters)
                     // Flush buffer to sd card
                     if (settings_get_logmode() == LOGMODE_CSV)
                     {
-                        Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, 8*460);
+                        Logger_flush_buffer_to_sd_card_int32(tbuffer_i32, 8*480);
                     } else {
                         Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&recvbuf0, SPI_BUFFERSIZE_RX);
                     }
