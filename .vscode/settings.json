@@ -40,7 +40,14 @@
     "string_view": "c",
     "regex": "c",
     "xlocale": "c",
-    "xstring": "c"
+    "xstring": "c",
+    "array": "c",
+    "string": "c",
+    "ranges": "c",
+    "span": "c",
+    "vector": "c",
+    "xutility": "c",
+    "cstdlib": "c"
   },
   "idf.adapterTargetName": "esp32s2",
   "idf.flashType": "UART",
