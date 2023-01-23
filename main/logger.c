@@ -12,7 +12,6 @@
 #include "esp_sd_card.h"
 #include "driver/spi_master.h"
 #include "settings.h"
-#include "extimer.h"
 #include "fileman.h"
 
 #define SPI_BUFFERSIZE_TX 16
