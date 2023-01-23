@@ -57,9 +57,10 @@ typedef uint8_t LoggingState_t;
  */
 uint8_t Logger_datardy_int(uint8_t value);
 
-LoggerState_t LoggerGetState();
-uint8_t Logger_start();
-uint8_t Logger_stop();
+
+LoggerState_t Logger_getState();
+esp_err_t Logger_start();
+esp_err_t Logger_stop();
 // uint8_t Logger_flush_buffer_to_sd_card();
 uint8_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size);
 uint8_t Logger_flush_buffer_to_sd_card_int32(int32_t * buffer, size_t size);
@@ -69,5 +70,7 @@ uint8_t Logger_setCsvLog(log_mode_t value);
 uint8_t Logger_getCsvLog();
 uint8_t Logger_syncSettings();
 uint8_t Logger_sendSTM32cmd(stm32cmd_t cmd);
+
+
 
 #endif

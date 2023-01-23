@@ -285,21 +285,21 @@ uint8_t Logger_getCsvLog()
     return settings_get_logmode();
 }
 
-uint8_t Logger_start()
+esp_err_t Logger_start()
 {
     if (_currentLogTaskState == LOGTASK_IDLE)
     {
         // gpio_set_level(GPIO_ADC_EN, 1);
         _nextLogTaskState = LOGTASK_LOGGING;
-        return RET_OK;
+        return ESP_OK;
     } 
     else 
     {
-        return RET_NOK;
+        return ESP_FAIL;
     }
 }
 
-uint8_t Logger_stop()
+esp_err_t Logger_stop()
 {
      ESP_LOGI(TAG_LOG, "Logger_stop() called");
      
@@ -308,11 +308,11 @@ uint8_t Logger_stop()
         // Disable interrupt data ready pin
         _nextLogTaskState = LOGTASK_IDLE;
        
-        return RET_OK;
+        return ESP_OK;
     } 
     else 
     {
-        return RET_NOK;
+        return ESP_FAIL;
     }
 }
 
@@ -384,6 +384,11 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter)
         
 
         return RET_OK;
+}
+
+LoggerState_t Logger_getState()
+{
+    return _currentLogTaskState;
 }
 
 esp_err_t Logger_log()
