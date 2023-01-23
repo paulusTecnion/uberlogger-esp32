@@ -155,6 +155,10 @@ esp_err_t esp_sd_card_init(void)
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI2_HOST;
+
+    // Max freq 40 MHz
+    
+
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_NUM_MOSI,
         .miso_io_num = PIN_NUM_MISO,
@@ -162,6 +166,7 @@ esp_err_t esp_sd_card_init(void)
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = 8*1024,
+        .flags = SPI_TRANS_MODE_DIO | SPI_TRANS_MULTILINE_ADDR 
     };
     
     // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
