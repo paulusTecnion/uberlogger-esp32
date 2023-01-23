@@ -9,26 +9,67 @@ void settings_init()
     _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
+    _settings.adc_channel_range = 0x00; // 10V by default
     _settings.logMode = LOGMODE_CSV;
 }
 
-uint8_t settings_get_enabled_adc_channels()
+uint8_t settings_get_adc_channel_enabled(adc_channel_t channel)
 {
-    return _settings.adc_channels_enabled;
+    return _settings.adc_channels_enabled & (0x01 << channel);
 }
 
-uint8_t settings_set_enabled_adc_channels(adc_channel_t channel, uint8_t value)
+esp_err_t settings_set_adc_channel_enabled(adc_channel_t channel, adc_channel_enable_t value)
 {
     // strategie: zet bitje van channel X naar 0 en dan set of unset hem. 
     _settings.adc_channels_enabled = _settings.adc_channels_enabled & ~(0x01 << channel);
     // Set bit of channel to correct value
     _settings.adc_channels_enabled |= ((value << channel));
 
-    return RET_OK;
+    return ESP_OK;
+}
+
+uint8_t settings_get_adc_channel_enabled_all()
+{
+    return _settings.adc_channels_enabled;
+}
+
+
+uint8_t settings_get_adc_channel_type(adc_channel_t channel)
+{
+    return _settings.adc_channel_type & (0x01 << channel);
+}
+
+uint8_t settings_get_adc_channel_type_all()
+{
+    return _settings.adc_channel_type;
+}
+
+esp_err_t settings_set_adc_channel_type(adc_channel_t channel, adc_channel_type_t value)
+{
+     // strategie: zet bitje van channel X naar 0 en dan set of unset hem. 
+    _settings.adc_channel_type = _settings.adc_channel_type & ~(0x01 << channel);
+    // Set bit of channel to correct value
+    _settings.adc_channel_type |= ((value << channel));
+    return ESP_OK;
 }
 
 Settings_t* settings_get(){
     return &_settings;
+}
+
+uint8_t settings_get_adc_channel_range(adc_channel_t channel)
+{
+    return _settings.adc_channel_range & (0x01 << channel);
+}
+
+esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value)
+{
+      // strategie: zet bitje van channel X naar 0 en dan set of unset hem. 
+    _settings.adc_channel_range = _settings.adc_channel_range & ~(0x01 << channel);
+    // Set bit of channel to correct value
+    _settings.adc_channel_range |= ((value << channel));
+
+    return ESP_OK;
 }
 
 log_mode_t settings_get_logmode()

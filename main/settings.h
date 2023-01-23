@@ -9,21 +9,38 @@
 #include "common.h"
 
 typedef enum adc_channel_e {
-	ADC_CHANNEL_0 = 0,
-	ADC_CHANNEL_1,
-	ADC_CHANNEL_2,
-	ADC_CHANNEL_3,
-	ADC_CHANNEL_4,
-	ADC_CHANNEL_5,
-	ADC_CHANNEL_6,
-	ADC_CHANNEL_7
+	ADC_CHANNEL_0 = 0x00,
+	ADC_CHANNEL_1 = 0x01,
+	ADC_CHANNEL_2 = 0x02,
+	ADC_CHANNEL_3 = 0x03,
+	ADC_CHANNEL_4 = 0x04,
+	ADC_CHANNEL_5 = 0x05,
+	ADC_CHANNEL_6 = 0x06,
+	ADC_CHANNEL_7 = 0x07
 
 } adc_channel_t;
+
+typedef enum adc_channel_range_e
+{
+	ADC_RANGE_10V = 0,
+	ADC_RANGE_60V = 1
+} adc_channel_range_t;
+
+typedef enum adc_channel_type_e
+{
+	ADC_CHANNEL_TYPE_NTC = 0,
+	ADC_CHANNEL_TYPE_AIN = 1
+} adc_channel_type_t;
 
 typedef enum adc_resolution_e {
     ADC_12_BITS = 12,
     ADC_16_BITS = 16
-	} adc_resolution_t;
+} adc_resolution_t;
+
+typedef enum adc_channel_enable_e {
+	ADC_CHANNEL_DISABLED = 0,
+	ADC_CHANNEL_ENABLED = 1
+} adc_channel_enable_t;
 
 typedef enum adc_sample_rate_e {
     ADC_SAMPLE_RATE_1Hz = 1,
@@ -59,10 +76,10 @@ typedef enum log_mode_e {
 
 struct Settings_t {
     adc_resolution_t adc_resolution;
-	uint8_t adc_resolution_uint8;
     adc_sample_rate_t log_sample_rate; // can make this one out of fixed options
     uint8_t adc_channel_type; // indicate whether channel 0..7 are normal ADC (bit = 0) or NTC (bit = 1). LSB = channel 0, MSB = channel 7
     uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
+	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
 	uint8_t logMode;
 };
 
@@ -72,13 +89,25 @@ typedef struct Settings_t Settings_t;
 
 void settings_init();
 Settings_t * settings_get();
-uint8_t settings_get_enabled_adc_channels();
+uint8_t settings_get_adc_channel_enabled(adc_channel_t channel);
+uint8_t settings_get_adc_channel_enabled_all();
+esp_err_t settings_set_enabled_adc_channels(adc_channel_t channel, adc_channel_enable_t value);
+
+uint8_t settings_get_adc_channel_type(adc_channel_t channel);
+uint8_t settings_get_adc_channel_type_all();
+esp_err_t settings_set_adc_channel_type(adc_channel_t channel, adc_channel_type_t value);
+
+uint8_t settings_get_adc_channel_range(adc_channel_t channel);
+esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value);
+
 log_mode_t settings_get_logmode();
+uint8_t settings_set_logmode(log_mode_t mode);
+
+adc_sample_rate_t settings_get_samplerate(void);
+uint8_t settings_set_samplerate(adc_sample_rate_t rate);
+
 adc_resolution_t settings_get_resolution();
 uint8_t settings_set_resolution(adc_resolution_t res);
-uint8_t settings_set_logmode(log_mode_t mode);
-uint8_t settings_set_samplerate(adc_sample_rate_t rate);
-adc_sample_rate_t settings_get_samplerate(void);
 
 
 #endif
