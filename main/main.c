@@ -196,20 +196,8 @@ esp_err_t init_fs(void)
 void app_main(void)
 {
 
-    
-    
-
-    // ESP_ERROR_CHECK(nvs_flash_init());
-    // ESP_ERROR_CHECK(esp_netif_init());
-    // ESP_ERROR_CHECK(esp_event_loop_create_default());
-    
 
     
-    wifi_init_softap();
-    
-    
-    
-
     // Register console commands
     init_console();
     settings_init();
@@ -218,7 +206,13 @@ void app_main(void)
     "#           UberLogger          #\r\n"
     "#################################");
     
-    // ESP_ERROR_CHECK(init_fs());
+    vTaskDelay (200/portTICK_PERIOD_MS);
+    wifi_init_softap();
+    // The wifi seems to be either crashing the ESP sometimes due to this: https://github.com/espressif/esp-idf/issues/7404
+    // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...
+    vTaskDelay (1000/portTICK_PERIOD_MS);
+
+    ESP_ERROR_CHECK(init_fs());
     ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
 
     // Start tasks

@@ -1,4 +1,4 @@
-menu "Example Configuration"
+menu "WiFi settings"
 
     config ESP_WIFI_SSID
         string "WiFi SSID"
@@ -26,7 +26,7 @@ menu "Example Configuration"
 endmenu
 
 
-menu "Example Configuration"
+menu "Webserver settings"
 
     config EXAMPLE_MDNS_HOST_NAME
         string "mDNS Host Name"

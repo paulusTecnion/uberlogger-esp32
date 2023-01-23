@@ -143,23 +143,22 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
-# Example Configuration
+# WiFi settings
 #
 CONFIG_ESP_WIFI_SSID="UberLogger"
-CONFIG_ESP_WIFI_PASSWORD="uberlogger"
+CONFIG_ESP_WIFI_PASSWORD=""
 CONFIG_ESP_WIFI_CHANNEL=1
 CONFIG_ESP_MAX_STA_CONN=4
-# end of Example Configuration
+# end of WiFi settings
 
 #
-# Example Configuration
+# Webserver settings
 #
 CONFIG_EXAMPLE_MDNS_HOST_NAME="esp-home"
-CONFIG_EXAMPLE_WEB_DEPLOY_SEMIHOST=y
-# CONFIG_EXAMPLE_WEB_DEPLOY_SF is not set
-CONFIG_EXAMPLE_HOST_PATH_TO_MOUNT="PATH-TO-WEB-DIST_DIR"
+# CONFIG_EXAMPLE_WEB_DEPLOY_SEMIHOST is not set
+CONFIG_EXAMPLE_WEB_DEPLOY_SF=y
 CONFIG_EXAMPLE_WEB_MOUNT_POINT="/www"
-# end of Example Configuration
+# end of Webserver settings
 
 #
 # Example Connection Configuration
