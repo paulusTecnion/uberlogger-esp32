@@ -221,7 +221,7 @@ uint8_t Logger_syncSettings()
 
 
 
-    Logger_spi_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, settings_get_enabled_adc_channels());
+    Logger_spi_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, settings_get_adc_channel_enabled_all());
     // Logger_print_rx_buffer();
     if (recvbuf0.gpio[0] != STM32_RESP_OK || recvbuf0.gpio[1] != STM32_CMD_SET_ADC_CHANNELS_ENABLED)
     {
