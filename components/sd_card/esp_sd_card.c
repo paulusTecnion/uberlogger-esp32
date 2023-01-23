@@ -51,6 +51,7 @@ static const char *TAG = "SDCARD";
 #define PIN_NUM_MOSI 35
 #define PIN_NUM_CLK  36
 #define PIN_NUM_CS   34
+#define PIN_SD_CD    33
 #endif //USE_SPI_MODE
 
 
@@ -78,6 +79,12 @@ esp_err_t esp_sd_card_mount()
     {
         esp_sd_card_init();
     }
+
+    if (esp_sd_card_check_for_card())
+    {
+        return ESP_FAIL;
+    }
+
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI2_HOST;
@@ -124,6 +131,8 @@ esp_err_t esp_sd_card_init(void)
     
     
     ESP_LOGI(TAG, "Initializing SD card");
+
+    gpio_set_direction(PIN_SD_CD, GPIO_MODE_INPUT);
 
     // Use settings defined above to initialize SD card and mount FAT filesystem.
     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
@@ -244,6 +253,13 @@ esp_err_t esp_sd_card_init(void)
 esp_err_t esp_sd_card_unmount(void)
 {
   
+       if (esp_sd_card_check_for_card()) 
+       {
+        ESP_LOGE(TAG, "SD card not inserted!");
+        esp_sd_card_is_mounted = false;
+        return ESP_FAIL;
+       }
+
        if (esp_sd_card_is_mounted)
        {
         esp_vfs_fat_sdcard_unmount(mount_point, card);
@@ -257,5 +273,44 @@ esp_err_t esp_sd_card_unmount(void)
         
 }
 
+
+uint8_t esp_sd_card_check_for_card(){
+    return gpio_get_level(PIN_SD_CD);        
+}
+
+uint64_t esp_sd_card_get_free_space()
+{
+        if (esp_sd_card_check_for_card() && (esp_sd_card_mount() == ESP_OK))
+        {
+            FATFS *fs;
+            DWORD fre_clust, fre_sect, tot_sect;
+            /* Get volume information and free clusters of drive 0 */
+            int res = f_getfree("0:", &fre_clust, &fs);
+            /* Get total sectors and free sectors */
+            tot_sect = (fs->n_fatent - 2) * fs->csize;
+            fre_sect = fre_clust * fs->csize;
+            /* Print the free space (assuming 512 bytes/sector) */
+            // printf("%10u KiB total drive space.\r\n%10u KiB available.\r\n%10u free clust.\r\n",tot_sect / 2, fre_sect / 2,fre_clust);
+            esp_sd_card_unmount();
+            return (fre_sect / 2);
+        } else {
+            return 0;
+        }
+}
+
+sdcard_state_t esp_sd_card_get_state()
+{
+    if (esp_sd_card_check_for_card())
+    {
+        return SDCARD_EJECTED;
+    }
+
+    if (esp_sd_card_is_mounted)
+    {
+        return SDCARD_MOUNTED;
+    } else {
+        return SDCARD_UNMOUNTED;
+    }
+}
 
 
