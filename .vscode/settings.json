@@ -47,7 +47,11 @@
     "span": "c",
     "vector": "c",
     "xutility": "c",
-    "cstdlib": "c"
+    "cstdlib": "c",
+    "common.h": "c",
+    "rest_server.h": "c",
+    "sysinfo.h": "c",
+    "stdbool.h": "c"
   },
   "idf.adapterTargetName": "esp32s2",
   "idf.flashType": "UART",
