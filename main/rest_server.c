@@ -8,12 +8,8 @@
 */
 #include <string.h>
 #include <fcntl.h>
-#include "esp_http_server.h"
-#include "esp_system.h"
-#include "esp_log.h"
-#include "esp_vfs.h"
-#include "cJSON.h"
-#include "logger.h"
+
+#include "rest_server.h"
 
 static const char *REST_TAG = "esp-rest";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
@@ -106,36 +102,95 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Simple handler for light brightness control */
-static esp_err_t light_brightness_post_handler(httpd_req_t *req)
+static esp_err_t logger_getStatus_handler(httpd_req_t *req)
 {
-    int total_len = req->content_len;
-    int cur_len = 0;
-    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
-    int received = 0;
-    if (total_len >= SCRATCH_BUFSIZE) {
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+    httpd_resp_set_type(req, "application/json");
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL)
+    {
         return ESP_FAIL;
     }
-    while (cur_len < total_len) {
-        received = httpd_req_recv(req, buf + cur_len, total_len);
-        if (received <= 0) {
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
-            return ESP_FAIL;
-        }
-        cur_len += received;
-    }
-    buf[total_len] = '\0';
+   
+    cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
+    cJSON_AddNumberToObject(root, "CPU_TEMP", sysinfo_get_core_temperature());
+    cJSON_AddStringToObject(root, "FirmwareVersion", sysinfo_get_fw_version());
+    cJSON * sdcard = cJSON_AddObjectToObject(root, "sd_card");
 
-    cJSON *root = cJSON_Parse(buf);
-    int red = cJSON_GetObjectItem(root, "red")->valueint;
-    int green = cJSON_GetObjectItem(root, "green")->valueint;
-    int blue = cJSON_GetObjectItem(root, "blue")->valueint;
-    ESP_LOGI(REST_TAG, "Light control: red = %d, green = %d, blue = %d", red, green, blue);
+    cJSON_AddNumberToObject(sdcard, "free_space_kib", esp_sd_card_get_free_space());
+    cJSON_AddNumberToObject(sdcard, "state", esp_sd_card_get_state());;
+
+    const char *settings_json= cJSON_Print(root);
+    httpd_resp_sendstr(req, settings_json);
     cJSON_Delete(root);
-    httpd_resp_sendstr(req, "Post control value successfully");
+    return ESP_OK;
+}
+
+
+static esp_err_t logger_getConfig_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL)
+    {
+        return ESP_FAIL;
+    }
+
+    // int total_len = req->content_len;
+    // int cur_len = 0;
+    // char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    // int received = 0;
+    // if (total_len >= SCRATCH_BUFSIZE) {
+    //     /* Respond with 500 Internal Server Error */
+    //     httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+    //     return ESP_FAIL;
+    // }
+    // while (cur_len < total_len) {
+    //     received = httpd_req_recv(req, buf + cur_len, total_len);
+    //     if (received <= 0) {
+    //         /* Respond with 500 Internal Server Error */
+    //         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+    //         return ESP_FAIL;
+    //     }
+    //     cur_len += received;
+    // }
+    // buf[total_len] = '\0';
+    Settings_t *settings = settings_get();
+
+    cJSON *range_select = cJSON_AddObjectToObject(root, "AIN_RANGE_SELECT");
+    cJSON *ntc_select = cJSON_AddObjectToObject(root, "NTC_SELECT");
+
+    cJSON_AddBoolToObject(ntc_select, "NTC0", settings_get_adc_channel_type(ADC_CHANNEL_0));
+    cJSON_AddBoolToObject(ntc_select, "NTC1", settings_get_adc_channel_type(ADC_CHANNEL_1));
+    cJSON_AddBoolToObject(ntc_select, "NTC2", settings_get_adc_channel_type(ADC_CHANNEL_2));
+    cJSON_AddBoolToObject(ntc_select, "NTC3", settings_get_adc_channel_type(ADC_CHANNEL_3));
+    cJSON_AddBoolToObject(ntc_select, "NTC4", settings_get_adc_channel_type(ADC_CHANNEL_4));
+    cJSON_AddBoolToObject(ntc_select, "NTC5", settings_get_adc_channel_type(ADC_CHANNEL_5));
+    cJSON_AddBoolToObject(ntc_select, "NTC6", settings_get_adc_channel_type(ADC_CHANNEL_6));
+    cJSON_AddBoolToObject(ntc_select, "NTC7", settings_get_adc_channel_type(ADC_CHANNEL_7));
+
+    
+
+    // For future use. Always enabled now.
+    // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
+
+    cJSON_AddBoolToObject(range_select, "AIN0", settings_get_adc_channel_range(ADC_CHANNEL_0));
+    cJSON_AddBoolToObject(range_select, "AIN1", settings_get_adc_channel_range(ADC_CHANNEL_1));
+    cJSON_AddBoolToObject(range_select, "AIN2", settings_get_adc_channel_range(ADC_CHANNEL_2));
+    cJSON_AddBoolToObject(range_select, "AIN3", settings_get_adc_channel_range(ADC_CHANNEL_3));
+    cJSON_AddBoolToObject(range_select, "AIN4", settings_get_adc_channel_range(ADC_CHANNEL_4));
+    cJSON_AddBoolToObject(range_select, "AIN5", settings_get_adc_channel_range(ADC_CHANNEL_5));
+    cJSON_AddBoolToObject(range_select, "AIN6", settings_get_adc_channel_range(ADC_CHANNEL_6));
+    cJSON_AddBoolToObject(range_select, "AIN7", settings_get_adc_channel_range(ADC_CHANNEL_7));
+    
+    cJSON_AddNumberToObject(root, "adc_resolution", settings->adc_resolution);
+    cJSON_AddNumberToObject(root, "log_sample_rate", settings->log_sample_rate);
+    cJSON_AddNumberToObject(root, "log_mode", settings->logMode);
+    
+    const char *settings_json= cJSON_Print(root);
+    httpd_resp_sendstr(req, settings_json);
+     free((void *)settings_json);
+    cJSON_Delete(root);
+    
     return ESP_OK;
 }
 
@@ -157,30 +212,63 @@ static esp_err_t system_info_get_handler(httpd_req_t *req)
 
 static esp_err_t Logger_start_handler(httpd_req_t *req)
 {
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
-    Logger_start();
-    cJSON_AddStringToObject(root, "ack", "ok");
-    const char *sys_info = cJSON_Print(root);
-    httpd_resp_sendstr(req, sys_info);
-    free((void *)sys_info);
-    cJSON_Delete(root);
+    
+    if (Logger_start() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK);
+    } else {
+        json_send_resp(req, ENDPOINT_RESP_NACK);
+    }
+
+    
     return ESP_OK;
 }
 
 static esp_err_t Logger_stop_handler(httpd_req_t *req)
 {
+    if (Logger_stop() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK);
+    } else {
+        json_send_resp(req, ENDPOINT_RESP_NACK);
+    }
+    
+    return ESP_OK;
+}
+
+esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type)
+{
+
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
     Logger_stop();
-    cJSON_AddStringToObject(root, "ack", "ok");
+    char str[6];
+
+    switch (type)
+    {
+        case ENDPOINT_RESP_ACK:
+            strcpy(str, "ack");
+        break;
+
+        case ENDPOINT_RESP_NACK:
+            strcpy(str, "nack");
+        break;
+
+        
+        case ENDPOINT_RESP_ERROR:
+        default:
+            strcpy(str, "error");
+        break;
+
+    }
+    cJSON_AddStringToObject(root, (const char*)"resp", str);
     const char *sys_info = cJSON_Print(root);
     httpd_resp_sendstr(req, sys_info);
     free((void *)sys_info);
     cJSON_Delete(root);
+
     return ESP_OK;
 }
-
 
 
 esp_err_t start_rest_server(const char *base_path)
@@ -224,13 +312,39 @@ esp_err_t start_rest_server(const char *base_path)
     // };
     // httpd_register_uri_handler(server, &logger_start_uri);
 
-    // httpd_uri_t logger_stop_uri = {
-    //     .uri = "/api/v1/logger/stop",
-    //     .method = HTTP_POST,
-    //     .handler = Logger_stop_handler,
-    //     .user_ctx = rest_context
-    // };
-    // httpd_register_uri_handler(server, &logger_stop_uri);
+    httpd_uri_t logger_getStatus_uri = {
+        .uri = "/ajax/getState",
+        .method = HTTP_GET,
+        .handler = logger_getStatus_handler,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_getStatus_uri);
+
+    httpd_uri_t logger_getConfig_uri = {
+        .uri = "/ajax/getConfig",
+        .method = HTTP_GET,
+        .handler = logger_getConfig_handler,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_getConfig_uri);
+
+    httpd_uri_t logger_stop_uri = {
+        .uri = "/ajax/loggerStop",
+        .method = HTTP_GET,
+        .handler = Logger_stop_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &logger_stop_uri);
+
+    httpd_uri_t logger_start_uri = {
+        .uri = "/ajax/loggerStart",
+        .method = HTTP_GET,
+        .handler = Logger_start_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &logger_start_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {
