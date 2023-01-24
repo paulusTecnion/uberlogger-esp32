@@ -134,7 +134,7 @@ int fileman_csv_write(const void * dataAdc,  size_t lenAdc, const uint8_t* dataG
 
         }
       
-            snprintf(strbuffer, (8*11+2*6+1), "%s%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d,%d,%d,%d,%d,%d\r\n", 
+            snprintf(strbuffer, (8*11+2*6+1), "%c%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d,%d,%d,%d,%d,%d\r\n", 
             minus,
             int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))),
             int32_data[i+1] / 1000000, abs((int32_data[i+1] - ((int32_data[i+1]/ 1000000)*1000000))),
