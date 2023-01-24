@@ -112,12 +112,10 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     }
    
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
-    cJSON_AddNumberToObject(root, "CPU_TEMP", sysinfo_get_core_temperature());
-    cJSON_AddStringToObject(root, "FirmwareVersion", sysinfo_get_fw_version());
-    cJSON * sdcard = cJSON_AddObjectToObject(root, "sd_card");
-
-    cJSON_AddNumberToObject(sdcard, "free_space_kib", esp_sd_card_get_free_space());
-    cJSON_AddNumberToObject(sdcard, "state", esp_sd_card_get_state());;
+    cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
+    cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
+    cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", esp_sd_card_get_free_space());
+    cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());;
 
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
@@ -413,7 +411,7 @@ esp_err_t start_rest_server(const char *base_path)
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
 
     httpd_uri_t logger_getStatus_uri = {
-        .uri = "/ajax/getState",
+        .uri = "/ajax/getStatus",
         .method = HTTP_GET,
         .handler = logger_getStatus_handler,
         .user_ctx = rest_context
