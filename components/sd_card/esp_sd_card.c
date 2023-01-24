@@ -82,6 +82,7 @@ esp_err_t esp_sd_card_mount()
 
     if (esp_sd_card_check_for_card())
     {
+        ESP_LOGE(TAG, "SD card not inserted!\n");
         return ESP_FAIL;
     }
 
