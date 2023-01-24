@@ -604,7 +604,7 @@ void task_logging(void * pvParameters)
     {
         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
         esp_sd_card_unmount();
-    }
+    } 
     
 
     ESP_LOGI(TAG_LOG, "Logger task started");
