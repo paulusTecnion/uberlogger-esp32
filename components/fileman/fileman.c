@@ -122,13 +122,20 @@ int fileman_csv_write(const void * dataAdc,  size_t lenAdc, const uint8_t* dataG
     
     int32_t* int32_data  = (int32_t*) dataAdc;
     int j =0;
+    char minus = '\0';
+    
     for (int i = 0; i<lenAdc; i=i+8)
     {
         // make string out of number
         //snprintf(strbuffer, sizeof(strbuffer), "%0d.%010llu,", (int32_data[i] >> 27), (((int32_data[i] & 0x7FFFFFF) * 100000000L)/(1 << 27) ));
         if (int32_data[i] > -1000000 && int32_data[i]<0)
         {
-            snprintf(strbuffer, (8*11+2*6+1+1), "\-%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d,%d,%d,%d,%d,%d\r\n", 
+            minus = '-';
+
+        }
+      
+            snprintf(strbuffer, (8*11+2*6+1), "%s%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d,%d,%d,%d,%d,%d\r\n", 
+            minus,
             int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))),
             int32_data[i+1] / 1000000, abs((int32_data[i+1] - ((int32_data[i+1]/ 1000000)*1000000))),
             int32_data[i+2] / 1000000, abs((int32_data[i+2] - ((int32_data[i+2]/ 1000000)*1000000))),
@@ -144,26 +151,7 @@ int fileman_csv_write(const void * dataAdc,  size_t lenAdc, const uint8_t* dataG
             (dataGpio[j] & 0x40) && 1,
             (dataGpio[j] & 0x80) && 1
             );
-        }
-        else
-        {
-            snprintf(strbuffer, (8*11+2*6+1), "%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d,%d,%d,%d,%d,%d\r\n", 
-            int32_data[i] / 1000000, abs((int32_data[i] - ((int32_data[i]/ 1000000)*1000000))),
-            int32_data[i+1] / 1000000, abs((int32_data[i+1] - ((int32_data[i+1]/ 1000000)*1000000))),
-            int32_data[i+2] / 1000000, abs((int32_data[i+2] - ((int32_data[i+2]/ 1000000)*1000000))),
-            int32_data[i+3] / 1000000, abs((int32_data[i+3] - ((int32_data[i+3]/ 1000000)*1000000))),
-            int32_data[i+4] / 1000000, abs((int32_data[i+4] - ((int32_data[i+4]/ 1000000)*1000000))),
-            int32_data[i+5] / 1000000, abs((int32_data[i+5] - ((int32_data[i+5]/ 1000000)*1000000))),
-            int32_data[i+6] / 1000000, abs((int32_data[i+6] - ((int32_data[i+6]/ 1000000)*1000000))),
-            int32_data[i+7] / 1000000, abs((int32_data[i+7] - ((int32_data[i+7]/ 1000000)*1000000))),
-            (dataGpio[j] & 0x04) && 1,
-            (dataGpio[j] & 0x08) && 1,
-            (dataGpio[j] & 0x10) && 1,
-            (dataGpio[j] & 0x20) && 1,
-            (dataGpio[j] & 0x40) && 1,
-            (dataGpio[j] & 0x80) && 1
-            );
-        }
+        
 
 
         // snprintf(strbuffer, (8*11+2*6+1), "%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d.%06d,%d,%d,%d,%d,%d,%d\n", 
