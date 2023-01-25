@@ -82,6 +82,9 @@ esp_err_t settings_set_default()
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     _settings.adc_channel_range = 0x00; // 10V by default
     _settings.logMode = LOGMODE_CSV;
+    strcpy(_settings.wifi_ssid, "Uberlogger");
+    strcpy(_settings.wifi_password, "");
+    _settings.wifi_channel = 1;
 
     return ESP_OK;
 }
@@ -104,6 +107,57 @@ esp_err_t settings_set_logmode(log_mode_t mode)
         return ESP_FAIL;
     }
     return ESP_OK;
+}
+
+uint8_t settings_get_wifi_channel()
+{
+    return _settings.wifi_channel;
+}
+
+esp_err_t settings_set_wifi_channel(uint8_t channel)
+{
+    if (channel > 0 && channel < 14)
+    {
+        _settings.wifi_channel = channel;
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
+}
+
+char * settings_get_wifi_password()
+{
+    return _settings.wifi_password;
+}
+
+esp_err_t settings_set_wifi_password(char *password)
+{
+    uint8_t passlen = strlen(password);
+    if ( 
+        (passlen == 0) ||  // password can be empty
+        (passlen > 7 && passlen < MAX_WIFI_PASSW_LEN))
+    {
+        strcpy(_settings.wifi_password, password);
+        return ESP_OK;
+    }
+
+    return ESP_FAIL;
+}
+
+char * settings_get_wifi_ssid()
+{
+    return _settings.wifi_ssid;
+}
+
+esp_err_t settings_set_wifi_ssid(char * ssid)
+{
+    if (strlen(ssid) < MAX_WIFI_SSID_LEN)
+    {
+        strcpy(_settings.wifi_ssid, ssid);
+        return ESP_OK;
+    }
+
+    return ESP_FAIL;
 }
 
 esp_err_t settings_set_resolution(adc_resolution_t res)

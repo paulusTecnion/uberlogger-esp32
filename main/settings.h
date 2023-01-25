@@ -8,6 +8,9 @@
 #include "freertos/FreeRTOS.h"
 #include "common.h"
 
+#define MAX_WIFI_SSID_LEN 50
+#define MAX_WIFI_PASSW_LEN 20
+
 typedef enum adc_channel_e {
 	ADC_CHANNEL_0 = 0x00,
 	ADC_CHANNEL_1 = 0x01,
@@ -81,8 +84,9 @@ struct Settings_t {
     uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
 	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
 	uint8_t logMode;
-	char wifi_ssd[50];
-	char wifi_password[20];
+	char wifi_ssid[MAX_WIFI_SSID_LEN];
+	char wifi_password[MAX_WIFI_PASSW_LEN];
+	uint8_t wifi_channel;
 };
 
 typedef struct Settings_t Settings_t;
@@ -106,6 +110,15 @@ esp_err_t settings_set_default();
 
 log_mode_t settings_get_logmode();
 esp_err_t settings_set_logmode(log_mode_t mode);
+
+uint8_t settings_get_wifi_channel();
+esp_err_t settings_set_wifi_channel(uint8_t channel);
+
+char * settings_get_wifi_password();
+esp_err_t settings_set_wifi_password(char *password);
+
+char * settings_get_wifi_ssid();
+esp_err_t settings_set_wifi_ssid(char * ssid);
 
 adc_sample_rate_t settings_get_samplerate(void);
 esp_err_t settings_set_samplerate(adc_sample_rate_t rate);
