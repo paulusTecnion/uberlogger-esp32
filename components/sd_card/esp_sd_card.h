@@ -14,4 +14,3 @@ esp_err_t esp_sd_card_mount(void);
 uint8_t esp_sd_card_check_for_card();
 uint64_t esp_sd_card_get_free_space(void);
 sdcard_state_t esp_sd_card_get_state(void);
-esp_err_t esp_sd_card_set_state(void);
