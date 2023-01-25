@@ -6,6 +6,7 @@
 static const char *TAG = "SPIFFS";
 
 FILE * f;
+char _filename[30];
 
 esp_err_t spiffs_init(const char * filename_settings)
 {
@@ -68,17 +69,24 @@ esp_err_t spiffs_init(const char * filename_settings)
         }
     }
 
+    if (strlen(filename_settings) < 22)
+    {
+        strcpy(_filename, filename_settings);        
+    } else {
+        return ESP_FAIL;
+    }
+
+
     return ESP_OK;   
 }
 
-esp_err_t spiffs_open(const char * filename, spiffs_mode_t mode)
-{
-    char buffer[30];
-    if (strlen(filename) < 22)
-    {
-        sprintf(buffer, "/spiffs/%s", filename);
-    }
 
+esp_err_t spiffs_write(const char* data, size_t length)
+{
+    size_t writeSize = 0;
+    char buffer[30];
+    sprintf(buffer, "/spiffs/%s", _filename);
+    
      esp_vfs_spiffs_conf_t conf = {
       .base_path = "/spiffs",
       .partition_label = SPIFFS_LABEL,
@@ -86,81 +94,64 @@ esp_err_t spiffs_open(const char * filename, spiffs_mode_t mode)
       .format_if_mount_failed = false
     };
 
-    switch (mode)
+   
+    f = fopen(buffer, "w");
+    if (!f)
     {
-
-        
-        case SPIFFS_READ:
-            f = fopen(buffer, "rb");
-            if (!f)
-            {
-                ESP_LOGE(TAG, "Cannot open file for read");
-                return ESP_FAIL;
-            }
-
-            return ESP_OK;
-
-        break;
-
-        case SPIFFS_WRITE:
-            f = fopen(buffer, "wb");
-            if (!f)
-            {
-                ESP_LOGE(TAG, "Cannot open file for write");
-                return ESP_FAIL;    
-            } else {
-                return ESP_OK;
-            }
-        break;
-
-        default:
+        ESP_LOGE(TAG, "Cannot open file for read");
         return ESP_FAIL;
-        
-
     }
 
-
-}
-
-esp_err_t spiffs_write(const char* data, size_t length)
-{
-    uint32_t length_written = 0;
-    if (f)
+    writeSize = fwrite((void*)data, 1, length,  f);
+    if (ferror(f))
     {
-        length_written = fwrite((const void*) data, length, 1, f);
-        if (length_written == length)
-        {
-            return ESP_OK;
-        } else{
-            return ESP_FAIL;
-        }
-    } 
-
-    return ESP_FAIL;
+        perror("Error: ");
+    }
+    
+    if (writeSize != length)
+    {
+        ESP_LOGE(TAG, "Error writing file, bytes written %d, expected %d", writeSize, length);
+        return ESP_FAIL;
+    }
+    
+   fclose(f);
+    return ESP_OK;
 }
 
 esp_err_t spiffs_read(char* data, size_t length)
 {
     size_t readSize = 0;
-    if (f)
-    {   
-        readSize = fread((void*)data, length, 1, f);
-        if (ferror(f))
-        {
-            perror("Error: ");
-        }
-        
-        if (readSize == length)
-        {
-            return ESP_OK;
-        }
-    }
-    ESP_LOGE(TAG, "Error reading file, bytes read %d, expected %d", readSize, length);
-    return ESP_FAIL;
-}
+    char buffer[30];
+    sprintf(buffer, "/spiffs/%s", _filename);
+    
+     esp_vfs_spiffs_conf_t conf = {
+      .base_path = "/spiffs",
+      .partition_label = SPIFFS_LABEL,
+      .max_files = 5,
+      .format_if_mount_failed = false
+    };
 
-esp_err_t spiffs_close()
-{
-    fclose(f);
+   
+    f = fopen(buffer, "r");
+    if (!f)
+    {
+        ESP_LOGE(TAG, "Cannot open file for read");
+        return ESP_FAIL;
+    }
+
+    readSize = fread((void*)data, 1, length,  f);
+    if (ferror(f))
+    {
+        perror("Error: ");
+    }
+    
+    if (readSize != length)
+    {
+        ESP_LOGE(TAG, "Error reading file, bytes read %d, expected %d", readSize, length);
+        return ESP_FAIL;
+    }
+    
+   fclose(f);
     return ESP_OK;
 }
+

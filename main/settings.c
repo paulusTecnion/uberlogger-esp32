@@ -158,19 +158,13 @@ esp_err_t settings_load_persisted_settings()
     ESP_LOGI(TAG_SETTINGS, "Loading persisted settings");
     if (spiffs_init(settings_filename) == ESP_OK)
     {
-       if ( spiffs_open(settings_filename, SPIFFS_READ) == ESP_OK )
-       {
-            if (spiffs_read((char*)&_settings, sizeof(_settings)) == ESP_OK)
-            {
-                spiffs_close();
-                ESP_LOGI(TAG_SETTINGS, "Persisted settings loaded succesfully");
-                return ESP_OK;     
-            } else {
-                ESP_LOGE(TAG_SETTINGS, "Error reading settings file");
-            }
-            spiffs_close();
-       }
-        ESP_LOGE(TAG_SETTINGS, "Error opening settings file");
+        if (spiffs_read((char*)&_settings, sizeof(_settings)) == ESP_OK)
+        {
+            ESP_LOGI(TAG_SETTINGS, "Persisted settings loaded succesfully");
+            return ESP_OK;     
+        } else {
+            ESP_LOGE(TAG_SETTINGS, "Error reading settings file");
+        }
     }
     ESP_LOGE(TAG_SETTINGS, "Loading persisted settings FAILED");
     return ESP_FAIL;
@@ -178,13 +172,11 @@ esp_err_t settings_load_persisted_settings()
 
 esp_err_t settings_persist_settings()
 {
-    if (    spiffs_open(settings_filename, SPIFFS_WRITE) == ESP_OK && 
-            (spiffs_write((const char*)&_settings, sizeof(_settings) == ESP_OK)))
-       {
-            spiffs_close();
-            ESP_LOGI(TAG_SETTINGS, "Settings persisted");
-            return ESP_OK;     
-       }
+    if ( spiffs_write((const char*)&_settings, sizeof(_settings)) == ESP_OK)
+    {
+        ESP_LOGI(TAG_SETTINGS, "Settings persisted");
+        return ESP_OK;     
+    }
     ESP_LOGE(TAG_SETTINGS, "Persisting settings FAILED");
     return ESP_FAIL;
 }

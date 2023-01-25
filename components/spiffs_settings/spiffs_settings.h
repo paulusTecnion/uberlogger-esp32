@@ -18,7 +18,5 @@ typedef enum  {
 } spiffs_mode_t;
 
 esp_err_t spiffs_init(const char * filename);
-esp_err_t spiffs_open(const char * filename, spiffs_mode_t mode);
 esp_err_t spiffs_read(char* data, size_t length);
 esp_err_t spiffs_write(const char* data, size_t length);
-esp_err_t spiffs_close();
