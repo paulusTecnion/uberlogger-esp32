@@ -199,14 +199,16 @@ void app_main(void)
 
     
     // Register console commands
-    init_console();
-    settings_init();
+    vTaskDelay (200/portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "\r\n"
     "#################################\r\n"
     "#           UberLogger          #\r\n"
     "#################################");
     
-    vTaskDelay (200/portTICK_PERIOD_MS);
+    init_console();
+    settings_init();
+
+    
     wifi_init_softap();
     // The wifi seems to be either crashing the ESP sometimes due to this: https://github.com/espressif/esp-idf/issues/7404
     // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...
