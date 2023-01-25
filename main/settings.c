@@ -1,16 +1,17 @@
 #include "settings.h"
+#include "spiffs_settings.h"
 
 static const char* TAG_SETTINGS = "SETTINGS";
 Settings_t _settings;
 
 void settings_init()
 {
-    _settings.adc_resolution = ADC_12_BITS;
-    _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
-    _settings.adc_channel_type = 0x00; // all channels normal ADC by default
-    _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
-    _settings.adc_channel_range = 0x00; // 10V by default
-    _settings.logMode = LOGMODE_CSV;
+    if (settings_load_persisted_settings() != ESP_OK)
+    {
+        settings_set_default();
+        settings_persist_settings();
+    }
+    
 }
 
 uint8_t settings_get_adc_channel_enabled(adc_channel_t channel)
@@ -72,12 +73,26 @@ esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_rang
     return ESP_OK;
 }
 
+esp_err_t settings_set_default()
+{
+    ESP_LOGI(TAG_SETTINGS, "Setting default settings");
+    _settings.adc_resolution = ADC_12_BITS;
+    _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
+    _settings.adc_channel_type = 0x00; // all channels normal ADC by default
+    _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
+    _settings.adc_channel_range = 0x00; // 10V by default
+    _settings.logMode = LOGMODE_CSV;
+
+    return ESP_OK;
+}
+
+
 log_mode_t settings_get_logmode()
 {
     return _settings.logMode;
 }
 
-uint8_t settings_set_logmode(log_mode_t mode)
+esp_err_t settings_set_logmode(log_mode_t mode)
 {
     _settings.logMode = mode;
     if (mode == LOGMODE_CSV)
@@ -86,12 +101,12 @@ uint8_t settings_set_logmode(log_mode_t mode)
     } else if (mode == LOGMODE_RAW) {
         ESP_LOGI(TAG_SETTINGS, "Logmode set to RAW");
     } else {
-        return RET_NOK;
+        return ESP_FAIL;
     }
-    return RET_OK;
+    return ESP_OK;
 }
 
-uint8_t settings_set_resolution(adc_resolution_t res)
+esp_err_t settings_set_resolution(adc_resolution_t res)
 {
     switch (res)
     {
@@ -104,12 +119,12 @@ uint8_t settings_set_resolution(adc_resolution_t res)
         break;
 
         default:
-        return RET_NOK;
+        return ESP_FAIL;
     }
     
         ESP_LOGI(TAG_SETTINGS, "ADC RESOLUTION = %d", _settings.adc_resolution);
         
-    return RET_OK;    
+    return ESP_OK;    
        
 }
 
@@ -120,15 +135,15 @@ adc_resolution_t settings_get_resolution()
 
 
 
-uint8_t settings_set_samplerate(adc_sample_rate_t rate)
+esp_err_t settings_set_samplerate(adc_sample_rate_t rate)
 {
     if (rate > 0 && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
     {
         ESP_LOGI(TAG_SETTINGS, "ADC SAMPLE RATE= %d", rate);
         _settings.log_sample_rate = rate;
-        return RET_OK;
+        return ESP_OK;
     } else {
-        return RET_NOK;
+        return ESP_FAIL;
     }
     
 }
@@ -136,4 +151,40 @@ uint8_t settings_set_samplerate(adc_sample_rate_t rate)
 adc_sample_rate_t settings_get_samplerate()
 {
     return _settings.log_sample_rate;
+}
+
+esp_err_t settings_load_persisted_settings()
+{
+    ESP_LOGI(TAG_SETTINGS, "Loading persisted settings");
+    if (spiffs_init(settings_filename) == ESP_OK)
+    {
+       if ( spiffs_open(settings_filename, SPIFFS_READ) == ESP_OK )
+       {
+            if (spiffs_read((char*)&_settings, sizeof(_settings)) == ESP_OK)
+            {
+                spiffs_close();
+                ESP_LOGI(TAG_SETTINGS, "Persisted settings loaded succesfully");
+                return ESP_OK;     
+            } else {
+                ESP_LOGE(TAG_SETTINGS, "Error reading settings file");
+            }
+            spiffs_close();
+       }
+        ESP_LOGE(TAG_SETTINGS, "Error opening settings file");
+    }
+    ESP_LOGE(TAG_SETTINGS, "Loading persisted settings FAILED");
+    return ESP_FAIL;
+}
+
+esp_err_t settings_persist_settings()
+{
+    if (    spiffs_open(settings_filename, SPIFFS_WRITE) == ESP_OK && 
+            (spiffs_write((const char*)&_settings, sizeof(_settings) == ESP_OK)))
+       {
+            spiffs_close();
+            ESP_LOGI(TAG_SETTINGS, "Settings persisted");
+            return ESP_OK;     
+       }
+    ESP_LOGE(TAG_SETTINGS, "Persisting settings FAILED");
+    return ESP_FAIL;
 }

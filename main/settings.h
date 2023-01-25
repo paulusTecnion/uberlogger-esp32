@@ -81,11 +81,13 @@ struct Settings_t {
     uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
 	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
 	uint8_t logMode;
+	char wifi_ssd[50];
+	char wifi_password[20];
 };
 
 typedef struct Settings_t Settings_t;
 
-
+static const char settings_filename[] = "settings1.json";
 
 void settings_init();
 Settings_t * settings_get();
@@ -100,14 +102,19 @@ esp_err_t settings_set_adc_channel_type(adc_channel_t channel, adc_channel_type_
 uint8_t settings_get_adc_channel_range(adc_channel_t channel);
 esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value);
 
+esp_err_t settings_set_default();
+
 log_mode_t settings_get_logmode();
-uint8_t settings_set_logmode(log_mode_t mode);
+esp_err_t settings_set_logmode(log_mode_t mode);
 
 adc_sample_rate_t settings_get_samplerate(void);
-uint8_t settings_set_samplerate(adc_sample_rate_t rate);
+esp_err_t settings_set_samplerate(adc_sample_rate_t rate);
+
+esp_err_t settings_load_persisted_settings();
+esp_err_t settings_persist_settings();
 
 adc_resolution_t settings_get_resolution();
-uint8_t settings_set_resolution(adc_resolution_t res);
+esp_err_t settings_set_resolution(adc_resolution_t res);
 
 
 #endif
