@@ -180,9 +180,15 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(range_select, "AIN6", settings_get_adc_channel_range(ADC_CHANNEL_6));
     cJSON_AddBoolToObject(range_select, "AIN7", settings_get_adc_channel_range(ADC_CHANNEL_7));
     
+    cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
+    cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
+    cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
+
     cJSON_AddNumberToObject(root, "ADC_RESOLUTION", settings->adc_resolution);
     cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->log_sample_rate);
     cJSON_AddNumberToObject(root, "LOG_MODE", settings->logMode);
+
+
     
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
@@ -270,13 +276,30 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
         
-    item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_MODE");
-    if (item == NULL || settings_set_logmode(item->valueint))
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID");
+    if (item == NULL || settings_set_wifi_ssid(item->valuestring))
     {
-        ESP_LOGE("REST: ", "Log mode missing or wrong value");
+        ESP_LOGE("REST: ", "Error setting Wifi SSID");
         json_send_resp(req, ENDPOINT_RESP_ERROR);
         return ESP_FAIL;
     }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_CHANNEL");
+    if (item == NULL || settings_set_wifi_channel(item->valueint))
+    {
+        ESP_LOGE("REST: ", "Error setting Wifi channel");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
+    if (item == NULL || settings_set_wifi_password(item->valuestring))
+    {
+        ESP_LOGE("REST: ", "Error setting Wifi SSID");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "ADC_RESOLUTION");
     if (item == NULL || settings_set_resolution(item->valueint))
@@ -294,39 +317,19 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+     item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_MODE");
+    if (item == NULL || settings_set_logmode(item->valueint))
+    {
+        ESP_LOGE("REST: ", "Log mode missing or wrong value");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
+    settings_persist_settings();
     Logger_syncSettings();
 
     free((void*)settings_in);
     free((void*)item);
-    
-    
-    
-    //  cJSON_AddBoolToObject(ntc_select, "NTC0", settings_get_adc_channel_type(ADC_CHANNEL_0));
-    // cJSON_AddBoolToObject(ntc_select, "NTC1", settings_get_adc_channel_type(ADC_CHANNEL_1));
-    // cJSON_AddBoolToObject(ntc_select, "NTC2", settings_get_adc_channel_type(ADC_CHANNEL_2));
-    // cJSON_AddBoolToObject(ntc_select, "NTC3", settings_get_adc_channel_type(ADC_CHANNEL_3));
-    // cJSON_AddBoolToObject(ntc_select, "NTC4", settings_get_adc_channel_type(ADC_CHANNEL_4));
-    // cJSON_AddBoolToObject(ntc_select, "NTC5", settings_get_adc_channel_type(ADC_CHANNEL_5));
-    // cJSON_AddBoolToObject(ntc_select, "NTC6", settings_get_adc_channel_type(ADC_CHANNEL_6));
-    // cJSON_AddBoolToObject(ntc_select, "NTC7", settings_get_adc_channel_type(ADC_CHANNEL_7));
-
-    
-
-    // // For future use. Always enabled now.
-    // // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
-
-    // cJSON_AddBoolToObject(range_select, "AIN0", settings_get_adc_channel_range(ADC_CHANNEL_0));
-    // cJSON_AddBoolToObject(range_select, "AIN1", settings_get_adc_channel_range(ADC_CHANNEL_1));
-    // cJSON_AddBoolToObject(range_select, "AIN2", settings_get_adc_channel_range(ADC_CHANNEL_2));
-    // cJSON_AddBoolToObject(range_select, "AIN3", settings_get_adc_channel_range(ADC_CHANNEL_3));
-    // cJSON_AddBoolToObject(range_select, "AIN4", settings_get_adc_channel_range(ADC_CHANNEL_4));
-    // cJSON_AddBoolToObject(range_select, "AIN5", settings_get_adc_channel_range(ADC_CHANNEL_5));
-    // cJSON_AddBoolToObject(range_select, "AIN6", settings_get_adc_channel_range(ADC_CHANNEL_6));
-    // cJSON_AddBoolToObject(range_select, "AIN7", settings_get_adc_channel_range(ADC_CHANNEL_7));
-    
-    // cJSON_AddNumberToObject(root, "adc_resolution", settings->adc_resolution);
-    // cJSON_AddNumberToObject(root, "log_sample_rate", settings->log_sample_rate);
-    // cJSON_AddNumberToObject(root, "log_mode", settings->logMode);
 
     json_send_resp(req, ENDPOINT_RESP_ACK);
     

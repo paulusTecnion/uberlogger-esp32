@@ -1,0 +1,28 @@
+{
+    "AIN_RANGE_SELECT": {
+        "AIN0": false,
+        "AIN1": false,
+        "AIN2": false,
+        "AIN3": false,
+        "AIN4": false,
+        "AIN5": false,
+        "AIN6": false,
+        "AIN7": false
+    },
+    "NTC_SELECT": {
+        "NTC0": false,
+        "NTC1": false,
+        "NTC2": false,
+        "NTC3": false,
+        "NTC4": false,
+        "NTC5": false,
+        "NTC6": false,
+        "NTC7": false
+    },
+    "WIFI_SSID": "Uberlogger",
+    "WIFI_CHANNEL": 1,
+    "WIFI_PASSWORD": "",
+    "ADC_RESOLUTION": 12,
+    "LOG_SAMPLE_RATE": 2,
+    "LOG_MODE": 1
+}
