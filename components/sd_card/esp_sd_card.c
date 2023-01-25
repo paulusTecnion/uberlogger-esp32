@@ -279,22 +279,32 @@ uint8_t esp_sd_card_check_for_card(){
     return gpio_get_level(PIN_SD_CD);        
 }
 
-uint64_t esp_sd_card_get_free_space()
+uint32_t esp_sd_card_get_free_space()
 {
-        if (esp_sd_card_check_for_card() && (esp_sd_card_mount() == ESP_OK))
+        if (!esp_sd_card_check_for_card())
         {
+            if (!esp_sd_card_is_mounted && 
+                (esp_sd_card_mount() != ESP_OK))
+            {
+                ESP_LOGE(TAG, "SD card cannot be mounted");
+                return 0;
+            }
+                
             FATFS *fs;
-            DWORD fre_clust, fre_sect, tot_sect;
+            uint64_t fre_clust, fre_sect, tot_sect;
             /* Get volume information and free clusters of drive 0 */
-            int res = f_getfree("0:", &fre_clust, &fs);
+            int res = f_getfree("/sdcard/", &fre_clust, &fs);
             /* Get total sectors and free sectors */
             tot_sect = (fs->n_fatent - 2) * fs->csize;
             fre_sect = fre_clust * fs->csize;
             /* Print the free space (assuming 512 bytes/sector) */
-            // printf("%10u KiB total drive space.\r\n%10u KiB available.\r\n%10u free clust.\r\n",tot_sect / 2, fre_sect / 2,fre_clust);
+            // ESP_LOGI(TAG, "%10u KiB total drive space.\r\n%10u KiB available.\r\n%10u free clust.\r\n",tot_sect / 2, fre_sect / 2,fre_clust);
             esp_sd_card_unmount();
-            return (fre_sect / 2);
+
+
+            return (uint32_t)(fre_sect / 2);
         } else {
+            ESP_LOGE(TAG, "SD card not available");
             return 0;
         }
 }
