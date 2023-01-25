@@ -51,7 +51,12 @@
     "common.h": "c",
     "rest_server.h": "c",
     "sysinfo.h": "c",
-    "stdbool.h": "c"
+    "stdbool.h": "c",
+    "spiffs.h": "c",
+    "spiffs_settings.h": "c",
+    "stat.h": "c",
+    "esp_spiffs.h": "c",
+    "unistd.h": "c"
   },
   "idf.adapterTargetName": "esp32s2",
   "idf.flashType": "UART",
