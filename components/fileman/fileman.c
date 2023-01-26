@@ -44,7 +44,7 @@ esp_err_t fileman_open_file(void)
     }
 
 
-    if (setvbuf(f, NULL, _IOFBF, 4096) != 0)
+    if (setvbuf(f, NULL, _IOFBF, 8192) != 0)
     {
         ESP_LOGE(TAG_FILE, "setvbuf failed");
         perror ("The following error occurred");
