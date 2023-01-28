@@ -113,10 +113,10 @@ int fileman_csv_write_header()
     
 }
 
-int fileman_csv_write(const void * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio, const uint8_t* dataTime, size_t lenTime)
+int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio, const uint8_t* dataTime, size_t lenTime)
 {
     
-    int32_t* int32_data  = (int32_t*) dataAdc;
+  
     int j =0;
     
     uint32_t writeptr =0;
@@ -129,13 +129,13 @@ int fileman_csv_write(const void * dataAdc,  size_t lenAdc, const uint8_t* dataG
         for (int x=0; x<8; x++)
         {
             
-            if (int32_data[i+x] > -1000000 && int32_data[i+x]<0)
+            if (dataAdc[i+x] > -1000000 && dataAdc[i+x]<0)
             {
                 writeptr = writeptr + snprintf(strbuffer+writeptr, 11, "-%d.%06d,",
-                int32_data[i+x] / 1000000, abs((int32_data[i+x] - ((int32_data[i+x]/ 1000000)*1000000))));
+                dataAdc[i+x] / 1000000, abs((dataAdc[i+x] - ((dataAdc[i+x]/ 1000000)*1000000))));
             } else {
                 writeptr = writeptr + snprintf(strbuffer+writeptr, 12, "%d.%06d,", 
-                int32_data[i+x] / 1000000, abs((int32_data[i+x] - ((int32_data[i+x]/ 1000000)*1000000))));
+                dataAdc[i+x] / 1000000, abs((dataAdc[i+x] - ((dataAdc[i+x]/ 1000000)*1000000))));
             }
 
 

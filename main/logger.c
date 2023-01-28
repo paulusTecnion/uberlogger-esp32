@@ -26,32 +26,79 @@
 // 2 start/stop bytes   = 2
 // 39*8*2 ADC           = 624
 // 39 * 1 GPIO          = 39
-// 39*(1+1+1+1+1+4) Time= 351
+// 39*(1+1+1+1+1+1+4)Time= 351
 //  Total               = 1016 bytes
 
-#define DATA_LINES_PER_SPI_TRANSACTION  39
-#define ADC_VALUES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*8 // Number of ADC uint16_t per transaction. This is 5 times 480 ADC values
+
+// **********************************************************************************************
+// DON'T TOUCH NEXT LINES PLEASE UNTIL NEXT ASTERIX LINES
+//
+#define DATA_LINES_PER_SPI_TRANSACTION  70
+#define ADC_VALUES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*8 // Number of ADC uint16_t per transaction.
 #define ADC_BYTES_PER_SPI_TRANSACTION ADC_VALUES_PER_SPI_TRANSACTION*2
 #define GPIO_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION
-#define TIME_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*(9)
+#define TIME_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*12
 #define START_STOP_NUM_BYTES            2
 
 // the ADC value 0xFFFF is not possible, so we take that as start and stop bytes
 #define START_STOP_BYTE_VALUE    0xFFFF
 
 // Number of bytes when receiving data from the STM
-#define STM_SPI_BUFFERSIZE_DATA_RX      ADC_BYTES_PER_SPI_TRANSACTION + GPIO_BYTES_PER_SPI_TRANSACTION + TIME_BYTES_PER_SPI_TRANSACTION + START_STOP_NUM_BYTES
-#define STM_DATA_BUFFER_SIZE_PER_TRANSACTION ADC_BYTES_PER_SPI_TRANSACTION + GPIO_BYTES_PER_SPI_TRANSACTION + TIME_BYTES_PER_SPI_TRANSACTION 
-// Choosing 8*1015 bytes which 8120 bytes. This is 8120/8192*100 = 99.1% of the SD card byte sector filled when writing the data.
-#define DATA_TRANSACTIONS_PER_SD_FLUSH 8
-#define SD_BUFFERSIZE DATA_TRANSACTIONS_PER_SD_FLUSH*STM_DATA_BUFFER_SIZE_PER_TRANSACTION 
+#define STM_SPI_BUFFERSIZE_DATA_RX      (ADC_BYTES_PER_SPI_TRANSACTION + GPIO_BYTES_PER_SPI_TRANSACTION + TIME_BYTES_PER_SPI_TRANSACTION + START_STOP_NUM_BYTES)
+#define STM_DATA_BUFFER_SIZE_PER_TRANSACTION (ADC_BYTES_PER_SPI_TRANSACTION + GPIO_BYTES_PER_SPI_TRANSACTION + TIME_BYTES_PER_SPI_TRANSACTION )
+
+#define DATA_TRANSACTIONS_PER_SD_FLUSH 4
+#define SD_BUFFERSIZE (DATA_TRANSACTIONS_PER_SD_FLUSH*STM_DATA_BUFFER_SIZE_PER_TRANSACTION) 
 
 static const char* TAG_LOG = "LOGGER";
+
+// Padding bytes added to do word alignment manually
+typedef struct {
+	uint8_t year;
+	uint8_t month;
+	uint8_t date;
+	uint8_t hours;
+	uint8_t minutes;
+	uint8_t seconds;
+    uint8_t padding1;
+	uint8_t padding2;
+	uint32_t subseconds;
+} s_date_time_t;
+
+// It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
+typedef struct {
+    uint8_t startByte[START_STOP_NUM_BYTES]; // 2
+    uint8_t padding1;
+    uint8_t padding2;
+    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
+    uint8_t padding3;
+    uint8_t padding4;
+    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
+    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
+} spi_msg_1_t ;
+
+typedef struct {
+    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
+    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
+    uint8_t padding1;
+    uint8_t padding2;
+    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
+    uint8_t padding3;
+    uint8_t padding4;
+    uint8_t stopByte[START_STOP_NUM_BYTES];
+} spi_msg_2_t;
+// END OF NO TOUCH
+// *********************************************************************************************************************
+
+
+spi_msg_1_t * spi_msg_1_ptr;
+spi_msg_2_t * spi_msg_2_ptr;
 
 // Buffer for sending data to the STM
 DMA_ATTR uint8_t sendbuf[STM_SPI_BUFFERSIZE_CMD_TX];
 // Buffer for receiving data from the STM
-DMA_ATTR uint8_t recvbuf0[STM_SPI_BUFFERSIZE_DATA_RX];
+DMA_ATTR uint8_t recvbuf0[sizeof(spi_msg_1_t)];
+
 
 struct {
     uint8_t timeData[TIME_BYTES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH];
@@ -59,31 +106,37 @@ struct {
     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH];
 }sdcard_data;
 
-// DMA_ATTR struct {
-//     uint8_t adc[960];
-//     uint8_t gpio[60];
-// } recvbuf0;
 
+// Same size as SPI buffer but then int32 size. 
+int32_t adc_buffer_fixed_point[(ADC_VALUES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH)];
 
-// Same size as SPI buffer but then int32 size
-int32_t adc_buffer_fixed_point[ADC_VALUES_PER_SPI_TRANSACTION];
 char strbuffer[16];
+
 LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
 LoggerState_t _nextLogTaskState = LOGTASK_IDLE;
 LoggingState_t _currentLoggingState = LOGGING_IDLE;
 LoggingState_t _nextLoggingState = LOGGING_IDLE;
 
-uint32_t ulNotificationValue = 0;
-uint32_t writeptr = 0;
+// temporary variables to calculate fixed point numbers
 int64_t t0, t1,t2,t3;
-spi_device_handle_t handle;
-spi_transaction_t _spi_transaction_rx0, _spi_transaction_rx1;
-const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 100 );
-extern TaskHandle_t xHandle_stm32;
-bool int_level = 0;
-// const UBaseType_t xArrayIndex = 0;
 
+// handle to spi device
+spi_device_handle_t handle;
+// transactions variables for doing spi transactions with stm
+spi_transaction_t _spi_transaction_rx0, _spi_transaction_rx1;
+
+// max block time for interrupt
+const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 100 );
+// Handle to stm32 task
+extern TaskHandle_t xHandle_stm32;
+// Interrupt notification value
+uint32_t ulNotificationValue = 0;
+
+// State of STM interrupt pin. 0 = low, 1 = high
+bool int_level = 0;
+// Interrupt counter that tracks how many times the interrupt has been triggered. 
 uint8_t volatile int_counter =0;
+
 
 /*
 This ISR is called when the handshake line goes high OR low
@@ -364,13 +417,13 @@ uint8_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdcBytes
 }
 
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
-uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData)
+uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t length)
 {
      // ESP_LOGI(TAG_LOG,"ADC Reading:");
         int j;
-        writeptr = 0;
+        uint32_t writeptr = 0;
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
-        for (j = 0; j < (ADC_BYTES_PER_SPI_TRANSACTION); j = j + 2)
+        for (j = 0; j < length; j = j + 2)
         {
             // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
             // Or in fixed point Q6.26 notation 488281 = 1 LSB
@@ -387,14 +440,14 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData)
             t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
             t3 = t2 + 10000000LL;
             // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
-            adc_buffer_fixed_point[writeptr+(log_counter*(ADC_VALUES_PER_SPI_TRANSACTION))] = (int32_t)t3;
-            
+            adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = (int32_t)t3;
             
             writeptr++;
         }
-    //     writeptr--;
-    //     j = j - 2;
+
+        // j = j - 2;
     // ESP_LOGI(TAG_LOG, "%d, %d, %d, %d, %lld, %d", writeptr, j, recvbuf0.adc[j], recvbuf0.adc[j+1], t3, tbuffer_i32[writeptr+(log_counter)*(960/2)]);
+
 
         
 
@@ -447,8 +500,8 @@ esp_err_t Logger_log()
                         count_offset = 0;
                     } 
                     // There is no TX data, but TX length cannot be smaller than RX length in full duplex
-                    _spi_transaction_rx0.length = STM_SPI_BUFFERSIZE_DATA_RX*8;
-                    _spi_transaction_rx0.rxlength=STM_SPI_BUFFERSIZE_DATA_RX*8;
+                    _spi_transaction_rx0.length = sizeof(recvbuf0)*8;
+                    _spi_transaction_rx0.rxlength=sizeof(recvbuf0)*8;
                     _spi_transaction_rx0.tx_buffer = NULL;                 
                     // _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0+(log_counter*STM_TXLENGTH);
                     _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0;
@@ -468,10 +521,15 @@ esp_err_t Logger_log()
                         if(spi_device_get_trans_result(handle, &ptr, 1000 / portTICK_PERIOD_MS) == ESP_OK)
                         {
                             ESP_LOGI(TAG_LOG, "log_counter:%d", log_counter);
-                            // for (int i=0; i<960; i = i + 16)
-                            // {
-                            //     ESP_LOGI(TAG_LOG, "%d", (recvbuf0.adc[i] | (recvbuf0.adc[i + 1] << 8)));
-                            // }
+                            for (int i=0; i<sizeof(recvbuf0)/4; i++)
+                            {
+                                ESP_LOGI(TAG_LOG, "Byte %d, %d", i, (recvbuf0[i]));
+                            }
+
+                             for (int i=sizeof(recvbuf0)*3/4; i<sizeof(recvbuf0); i++)
+                            {
+                                ESP_LOGI(TAG_LOG, "Byte %d, %d", i, (recvbuf0[i]));
+                            }
                             
                             if (log_counter != (int_counter-1))
                             {
@@ -484,68 +542,84 @@ esp_err_t Logger_log()
                             // Copy values to buffer
 
                             // Check if the start bytes are first or last in the received SPI buffer
-                             if ((recvbuf0[0] == 0xFF) &&
-                                 (recvbuf0[1] == 0xFF))
+                            spi_msg_1_ptr = (spi_msg_1_t*)recvbuf0;
+                            spi_msg_2_ptr = (spi_msg_2_t*)recvbuf0;
+                            if (spi_msg_1_ptr->startByte[0] == 0xFF &&
+                                spi_msg_1_ptr->startByte[1] == 0xFF)
+                            //  if ((start_stop_bytes_start_pointer_1[0] == 0xFF) &&
+                            //      (start_stop_bytes_start_pointer_1[1] == 0xFF))
                                 {
-
+                                    ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
                                     // In this case we have Time bytes first...
-                                    memcpy(sdcard_data.timeData+log_counter*TIME_BYTES_PER_SPI_TRANSACTION, 
-                                        recvbuf0+START_STOP_NUM_BYTES, 
-                                        TIME_BYTES_PER_SPI_TRANSACTION);
+                                    memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_1_ptr->timeData), 
+                                        spi_msg_1_ptr->timeData, 
+                                        sizeof(spi_msg_1_ptr->timeData));
                                     // Then GPIO...
-                                    memcpy(sdcard_data.gpioData+log_counter*GPIO_BYTES_PER_SPI_TRANSACTION, 
-                                        recvbuf0+START_STOP_NUM_BYTES+TIME_BYTES_PER_SPI_TRANSACTION, 
-                                        GPIO_BYTES_PER_SPI_TRANSACTION); 
+                                    memcpy(sdcard_data.gpioData+log_counter*sizeof(spi_msg_1_ptr->gpioData), 
+                                        spi_msg_1_ptr->gpioData, 
+                                        sizeof(spi_msg_1_ptr->gpioData)); 
                                     // And finally ADC bytes
-                                    memcpy(sdcard_data.adcData+log_counter*ADC_BYTES_PER_SPI_TRANSACTION, 
-                                        recvbuf0+START_STOP_NUM_BYTES+GPIO_BYTES_PER_SPI_TRANSACTION+TIME_BYTES_PER_SPI_TRANSACTION,
-                                        ADC_BYTES_PER_SPI_TRANSACTION);
+                                    memcpy(sdcard_data.adcData+log_counter*sizeof(spi_msg_1_ptr->adcData), 
+                                        spi_msg_1_ptr->adcData,
+                                        sizeof(spi_msg_1_ptr->adcData));
 
-                                } else if (recvbuf0[STM_SPI_BUFFERSIZE_DATA_RX-1] == (0xFF) &&
-                                            recvbuf0[STM_SPI_BUFFERSIZE_DATA_RX] == (0xFF))
+                                    ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+2]);
+                                    ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+2]);
+                                    ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+3]);
+                                } else if (spi_msg_2_ptr->stopByte[0] == 0xFF &&
+                                            spi_msg_2_ptr->stopByte[1] == 0xFF )
                                 {
                                     // Now the order is reversed.
-                                    
+                                    ESP_LOGI(TAG_LOG, "Start bytes found 2/2");
                                     // First ADC bytes..
-                                    memcpy(sdcard_data.adcData+log_counter*ADC_BYTES_PER_SPI_TRANSACTION, 
-                                        recvbuf0,
-                                        ADC_BYTES_PER_SPI_TRANSACTION);
+                                    memcpy(sdcard_data.adcData+log_counter*sizeof(spi_msg_2_ptr->adcData), 
+                                        spi_msg_2_ptr->adcData,
+                                        sizeof(spi_msg_2_ptr->adcData));
                                     
                                     // Then GPIO bytes    
-                                   memcpy(sdcard_data.gpioData+log_counter*GPIO_BYTES_PER_SPI_TRANSACTION, 
-                                        recvbuf0+ADC_BYTES_PER_SPI_TRANSACTION, GPIO_BYTES_PER_SPI_TRANSACTION); 
+                                   memcpy(sdcard_data.gpioData+log_counter*sizeof(spi_msg_2_ptr->gpioData), 
+                                        spi_msg_2_ptr->gpioData, 
+                                        sizeof(spi_msg_2_ptr->gpioData)); 
                                     
                                     // Finally Time bytes
-                                    memcpy(sdcard_data.timeData+log_counter*TIME_BYTES_PER_SPI_TRANSACTION, 
-                                        recvbuf0+ADC_BYTES_PER_SPI_TRANSACTION+GPIO_BYTES_PER_SPI_TRANSACTION, TIME_BYTES_PER_SPI_TRANSACTION); 
-
-                                    
+                                    memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_2_ptr->timeData), 
+                                        spi_msg_2_ptr->timeData, 
+                                        sizeof(spi_msg_2_ptr->timeData)); 
+                                   ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+2]);
+                                   ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+2]);
+                                   ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+3]);
+                                // }
                                 }  else {
-                                    // No start or stop byte found!
-                                    return ESP_FAIL;
+                                //     // No start or stop byte found!
+                                    ESP_LOGE(TAG_LOG, "No start or stop byte found! Stop bytes: %d, %d", spi_msg_2_ptr->stopByte[0], spi_msg_2_ptr->stopByte[1]);
+                                    
+                                //     return ESP_FAIL;
                                 }
                         
                             // execute only when a full block of SPI_BUFFERSIZE_RX is retrieved
                             // Process data first
                             if (settings_get_logmode() == LOGMODE_CSV)
                             {
-                                Logger_raw_to_csv(log_counter, sdcard_data.adcData+log_counter*ADC_BYTES_PER_SPI_TRANSACTION);
+                                Logger_raw_to_csv(log_counter, sdcard_data.adcData+log_counter*sizeof(spi_msg_1_ptr->adcData), sizeof(spi_msg_1_ptr->adcData));
                             }
                                 
                             log_counter++; // received bytes = log_counter*512
 
-                            if(log_counter*STM_SPI_BUFFERSIZE_DATA_RX >= SD_BUFFERSIZE){
+                            if(log_counter*sizeof(recvbuf0) >= sizeof(sdcard_data)){
                                 log_counter = 0;
                                 int_counter = 0;
                                 if (settings_get_logmode() == LOGMODE_CSV)
                                 {
                                     // Write it SD
-                                    Logger_flush_buffer_to_sd_card_csv(
-                                        adc_buffer_fixed_point, sizeof(adc_buffer_fixed_point),
-                                        sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
-                                        sdcard_data.timeData, sizeof(sdcard_data.timeData) );
+                                    ESP_LOGI(TAG_LOG, "ADC fixed p %d, %d, %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1], adc_buffer_fixed_point[2]);
+                                    ESP_LOGI(TAG_LOG, "GPIO %d, %d, %d", sdcard_data.gpioData[0], sdcard_data.gpioData[1], sdcard_data.gpioData[2]);
+                                    ESP_LOGI(TAG_LOG, "Sizes: %d, %d, %d", sizeof(adc_buffer_fixed_point), sizeof(sdcard_data.gpioData), sizeof(sdcard_data.timeData));
+                                    // Logger_flush_buffer_to_sd_card_csv(
+                                    //     adc_buffer_fixed_point, sizeof(adc_buffer_fixed_point),
+                                    //     sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
+                                    //     sdcard_data.timeData, sizeof(sdcard_data.timeData) );
                                 } else {
-                                    Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&recvbuf0, SD_BUFFERSIZE);
+                                    Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&sdcard_data, sizeof(sdcard_data));
                                 }                    
                                 
                                 buffer_no = !buffer_no;
@@ -589,6 +663,7 @@ esp_err_t Logger_log()
 void task_logging(void * pvParameters)
 {
     
+
     esp_err_t ret;
     //Configuration for the SPI bus
     spi_bus_config_t buscfg={
@@ -702,7 +777,6 @@ void task_logging(void * pvParameters)
                         _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0;
                         _spi_transaction_rx0.tx_buffer=NULL;
 
-                        // writeptr = 0;
                         _nextLoggingState = LOGGING_IDLE;
                         // esp_sd_card_mount_open_file();
                         // enable data_rdy interrupt
@@ -733,8 +807,12 @@ void task_logging(void * pvParameters)
                     // Flush buffer to sd card
                     if (settings_get_logmode() == LOGMODE_CSV)
                     {
+                        ESP_LOGI(TAG_LOG, "ADC fixed p %d, %d, %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1], adc_buffer_fixed_point[2]);
+                                    ESP_LOGI(TAG_LOG, "GPIO %d, %d, %d", sdcard_data.gpioData[0], sdcard_data.gpioData[1], sdcard_data.gpioData[2]);
+                                    ESP_LOGI(TAG_LOG, "Sizes: %d, %d, %d", sizeof(adc_buffer_fixed_point), sizeof(sdcard_data.gpioData), sizeof(sdcard_data.timeData));
+                                    
                         Logger_flush_buffer_to_sd_card_csv(
-                        adc_buffer_fixed_point, DATA_TRANSACTIONS_PER_SD_FLUSH*DATA_LINES_PER_SPI_TRANSACTION*ADC_VALUES_PER_SPI_TRANSACTION, 
+                        adc_buffer_fixed_point, sizeof(sdcard_data.adcData), 
                         sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
                         sdcard_data.timeData, sizeof(sdcard_data.timeData));
                     } else {
