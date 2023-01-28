@@ -6,7 +6,7 @@ static const char *TAG_FILE = "FILEMAN";
 static uint32_t file_seq_num=0;
 static FILE* f = NULL;
 char file_name[16];
-char strbuffer[100];
+char strbuffer[200];
 
 void fileman_create_filename()
 {
@@ -121,6 +121,8 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
     
     uint32_t writeptr =0;
     
+    // ESP_LOGI(TAG_FILE,"Lengths: %d, %d, %d", lenAdc, lenGpio, lenTime);
+
     for (int i = 0; i<lenAdc; i=i+8)
     {
         // Print time stamp
@@ -131,17 +133,17 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             
             if (dataAdc[i+x] > -1000000 && dataAdc[i+x]<0)
             {
-                writeptr = writeptr + snprintf(strbuffer+writeptr, 11, "-%d.%06d,",
+                writeptr = writeptr + snprintf(strbuffer+writeptr, 14, "-%d.%06d,",
                 dataAdc[i+x] / 1000000, abs((dataAdc[i+x] - ((dataAdc[i+x]/ 1000000)*1000000))));
             } else {
-                writeptr = writeptr + snprintf(strbuffer+writeptr, 12, "%d.%06d,", 
+                writeptr = writeptr + snprintf(strbuffer+writeptr, 14, "%d.%06d,", 
                 dataAdc[i+x] / 1000000, abs((dataAdc[i+x] - ((dataAdc[i+x]/ 1000000)*1000000))));
             }
 
 
         }
         // Finally the IOs
-        snprintf(strbuffer+writeptr, (2*6+4), "%d,%d,%d,%d,%d,%d\r\n",
+        snprintf(strbuffer+writeptr, (2*6+5), "%d,%d,%d,%d,%d,%d\r\n",
             (dataGpio[j] & 0x04) && 1,
             (dataGpio[j] & 0x08) && 1,
             (dataGpio[j] & 0x10) && 1,
@@ -152,7 +154,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
         writeptr = 0;
  
         j++;
-      
+        // ESP_LOGI(TAG_FILE, "%s", strbuffer);
         fprintf(f, strbuffer);
         
     }
