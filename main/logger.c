@@ -52,24 +52,11 @@
 
 static const char* TAG_LOG = "LOGGER";
 
-// Padding bytes added to do word alignment manually
-typedef struct {
-	uint8_t year;
-	uint8_t month;
-	uint8_t date;
-	uint8_t hours;
-	uint8_t minutes;
-	uint8_t seconds;
-    uint8_t padding1;
-	uint8_t padding2;
-	uint32_t subseconds;
-} s_date_time_t;
 
 // It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
 typedef struct {
     uint8_t startByte[START_STOP_NUM_BYTES]; // 2
-    uint8_t padding1;
-    uint8_t padding2;
+    uint16_t dataLen;
     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
     uint8_t padding3;
     uint8_t padding4;
@@ -83,8 +70,7 @@ typedef struct {
     uint8_t padding1;
     uint8_t padding2;
     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
-    uint8_t padding3;
-    uint8_t padding4;
+    uint16_t dataLen;
     uint8_t stopByte[START_STOP_NUM_BYTES];
 } spi_msg_2_t;
 // END OF NO TOUCH
@@ -137,7 +123,7 @@ bool int_level = 0;
 // Interrupt counter that tracks how many times the interrupt has been triggered. 
 uint8_t volatile int_counter =0;
 
-
+  static uint8_t log_counter = 0;
 /*
 This ISR is called when the handshake line goes high OR low
 */
@@ -467,7 +453,7 @@ LoggerState_t Logger_getState()
 esp_err_t Logger_log()
 {   
     
-    static uint8_t log_counter = 0;
+  
     
     static uint8_t count_offset = 1;
 
@@ -569,6 +555,7 @@ esp_err_t Logger_log()
                                     ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+2]);
                                     ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+2]);
                                     ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+3]);
+                                    ESP_LOGI(TAG_LOG, "dataLen: %d", spi_msg_1_ptr->dataLen);
                                 } else if (spi_msg_2_ptr->stopByte[0] == 0xFF &&
                                             spi_msg_2_ptr->stopByte[1] == 0xFF )
                                 {
@@ -591,6 +578,7 @@ esp_err_t Logger_log()
                                    ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+2]);
                                    ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+2]);
                                    ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+3]);
+                                   ESP_LOGI(TAG_LOG, "dataLen: %d", spi_msg_2_ptr->dataLen);
                                 // }
                                 }  else {
                                 //     // No start or stop byte found!
@@ -625,10 +613,12 @@ esp_err_t Logger_log()
                                     ESP_LOGI(TAG_LOG, "ADC fixed p %d, %d, %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1], adc_buffer_fixed_point[2]);
                                     ESP_LOGI(TAG_LOG, "GPIO %d, %d, %d", sdcard_data.gpioData[0], sdcard_data.gpioData[1], sdcard_data.gpioData[2]);
                                     ESP_LOGI(TAG_LOG, "Sizes: %d, %d, %d", sizeof(adc_buffer_fixed_point), sizeof(sdcard_data.gpioData), sizeof(sdcard_data.timeData));
+                                    
+                                    
                                     Logger_flush_buffer_to_sd_card_csv(
-                                        adc_buffer_fixed_point, sizeof(adc_buffer_fixed_point)/sizeof(int32_t),
+                                        adc_buffer_fixed_point, (sizeof(adc_buffer_fixed_point)/sizeof(int32_t)),
                                         sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
-                                        sdcard_data.timeData, sizeof(sdcard_data.timeData)/sizeof(s_date_time_t) );
+                                        sdcard_data.timeData, (sizeof(sdcard_data.timeData)/sizeof(s_date_time_t)) );
                                 } else {
                                     Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&sdcard_data, sizeof(sdcard_data));
                                 }                    
@@ -812,8 +802,13 @@ void task_logging(void * pvParameters)
                 {
                     // Disable logging (should change this)
                     gpio_set_level(GPIO_ADC_EN, 0);
-                    // disable data_rdy interrupt
-                    assert(Logger_datardy_int(0) == RET_OK);
+
+                    if (Logger_log() == ESP_OK)
+                    {
+                        ESP_LOGI(TAG_LOG, "Logging stopped");
+                    }
+
+                    
                     // Flush buffer to sd card
                     if (settings_get_logmode() == LOGMODE_CSV)
                     {
@@ -821,10 +816,10 @@ void task_logging(void * pvParameters)
                                     ESP_LOGI(TAG_LOG, "GPIO %d, %d, %d", sdcard_data.gpioData[0], sdcard_data.gpioData[1], sdcard_data.gpioData[2]);
                                     ESP_LOGI(TAG_LOG, "Sizes: %d, %d, %d", sizeof(adc_buffer_fixed_point), sizeof(sdcard_data.gpioData), sizeof(sdcard_data.timeData));
                                     
-                        Logger_flush_buffer_to_sd_card_csv(
-                        adc_buffer_fixed_point, sizeof(sdcard_data.adcData), 
-                        sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
-                        sdcard_data.timeData, sizeof(sdcard_data.timeData));
+                         Logger_flush_buffer_to_sd_card_csv(
+                                        adc_buffer_fixed_point, (sizeof(adc_buffer_fixed_point)/sizeof(int32_t)),
+                                        sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
+                                        sdcard_data.timeData, (sizeof(sdcard_data.timeData)/sizeof(s_date_time_t)));
                     } else {
                         Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&recvbuf0, SD_BUFFERSIZE);
                     }

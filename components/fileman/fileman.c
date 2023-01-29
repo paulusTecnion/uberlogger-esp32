@@ -117,15 +117,26 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
 {
     
   
-    int j =0;
-    
+    int j =0, y=0;
     uint32_t writeptr =0;
-    
+    s_date_time_t *date_time_ptr = (s_date_time_t*)dataTime;
     // ESP_LOGI(TAG_FILE,"Lengths: %d, %d, %d", lenAdc, lenGpio, lenTime);
-
+    
     for (int i = 0; i<lenAdc; i=i+8)
     {
+        
+        // while (date_time_ptr[j].subseconds < 100)
+        //     date_time_ptr[j].subseconds *= 10;
+
         // Print time stamp
+        writeptr = writeptr + sprintf(strbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%d,",
+            date_time_ptr[j].year, 
+            date_time_ptr[j].month,
+            date_time_ptr[j].date,
+            date_time_ptr[j].hours,
+            date_time_ptr[j].minutes,
+            date_time_ptr[j].seconds,
+            date_time_ptr[j].subseconds);
 
         // Print ADC
         for (int x=0; x<8; x++)
