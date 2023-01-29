@@ -40,6 +40,7 @@ typedef enum stm32resp {
     STM32_RESP_NOK
  } stm32resp_t;
 
+
 typedef uint8_t LoggerState_t;
 typedef uint8_t LoggingState_t;
 
@@ -59,6 +60,7 @@ uint8_t Logger_datardy_int(uint8_t value);
 
 
 LoggerState_t Logger_getState();
+esp_err_t Logger_log();
 esp_err_t Logger_start();
 esp_err_t Logger_stop();
 // uint8_t Logger_flush_buffer_to_sd_card();
