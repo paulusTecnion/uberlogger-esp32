@@ -125,14 +125,10 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
     for (int i = 0; i<lenAdc; i=i+8)
     {
         
-        if (date_time_ptr[j].subseconds < 100)
-        {
-               date_time_ptr[j].subseconds *= 10;
-        }
-        
+     
 
         // Print time stamp
-        writeptr = writeptr + sprintf(strbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%d,",
+        writeptr = writeptr + sprintf(strbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03d,",
             date_time_ptr[j].year, 
             date_time_ptr[j].month,
             date_time_ptr[j].date,
