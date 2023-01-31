@@ -802,13 +802,10 @@ void task_logging(void * pvParameters)
                 {
                     // Disable logging (should change this)
                     gpio_set_level(GPIO_ADC_EN, 0);
+                     // disable data_rdy interrupt
+                    assert(Logger_datardy_int(0) == RET_OK);
 
-                    if (Logger_log() == ESP_OK)
-                    {
-                        ESP_LOGI(TAG_LOG, "Logging stopped");
-                    }
 
-                    
                     // Flush buffer to sd card
                     if (settings_get_logmode() == LOGMODE_CSV)
                     {
@@ -823,7 +820,9 @@ void task_logging(void * pvParameters)
                     } else {
                         Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&recvbuf0, SD_BUFFERSIZE);
                     }
-                    
+                    // reset counters
+                    log_counter = 0;
+                    int_counter = 0;
                     fileman_close_file();
                     esp_sd_card_unmount();
                     
