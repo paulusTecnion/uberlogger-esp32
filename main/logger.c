@@ -138,7 +138,7 @@ float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1)
     return t3_f;
 }
 
-uint8_t Logger_datardy_int(uint8_t value) 
+esp_err_t Logger_datardy_int(uint8_t value) 
 {
     if (value == 1)
     {
@@ -147,18 +147,18 @@ uint8_t Logger_datardy_int(uint8_t value)
         if (gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_ANYEDGE) == ESP_OK &&
         gpio_install_isr_service(0) == ESP_OK &&
         gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) == ESP_OK){
-            return RET_OK;
+            return ESP_OK;
         } else {
-            return RET_NOK;
+            return ESP_FAIL;
         }
         
     } else if (value == 0) {
         ESP_LOGI(TAG_LOG, "Disabling data_rdy interrupts");
         gpio_isr_handler_remove(GPIO_DATA_RDY_PIN);
         gpio_uninstall_isr_service();
-        return RET_OK;
+        return ESP_OK;
     } else {
-        return RET_NOK;
+        return ESP_FAIL;
     }
 
 }
@@ -406,7 +406,7 @@ uint8_t Logger_getCsvLog()
 
 esp_err_t Logger_start()
 {
-    if (_currentLogTaskState == LOGTASK_IDLE)
+    if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
     {
         // gpio_set_level(GPIO_ADC_EN, 1);
         _nextLogTaskState = LOGTASK_LOGGING;
@@ -798,9 +798,11 @@ void task_logging(void * pvParameters)
     while(1) {
        
 
+
         switch (_currentLogTaskState)
         {
             case LOGTASK_IDLE:
+            case LOGTASK_ERROR_OCCURED:
                 vTaskDelay(500 / portTICK_PERIOD_MS);
                 
                 if (_nextLogTaskState == LOGTASK_LOGGING)
@@ -808,11 +810,11 @@ void task_logging(void * pvParameters)
                     if (esp_sd_card_mount() == ESP_OK)
                     {
                         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
-                         if (fileman_open_file() != ESP_OK)
+                        if (fileman_open_file() != ESP_OK)
                         { 
                             if (esp_sd_card_unmount() == ESP_OK)
                             {
-                                _nextLogTaskState = LOGTASK_IDLE;
+                                _nextLogTaskState = LOGTASK_ERROR_OCCURED;
                             }
 
                             break;
@@ -834,7 +836,7 @@ void task_logging(void * pvParameters)
                         // Enable logging
                         gpio_set_level(GPIO_ADC_EN, 1);
                     } else {
-                          _nextLogTaskState = LOGTASK_IDLE;
+                          _nextLogTaskState = LOGTASK_ERROR_OCCURED;
                     }
                    
                    
@@ -845,15 +847,19 @@ void task_logging(void * pvParameters)
                 
                 if (Logger_log() != ESP_OK)
                 {
+                    _nextLogTaskState = LOGTASK_ERROR_OCCURED;
                     Logger_stop();
                 }
 
-                if (_nextLogTaskState == LOGTASK_IDLE)
+                if (_nextLogTaskState == LOGTASK_IDLE || _nextLogTaskState == LOGTASK_ERROR_OCCURED)
                 {
                     // Disable logging (should change this)
                     gpio_set_level(GPIO_ADC_EN, 0);
                      // disable data_rdy interrupt
-                    assert(Logger_datardy_int(0) == RET_OK);
+                    if (Logger_datardy_int(0) != ESP_OK)
+                    {
+                        _nextLogTaskState = LOGTASK_ERROR_OCCURED;
+                    }
 
 
                     // Flush buffer to sd card

@@ -68,18 +68,29 @@ void task_hmi(void* ignore) {
     // }
     // i = i + 20;
     static uint8_t toggle = 1;
-    if (Logger_isLogging() == RET_OK)
+
+
+    switch (Logger_getState())
     {
-      toggle = !toggle;
-    } else {
-      toggle = 1;
+        case LOGTASK_IDLE:
+          toggle = 1;
+          vTaskDelay(1000 / portTICK_PERIOD_MS);
+        break;
+
+        case LOGTASK_LOGGING:
+           toggle = !toggle;  
+           vTaskDelay(1000 / portTICK_PERIOD_MS);
+        break;
+
+        case LOGTASK_ERROR_OCCURED:
+          toggle = !toggle;
+          vTaskDelay(300 / portTICK_PERIOD_MS);
+        break;
     }
-
+    
     gpio_set_level(GPIO_HMI_LED, toggle);
+    
 
-    
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    
   }
   ESP_LOGI(TAG, "All done!");
 

@@ -66,6 +66,7 @@ enum LogTaskStates
     LOGTASK_IDLE,
     LOGTASK_LOGGING,
     LOGTASK_SETTINGS,
+    LOGTASK_ERROR_OCCURED,
     LOGTASK_NUM_STATES
 };
 
@@ -112,7 +113,7 @@ float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
  *         - RET_NOK  if interrupt setting failed
  *         - RET_OK                on success
  */
-uint8_t Logger_datardy_int(uint8_t value);
+esp_err_t Logger_datardy_int(uint8_t value);
 
 
 LoggerState_t Logger_getState();
