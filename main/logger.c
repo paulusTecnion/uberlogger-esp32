@@ -13,6 +13,8 @@
 #include "driver/spi_master.h"
 #include "settings.h"
 #include "fileman.h"
+#include "tempsensor.h"
+#include "time.h"
 
 // Buffer size when sending data to STM. Value in bytes
 #define STM_SPI_BUFFERSIZE_CMD_TX 2
@@ -30,55 +32,11 @@
 //  Total               = 1016 bytes
 
 
-// **********************************************************************************************
-// DON'T TOUCH NEXT LINES PLEASE UNTIL NEXT ASTERIX LINES
-//
-#define DATA_LINES_PER_SPI_TRANSACTION  70
-#define ADC_VALUES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*8 // Number of ADC uint16_t per transaction.
-#define ADC_BYTES_PER_SPI_TRANSACTION ADC_VALUES_PER_SPI_TRANSACTION*2
-#define GPIO_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION
-#define TIME_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*12
-#define START_STOP_NUM_BYTES            2
-
-// the ADC value 0xFFFF is not possible, so we take that as start and stop bytes
-#define START_STOP_BYTE_VALUE    0xFFFF
-
-// Number of bytes when receiving data from the STM
-#define STM_SPI_BUFFERSIZE_DATA_RX      (ADC_BYTES_PER_SPI_TRANSACTION + GPIO_BYTES_PER_SPI_TRANSACTION + TIME_BYTES_PER_SPI_TRANSACTION + START_STOP_NUM_BYTES)
-#define STM_DATA_BUFFER_SIZE_PER_TRANSACTION (ADC_BYTES_PER_SPI_TRANSACTION + GPIO_BYTES_PER_SPI_TRANSACTION + TIME_BYTES_PER_SPI_TRANSACTION )
-
-#define DATA_TRANSACTIONS_PER_SD_FLUSH 4
-#define SD_BUFFERSIZE (DATA_TRANSACTIONS_PER_SD_FLUSH*STM_DATA_BUFFER_SIZE_PER_TRANSACTION) 
-
-static const char* TAG_LOG = "LOGGER";
-
-
-// It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
-typedef struct {
-    uint8_t startByte[START_STOP_NUM_BYTES]; // 2
-    uint16_t dataLen;
-    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
-    uint8_t padding3;
-    uint8_t padding4;
-    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
-    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
-} spi_msg_1_t ;
-
-typedef struct {
-    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
-    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
-    uint8_t padding1;
-    uint8_t padding2;
-    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
-    uint16_t dataLen;
-    uint8_t stopByte[START_STOP_NUM_BYTES];
-} spi_msg_2_t;
-// END OF NO TOUCH
-// *********************************************************************************************************************
-
 
 spi_msg_1_t * spi_msg_1_ptr;
 spi_msg_2_t * spi_msg_2_ptr;
+
+uint8_t msg_part = 0;
 
 // Buffer for sending data to the STM
 DMA_ATTR uint8_t sendbuf[STM_SPI_BUFFERSIZE_CMD_TX];
@@ -153,6 +111,31 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
                                    &xYieldRequired );
     
     portYIELD_FROM_ISR(xYieldRequired);
+}
+
+int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1)
+{
+    t0 = ((int32_t)adcData0 | ((int32_t)adcData1 << 8));
+            
+    // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
+    t1 = t0 * (-20LL * 1000000LL); // note the minus for inverted input!
+    t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
+    t3 = t2 + 10000000LL;
+    return (int32_t) t3;
+    
+}
+
+float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1)
+{
+    float t0_f, t1_f, t2_f, t3_f;
+    t0_f = (adcData0 | (adcData1 << 8));
+            
+    // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
+
+    t1_f = t0_f * (-20.0); // note the minus for inverted input!
+    t2_f = t1_f / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
+    t3_f = t2_f + 10.0;
+    return t3_f;
 }
 
 uint8_t Logger_datardy_int(uint8_t value) 
@@ -237,9 +220,8 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     _spi_transaction_rx0.rxlength = STM_SPI_BUFFERSIZE_CMD_RX*8;
     _spi_transaction_rx0.rx_buffer = recvbuf0;
     _spi_transaction_rx0.tx_buffer = sendbuf;
-    //   ESP_LOGI(TAG_LOG,"About to send the command in 1 second");
-    
-    
+       
+
     // Wait until data ready pin is LOW
     while(gpio_get_level(GPIO_DATA_RDY_PIN));
     assert(spi_device_transmit(handle, &_spi_transaction_rx0) == ESP_OK);
@@ -254,6 +236,7 @@ void Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
 
     // vTaskDelay( 20 / portTICK_PERIOD_MS);
     vTaskDelay( 10 / portTICK_PERIOD_MS);
+
     sendbuf[0] = STM32_CMD_NOP;
     sendbuf[1] = 0;
     // _spi_transaction_rx0.rxlength = 16;
@@ -274,8 +257,75 @@ void Logger_print_rx_buffer(uint8_t * rxbuf)
     }
 }
 
+void Logger_GetSingleConversion(converted_reading_t * dataOutput)
+{
+    int j =0;
+    struct tm t = {0};
+    float tfloat = 0.0;
+
+    uint16_t adc0, adc1; 
+
+   
+    for (int i =0; i < 16; i=i+2)
+    {
+        if (!msg_part)
+        {
+            adc0 = spi_msg_1_ptr->adcData[i];
+            adc1 = spi_msg_1_ptr->adcData[i+1];
+        } else {
+            adc0 = spi_msg_2_ptr->adcData[i];
+            adc1 = spi_msg_2_ptr->adcData[i+1];
+        }
+
+        dataOutput->analogData[j] = Logger_convertAdcFloat(adc0,  adc1);
+        calculateTemperatureFloat(&tfloat, (float)(adc0 | (adc1 << 8)) , (float)(0x01 << settings_get_resolution())-1);
+        
+        dataOutput->temperatureData[j] = tfloat;
+        j++;
+    }
+
+    if (!msg_part)
+    {
+        dataOutput->gpioData[0] = (spi_msg_1_ptr->gpioData[0] & 0x04) && 1;
+        dataOutput->gpioData[1] = (spi_msg_1_ptr->gpioData[0] & 0x08) && 1;
+        dataOutput->gpioData[2] = (spi_msg_1_ptr->gpioData[0] & 0x10) && 1;
+        dataOutput->gpioData[3] = (spi_msg_1_ptr->gpioData[0] & 0x20) && 1;
+        dataOutput->gpioData[4] = (spi_msg_1_ptr->gpioData[0] & 0x40) && 1;
+        dataOutput->gpioData[5] = (spi_msg_1_ptr->gpioData[0] & 0x80) && 1;
+    } else {
+        dataOutput->gpioData[0] = (spi_msg_2_ptr->gpioData[0] & 0x04) && 1;
+        dataOutput->gpioData[1] = (spi_msg_2_ptr->gpioData[0] & 0x08) && 1;
+        dataOutput->gpioData[2] = (spi_msg_2_ptr->gpioData[0] & 0x10) && 1;
+        dataOutput->gpioData[3] = (spi_msg_2_ptr->gpioData[0] & 0x20) && 1;
+        dataOutput->gpioData[4] = (spi_msg_2_ptr->gpioData[0] & 0x40) && 1;
+        dataOutput->gpioData[5] = (spi_msg_2_ptr->gpioData[0] & 0x80) && 1;
+    }
+    
+
+    if (!msg_part)
+    {
+        t.tm_hour = spi_msg_1_ptr->timeData->hours;
+        t.tm_min = spi_msg_1_ptr->timeData->minutes;
+        t.tm_sec = spi_msg_1_ptr->timeData->seconds;
+        t.tm_year = spi_msg_1_ptr->timeData->year+100;
+        t.tm_mon = spi_msg_1_ptr->timeData->month;
+        t.tm_mday = spi_msg_1_ptr->timeData->date;
+    } else {
+        t.tm_hour = spi_msg_2_ptr->timeData->hours;
+        t.tm_min = spi_msg_2_ptr->timeData->minutes;
+        t.tm_sec = spi_msg_2_ptr->timeData->seconds;
+        t.tm_year = spi_msg_2_ptr->timeData->year+100;
+        t.tm_mon = spi_msg_2_ptr->timeData->month;
+        t.tm_mday = spi_msg_2_ptr->timeData->date;
+    }
+    
+
+    dataOutput->timestamp  = (uint32_t)mktime(&t);    
+}
+
 uint8_t Logger_syncSettings()
 {
+    settings_persist_settings();
     // Send command to STM32 to go into settings mode
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
     Logger_spi_cmd(STM32_CMD_SETTINGS_MODE, 0);
@@ -422,15 +472,8 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             // Next steps can be merged, but are now seperated for checking values
             // First shift the bytes to get the ADC value
             
-            t0 = ((int32_t)adcData[j] | ((int32_t)adcData[j + 1] << 8));
-            
-            
-            
-            t1 = t0 * (-20LL * 1000000LL); // note the minus for inverted input!
-            t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
-            t3 = t2 + 10000000LL;
-            // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
-            adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = (int32_t)t3;
+           
+            adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1]);
             
 
             writeptr++;
@@ -533,11 +576,11 @@ esp_err_t Logger_log()
                             // Copy values to buffer
 
                             // Check if the start bytes are first or last in the received SPI buffer
-                            spi_msg_1_ptr = (spi_msg_1_t*)recvbuf0;
-                            spi_msg_2_ptr = (spi_msg_2_t*)recvbuf0;
+                           
                             if (spi_msg_1_ptr->startByte[0] == 0xFF &&
                                 spi_msg_1_ptr->startByte[1] == 0xFF)
                                 {
+                                    msg_part = 0;
                                     ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
                                     // In this case we have Time bytes first...
                                     memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_1_ptr->timeData), 
@@ -559,6 +602,7 @@ esp_err_t Logger_log()
                                 } else if (spi_msg_2_ptr->stopByte[0] == 0xFF &&
                                             spi_msg_2_ptr->stopByte[1] == 0xFF )
                                 {
+                                    msg_part = 1;
                                     // Now the order is reversed.
                                     ESP_LOGI(TAG_LOG, "Start bytes found 2/2");
                                     // First ADC bytes..
@@ -719,6 +763,8 @@ void task_logging(void * pvParameters)
 
     memset(&_spi_transaction_rx0, 0, sizeof(_spi_transaction_rx0));
     memset(&_spi_transaction_rx1, 0, sizeof(_spi_transaction_rx1));
+    memset(recvbuf0, 0 , sizeof(recvbuf0));
+
 
     // //Initialize the SPI bus and add the device we want to send stuff to.
     ret=spi_bus_initialize(SENDER_HOST, &buscfg, SPI_DMA_CH_AUTO);
@@ -745,6 +791,10 @@ void task_logging(void * pvParameters)
         ESP_LOGI(TAG_LOG, "STM32 settings synced");
     }
     
+    spi_msg_1_ptr = (spi_msg_1_t*)recvbuf0;
+    spi_msg_2_ptr = (spi_msg_2_t*)recvbuf0;
+
+
     while(1) {
        
 

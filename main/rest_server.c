@@ -11,6 +11,7 @@
 
 #include "rest_server.h"
 
+
 static const char *REST_TAG = "esp-rest";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
     do                                                                                 \
@@ -100,6 +101,76 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     /* Respond with an empty chunk to signal HTTP response completion */
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
+}
+
+static esp_err_t logger_getValues_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL)
+    {
+        return ESP_FAIL;
+    }
+    converted_reading_t data;
+    
+    
+
+    Logger_GetSingleConversion(&data);
+    
+    cJSON_AddNumberToObject(root, "TIMESTAMP", data.timestamp);
+    
+    cJSON *readings = cJSON_AddObjectToObject(root, "READINGS");
+
+    cJSON *temperature = cJSON_AddObjectToObject(readings, "TEMPERATURE");
+    cJSON_AddStringToObject(temperature, "UNITS", "DEG C");
+    cJSON *tValues = cJSON_AddObjectToObject(temperature, "VALUES");
+
+    cJSON_AddNumberToObject(tValues, "T0", data.temperatureData[0]);
+    cJSON_AddNumberToObject(tValues, "T1", data.temperatureData[1]);
+    cJSON_AddNumberToObject(tValues, "T2", data.temperatureData[2]);
+    cJSON_AddNumberToObject(tValues, "T3", data.temperatureData[3]);
+    cJSON_AddNumberToObject(tValues, "T4", data.temperatureData[4]);
+    cJSON_AddNumberToObject(tValues, "T5", data.temperatureData[5]);
+    cJSON_AddNumberToObject(tValues, "T6", data.temperatureData[6]);
+    cJSON_AddNumberToObject(tValues, "T7", data.temperatureData[7]);
+
+    
+    cJSON *analog = cJSON_AddObjectToObject(readings, "ANALOG");
+    cJSON_AddStringToObject(analog, "UNITS", "Volt");
+    cJSON * aValues = cJSON_AddObjectToObject(analog, "VALUES");
+    // For future use. Always enabled now.
+    // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
+
+    cJSON_AddNumberToObject(aValues, "AIN0", data.analogData[0]);
+    cJSON_AddNumberToObject(aValues, "AIN1", data.analogData[1]);
+    cJSON_AddNumberToObject(aValues, "AIN2", data.analogData[2]);
+    cJSON_AddNumberToObject(aValues, "AIN3", data.analogData[3]);
+    cJSON_AddNumberToObject(aValues, "AIN4", data.analogData[4]);
+    cJSON_AddNumberToObject(aValues, "AIN5", data.analogData[5]);
+    cJSON_AddNumberToObject(aValues, "AIN6", data.analogData[6]);
+    cJSON_AddNumberToObject(aValues, "AIN7", data.analogData[7]);
+    
+   cJSON *digital = cJSON_AddObjectToObject(readings, "DIGITAL");
+   cJSON_AddStringToObject(digital, "UNITS", "Level");
+   cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
+    
+    cJSON_AddNumberToObject(digital, "DI0", data.gpioData[0]);
+    cJSON_AddNumberToObject(digital, "DI1", data.gpioData[1]);
+    cJSON_AddNumberToObject(digital, "DI2", data.gpioData[2]);
+    cJSON_AddNumberToObject(digital, "DI3", data.gpioData[3]);
+    cJSON_AddNumberToObject(digital, "DI4", data.gpioData[4]);
+    cJSON_AddNumberToObject(digital, "DI5", data.gpioData[5]);
+
+
+
+    
+    const char *settings_json= cJSON_Print(root);
+    httpd_resp_sendstr(req, settings_json);
+     free((void *)settings_json);
+    cJSON_Delete(root);
+    
+    return ESP_OK;
+    
 }
 
 static esp_err_t logger_getStatus_handler(httpd_req_t *req)
@@ -413,14 +484,8 @@ esp_err_t start_rest_server(const char *base_path)
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
 
-    httpd_uri_t logger_getStatus_uri = {
-        .uri = "/ajax/getStatus",
-        .method = HTTP_GET,
-        .handler = logger_getStatus_handler,
-        .user_ctx = rest_context
-    };
 
-    httpd_register_uri_handler(server, &logger_getStatus_uri);
+
 
     httpd_uri_t logger_getConfig_uri = {
         .uri = "/ajax/getConfig",
@@ -430,6 +495,24 @@ esp_err_t start_rest_server(const char *base_path)
     };
 
     httpd_register_uri_handler(server, &logger_getConfig_uri);
+
+    httpd_uri_t logger_getValues_uri = {
+        .uri = "/ajax/getValues",
+        .method = HTTP_GET,
+        .handler = logger_getValues_handler,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_getValues_uri);
+
+    httpd_uri_t logger_getStatus_uri = {
+        .uri = "/ajax/getStatus",
+        .method = HTTP_GET,
+        .handler = logger_getStatus_handler,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_getStatus_uri);
 
     httpd_uri_t logger_setConfig_uri = {
         .uri = "/ajax/setConfig",

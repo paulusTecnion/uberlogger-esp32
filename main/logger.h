@@ -7,6 +7,58 @@
 #include <string.h>
 #include "settings.h"
 
+// **********************************************************************************************
+// DON'T TOUCH NEXT LINES PLEASE UNTIL NEXT ASTERIX LINES
+//
+#define DATA_LINES_PER_SPI_TRANSACTION  70
+#define ADC_VALUES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*8 // Number of ADC uint16_t per transaction.
+#define ADC_BYTES_PER_SPI_TRANSACTION ADC_VALUES_PER_SPI_TRANSACTION*2
+#define GPIO_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION
+#define TIME_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*12
+#define START_STOP_NUM_BYTES            2
+
+// the ADC value 0xFFFF is not possible, so we take that as start and stop bytes
+#define START_STOP_BYTE_VALUE    0xFFFF
+
+// Number of bytes when receiving data from the STM
+#define STM_SPI_BUFFERSIZE_DATA_RX      (ADC_BYTES_PER_SPI_TRANSACTION + GPIO_BYTES_PER_SPI_TRANSACTION + TIME_BYTES_PER_SPI_TRANSACTION + START_STOP_NUM_BYTES)
+#define STM_DATA_BUFFER_SIZE_PER_TRANSACTION (ADC_BYTES_PER_SPI_TRANSACTION + GPIO_BYTES_PER_SPI_TRANSACTION + TIME_BYTES_PER_SPI_TRANSACTION )
+
+#define DATA_TRANSACTIONS_PER_SD_FLUSH 4
+#define SD_BUFFERSIZE (DATA_TRANSACTIONS_PER_SD_FLUSH*STM_DATA_BUFFER_SIZE_PER_TRANSACTION) 
+
+static const char* TAG_LOG = "LOGGER";
+
+
+// It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
+typedef struct {
+    uint8_t startByte[START_STOP_NUM_BYTES]; // 2
+    uint16_t dataLen;
+    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
+    uint8_t padding3;
+    uint8_t padding4;
+    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
+    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
+} spi_msg_1_t ;
+
+typedef struct {
+    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
+    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
+    uint8_t padding1;
+    uint8_t padding2;
+    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
+    uint16_t dataLen;
+    uint8_t stopByte[START_STOP_NUM_BYTES];
+} spi_msg_2_t;
+// END OF NO TOUCH
+// *********************************************************************************************************************
+
+typedef struct {
+    uint8_t gpioData[6];
+    float   temperatureData[8];
+    float   analogData[8];
+    uint32_t timestamp;
+} converted_reading_t;
 
 enum LogTaskStates
 {
@@ -45,6 +97,10 @@ typedef uint8_t LoggerState_t;
 typedef uint8_t LoggingState_t;
 
 
+
+int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1);
+float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
+
 /**
  * @brief Enable or disable the interrupt for the data ready pin.
  *
@@ -63,6 +119,7 @@ LoggerState_t Logger_getState();
 esp_err_t Logger_log();
 esp_err_t Logger_start();
 esp_err_t Logger_stop();
+
 // uint8_t Logger_flush_buffer_to_sd_card();
 uint8_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size);
 uint8_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdcBytes, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime);
@@ -72,6 +129,9 @@ uint8_t Logger_setCsvLog(log_mode_t value);
 uint8_t Logger_getCsvLog();
 uint8_t Logger_syncSettings();
 uint8_t Logger_sendSTM32cmd(stm32cmd_t cmd);
+
+
+void Logger_GetSingleConversion(converted_reading_t* data);
 
 
 
