@@ -404,6 +404,40 @@ uint8_t Logger_getCsvLog()
     return settings_get_logmode();
 }
 
+uint8_t Logger_mode_button_pushed()
+{
+    static uint8_t state = 0;
+    uint8_t level = gpio_get_level(GPIO_START_STOP_BUTTON);
+    
+    switch (state)
+    {
+        case 0:
+          if(!level) 
+          {
+            ESP_LOGI(TAG_LOG, "MODE press hold");
+            state = 1;
+          }
+        break;
+            
+        case 1:
+            if(level)
+            {
+                ESP_LOGI(TAG_LOG, "MODE released");
+                state = 2;
+                return 1;
+            } 
+        break;
+
+        case 2:
+            ESP_LOGI(TAG_LOG, "MODE reset");
+            state = 0;
+            
+        break;    
+    }
+    
+    return 0;
+}
+
 esp_err_t Logger_start()
 {
     if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
@@ -753,6 +787,7 @@ void task_logging(void * pvParameters)
 
     // Init STM32 ADC enable pin
     gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
+    gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
     ret = gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
@@ -797,7 +832,18 @@ void task_logging(void * pvParameters)
 
     while(1) {
        
-
+        if (Logger_mode_button_pushed())
+        {
+            if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
+            {
+                Logger_start();
+            }
+            
+            if (_currentLogTaskState == LOGTASK_LOGGING)
+            {
+                Logger_stop();
+            }
+        }
 
         switch (_currentLogTaskState)
         {

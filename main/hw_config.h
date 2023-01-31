@@ -13,6 +13,7 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define GPIO_OLED_SCL 42
 
 #define GPIO_HMI_LED 38
+#define GPIO_START_STOP_BUTTON 0
 
 #define SPI_STM32_BUS_FREQUENCY 20000000U
 
