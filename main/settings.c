@@ -63,6 +63,11 @@ uint8_t settings_get_adc_channel_range(adc_channel_t channel)
     return _settings.adc_channel_range & (0x01 << channel);
 }
 
+uint8_t settings_get_adc_channel_range_all()
+{
+    return _settings.adc_channel_range;
+}
+
 esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value)
 {
       // strategie: zet bitje van channel X naar 0 en dan set of unset hem. 

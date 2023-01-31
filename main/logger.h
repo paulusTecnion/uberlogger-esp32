@@ -98,8 +98,13 @@ typedef uint8_t LoggerState_t;
 typedef uint8_t LoggingState_t;
 
 
-
-int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1);
+/// @brief Returns fixed point int32_t of ADC value
+/// @param adcData0 LSB of ADC channel
+/// @param adcData1 MSB of ADC channel
+/// @param range Range of channel. I.e. if total range is 20V, use 20000000
+/// @param offset Offset of the channel. If total range is 20V and minimum range value is -10V use 10000000
+/// @return 
+int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t range, uint64_t offset);
 float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
 
 /**

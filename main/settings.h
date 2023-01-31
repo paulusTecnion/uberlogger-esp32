@@ -118,6 +118,7 @@ uint8_t settings_get_adc_channel_type_all();
 esp_err_t settings_set_adc_channel_type(adc_channel_t channel, adc_channel_type_t value);
 
 uint8_t settings_get_adc_channel_range(adc_channel_t channel);
+uint8_t settings_get_adc_channel_range_all();
 esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value);
 
 esp_err_t settings_set_default();

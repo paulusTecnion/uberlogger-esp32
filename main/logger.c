@@ -113,14 +113,14 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
     portYIELD_FROM_ISR(xYieldRequired);
 }
 
-int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1)
+int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t range, uint64_t offset)
 {
     t0 = ((int32_t)adcData0 | ((int32_t)adcData1 << 8));
             
     // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
-    t1 = t0 * (-20LL * 1000000LL); // note the minus for inverted input!
+    t1 = t0 * (-1LL* range); // note the minus for inverted input!
     t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
-    t3 = t2 + 10000000LL;
+    t3 = t2 + offset;
     return (int32_t) t3;
     
 }
@@ -487,11 +487,13 @@ uint8_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uin
 }
 
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
-uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t length)
+uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t length, uint8_t range, uint8_t type)
 {
      // ESP_LOGI(TAG_LOG,"ADC Reading:");
-        int j;
+        int j,x=0;
         uint32_t writeptr = 0;
+        uint64_t channel_range, channel_offset;
+        uint16_t adc0, adc1=0;
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
         for (j = 0; j < length; j = j + 2)
         {
@@ -505,11 +507,28 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             
             // Next steps can be merged, but are now seperated for checking values
             // First shift the bytes to get the ADC value
-            
-           
-            adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1]);
+            if ((range >> x) & 0x01)
+            {
+                // Bit == 1
+                channel_range = 120000000LL;
+                channel_offset = 60000000LL;
+            } else {
+                channel_range = 20000000LL;
+                channel_offset = 10000000LL;
+            }
+
+            if ((type >> x) & 0x01)
+            {
+                // ESP_LOGI(TAG_LOG,"temp detected");
+                // calculateTemperatureLUT(&(adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]), ((uint16_t)adcData[j]) | ((uint16_t)adcData[j+1] << 8), (1 << settings_get_resolution()) - 1);
+                adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8))*100000;
+            } else {
+                adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);    
+            }
             
 
+            x++;
+            x = x % 8;
             writeptr++;
         }
 
@@ -668,7 +687,9 @@ esp_err_t Logger_log()
                             // Process data first
                             if (settings_get_logmode() == LOGMODE_CSV)
                             {
-                                Logger_raw_to_csv(log_counter, sdcard_data.adcData+log_counter*sizeof(spi_msg_1_ptr->adcData), sizeof(spi_msg_1_ptr->adcData));
+                                Logger_raw_to_csv(log_counter, sdcard_data.adcData+log_counter*sizeof(spi_msg_1_ptr->adcData), sizeof(spi_msg_1_ptr->adcData), 
+                                settings_get_adc_channel_range_all(), 
+                                settings_get_adc_channel_type_all());
                             }
                             
                             // Logger_flush_buffer_to_sd_card_csv(adc_buffer_fixed_point, 8, sdcard_data.gpioData, 1, sdcard_data.timeData, 1);
