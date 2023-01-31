@@ -5,6 +5,7 @@ idf_component_register(SRCS
                             "main.c"
                             "rest_server.c"
                             "settings.c"
+                            "tempsensor.c"
                             
                     INCLUDE_DIRS "")
 
