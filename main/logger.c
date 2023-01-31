@@ -893,8 +893,8 @@ void task_logging(void * pvParameters)
                 
                 if (Logger_log() != ESP_OK)
                 {
+                    ESP_LOGI(TAG_LOG, "Error occured in Logging statemachine. Stopping..");
                     _nextLogTaskState = LOGTASK_ERROR_OCCURED;
-                    Logger_stop();
                 }
 
                 if (_nextLogTaskState == LOGTASK_IDLE || _nextLogTaskState == LOGTASK_ERROR_OCCURED)
