@@ -86,6 +86,12 @@ esp_err_t esp_sd_card_mount()
         return ESP_FAIL;
     }
 
+    if (esp_sd_card_is_mounted)
+    {
+        ESP_LOGI(TAG, "Card already mounted");
+        return ESP_OK;
+    }
+
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI2_HOST;
@@ -244,8 +250,6 @@ uint32_t esp_sd_card_get_free_space()
             fre_sect = fre_clust * fs->csize;
             /* Print the free space (assuming 512 bytes/sector) */
             // ESP_LOGI(TAG, "%10u KiB total drive space.\r\n%10u KiB available.\r\n%10u free clust.\r\n",tot_sect / 2, fre_sect / 2,fre_clust);
-            esp_sd_card_unmount();
-
 
             return (uint32_t)(fre_sect / 2);
         } else {
