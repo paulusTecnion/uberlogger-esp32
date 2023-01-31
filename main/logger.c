@@ -414,7 +414,7 @@ uint8_t Logger_mode_button_pushed()
         case 0:
           if(!level) 
           {
-            ESP_LOGI(TAG_LOG, "MODE press hold");
+            // ESP_LOGI(TAG_LOG, "MODE press hold");
             state = 1;
           }
         break;
@@ -422,14 +422,14 @@ uint8_t Logger_mode_button_pushed()
         case 1:
             if(level)
             {
-                ESP_LOGI(TAG_LOG, "MODE released");
+                // ESP_LOGI(TAG_LOG, "MODE released");
                 state = 2;
                 return 1;
             } 
         break;
 
         case 2:
-            ESP_LOGI(TAG_LOG, "MODE reset");
+            // ESP_LOGI(TAG_LOG, "MODE reset");
             state = 0;
             
         break;    
