@@ -489,7 +489,7 @@ uint8_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uin
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
 uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t length, uint8_t range, uint8_t type)
 {
-     // ESP_LOGI(TAG_LOG,"ADC Reading:");
+     
         int j,x=0;
         uint32_t writeptr = 0;
         uint64_t channel_range, channel_offset;
@@ -497,16 +497,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
         for (j = 0; j < length; j = j + 2)
         {
-            // we'll have to multiply this with 20V/4096 = 0.00488281 V per LSB
-            // Or in fixed point Q6.26 notation 488281 = 1 LSB
-            // Note: 4095 = -10 and 0 = 10V (theoratically, without input impedance)
-
-            // What we want to achieve here is -20V/4095 + 10V, but then in fixed point notation. 
-            // To achieve that, we will multiply the numbers by 1000000.
-            // Then, instead of dividing the number by 4095 or use 0.0488281, we divide by the byte shift of 1<<12 which is more accurate with int32_t. 
-            
-            // Next steps can be merged, but are now seperated for checking values
-            // First shift the bytes to get the ADC value
+            // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
             if ((range >> x) & 0x01)
             {
                 // Bit == 1
@@ -517,6 +508,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 channel_offset = 10000000LL;
             }
 
+            // Detect type of sensor and conver accordingly
             if ((type >> x) & 0x01)
             {
                 // ESP_LOGI(TAG_LOG,"temp detected");
@@ -534,10 +526,6 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
 
         // j = j - 2;
     // ESP_LOGI(TAG_LOG, "%d, %d, %d, %d, %lld, %d", writeptr, j, recvbuf0.adc[j], recvbuf0.adc[j+1], t3, tbuffer_i32[writeptr+(log_counter)*(960/2)]);
-
-
-        
-
         return RET_OK;
 }
 
