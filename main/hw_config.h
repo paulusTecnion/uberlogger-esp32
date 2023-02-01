@@ -3,9 +3,9 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 */
 #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
 #define GPIO_DATA_RDY_PIN 6
-#define GPIO_MOSI 11
-#define GPIO_MISO 13
-#define GPIO_SCLK 12
+#define STM32_SPI_MOSI 11
+#define STM32_SPI_MISO 13
+#define STM32_SPI_SCLK 12
 #define GPIO_CS 10
 #define GPIO_ADC_EN 5
 
@@ -15,31 +15,31 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define GPIO_HMI_LED 38
 #define GPIO_START_STOP_BUTTON 0
 
-#define SPI_STM32_BUS_FREQUENCY 20000000U
+#define SPI_STM32_BUS_FREQUENCY 25000000U
 
 #define PROMPT_STR "uberlogger"
 
 #elif CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C2 || CONFIG_IDF_TARGET_ESP32H2
 #define GPIO_HANDSHAKE 3
-#define GPIO_MOSI 7
-#define GPIO_MISO 2
-#define GPIO_SCLK 6
+#define STM32_SPI_MOSI 7
+#define STM32_SPI_MISO 2
+#define STM32_SPI_SCLK 6
 #define GPIO_CS 10
 
 #elif CONFIG_IDF_TARGET_ESP32S3
 #define GPIO_HANDSHAKE 2
-#define GPIO_MOSI 11
-#define GPIO_MISO 13
-#define GPIO_SCLK 12
+#define STM32_SPI_MOSI 11
+#define STM32_SPI_MISO 13
+#define STM32_SPI_SCLK 12
 #define GPIO_CS 10
 
 #endif //CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
 
 
 #ifdef CONFIG_IDF_TARGET_ESP32
-#define SENDER_HOST HSPI_HOST
+#define STM32_SPI_HOST HSPI_HOST
 
 #else
-#define SENDER_HOST SPI3_HOST
+#define STM32_SPI_HOST SPI2_HOST
 
 #endif

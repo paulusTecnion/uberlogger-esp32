@@ -794,9 +794,9 @@ void task_logging(void * pvParameters)
     esp_err_t ret;
     //Configuration for the SPI bus
     spi_bus_config_t buscfg={
-        .mosi_io_num=GPIO_MOSI,
-        .miso_io_num=GPIO_MISO,
-        .sclk_io_num=GPIO_SCLK,
+        .mosi_io_num=STM32_SPI_MOSI,
+        .miso_io_num=STM32_SPI_MISO,
+        .sclk_io_num=STM32_SPI_SCLK,
         .quadwp_io_num=-1,
         .quadhd_io_num=-1,
         .max_transfer_sz = 8192,
@@ -816,7 +816,7 @@ void task_logging(void * pvParameters)
         .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
         .flags = 0,
-        .input_delay_ns=10
+        .input_delay_ns=50
     };  
 
     gpio_config_t adc_en_conf={
@@ -851,9 +851,9 @@ void task_logging(void * pvParameters)
 
 
     // //Initialize the SPI bus and add the device we want to send stuff to.
-    ret=spi_bus_initialize(SENDER_HOST, &buscfg, SPI_DMA_CH_AUTO);
+    ret=spi_bus_initialize(STM32_SPI_HOST, &buscfg, STM32_SPI_HOST);
     assert(ret==ESP_OK);
-    ret=spi_bus_add_device(SENDER_HOST, &devcfg, &stm_spi_handle);
+    ret=spi_bus_add_device(STM32_SPI_HOST, &devcfg, &stm_spi_handle);
     assert(ret==ESP_OK);
     // // take the bus and never let go :-)
     ret = spi_device_acquire_bus(stm_spi_handle, portMAX_DELAY);

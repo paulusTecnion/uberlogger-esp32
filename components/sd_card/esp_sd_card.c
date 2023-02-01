@@ -31,7 +31,7 @@ static const char *TAG = "SDCARD";
 #define USE_SPI_MODE
 #endif // USE_SPI_MODE
 // on ESP32-S2, DMA channel must be the same as host id
-#define SPI_DMA_CHAN    host.slot
+#define SPI_DMA_CHAN    SPI3_HOST
 #endif //CONFIG_IDF_TARGET_ESP32S2
 
 // DMA channel to be used by the SPI peripheral
@@ -77,7 +77,8 @@ esp_err_t esp_sd_card_mount()
 {
     if (!esp_sd_spi_is_initialized)
     {
-        esp_sd_card_init();
+        if (esp_sd_card_init() != ESP_OK)
+            return ESP_FAIL;
     }
 
     if (esp_sd_card_check_for_card())
@@ -94,7 +95,7 @@ esp_err_t esp_sd_card_mount()
 
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = SPI2_HOST;
+    host.slot = SPI3_HOST;
     
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_NUM_MOSI,
@@ -108,6 +109,7 @@ esp_err_t esp_sd_card_mount()
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_NUM_CS;
     slot_config.host_id = host.slot;
+    
 
     ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
     if (ret != ESP_OK) {
@@ -170,7 +172,7 @@ esp_err_t esp_sd_card_init(void)
     ESP_LOGI(TAG, "Using SPI peripheral");
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = SPI2_HOST;
+    host.slot = SPI3_HOST;
 
     // Max freq 40 MHz
     
