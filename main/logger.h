@@ -53,6 +53,13 @@ typedef struct {
 // END OF NO TOUCH
 // *********************************************************************************************************************
 
+// Struct for sending SPI commands to the STM32
+typedef struct {
+    uint8_t command;
+    uint8_t data;
+} spi_cmd_t;
+
+
 typedef struct {
     uint8_t gpioData[6];
     float   temperatureData[8];
@@ -82,6 +89,7 @@ enum LoggingStates{
 typedef enum stm32cmd {
     STM32_CMD_NOP=0,
     STM32_CMD_SETTINGS_MODE,
+    STM32_CMD_SETTINGS_SYNC,
     STM32_CMD_MEASURE_MODE,
     STM32_CMD_SET_RESOLUTION,
     STM32_CMD_SET_SAMPLE_RATE,
@@ -138,7 +146,6 @@ uint8_t Logger_getCsvLog();
 
 uint8_t Logger_mode_button();
 uint8_t Logger_syncSettings();
-uint8_t Logger_sendSTM32cmd(stm32cmd_t cmd);
 
 
 void Logger_GetSingleConversion(converted_reading_t* data);
