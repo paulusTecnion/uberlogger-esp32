@@ -202,7 +202,7 @@ void app_main(void)
 {
 
 
-    
+    init_console();
     // Register console commands
     vTaskDelay (200/portTICK_PERIOD_MS);
     ESP_LOGI(TAG, "\r\n"
@@ -210,7 +210,7 @@ void app_main(void)
     "#           UberLogger          #\r\n"
     "#################################");
     
-    init_console();
+ 
     settings_init();
 
     
