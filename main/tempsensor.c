@@ -12,9 +12,15 @@ int32_t interp( lut_t * c, int32_t x, int n );
 int32_t q_mul(int32_t a, int32_t b);
 int32_t q_div(int32_t a, int32_t b);
 
-  #define NTC_R_NOMINAL 100000 //.0e3 // NTC resistance at 25 deg C
-  #define NTC_R_PULLUP 100000 //e3 // pullup resistance
+  #define NTC_R_NOMINAL_INT 100000 //.0e3 // NTC resistance at 25 deg C
+  #define NTC_R_PULLUP_INT 100000 //e3 // pullup resistance
   #define TEMPERATURE_FILTER_COEFF 0.1 // IIR filter coefficient
+
+
+  #define NTC_BETA 3950 // NTC beta
+  #define NTC_R_NOMINAL 10.0e3 // NTC resistance at 25 deg C
+  #define NTC_R_PULLUP 10.0e3 // pullup resistance
+
 
   #define NTC_LUT_SIZE 30
   lut_t NTC_LUT[NTC_LUT_SIZE] = { // LUT is not in Q notation, is converted in the interpolation function
@@ -250,7 +256,7 @@ void calculateTemperatureLUT(int32_t * T, int32_t adc_out, int32_t adc_in){
   
   if((adc_out < 0.93*adc_in)&&(adc_out > 0.039*adc_in)){ // sensor has valid range (between -20 deg C and +120 deg C)
     
-    R = q_mul((int32_t) (NTC_R_PULLUP << Q), q_div(adc_out, adc_in - adc_out)) >> Q;  
+    R = q_mul((int32_t) (NTC_R_PULLUP_INT << Q), q_div(adc_out, adc_in - adc_out)) >> Q;  
     result=interp(NTC_LUT, R, NTC_LUT_SIZE);
 
     // if(result > (*T + 100)){ // detect re-connection of temperature sensor, initialize
@@ -281,9 +287,7 @@ void calculateTemperatureFloat(float* T, float v_out, float v_in){
   // R_ntc = R_pullup * (V_o/(V_i-V_o))
   // T_ntc = 1/((log(R_ntc/R_ntc_nominal)/NTC_BETA)+1/(25.0+273.15))-273.15
   
-  #define NTC_BETA 3950 // NTC beta
-  #define NTC_R_NOMINAL 10.0e3 // NTC resistance at 25 deg C
-  #define NTC_R_PULLUP 10.0e3 // pullup resistance
+
 
   float R, steinhart;
   
