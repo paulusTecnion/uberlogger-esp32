@@ -178,6 +178,18 @@ static void register_stm32_sync(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+static void register_singleshot(void)
+{
+
+    const esp_console_cmd_t cmd = {
+        .command = "ss",
+        .help = "Single shot measurment",
+        .hint = NULL,
+        .func = &Logger_singleShot
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
 void init_console(){
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
@@ -202,6 +214,7 @@ void init_console(){
     register_logger_cmd();
     register_restart();
     register_settings_sample_rate();
+    register_singleshot();
     register_stm32_sync();
 
     esp_console_register_help_command();

@@ -271,13 +271,8 @@ esp_err_t Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     }
     
     ESP_LOGI(TAG_LOG,"Pass 2/2 CMD");    
-
     
     return ESP_OK;
-
-  
-
-  
 
 }
 
@@ -297,8 +292,8 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
     float tfloat = 0.0;
 
     uint16_t adc0, adc1; 
+    
 
-   
     for (int i =0; i < 16; i=i+2)
     {
         if (!msg_part)
@@ -354,6 +349,54 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
     
 
     dataOutput->timestamp  = (uint32_t)mktime(&t);    
+}
+
+esp_err_t Logger_singleShot()
+{
+    converted_reading_t measurement;
+    if (Logger_getState() != LOGTASK_LOGGING)
+    {
+        if (Logger_spi_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, 0) == ESP_OK)
+        {
+            
+            if ((recvbuf0[0] == 7) && (recvbuf0[1] == 1) )
+            {
+                msg_part = 0;
+            } else {
+                Logger_print_rx_buffer(recvbuf0);
+                ESP_LOGE(TAG_LOG, "Did not receive STM confirmation.");
+                return ESP_FAIL;
+            } 
+            
+        } else {
+            ESP_LOGE(TAG_LOG, "Could not retrieve data.");
+            return ESP_FAIL;
+        }
+    }
+    
+    _spi_transaction_rx0.length = sizeof(recvbuf0)*8;
+    _spi_transaction_rx0.rxlength=sizeof(recvbuf0)*8;
+    _spi_transaction_rx0.tx_buffer = NULL;                 
+    // _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0+(log_counter*STM_TXLENGTH);
+    _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0;
+
+    while(!gpio_get_level(GPIO_DATA_RDY_PIN));
+    // Wait for data
+    assert(spi_device_queue_trans(stm_spi_handle, &_spi_transaction_rx0, 0) == ESP_OK);
+    spi_transaction_t * ptr = &_spi_transaction_rx0;
+    if(spi_device_get_trans_result(stm_spi_handle, &ptr, 1000 / portTICK_PERIOD_MS) == ESP_OK)
+    {
+        msg_part = 0;
+        Logger_GetSingleConversion(&measurement);
+        ESP_LOGI(TAG_LOG, "%f, %f, %f, %d", measurement.analogData[0], measurement.analogData[1], measurement.temperatureData[0], measurement.timestamp);
+        ESP_LOGI(TAG_LOG,"Single shot done");
+        return ESP_OK;
+    } else {
+        ESP_LOGE(TAG_LOG, "STM32 timeout, no measurement received");
+        return ESP_FAIL;
+    }
+    
+    
 }
 
 uint8_t Logger_syncSettings()
@@ -606,7 +649,7 @@ esp_err_t Logger_log()
 
         switch (_currentLoggingState)
         {
-           
+            
             case LOGGING_START:
                     // ESP_LOGI(TAG_LOG, "Queuing spi transactions..");
                     // assert(spi_device_transmit(stm_spi_handle, &_spi_transaction) == ESP_OK);
@@ -632,6 +675,7 @@ esp_err_t Logger_log()
             case LOGGING_RX0_WAIT:
                 {
                         // Check if our transaction is done
+                        
                         spi_transaction_t * ptr = &_spi_transaction_rx0;
                         if(spi_device_get_trans_result(stm_spi_handle, &ptr, 1000 / portTICK_PERIOD_MS) == ESP_OK)
                         {

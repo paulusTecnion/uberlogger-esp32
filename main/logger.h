@@ -93,7 +93,8 @@ typedef enum stm32cmd {
     STM32_CMD_MEASURE_MODE,
     STM32_CMD_SET_RESOLUTION,
     STM32_CMD_SET_SAMPLE_RATE,
-    STM32_CMD_SET_ADC_CHANNELS_ENABLED
+    STM32_CMD_SET_ADC_CHANNELS_ENABLED,
+    STM32_CMD_SINGLE_SHOT_MEASUREMENT,
 } stm32cmd_t;
 
 typedef enum stm32resp {
@@ -133,6 +134,8 @@ LoggerState_t Logger_getState();
 esp_err_t Logger_log();
 esp_err_t Logger_start();
 esp_err_t Logger_stop();
+
+esp_err_t Logger_singleShot();
 
 
 // uint8_t Logger_flush_buffer_to_sd_card();
