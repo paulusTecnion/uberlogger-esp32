@@ -50,6 +50,8 @@ int32_t q_div(int32_t a, int32_t b);
       {133500, -25}
     };
 
+// Next table comes from following link
+// https://www.sebulli.com/ntc/index.php?lang=en&points=1024&unit=0.1&resolution=12+Bit&circuit=pullup&resistor=10000&r25=10000&beta=3950&test_resistance=10000&tmin=-40&tmax=120
 
 int NTC_table[1025] = {
 4140, 3521, 2902, 2593, 2394, 2249, 2136,
