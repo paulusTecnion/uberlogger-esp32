@@ -1,0 +1,16 @@
+{
+	"CONFIGURED": 0,
+	"OPERATING_MODE": 2,
+	
+	"NODE_NAME": "module-name",
+
+	"WIFI_SSID": "wifi network name",
+	"WIFI_PASSWORD": "wifi password",
+
+	"ENABLE_CONFIGPAGE": 1,
+    "CONFIGPAGE_PASSWORD": "",
+
+	"MQTT_SERVER": "192.168.1.11",
+	"MQTT_USERNAME": "",
+	"MQTT_PASSWORD": "",
+}

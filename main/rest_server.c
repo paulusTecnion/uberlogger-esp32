@@ -8,11 +8,9 @@
 */
 #include <string.h>
 #include <fcntl.h>
-#include "esp_http_server.h"
-#include "esp_system.h"
-#include "esp_log.h"
-#include "esp_vfs.h"
-#include "cJSON.h"
+
+#include "rest_server.h"
+
 
 static const char *REST_TAG = "esp-rest";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
@@ -105,9 +103,181 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Simple handler for light brightness control */
-static esp_err_t light_brightness_post_handler(httpd_req_t *req)
+static esp_err_t logger_getValues_handler(httpd_req_t *req)
 {
+    httpd_resp_set_type(req, "application/json");
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL)
+    {
+        return ESP_FAIL;
+    }
+    converted_reading_t data;
+    
+    
+
+    Logger_GetSingleConversion(&data);
+    
+    cJSON_AddNumberToObject(root, "TIMESTAMP", data.timestamp);
+    
+    cJSON *readings = cJSON_AddObjectToObject(root, "READINGS");
+
+    cJSON *temperature = cJSON_AddObjectToObject(readings, "TEMPERATURE");
+    cJSON_AddStringToObject(temperature, "UNITS", "DEG C");
+    cJSON *tValues = cJSON_AddObjectToObject(temperature, "VALUES");
+
+    cJSON_AddNumberToObject(tValues, "T0", data.temperatureData[0]);
+    cJSON_AddNumberToObject(tValues, "T1", data.temperatureData[1]);
+    cJSON_AddNumberToObject(tValues, "T2", data.temperatureData[2]);
+    cJSON_AddNumberToObject(tValues, "T3", data.temperatureData[3]);
+    cJSON_AddNumberToObject(tValues, "T4", data.temperatureData[4]);
+    cJSON_AddNumberToObject(tValues, "T5", data.temperatureData[5]);
+    cJSON_AddNumberToObject(tValues, "T6", data.temperatureData[6]);
+    cJSON_AddNumberToObject(tValues, "T7", data.temperatureData[7]);
+
+    
+    cJSON *analog = cJSON_AddObjectToObject(readings, "ANALOG");
+    cJSON_AddStringToObject(analog, "UNITS", "Volt");
+    cJSON * aValues = cJSON_AddObjectToObject(analog, "VALUES");
+    // For future use. Always enabled now.
+    // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
+
+    cJSON_AddNumberToObject(aValues, "AIN0", data.analogData[0]);
+    cJSON_AddNumberToObject(aValues, "AIN1", data.analogData[1]);
+    cJSON_AddNumberToObject(aValues, "AIN2", data.analogData[2]);
+    cJSON_AddNumberToObject(aValues, "AIN3", data.analogData[3]);
+    cJSON_AddNumberToObject(aValues, "AIN4", data.analogData[4]);
+    cJSON_AddNumberToObject(aValues, "AIN5", data.analogData[5]);
+    cJSON_AddNumberToObject(aValues, "AIN6", data.analogData[6]);
+    cJSON_AddNumberToObject(aValues, "AIN7", data.analogData[7]);
+    
+   cJSON *digital = cJSON_AddObjectToObject(readings, "DIGITAL");
+   cJSON_AddStringToObject(digital, "UNITS", "Level");
+   cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
+    
+    cJSON_AddNumberToObject(digital, "DI0", data.gpioData[0]);
+    cJSON_AddNumberToObject(digital, "DI1", data.gpioData[1]);
+    cJSON_AddNumberToObject(digital, "DI2", data.gpioData[2]);
+    cJSON_AddNumberToObject(digital, "DI3", data.gpioData[3]);
+    cJSON_AddNumberToObject(digital, "DI4", data.gpioData[4]);
+    cJSON_AddNumberToObject(digital, "DI5", data.gpioData[5]);
+
+
+
+    
+    const char *settings_json= cJSON_Print(root);
+    httpd_resp_sendstr(req, settings_json);
+     free((void *)settings_json);
+    cJSON_Delete(root);
+    
+    return ESP_OK;
+    
+}
+
+static esp_err_t logger_getStatus_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL)
+    {
+        return ESP_FAIL;
+    }
+   
+    cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
+    cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
+    cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
+    cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", esp_sd_card_get_free_space());
+    cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());;
+
+    const char *settings_json= cJSON_Print(root);
+    httpd_resp_sendstr(req, settings_json);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+
+static esp_err_t logger_getConfig_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL)
+    {
+        return ESP_FAIL;
+    }
+
+    // int total_len = req->content_len;
+    // int cur_len = 0;
+    // char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    // int received = 0;
+    // if (total_len >= SCRATCH_BUFSIZE) {
+    //     /* Respond with 500 Internal Server Error */
+    //     httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+    //     return ESP_FAIL;
+    // }
+    // while (cur_len < total_len) {
+    //     received = httpd_req_recv(req, buf + cur_len, total_len);
+    //     if (received <= 0) {
+    //         /* Respond with 500 Internal Server Error */
+    //         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+    //         return ESP_FAIL;
+    //     }
+    //     cur_len += received;
+    // }
+    // buf[total_len] = '\0';
+    Settings_t *settings = settings_get();
+
+    cJSON *range_select = cJSON_AddObjectToObject(root, "AIN_RANGE_SELECT");
+    cJSON *ntc_select = cJSON_AddObjectToObject(root, "NTC_SELECT");
+
+    cJSON_AddBoolToObject(ntc_select, "NTC0", settings_get_adc_channel_type(ADC_CHANNEL_0));
+    cJSON_AddBoolToObject(ntc_select, "NTC1", settings_get_adc_channel_type(ADC_CHANNEL_1));
+    cJSON_AddBoolToObject(ntc_select, "NTC2", settings_get_adc_channel_type(ADC_CHANNEL_2));
+    cJSON_AddBoolToObject(ntc_select, "NTC3", settings_get_adc_channel_type(ADC_CHANNEL_3));
+    cJSON_AddBoolToObject(ntc_select, "NTC4", settings_get_adc_channel_type(ADC_CHANNEL_4));
+    cJSON_AddBoolToObject(ntc_select, "NTC5", settings_get_adc_channel_type(ADC_CHANNEL_5));
+    cJSON_AddBoolToObject(ntc_select, "NTC6", settings_get_adc_channel_type(ADC_CHANNEL_6));
+    cJSON_AddBoolToObject(ntc_select, "NTC7", settings_get_adc_channel_type(ADC_CHANNEL_7));
+
+    
+
+    // For future use. Always enabled now.
+    // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
+
+    cJSON_AddBoolToObject(range_select, "AIN0", settings_get_adc_channel_range(ADC_CHANNEL_0));
+    cJSON_AddBoolToObject(range_select, "AIN1", settings_get_adc_channel_range(ADC_CHANNEL_1));
+    cJSON_AddBoolToObject(range_select, "AIN2", settings_get_adc_channel_range(ADC_CHANNEL_2));
+    cJSON_AddBoolToObject(range_select, "AIN3", settings_get_adc_channel_range(ADC_CHANNEL_3));
+    cJSON_AddBoolToObject(range_select, "AIN4", settings_get_adc_channel_range(ADC_CHANNEL_4));
+    cJSON_AddBoolToObject(range_select, "AIN5", settings_get_adc_channel_range(ADC_CHANNEL_5));
+    cJSON_AddBoolToObject(range_select, "AIN6", settings_get_adc_channel_range(ADC_CHANNEL_6));
+    cJSON_AddBoolToObject(range_select, "AIN7", settings_get_adc_channel_range(ADC_CHANNEL_7));
+    
+    cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
+    cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
+    cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
+
+    cJSON_AddNumberToObject(root, "ADC_RESOLUTION", settings->adc_resolution);
+    cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->log_sample_rate);
+    cJSON_AddNumberToObject(root, "LOG_MODE", settings->logMode);
+
+
+    
+    const char *settings_json= cJSON_Print(root);
+    httpd_resp_sendstr(req, settings_json);
+     free((void *)settings_json);
+    cJSON_Delete(root);
+    
+    return ESP_OK;
+}
+
+static esp_err_t logger_setConfig_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL)
+    {
+        return ESP_FAIL;
+    }
+
     int total_len = req->content_len;
     int cur_len = 0;
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
@@ -128,44 +298,177 @@ static esp_err_t light_brightness_post_handler(httpd_req_t *req)
     }
     buf[total_len] = '\0';
 
-    cJSON *root = cJSON_Parse(buf);
-    int red = cJSON_GetObjectItem(root, "red")->valueint;
-    int green = cJSON_GetObjectItem(root, "green")->valueint;
-    int blue = cJSON_GetObjectItem(root, "blue")->valueint;
-    ESP_LOGI(REST_TAG, "Light control: red = %d, green = %d, blue = %d", red, green, blue);
-    cJSON_Delete(root);
-    httpd_resp_sendstr(req, "Post control value successfully");
+    cJSON *settings_in = cJSON_Parse(buf);
+    cJSON * item;
+
+    
+    char buf2[30];
+    for (int j = 0; j<2; j++)
+    {
+        for (int i = 0; i<8; i++)
+        {
+            if (j ==0)
+            {
+                item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTC_SELECT");
+                if (item == NULL)
+                {
+                    json_send_resp(req, ENDPOINT_RESP_ERROR);
+                    return ESP_FAIL;
+                }
+
+                sprintf(buf2, "NTC%d", i);
+            } else {
+                item = cJSON_GetObjectItemCaseSensitive(settings_in, "AIN_RANGE_SELECT");
+                if (item == NULL)
+                {
+                    json_send_resp(req, ENDPOINT_RESP_ERROR);
+                    return ESP_FAIL;
+                }
+                sprintf(buf2, "AIN%d", i);
+            }
+                
+            cJSON * subItem = cJSON_GetObjectItemCaseSensitive(item, buf2);
+            if (subItem != NULL)
+            {
+                if (j==0)
+                {
+                    ESP_LOGI("REST: ", "NTC%d %d", i, (subItem->valueint));
+                    settings_set_adc_channel_type(i, subItem->valueint);
+                } else {
+                    ESP_LOGI("REST: ", "AIN%d %d", i, (subItem->valueint));
+                    settings_set_adc_channel_range(i, subItem->valueint);
+                }
+                
+            } else {
+                json_send_resp(req, ENDPOINT_RESP_ERROR);
+                return ESP_FAIL;
+            }
+        
+        }
+    }
+        
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID");
+    if (item == NULL || settings_set_wifi_ssid(item->valuestring))
+    {
+        ESP_LOGE("REST: ", "Error setting Wifi SSID");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_CHANNEL");
+    if (item == NULL || settings_set_wifi_channel(item->valueint))
+    {
+        ESP_LOGE("REST: ", "Error setting Wifi channel");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
+    if (item == NULL || settings_set_wifi_password(item->valuestring))
+    {
+        ESP_LOGE("REST: ", "Error setting Wifi SSID");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "ADC_RESOLUTION");
+    if (item == NULL || settings_set_resolution(item->valueint))
+    {
+        ESP_LOGE("REST: ", "ADC resolution missing or wrong value");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_SAMPLE_RATE");
+    if (item == NULL || settings_set_samplerate(item->valueint))
+    {
+        ESP_LOGE("REST: ", "Log sample rate missing or wrong value");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
+     item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_MODE");
+    if (item == NULL || settings_set_logmode(item->valueint))
+    {
+        ESP_LOGE("REST: ", "Log mode missing or wrong value");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
+    settings_persist_settings();
+    Logger_syncSettings();
+
+    free((void*)settings_in);
+    free((void*)item);
+
+    json_send_resp(req, ENDPOINT_RESP_ACK);
+    
     return ESP_OK;
 }
 
-/* Simple handler for getting system handler */
-static esp_err_t system_info_get_handler(httpd_req_t *req)
+
+
+static esp_err_t Logger_start_handler(httpd_req_t *req)
 {
+    
+    if (Logger_start() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK);
+    } else {
+        json_send_resp(req, ENDPOINT_RESP_NACK);
+    }
+
+    
+    return ESP_OK;
+}
+
+static esp_err_t Logger_stop_handler(httpd_req_t *req)
+{
+    if (Logger_stop() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK);
+    } else {
+        json_send_resp(req, ENDPOINT_RESP_NACK);
+    }
+    
+    return ESP_OK;
+}
+
+esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type)
+{
+
     httpd_resp_set_type(req, "application/json");
     cJSON *root = cJSON_CreateObject();
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-    cJSON_AddStringToObject(root, "version", IDF_VER);
-    cJSON_AddNumberToObject(root, "cores", chip_info.cores);
+
+    char str[6];
+
+    switch (type)
+    {
+        case ENDPOINT_RESP_ACK:
+            strcpy(str, "ack");
+        break;
+
+        case ENDPOINT_RESP_NACK:
+            strcpy(str, "nack");
+        break;
+
+        
+        case ENDPOINT_RESP_ERROR:
+        default:
+            strcpy(str, "error");
+        break;
+
+    }
+    cJSON_AddStringToObject(root, (const char*)"resp", str);
     const char *sys_info = cJSON_Print(root);
     httpd_resp_sendstr(req, sys_info);
     free((void *)sys_info);
     cJSON_Delete(root);
+
     return ESP_OK;
 }
 
-/* Simple handler for getting temperature data */
-static esp_err_t temperature_data_get_handler(httpd_req_t *req)
-{
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "raw", esp_random() % 20);
-    const char *sys_info = cJSON_Print(root);
-    httpd_resp_sendstr(req, sys_info);
-    free((void *)sys_info);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
 
 esp_err_t start_rest_server(const char *base_path)
 {
@@ -181,32 +484,60 @@ esp_err_t start_rest_server(const char *base_path)
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
 
-    /* URI handler for fetching system info */
-    httpd_uri_t system_info_get_uri = {
-        .uri = "/api/v1/system/info",
+
+
+
+    httpd_uri_t logger_getConfig_uri = {
+        .uri = "/ajax/getConfig",
         .method = HTTP_GET,
-        .handler = system_info_get_handler,
+        .handler = logger_getConfig_handler,
         .user_ctx = rest_context
     };
-    httpd_register_uri_handler(server, &system_info_get_uri);
 
-    /* URI handler for fetching temperature data */
-    httpd_uri_t temperature_data_get_uri = {
-        .uri = "/api/v1/temp/raw",
+    httpd_register_uri_handler(server, &logger_getConfig_uri);
+
+    httpd_uri_t logger_getValues_uri = {
+        .uri = "/ajax/getValues",
         .method = HTTP_GET,
-        .handler = temperature_data_get_handler,
+        .handler = logger_getValues_handler,
         .user_ctx = rest_context
     };
-    httpd_register_uri_handler(server, &temperature_data_get_uri);
 
-    /* URI handler for light brightness control */
-    httpd_uri_t light_brightness_post_uri = {
-        .uri = "/api/v1/light/brightness",
+    httpd_register_uri_handler(server, &logger_getValues_uri);
+
+    httpd_uri_t logger_getStatus_uri = {
+        .uri = "/ajax/getStatus",
+        .method = HTTP_GET,
+        .handler = logger_getStatus_handler,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_getStatus_uri);
+
+    httpd_uri_t logger_setConfig_uri = {
+        .uri = "/ajax/setConfig",
         .method = HTTP_POST,
-        .handler = light_brightness_post_handler,
+        .handler = logger_setConfig_handler,
         .user_ctx = rest_context
     };
-    httpd_register_uri_handler(server, &light_brightness_post_uri);
+
+    httpd_register_uri_handler(server, &logger_setConfig_uri);
+
+    httpd_uri_t logger_stop_uri = {
+        .uri = "/ajax/loggerStop",
+        .method = HTTP_GET,
+        .handler = Logger_stop_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &logger_stop_uri);
+
+    httpd_uri_t logger_start_uri = {
+        .uri = "/ajax/loggerStart",
+        .method = HTTP_GET,
+        .handler = Logger_start_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &logger_start_uri);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {

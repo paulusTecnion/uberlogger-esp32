@@ -1,12 +1,19 @@
-idf_component_register(SRCS "esp_rest_main.c" 
+idf_component_register(SRCS 
+                            "console.c"
+                            "hmi.c"                            
+                            "logger.c"                    
+                            "main.c"
                             "rest_server.c"
-                    INCLUDE_DIRS ".")
+                            "settings.c"
+                            "tempsensor.c"
+                            
+                    INCLUDE_DIRS "")
 
 if(CONFIG_EXAMPLE_WEB_DEPLOY_SF)
     set(WEB_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../front")
-    if(EXISTS ${WEB_SRC_DIR}/build)
-        spiffs_create_partition_image(www ${WEB_SRC_DIR}/build FLASH_IN_PROJECT)
+    if(EXISTS ${WEB_SRC_DIR}/www)
+        spiffs_create_partition_image(www ${WEB_SRC_DIR}/www FLASH_IN_PROJECT)
     else()
-        message(FATAL_ERROR "${WEB_SRC_DIR}/dist doesn't exit. Please run 'npm run build' in ${WEB_SRC_DIR}")
+        message(FATAL_ERROR "${WEB_SRC_DIR}/ doesn't exit. Please run 'npm run build' in ${WEB_SRC_DIR}")
     endif()
 endif()
