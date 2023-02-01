@@ -114,7 +114,16 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     converted_reading_t data;
     
     
-
+    if (Logger_singleShot() != ESP_OK)
+    {
+        cJSON_AddStringToObject(root, "error", "No data available");
+        const char *settings_json= cJSON_Print(root);
+        httpd_resp_sendstr(req, settings_json);
+        free((void *)settings_json);
+        cJSON_Delete(root);
+        return ESP_OK;
+    }
+    
     Logger_GetSingleConversion(&data);
     
     cJSON_AddNumberToObject(root, "TIMESTAMP", data.timestamp);

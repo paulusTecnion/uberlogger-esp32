@@ -387,8 +387,8 @@ esp_err_t Logger_singleShot()
     if(spi_device_get_trans_result(stm_spi_handle, &ptr, 1000 / portTICK_PERIOD_MS) == ESP_OK)
     {
         msg_part = 0;
-        Logger_GetSingleConversion(&measurement);
-        ESP_LOGI(TAG_LOG, "%f, %f, %f, %d", measurement.analogData[0], measurement.analogData[1], measurement.temperatureData[0], measurement.timestamp);
+        // Logger_GetSingleConversion(&measurement);
+        // ESP_LOGI(TAG_LOG, "%f, %f, %f, %d", measurement.analogData[0], measurement.analogData[1], measurement.temperatureData[0], measurement.timestamp);
         ESP_LOGI(TAG_LOG,"Single shot done");
         return ESP_OK;
     } else {
