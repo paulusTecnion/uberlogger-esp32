@@ -77,7 +77,7 @@ extern TaskHandle_t xHandle_stm32;
 uint32_t ulNotificationValue = 0;
 
 // State of STM interrupt pin. 0 = low, 1 = high
-bool int_level = 0;
+// bool int_level = 0;
 // Interrupt counter that tracks how many times the interrupt has been triggered. 
 uint8_t volatile int_counter =0;
 
@@ -102,9 +102,11 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
     // lasthandshaketime_us = currtime_us;
 
     // int_level inits at 0. So first trigger it will become 1 and then 0 again etc. 
-    int_level = !int_level;
+    // int_level = gpio_get_level(GPIO_DATA_RDY_PIN);
 
-    if (int_level) int_counter++;
+    // if (int_level)
+    // int_level = 1;
+    int_counter++;
     
     vTaskNotifyGiveFromISR( xHandle_stm32,
                                 //    xArrayIndex,
@@ -144,8 +146,9 @@ esp_err_t Logger_datardy_int(uint8_t value)
     {
         ESP_LOGI(TAG_LOG, "Enabling data_rdy interrupts");
         // Trigger on up and down edges
-        if (gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_ANYEDGE) == ESP_OK &&
-            gpio_install_isr_service(0) == ESP_OK &&
+        if (
+            // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
+            gpio_install_isr_service(ESP_INTR_FLAG_IRAM) == ESP_OK &&
             gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) == ESP_OK){
             return ESP_OK;
         } else {
@@ -239,14 +242,24 @@ esp_err_t Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
     _spi_transaction_rx0.tx_buffer = (const void*)&spi_cmd;
 
     // Wait until data ready pin is LOW
-    while(gpio_get_level(GPIO_DATA_RDY_PIN));
+    // ESP_LOGE(TAG_LOG, "Waiting for data rdy pin low..");
+       while(gpio_get_level(GPIO_DATA_RDY_PIN))
+    {
+        vTaskDelay( 10 / portTICK_PERIOD_MS);
+        timeout++;
+        if (timeout >= 100)
+        {
+            ESP_LOGE(TAG_LOG, "STM32 was not ready");
+            return ESP_FAIL;
+        }
+    }
     
     if (Logger_spi_single_transaction(&_spi_transaction_rx0) != ESP_OK)
     {   
         ESP_LOGE(TAG_LOG, "SPI command transmission timeout");
         return ESP_FAIL;
     }
-    ESP_LOGI(TAG_LOG,"Pass 1/2 CMD");
+    // ESP_LOGI(TAG_LOG,"Pass 1/2 CMD");
     // assert(spi_device_polling_transmit(stm_spi_handle, &_spi_transaction) == ESP_OK);
     // wait for 5 ms for stm32 to process data
     // Wait until data is ready for transmission
@@ -270,7 +283,7 @@ esp_err_t Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
         return ESP_FAIL;
     }
     
-    ESP_LOGI(TAG_LOG,"Pass 2/2 CMD");    
+    // ESP_LOGI(TAG_LOG,"Pass 2/2 CMD");    
     
     return ESP_OK;
 
@@ -359,7 +372,7 @@ esp_err_t Logger_singleShot()
         if (Logger_spi_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, 0) == ESP_OK)
         {
             
-            if ((recvbuf0[0] == 7) && (recvbuf0[1] == 1) )
+            if ((recvbuf0[0] == STM32_CMD_SINGLE_SHOT_MEASUREMENT) && (recvbuf0[1] == STM32_RESP_OK) )
             {
                 msg_part = 0;
             } else {
@@ -388,7 +401,7 @@ esp_err_t Logger_singleShot()
             msg_part = 0;
             // Logger_GetSingleConversion(&measurement);
             // ESP_LOGI(TAG_LOG, "%f, %f, %f, %d", measurement.analogData[0], measurement.analogData[1], measurement.temperatureData[0], measurement.timestamp);
-            ESP_LOGI(TAG_LOG,"Single shot done");
+            // ESP_LOGI(TAG_LOG,"Single shot done");
             return ESP_OK;
         } else {
             ESP_LOGE(TAG_LOG, "STM32 timeout, no measurement received");
@@ -548,7 +561,7 @@ esp_err_t Logger_stop()
     if (_currentLogTaskState == LOGTASK_LOGGING)
     {
         // Disable interrupt data ready pin
-        _nextLogTaskState = LOGTASK_IDLE;
+        _nextLogTaskState = LOGTASK_STOPPING;
        
         return ESP_OK;
     } 
@@ -630,20 +643,22 @@ esp_err_t Logger_log()
     
     static uint8_t count_offset = 1;
 
+    
     ulNotificationValue = ulTaskNotifyTake( 
                                             // xArrayIndex,
                                             pdTRUE,
                                             xMaxBlockTime );
-
+    
+    
         if (ulNotificationValue)
         {
-            if (int_level)
-            {
+            // if (int_level)
+            // {
                 // ESP_LOGI(TAG_LOG, "HIGH TRIGGER");
-                _nextLoggingState = LOGGING_START;
-            }  else  {
+                _currentLoggingState = LOGGING_START;
+            // }  else  {
                 // ESP_LOGI(TAG_LOG, "LOW TRIGGER");
-            }
+            // }
         }  
         // else {
             // Throw error
@@ -668,14 +683,14 @@ esp_err_t Logger_log()
                     _spi_transaction_rx0.rxlength=sizeof(recvbuf0)*8;
                     _spi_transaction_rx0.tx_buffer = NULL;                 
                     // _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0+(log_counter*STM_TXLENGTH);
-                    _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0;
+                    _spi_transaction_rx0.rx_buffer=recvbuf0;
 
                     ESP_LOGI(TAG_LOG, "Queuing SPI trans");
-                    assert(spi_device_queue_trans(stm_spi_handle, &_spi_transaction_rx0, 0) == ESP_OK);
+                    assert(spi_device_queue_trans(stm_spi_handle, &_spi_transaction_rx0, 10 / portTICK_PERIOD_MS) == ESP_OK);
 
                     _nextLoggingState = LOGGING_RX0_WAIT;
                     
-
+                       
             break;
             
             case LOGGING_RX0_WAIT:
@@ -757,7 +772,7 @@ esp_err_t Logger_log()
                                 // }
                                 }  else {
                                 //     // No start or stop byte found!
-                                    ESP_LOGE(TAG_LOG, "No start or stop byte found! Stop bytes: %d, %d", spi_msg_2_ptr->stopByte[0], spi_msg_2_ptr->stopByte[1]);
+                                    ESP_LOGE(TAG_LOG, "No start or stop byte found! Stop bytes: %d, %d and %d, %d", spi_msg_1_ptr->startByte[0], spi_msg_1_ptr->startByte[1], spi_msg_2_ptr->stopByte[0], spi_msg_2_ptr->stopByte[1]);
                                     
                                 //     return ESP_FAIL;
                                 }
@@ -814,7 +829,7 @@ esp_err_t Logger_log()
 
 
             case LOGGING_IDLE:
-                
+                return ESP_ERR_NOT_FINISHED;
             break;
         }
 
@@ -878,18 +893,22 @@ void task_logging(void * pvParameters)
 
     //GPIO config for the handshake line.
     gpio_config_t io_conf={
-        // .intr_type=GPIO_INTR_POSEDGE,
+        .intr_type=GPIO_INTR_POSEDGE,
         .mode=GPIO_MODE_INPUT,
         .pull_up_en=0,
         .pin_bit_mask=(1<<GPIO_DATA_RDY_PIN)
     };
 
+    gpio_config(&io_conf);
     // Init STM32 ADC enable pin
-    gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
+    // gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
+
+
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
     ret = gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
+    
 
     gpio_set_direction(GPIO_CS, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_CS, 0);
@@ -948,7 +967,7 @@ void task_logging(void * pvParameters)
         {
             case LOGTASK_IDLE:
             case LOGTASK_ERROR_OCCURED:
-                Logger_singleShot();
+                // Logger_singleShot();
                 vTaskDelay(500 / portTICK_PERIOD_MS);
                 
                 if (_nextLogTaskState == LOGTASK_LOGGING)
@@ -990,24 +1009,40 @@ void task_logging(void * pvParameters)
             break;
 
             case LOGTASK_LOGGING:
-                
-                if (Logger_log() != ESP_OK)
+                ret = Logger_log();
+                if (ret == ESP_FAIL )
                 {
                     ESP_LOGI(TAG_LOG, "Error occured in Logging statemachine. Stopping..");
                     _nextLogTaskState = LOGTASK_ERROR_OCCURED;
                 }
 
-                if (_nextLogTaskState == LOGTASK_IDLE || _nextLogTaskState == LOGTASK_ERROR_OCCURED)
+                if ( _nextLogTaskState == LOGTASK_ERROR_OCCURED || _nextLogTaskState == LOGTASK_STOPPING)
                 {
-                    // Disable logging (should change this)
-                    gpio_set_level(GPIO_ADC_EN, 0);
-                     // disable data_rdy interrupt
+                     gpio_set_level(GPIO_ADC_EN, 0); 
+                    // disable data_rdy interrupt
+                    if (_nextLogTaskState == LOGTASK_ERROR_OCCURED)
+                    {
+                        Logger_datardy_int(0);
+                    }
+
+                }
+
+            break;
+
+            case LOGTASK_STOPPING:
+                ret = Logger_log();
+                
+                if ( ret == ESP_OK )
+                {
+                    ESP_LOGI(TAG_LOG, "Last msg received");
+                     gpio_set_level(GPIO_ADC_EN, 0); 
+                //   disable data_rdy interrupt
                     if (Logger_datardy_int(0) != ESP_OK)
                     {
                         _nextLogTaskState = LOGTASK_ERROR_OCCURED;
                     }
 
-
+                    ESP_LOGI(TAG_LOG, "Flusing buffer");
                     // Flush buffer to sd card
                     if (settings_get_logmode() == LOGMODE_CSV)
                     {
@@ -1027,8 +1062,13 @@ void task_logging(void * pvParameters)
                     int_counter = 0;
                     fileman_close_file();
                     esp_sd_card_unmount();
-                    
+                    vTaskDelay(500 / portTICK_PERIOD_MS);
+                    _nextLogTaskState = LOGTASK_IDLE;
+                // } else {
+                //     ESP_LOGI(TAG_LOG, "Waiting for last message...");
+                    vTaskDelay(100 / portTICK_PERIOD_MS);
                 }
+                  
 
             break;
 
