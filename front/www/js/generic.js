@@ -21,7 +21,7 @@ function renderPage(page){
 }
 
 function gotoPage(page){
-  location.href="?page=" + page;
+  location.href="index.html?page=" + page;
 }
 
 
