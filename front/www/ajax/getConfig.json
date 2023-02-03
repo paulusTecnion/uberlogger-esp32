@@ -2,6 +2,8 @@
   "WIFI_SSID": "test wifi",
   "WIFI_PASSWORD": "lol+lol=hihi",
   "TIMESTAMP": 1673607089000,
+  "LOG_SAMPLE_RATE": 3,
+  "ADC_RESOLUTION": 16,
   "LOG_MODE": 0,
   "NTC_SELECT": {
     "NTC0": false,
@@ -17,7 +19,7 @@
     "AIN0": false,
     "AIN1": false,
     "AIN2": false,
-    "AIN3": false,
+    "AIN3": true,
     "AIN4": true,
     "AIN5": false,
     "AIN6": false,

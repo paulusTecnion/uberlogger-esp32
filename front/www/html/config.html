@@ -1,0 +1,231 @@
+<h1>Configuration</h1>
+
+<form id="configuration" method="post" action="ajax/saveConfig">
+
+<div class="visible" id="loading">
+	<p><i>Loading current configuration, please wait...</i></p>
+</div>
+
+<div class="invisible" id="config">
+	<p>Updating the configuration requires clicking the "Save settings" button to save the configuration and activate it. Intermediate changes will not be saved.</p>
+	
+	<h2>Backup or restore configuration</h2>
+	<div class="group" id="backuprestoreconfig">
+		<h3 class="first">Restore defaults</h3>
+		<label class="description" style="padding-bottom: 10px;">Restore the default settings by clicking the button below. They will be saved after clicking the save button at the bottom of this page.</label>
+		<input id="btn_load_defaults" class="button" type="button" name="btn_load_defaults" value="Restore default settings" onclick="loadFormDefaults()"/>
+		
+		<br/>
+		
+		<h3>Import/export configuration</h3>
+		<label class="description" style="padding-bottom: 10px;">You can download the current configuration and import it at a later time. When importing, the settings will be saved only after clicking the save button at the bottom of this page.</label>
+		<input id="btn_import_config" name="btn_import_config" class="button" type="button" value="Import settings from file..." onclick="importConfigfile()"/>
+		<input id="file_import_config" name="file_import_config" class="button" type="file" onchange="importConfigFileSelected()" accept=".json" style="visibility: hidden; display: none;">
+		<a href="ajax/downloadConfig"><button class="button" type="button">Download current settings</button></a>
+	</div>
+
+	<h2>WiFi configuration</h2>
+	<div class="group" id="wifi_configuration">
+		<h3>Connection details</h3>
+		<label for="WIFI_SSID">Network name (SSID)</label>
+		<input id="WIFI_SSID" name="WIFI_SSID" class="element" type="text" maxlength="32" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
+
+		<label for="WIFI_PASSWORD">Password</label>
+		<input id="WIFI_PASSWORD" name="WIFI_PASSWORD" class="element" type="text" maxlength="64" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
+	</div>
+
+	<h2>Logging</h2>
+	<div class="group" id="logging_configuration">
+		<h3>System time</h3>
+		
+		<p>To ensure recordings are indicating the correct time, you can synchronize the real time clock with the local time.</p>
+		<input id="btn_sync_time" class="button" type="button" name="btn_sync_time" value="Synchronize to local time" onclick="syncTime()"/>
+		
+
+		<h3>Logging mode</h3>
+		<label class="description" for="LOG_MODE" style="padding-bottom: 10px;">Select the desired logging mode:</label>           
+		<span>
+			<p>
+				<input id="log_mode_raw" name="LOG_MODE" class="element radio" type="radio" value="0" checked="checked"/>
+				<label class="choice" for="log_mode_raw">Write raw data to file</label>
+
+			<input id="log_mode_csv" name="LOG_MODE" class="element radio" type="radio" value="1"/>
+			<label class="choice" for="log_mode_csv">Write to CSV-file</label>          
+		</span>
+		<p><i><b>Note:</b> a new file will be created for each log (after stopping and starting).</i></p>
+
+		<h3>Sample rate</h3>
+		<p>
+			Select the desired logging rate:
+			<select name="LOG_SAMPLE_RATE" id="LOG_SAMPLE_RATE">
+				<option value="0">1 Samples/s</option>
+				<option value="1">2 Samples/s</option>
+				<option value="2">5 Samples/s</option>
+				<option value="3">10 Samples/s</option>
+				<option value="4">25 Samples/s</option>
+				<option value="5">50 Samples/s</option>
+				<option value="6">100 Samples/s</option>
+				<option value="7">250 Samples/s</option>
+				<option value="8">500 Samples/s</option>
+				<option value="9">1 kS/s</option>
+				<option value="10">2.5 kS/s</option>
+			</select>
+		</p>
+
+		<h3>Analog resolution</h3>
+		<p>
+			Select the desired analog resolution:
+			<select name="ADC_RESOLUTION" id="ADC_RESOLUTION">
+				<option value="12">12 bits</option>
+				<option value="16">16 bits</option>
+			</select>
+		</p>
+	</div>
+
+
+	<h2>Channel configuration</h2>
+	<div class="group" id="channel_configuration">
+		<h3>Analog channels</h3>
+		<p>Select the mode used for the analog channels.</p>
+		<p><i><b>Important:</b> Ensure the hardware configuration is equal to the settings below.</i></p>
+		<p><i><b>Note:</b> Range select has no effect when the NTC temperature input is used.</i></p>
+
+		<table>
+			<tr>
+				<th>Analog channel</th>
+				<th>Mode</th>
+				<th>Range</th>
+			</tr>
+			<tr>
+				<td>Channel 0</td>
+				<td>
+					<select name="NTC0" id="NTC0">
+						<option value="0">Analog in</option>
+						<option value="1">NTC</option>
+					</span>
+				</td>
+				<td>
+					<select name="AIN0" id="AIN0">
+						<option value="0">+/-10 V</option>
+						<option value="1">+/-60 V</option>
+					</span>
+				</td>
+			</tr>
+			<tr>
+				<td>Channel 1</td>
+				<td>
+					<select name="NTC1" id="NTC1">
+						<option value="0">Analog in</option>
+						<option value="1">NTC</option>
+					</span>
+				</td>
+				<td>
+					<select name="AIN1" id="AIN1">
+						<option value="0">+/-10 V</option>
+						<option value="1">+/-60 V</option>
+					</span>
+				</td>
+			</tr>
+			<tr>
+				<td>Channel 2</td>
+				<td>
+					<select name="NTC2" id="NTC2">
+						<option value="0">Analog in</option>
+						<option value="1">NTC</option>
+					</span>
+				</td>
+				<td>
+					<select name="AIN2" id="AIN2">
+						<option value="0">+/-10 V</option>
+						<option value="1">+/-60 V</option>
+					</span>
+				</td>
+			</tr>
+			<tr>
+				<td>Channel 3</td>
+				<td>
+					<select name="NTC3" id="NTC3">
+						<option value="0">Analog in</option>
+						<option value="1">NTC</option>
+					</span>
+				</td>
+				<td>
+					<select name="AIN3" id="AIN3">
+						<option value="0">+/-10 V</option>
+						<option value="1">+/-60 V</option>
+					</span>
+				</td>
+			</tr>
+			<tr>
+				<td>Channel 4</td>
+				<td>
+					<select name="NTC4" id="NTC4">
+						<option value="0">Analog in</option>
+						<option value="1">NTC</option>
+					</span>
+				</td>
+				<td>
+					<select name="AIN4" id="AIN4">
+						<option value="0">+/-10 V</option>
+						<option value="1">+/-60 V</option>
+					</span>
+				</td>
+			</tr>
+			<tr>
+				<td>Channel 5</td>
+				<td>
+					<select name="NTC5" id="NTC5">
+						<option value="0">Analog in</option>
+						<option value="1">NTC</option>
+					</span>
+				</td>
+				<td>
+					<select name="AIN5" id="AIN5">
+						<option value="0">+/-10 V</option>
+						<option value="1">+/-60 V</option>
+					</span>
+				</td>
+			</tr>
+			<tr>
+				<td>Channel 6</td>
+				<td>
+					<select name="NTC6" id="NTC6">
+						<option value="0">Analog in</option>
+						<option value="1">NTC</option>
+					</span>
+				</td>
+				<td>
+					<select name="AIN6" id="AIN6">
+						<option value="0">+/-10 V</option>
+						<option value="1">+/-60 V</option>
+					</span>
+				</td>
+			</tr>
+			<tr>
+				<td>Channel 7</td>
+				<td>
+					<select name="NTC7" id="NTC7">
+						<option value="0">Analog in</option>
+						<option value="1">NTC</option>
+					</span>
+				</td>
+				<td>
+					<select name="AIN7" id="AIN7">
+						<option value="0">+/-10 V</option>
+						<option value="1">+/-60 V</option>
+					</span>
+				</td>
+			</tr>
+
+		</table>
+
+		<h3>Digital channels</h3>
+		<p>Digital channels currently have no configuration options.</p>
+	</div>
+
+	<div id="configuration_done">
+		<input id="saveForm" class="button_text" type="submit" value="Save all settings"/>
+	</div>
+</div>
+
+</form>

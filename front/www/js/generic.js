@@ -1,3 +1,31 @@
+// load correct page after document is ready
+function loadPage(){
+  const urlParams = new URLSearchParams(window.location.search);
+  const page = urlParams.get('page');
+  
+  if((page=="")||(page == undefined)){
+    renderPage("overview");
+  }else{
+    renderPage(page);
+  }
+}
+
+function renderPage(page){
+  // get HTML of page
+  $.get("html/" + page + ".html", (data) => {
+    $("#render").html(data);
+  });
+
+  // load JS of page
+  $.getScript("js/" + page + ".js");
+}
+
+function gotoPage(page){
+  location.href="?page=" + page;
+}
+
+
+
 // assign to a form to avoid submit on enter press
 function checkEnter(e){
 	e = e || event;
@@ -5,15 +33,14 @@ function checkEnter(e){
 	return txtArea || (e.keyCode || e.which || e.charCode || 0) !== 13;
 }
 
+
 function queryData(query, parent){
-	console.log("Querying data...");
 	$.getJSON('./ajax/' + query, (data) => {
 		// parse JSON data to div
 		populateFields(parent, data);
-		console.log( "Done." );
 	})
 	.fail(function() {
-		console.log("Query failed.");
+		console.log("Data query failed.");
 	});		
 }
 
@@ -22,65 +49,63 @@ function populateFields(parent, data) {
   // name of children need to match with keys of data, values will be the values belonging to that key
 
   $.each(data, function(key, value){
+    // sanitizing of value can be done here
 
-      // sanitizing of value can be done here
-    
-      // process values
-      var $ctrl = $('[name=' + key + ']', parent); 
+    // process values
+    var $ctrl = $('[name=' + key + ']', parent); 
 
-      if($ctrl.is('select')){
-          $("option",$ctrl).each(function(){
+    if($ctrl.is('select')){
+      $("option",$ctrl).each(function(){
         if (this.value==value){
           this.selected=true;
         }else{
           this.selected=false;
         }
-          });
-
-      } else if($ctrl.is('input')){
-
-          switch($ctrl.attr("type"))  
-          {  
-              case "text" :   case "hidden":  case "textarea":
-          if(typeof(value) == "string"  || value == ""){
+      });
+    }else if($ctrl.is('input')){
+      switch($ctrl.attr("type"))  
+      {  
+        case "text": case "hidden": case "textarea":
+          if(typeof(value) == "string" || value == ""){
             $ctrl.val(value);
           }else{
-                    $ctrl.val(Number(value).toFixed(2));
+            $ctrl.val(Number(value).toFixed(2));
           }
-                  break;
-          
-              case "radio" :
-                  $ctrl.each(function(){
-              if($(this).attr('value') == value){
-                $(this).prop("checked",true);
-              }else{
-                $(this).prop("checked",false);
-              }
+          break;
+        
+        case "select":
+          $ctrl.each(function(){
+            $(this).attr('value') == value;
           });
-                  break;
-          
-        case "checkbox":   
-                  $ctrl.each(function(){
-              if($(this).attr('value') == value) {
-                 $(this).prop("checked",value);
-              }else{
-                 $(this).prop("checked",false);
-              }						   
-            });  
-                  break;
-          } 
-      } else if($ctrl.is('span')){
-      if(typeof(value) == "string" || value == ""){
-        $ctrl.html(value);
-      }else{
-        $ctrl.html(Number(value).toFixed(2));   
-      }
-    }
-  });  
-}
+          break;
 
-function renderPage(url){
-  $.get(url, (data) => {
-    $("#render").html(data);
-  });
+        case "radio":
+          $ctrl.each(function(){
+            if($(this).attr('value') == value){
+              $(this).prop("checked",true);
+            }else{
+              $(this).prop("checked",false);
+            }
+          });
+          break;
+        
+        case "checkbox":   
+          $ctrl.each(function(){
+            if(($(this).attr('value') == value)||(value == true)){
+                $(this).prop("checked",value);
+            }else{
+                $(this).prop("checked",false);
+            }						   
+          });  
+          break;
+    }
+
+  } else if($ctrl.is('span')){
+    if(typeof(value) == "string" || value == ""){
+      $ctrl.html(value);
+    }else{
+      $ctrl.html(Number(value).toFixed(2));   
+    }
+  }
+  });  
 }
