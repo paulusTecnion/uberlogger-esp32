@@ -58,7 +58,8 @@
     "esp_spiffs.h": "c",
     "unistd.h": "c",
     "cmath": "c",
-    "format": "c"
+    "format": "c",
+    "spi_control.h": "c"
   },
   "idf.adapterTargetName": "esp32s2",
   "idf.flashType": "UART",

@@ -5,43 +5,28 @@
 #include <stddef.h>
 #include <string.h>
 #include "esp_log.h"
+
+#include "fileman.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
-#include "hw_config.h"
-#include "esp_sd_card.h"
 #include "driver/spi_master.h"
+#include "esp_sd_card.h"
+#include "hw_config.h"
 #include "settings.h"
-#include "fileman.h"
+#include "spi_control.h"
 #include "tempsensor.h"
 #include "time.h"
 
-// Buffer size when sending data to STM. Value in bytes
-#define STM_SPI_BUFFERSIZE_CMD_TX 2
-// Receiving buffersize when in configuration mode. Value in bytes
-#define STM_SPI_BUFFERSIZE_CMD_RX 2
-// One line of the spi buffer depends on at what stage of sending it is. For the first half of the ADC conversion we have:
-// [start bytes][39*(1 year byte, 1 month byte, 1 date byte, 1 hour, 1 second byte, 4 subsecondsTime bytes) Time bytes][60*GPIO bytes][60*8channels*2 ADC bytes]
-// For the second half we have :
-// [39*8channels*2 ADC bytes][39*GPIO bytes][39*(1 year byte, 1 month byte, 1 date byte, 1 hour, 1 second byte, 4 subsecondsTime bytes) Time bytes][Stop bytes]
-// So the SPI TX length is: 
-// 2 start/stop bytes   = 2
-// 39*8*2 ADC           = 624
-// 39 * 1 GPIO          = 39
-// 39*(1+1+1+1+1+1+4)Time= 351
-//  Total               = 1016 bytes
 
 
-
+uint8_t * spi_buffer;
 spi_msg_1_t * spi_msg_1_ptr;
 spi_msg_2_t * spi_msg_2_ptr;
 
 uint8_t msg_part = 0;
 
-// Buffer for sending data to the STM
-DMA_ATTR uint8_t sendbuf[STM_SPI_BUFFERSIZE_CMD_TX];
-// Buffer for receiving data from the STM
-DMA_ATTR uint8_t recvbuf0[sizeof(spi_msg_1_t)];
+
 
 
 struct {
@@ -64,56 +49,18 @@ LoggingState_t _nextLoggingState = LOGGING_IDLE;
 // temporary variables to calculate fixed point numbers
 int64_t t0, t1,t2,t3;
 
-// handle to spi device
-spi_device_handle_t stm_spi_handle;
-// transactions variables for doing spi transactions with stm
-spi_transaction_t _spi_transaction_rx0, _spi_transaction_rx1;
 
-// max block time for interrupt
-const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 100 );
+
+
 // Handle to stm32 task
 extern TaskHandle_t xHandle_stm32;
-// Interrupt notification value
-uint32_t ulNotificationValue = 0;
 
 // State of STM interrupt pin. 0 = low, 1 = high
 // bool int_level = 0;
 // Interrupt counter that tracks how many times the interrupt has been triggered. 
 uint8_t volatile int_counter =0;
 
-  static uint8_t log_counter = 0;
-/*
-This ISR is called when the handshake line goes high OR low
-*/
-static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
-{
-     BaseType_t xYieldRequired = pdFALSE;
-
-     
-    //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
-    //looking at the time between interrupts and refusing any interrupt too close to another one.
-    // static uint32_t lasthandshaketime_us = 0;
-    // uint32_t currtime_us = esp_timer_get_time();
-    // uint32_t diff = currtime_us - lasthandshaketime_us;
-    // // Limit till 200kHz
-    // if (diff < 5) {
-    //     return; 
-    // }
-    // lasthandshaketime_us = currtime_us;
-
-    // int_level inits at 0. So first trigger it will become 1 and then 0 again etc. 
-    // int_level = gpio_get_level(GPIO_DATA_RDY_PIN);
-
-    // if (int_level)
-    // int_level = 1;
-    int_counter++;
-    
-    vTaskNotifyGiveFromISR( xHandle_stm32,
-                                //    xArrayIndex,
-                                   &xYieldRequired );
-    
-    portYIELD_FROM_ISR(xYieldRequired);
-}
+static uint8_t log_counter = 0;
 
 int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t range, uint64_t offset)
 {
@@ -140,31 +87,7 @@ float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1)
     return t3_f;
 }
 
-esp_err_t Logger_datardy_int(uint8_t value) 
-{
-    if (value == 1)
-    {
-        ESP_LOGI(TAG_LOG, "Enabling data_rdy interrupts");
-        // Trigger on up and down edges
-        if (
-            // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
-            gpio_install_isr_service(ESP_INTR_FLAG_IRAM) == ESP_OK &&
-            gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) == ESP_OK){
-            return ESP_OK;
-        } else {
-            return ESP_FAIL;
-        }
-        
-    } else if (value == 0) {
-        ESP_LOGI(TAG_LOG, "Disabling data_rdy interrupts");
-        gpio_isr_handler_remove(GPIO_DATA_RDY_PIN);
-        gpio_uninstall_isr_service();
-        return ESP_OK;
-    } else {
-        return ESP_FAIL;
-    }
 
-}
 
 LoggerState_t LogTaskGetState()
 {
@@ -210,93 +133,8 @@ uint8_t Logger_isLogging(void)
     }
 }
 
-esp_err_t Logger_spi_single_transaction(spi_transaction_t * transaction)
-{
-    
-    if (spi_device_queue_trans(stm_spi_handle, transaction, 100/ portTICK_PERIOD_MS) == ESP_OK)
-    {
-        if (spi_device_get_trans_result(stm_spi_handle, &transaction, 1000 / portTICK_PERIOD_MS) == ESP_OK)
-        {
-            return ESP_OK;
-        }   
-    }
 
-    return ESP_FAIL;
-}
 
-esp_err_t Logger_spi_cmd(stm32cmd_t cmd, uint8_t data)
-{
-    // uint8_t * ptr;
-    // ptr = trans->tx_buffer;
-    // ptr[0] = cmd;
-    // trans->rxlength = 1;
-    // spi_device_transmit(stm_spi_handle, trans);
-    spi_cmd_t spi_cmd;
-    uint8_t timeout = 0;
-    spi_cmd.command = cmd;
-    spi_cmd.data = data;    
-    
-    _spi_transaction_rx0.length = sizeof(spi_cmd)*8; // in bits!
-    _spi_transaction_rx0.rxlength = sizeof(spi_cmd)*8;
-    _spi_transaction_rx0.rx_buffer = recvbuf0;
-    _spi_transaction_rx0.tx_buffer = (const void*)&spi_cmd;
-
-    // Wait until data ready pin is LOW
-    // ESP_LOGE(TAG_LOG, "Waiting for data rdy pin low..");
-       while(gpio_get_level(GPIO_DATA_RDY_PIN))
-    {
-        vTaskDelay( 10 / portTICK_PERIOD_MS);
-        timeout++;
-        if (timeout >= 100)
-        {
-            ESP_LOGE(TAG_LOG, "STM32 was not ready");
-            return ESP_FAIL;
-        }
-    }
-    
-    if (Logger_spi_single_transaction(&_spi_transaction_rx0) != ESP_OK)
-    {   
-        ESP_LOGE(TAG_LOG, "SPI command transmission timeout");
-        return ESP_FAIL;
-    }
-    // ESP_LOGI(TAG_LOG,"Pass 1/2 CMD");
-    // assert(spi_device_polling_transmit(stm_spi_handle, &_spi_transaction) == ESP_OK);
-    // wait for 5 ms for stm32 to process data
-    // Wait until data is ready for transmission
-    
-    while(!gpio_get_level(GPIO_DATA_RDY_PIN))
-    {
-        vTaskDelay( 10 / portTICK_PERIOD_MS);
-        timeout++;
-        if (timeout >= 100)
-        {
-            ESP_LOGE(TAG_LOG, "STM32 was not ready");
-            return ESP_FAIL;
-        }
-    }
-    
-    _spi_transaction_rx0.tx_buffer = NULL;
-
-   if (Logger_spi_single_transaction(&_spi_transaction_rx0) != ESP_OK)
-    {   
-        ESP_LOGE(TAG_LOG, "STM32 reception failure");
-        return ESP_FAIL;
-    }
-    
-    // ESP_LOGI(TAG_LOG,"Pass 2/2 CMD");    
-    
-    return ESP_OK;
-
-}
-
-void Logger_print_rx_buffer(uint8_t * rxbuf)
-{
-    ESP_LOGI(TAG_LOG, "recvbuf:");
-    for (int i=0; i<16;i++)
-    {
-        ESP_LOGI(TAG_LOG, "%d", rxbuf[i]);
-    }
-}
 
 void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 {
@@ -367,16 +205,18 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 esp_err_t Logger_singleShot()
 {
     converted_reading_t measurement;
+    uint8_t * spi_buffer = spi_ctrl_getRxData();
+
     if (Logger_getState() != LOGTASK_LOGGING)
     {
         if (Logger_spi_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, 0) == ESP_OK)
         {
             
-            if ((recvbuf0[0] == STM32_CMD_SINGLE_SHOT_MEASUREMENT) && (recvbuf0[1] == STM32_RESP_OK) )
+            if ((spi_buffer[0] == STM32_CMD_SINGLE_SHOT_MEASUREMENT) && (spi_buffer[1] == STM32_RESP_OK) )
             {
                 msg_part = 0;
             } else {
-                Logger_print_rx_buffer(recvbuf0);
+                Logger_print_rx_buffer(spi_buffer);
                 ESP_LOGE(TAG_LOG, "Did not receive STM confirmation.");
                 return ESP_FAIL;
             } 
@@ -386,11 +226,11 @@ esp_err_t Logger_singleShot()
             return ESP_FAIL;
         }
         
-        _spi_transaction_rx0.length = sizeof(recvbuf0)*8;
-        _spi_transaction_rx0.rxlength=sizeof(recvbuf0)*8;
+        _spi_transaction_rx0.length = sizeof(spi_buffer)*8;
+        _spi_transaction_rx0.rxlength=sizeof(spi_buffer)*8;
         _spi_transaction_rx0.tx_buffer = NULL;                 
         // _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0+(log_counter*STM_TXLENGTH);
-        _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0;
+        _spi_transaction_rx0.rx_buffer=(uint8_t*)&spi_buffer;
 
         while(!gpio_get_level(GPIO_DATA_RDY_PIN));
         // Wait for data
@@ -423,14 +263,15 @@ uint8_t Logger_syncSettings()
     settings_persist_settings();
     // Send command to STM32 to go into settings mode
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
+    spi_buffer = spi_ctrl_getRxData();
 
     if (Logger_spi_cmd(STM32_CMD_SETTINGS_MODE, 0) == ESP_OK)
     {
         // Logger_print_rx_buffer();
-        if (recvbuf0[0] != STM32_CMD_SETTINGS_MODE || recvbuf0[1] != STM32_RESP_OK)
+        if (spi_buffer[0] != STM32_CMD_SETTINGS_MODE || spi_buffer[1] != STM32_RESP_OK)
         {
             ESP_LOGI(TAG_LOG, "Unable to put STM32 into SETTINGS mode. ");
-            Logger_print_rx_buffer(recvbuf0);
+            Logger_print_rx_buffer(spi_buffer);
             return RET_NOK;
         } 
         ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
@@ -442,10 +283,10 @@ uint8_t Logger_syncSettings()
 
      Logger_spi_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, settings_get_adc_channel_enabled_all());
     // Logger_print_rx_buffer();
-    if (recvbuf0[0] != STM32_CMD_SET_ADC_CHANNELS_ENABLED || recvbuf0[1] != STM32_RESP_OK)
+    if (spi_buffer[0] != STM32_CMD_SET_ADC_CHANNELS_ENABLED || spi_buffer[1] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", recvbuf0[0]);
-        Logger_print_rx_buffer(recvbuf0);
+        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", spi_buffer[0]);
+        Logger_print_rx_buffer(spi_buffer);
         return RET_NOK;
     }
 
@@ -453,10 +294,10 @@ uint8_t Logger_syncSettings()
 
     Logger_spi_cmd(STM32_CMD_SET_RESOLUTION, (uint8_t)settings_get_resolution());
     // Logger_print_rx_buffer();
-    if (recvbuf0[0] != STM32_CMD_SET_RESOLUTION || recvbuf0[1] != STM32_RESP_OK)
+    if (spi_buffer[0] != STM32_CMD_SET_RESOLUTION || spi_buffer[1] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", recvbuf0[0]);
-        Logger_print_rx_buffer(recvbuf0);
+        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", spi_buffer[0]);
+        Logger_print_rx_buffer(spi_buffer);
         return RET_NOK;
     } 
     
@@ -465,10 +306,10 @@ uint8_t Logger_syncSettings()
 
     Logger_spi_cmd(STM32_CMD_SET_SAMPLE_RATE, (uint8_t)settings_get_samplerate());
     // Logger_print_rx_buffer();
-    if (recvbuf0[0] != STM32_CMD_SET_SAMPLE_RATE || recvbuf0[1] != STM32_RESP_OK )
+    if (spi_buffer[0] != STM32_CMD_SET_SAMPLE_RATE || spi_buffer[1] != STM32_RESP_OK )
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 sample rate. ");
-        Logger_print_rx_buffer(recvbuf0);
+        Logger_print_rx_buffer(spi_buffer);
         return RET_NOK;
     }
 
@@ -477,10 +318,10 @@ uint8_t Logger_syncSettings()
     // Send settings one by one and confirm
     Logger_spi_cmd(STM32_CMD_MEASURE_MODE, 0);
     // Logger_print_rx_buffer();
-    if (recvbuf0[0] != STM32_CMD_MEASURE_MODE || recvbuf0[1] != STM32_RESP_OK )
+    if (spi_buffer[0] != STM32_CMD_MEASURE_MODE || spi_buffer[1] != STM32_RESP_OK )
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 in measure mode");
-        Logger_print_rx_buffer(recvbuf0);
+        Logger_print_rx_buffer(spi_buffer);
         return RET_NOK;
     }
 
@@ -844,7 +685,7 @@ esp_err_t Logger_log()
         }
                 
     
-    gpio_set_level(GPIO_CS, 0);
+
 
     return ESP_OK;
     
@@ -857,77 +698,22 @@ void task_logging(void * pvParameters)
     
 
     esp_err_t ret;
-    //Configuration for the SPI bus
-    spi_bus_config_t buscfg={
-        .mosi_io_num=STM32_SPI_MOSI,
-        .miso_io_num=STM32_SPI_MISO,
-        .sclk_io_num=STM32_SPI_SCLK,
-        .quadwp_io_num=-1,
-        .quadhd_io_num=-1,
-        .max_transfer_sz = 8192,
-        .flags = SPICOMMON_BUSFLAG_MASTER,
-        .intr_flags = ESP_INTR_FLAG_IRAM
-    };
-
-    //Configuration for the SPI device on the other side of the bus
-    spi_device_interface_config_t devcfg={
-        .command_bits=0,
-        .address_bits=0,
-        .dummy_bits=0,
-        .clock_speed_hz=SPI_STM32_BUS_FREQUENCY, //400000,
-        .duty_cycle_pos=128,        //50% duty cycle
-        .mode=0,
-        .spics_io_num=-1,//GPIO_CS,
-        .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
-        .queue_size=3,
-        .flags = 0,
-        .input_delay_ns=50
-    };  
-
-    gpio_config_t adc_en_conf={
-        .mode=GPIO_MODE_OUTPUT,
-        .pin_bit_mask=(1<<GPIO_ADC_EN)
-    };
-
-    
-
-    //GPIO config for the handshake line.
-    gpio_config_t io_conf={
-        .intr_type=GPIO_INTR_POSEDGE,
-        .mode=GPIO_MODE_INPUT,
-        .pull_up_en=0,
-        .pin_bit_mask=(1<<GPIO_DATA_RDY_PIN)
-    };
-
-    gpio_config(&io_conf);
+   
     // Init STM32 ADC enable pin
     // gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
 
 
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
+    gpio_config_t adc_en_conf={
+        .mode=GPIO_MODE_OUTPUT,
+        .pin_bit_mask=(1<<GPIO_ADC_EN)
+    };
+
     ret = gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
+
     
-
-    gpio_set_direction(GPIO_CS, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_CS, 0);
-  
-
-    memset(&_spi_transaction_rx0, 0, sizeof(_spi_transaction_rx0));
-    memset(&_spi_transaction_rx1, 0, sizeof(_spi_transaction_rx1));
-    memset(recvbuf0, 0 , sizeof(recvbuf0));
-
-
-    // //Initialize the SPI bus and add the device we want to send stuff to.
-    ret=spi_bus_initialize(STM32_SPI_HOST, &buscfg, STM32_SPI_HOST);
-    assert(ret==ESP_OK);
-    ret=spi_bus_add_device(STM32_SPI_HOST, &devcfg, &stm_spi_handle);
-    assert(ret==ESP_OK);
-    // // take the bus and never let go :-)
-    ret = spi_device_acquire_bus(stm_spi_handle, portMAX_DELAY);
-    assert(ret==ESP_OK);
-
     // // Initialize SD card
     if (esp_sd_card_mount() == ESP_OK)
     {
@@ -935,7 +721,6 @@ void task_logging(void * pvParameters)
         esp_sd_card_unmount();
     } 
     
-
     ESP_LOGI(TAG_LOG, "Logger task started");
     if (Logger_syncSettings() )
     {
@@ -943,9 +728,15 @@ void task_logging(void * pvParameters)
     } else {
         ESP_LOGI(TAG_LOG, "STM32 settings synced");
     }
+
+    if (spi_ctrl_init(STM32_SPI_HOST, GPIO_DATA_RDY_PIN) != ESP_OK)
+    {
+        // throw error
+    }
+
     
-    spi_msg_1_ptr = (spi_msg_1_t*)recvbuf0;
-    spi_msg_2_ptr = (spi_msg_2_t*)recvbuf0;
+    spi_msg_1_ptr = (spi_msg_1_t*)spi_buffer;
+    spi_msg_2_ptr = (spi_msg_2_t*)spi_buffer;
 
 
     while(1) {
@@ -1055,7 +846,7 @@ void task_logging(void * pvParameters)
                                         sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
                                         sdcard_data.timeData, (sizeof(sdcard_data.timeData)/sizeof(s_date_time_t)));
                     } else {
-                        Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&recvbuf0, SD_BUFFERSIZE);
+                        Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&sdcard_data, SD_BUFFERSIZE);
                     }
                     // reset counters
                     log_counter = 0;
