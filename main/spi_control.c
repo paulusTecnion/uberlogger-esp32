@@ -1,12 +1,12 @@
 #include "spi_control.h"
 
-
-#include "driver/spi_master.h"
-#include "driver/gpio.h"
 #include "esp_log.h"
+#include "esp_attr.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
+#include "driver/spi_master.h"
+#include "driver/gpio.h"
+#include "settings.h"
 #include "hw_config.h"
 
 // Buffer size when sending data to STM. Value in bytes
@@ -53,7 +53,7 @@ This ISR is called when the handshake line goes high OR low
 */
 static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
 {
-     BaseType_t xYieldRequired = pdFALSE;
+    BaseType_t xYieldRequired = pdFALSE;
 
      
     //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
@@ -79,6 +79,32 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
                                    &xYieldRequired );
     
     portYIELD_FROM_ISR(xYieldRequired);
+}
+
+esp_err_t spi_ctrl_datardy_int(uint8_t value) 
+{
+    if (value == 1)
+    {
+        ESP_LOGI(TAG_SPI_CTRL, "Enabling data_rdy interrupts");
+        // Trigger on up and down edges
+        if (
+            // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
+            gpio_install_isr_service(ESP_INTR_FLAG_IRAM) == ESP_OK &&
+            gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) == ESP_OK){
+            return ESP_OK;
+        } else {
+            return ESP_FAIL;
+        }
+        
+    } else if (value == 0) {
+        ESP_LOGI(TAG_SPI_CTRL, "Disabling data_rdy interrupts");
+        gpio_isr_handler_remove(GPIO_DATA_RDY_PIN);
+        gpio_uninstall_isr_service();
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
+
 }
 
 esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
@@ -136,33 +162,15 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
     ret = spi_device_acquire_bus(stm_spi_handle, portMAX_DELAY);
     assert(ret==ESP_OK);
     
-}
-
-esp_err_t spi_ctrl_datardy_int(uint8_t value) 
-{
-    if (value == 1)
+    if (spi_ctrl_datardy_int (1))
     {
-        ESP_LOGI(TAG_SPI_CTRL, "Enabling data_rdy interrupts");
-        // Trigger on up and down edges
-        if (
-            // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
-            gpio_install_isr_service(ESP_INTR_FLAG_IRAM) == ESP_OK &&
-            gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) == ESP_OK){
-            return ESP_OK;
-        } else {
-            return ESP_FAIL;
-        }
-        
-    } else if (value == 0) {
-        ESP_LOGI(TAG_SPI_CTRL, "Disabling data_rdy interrupts");
-        gpio_isr_handler_remove(GPIO_DATA_RDY_PIN);
-        gpio_uninstall_isr_service();
         return ESP_OK;
     } else {
         return ESP_FAIL;
     }
-
 }
+
+
 
 esp_err_t spi_ctrl_single_transaction(spi_transaction_t * transaction)
 {
@@ -257,4 +265,7 @@ uint8_t * spi_ctrl_getRxData(){
     return recvbuf0;
 }
 
-esp_err_t 
+esp_err_t spi_ctrl_loop()
+{
+    
+}
