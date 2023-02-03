@@ -7,7 +7,7 @@
 	<link rel="stylesheet" type="text/css" href="view.css" media="all">
 </head>
 
-<body>
+<body onload="loadPage();">
 
 <div id="content">
 	<div id="shadow_top"></div>
@@ -17,10 +17,10 @@
 			<div id="topbar"></div>
 			<div id="toptitle">UberLogger One</div>
 			<div id="topmenubar">
-				<button onclick="renderPage('overview.html');">Overview</button>
-				<button onclick="renderPage('config.html');">Configuration</button>
-				<button onclick="renderPage('log.html');">SD card logging</button>
-				<button onclick="renderPage('liveview.html');">View live data</button>
+				<button onclick="gotoPage('overview');">Overview</button>
+				<button onclick="gotoPage('config');">Configuration</button>
+				<button onclick="gotoPage('log');">SD card logging</button>
+				<button onclick="gotoPage('liveview');">View live data</button>
 			</div>
 		</div>
 		
@@ -36,10 +36,6 @@
 <!--- JavaScript includes --->
 <script src="js/jquery-3.6.1.min.js"></script>
 <script src="js/generic.js"></script>
-
-<script>
-	renderPage('overview.html');
-</script>
 
 </body>
 </html>

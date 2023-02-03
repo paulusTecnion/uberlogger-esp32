@@ -65,6 +65,21 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     } else {
         strlcat(filepath, req->uri, sizeof(filepath));
     }
+
+    char * buf;
+    size_t buf_len = httpd_req_get_url_query_len(req);
+    ESP_LOGI(REST_TAG, "Query length %d, filepath %d", buf_len, strlen(filepath));
+
+    if (buf_len > 0)
+    {
+        strlcpy(filepath, filepath, strlen(filepath)-buf_len);
+    }
+    
+    if (strncmp(filepath, rest_context->base_path, strlen(filepath) - 1) == 0)
+    {
+        strlcat(filepath, "index.html", sizeof(filepath));
+    }
+
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
         ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);

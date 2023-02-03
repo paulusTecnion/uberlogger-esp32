@@ -1,4 +1,5 @@
-renderValueList();
+$.getScript("js/plotly-2.16.1-basic.min.js");
+
 setInterval(renderValueList, 1000);
 
 var dataPoints={};
@@ -27,13 +28,8 @@ function sanitizeCategoryName(category){
 function renderValueList(){
     const query='getValues';
 
-    console.log("Querying data...");
-
     $.getJSON('./ajax/' + query, (data) => {
       // parse JSON data to input list
-
-      data["TIMESTAMP"]= Number(new Date()); // TODO: FOR TESTING ONLY
-
       let datetimestr = new Date(Number(data["TIMESTAMP"]));
 
       let htmlstring=[];
@@ -63,10 +59,9 @@ function renderValueList(){
 
       plotDataPoints();
 
-      console.log( "Done." );
     })
     .fail(function() {
-      console.log("Query failed.");
+      console.log("Data query failed.");
     });		
   
 }

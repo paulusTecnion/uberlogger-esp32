@@ -31,13 +31,13 @@ function loadForm(){
 	console.log( "Retrieving settings..." );
 	$.getJSON('ajax/getConfig', (data) => {
 		// parse JSON data to form
-    var frm="#configuration";
-    populateFields(frm, data);
 
-    document.querySelector("#loading").style.display = "none";
-    document.querySelector("#config").style.display = "block";
+		parseConfig(data);
 
-    console.log( "Done." );
+		document.querySelector("#loading").style.display = "none";
+		document.querySelector("#config").style.display = "block";
+
+		console.log( "Done." );
 	})
 	.fail(function() {
 		console.log( "Failed, could not retrieve settings." );
@@ -48,13 +48,29 @@ function loadFormDefaults(){
 	console.log( "Retrieving defaults..." );
 	$.getJSON('ajax/getDefaultConfig', (data) => {
 		// parse JSON data to form
-    var frm="#configuration";
+		parseConfig(data);
 
-    populateFields(frm, data);
-
-    console.log( "Done." );
+		console.log( "Done." );
 	})
 	.fail(function() {
 		console.log( "Failed, could not retrieve settings." );
 	});
 };
+
+function parseConfig(data){
+	
+	populateFields("#configuration", data);
+
+	populateFields("#channel_configuration", data["NTC_SELECT"]);
+	populateFields("#channel_configuration", data["AIN_RANGE_SELECT"]);
+
+}
+
+function syncTime() {
+	data["TIMESTAMP"]= Number(new Date()); // get current time
+
+	$.post("ajax/setTime", function( data ) {
+		let datetimestr = new Date(Number(data["TIMESTAMP"]));
+		console.log( "Time synced to " + datetimestr);	
+	});
+}

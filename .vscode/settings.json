@@ -60,8 +60,26 @@
     "cmath": "c",
     "format": "c",
     "spi_control.h": "c"
+    "format": "c",
+    "fcntl.h": "c",
+    "esp_console.h": "c",
+    "u8g2.h": "c",
+    "queue.h": "c",
+    "esp_timer.h": "c",
+    "nvs_flash.h": "c",
+    "u8g2_esp32_hal.h": "c",
+    "esp_mac.h": "c",
+    "err.h": "c",
+    "esp_netif.h": "c",
+    "esp_event.h": "c",
+    "esp_netif_types.h": "c",
+    "build_info.h": "c",
+    "soc_caps.h": "c",
+    "esp_http_server.h": "c"
   },
   "idf.adapterTargetName": "esp32s2",
   "idf.flashType": "UART",
-  "idf.portWin": "COM7"
+  "idf.portWin": "COM7",
+  "cmake.configureOnOpen": false,
+  "idf.port": "/dev/ttyACM0"
 }
