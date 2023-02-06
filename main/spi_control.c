@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
+#include "logger.h"
 #include "settings.h"
 #include "hw_config.h"
 
@@ -46,6 +47,8 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 100 );
 // Handle to stm32 task
 extern TaskHandle_t xHandle_stm32;
 
+volatile rxdata_state_t rxdata_state = RXDATA_STATE_NODATA;
+
 volatile uint16_t int_counter;
 
 /*
@@ -85,17 +88,21 @@ esp_err_t spi_ctrl_datardy_int(uint8_t value)
 {
     if (value == 1)
     {
-        ESP_LOGI(TAG_SPI_CTRL, "Enabling data_rdy interrupts");
-        // Trigger on up and down edges
-        if (
+            ESP_LOGI(TAG_SPI_CTRL, "Enabling data_rdy interrupts");
+            // Trigger on up and down edges
+            if (gpio_install_isr_service(ESP_INTR_FLAG_IRAM) != ESP_OK)
+            {
+                ESP_LOGE(TAG_SPI_CTRL, "Unable to install ISR service");
+                return ESP_FAIL;
+            }
             // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
-            gpio_install_isr_service(ESP_INTR_FLAG_IRAM) == ESP_OK &&
-            gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) == ESP_OK){
-            return ESP_OK;
-        } else {
-            return ESP_FAIL;
-        }
+            if (gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) != ESP_OK)
+            {
+                ESP_LOGE(TAG_SPI_CTRL, "Unable to add ISR handler");
+                return ESP_FAIL;
+            }
         
+            return ESP_OK;
     } else if (value == 0) {
         ESP_LOGI(TAG_SPI_CTRL, "Disabling data_rdy interrupts");
         gpio_isr_handler_remove(GPIO_DATA_RDY_PIN);
@@ -109,6 +116,7 @@ esp_err_t spi_ctrl_datardy_int(uint8_t value)
 
 esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
 {
+    esp_err_t ret;
      //Configuration for the SPI bus
     spi_bus_config_t buscfg={
         .mosi_io_num=STM32_SPI_MOSI,
@@ -136,7 +144,7 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
         .input_delay_ns=50
     };  
 
-    //GPIO config for the handshake line.
+    //GPIO config for the handshake line. Only trigger on positive edge
     gpio_config_t io_conf={
         .intr_type=GPIO_INTR_POSEDGE,
         .mode=GPIO_MODE_INPUT,
@@ -162,12 +170,8 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
     ret = spi_device_acquire_bus(stm_spi_handle, portMAX_DELAY);
     assert(ret==ESP_OK);
     
-    if (spi_ctrl_datardy_int (1))
-    {
-        return ESP_OK;
-    } else {
-        return ESP_FAIL;
-    }
+    return spi_ctrl_datardy_int (1) ;
+    
 }
 
 
@@ -204,6 +208,9 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
     _spi_transaction_rx0.rx_buffer = recvbuf0;
     _spi_transaction_rx0.tx_buffer = (const void*)&spi_cmd;
 
+    // Temporarily disable interrupts
+   
+
     // Wait until data ready pin is LOW
     // ESP_LOGE(TAG_LOG, "Waiting for data rdy pin low..");
        while(gpio_get_level(GPIO_DATA_RDY_PIN))
@@ -212,14 +219,14 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_LOG, "STM32 was not ready");
+            ESP_LOGE(TAG_SPI_CTRL, "STM32 was not ready");
             return ESP_FAIL;
         }
     }
     
     if (spi_ctrl_single_transaction(&_spi_transaction_rx0) != ESP_OK)
     {   
-        ESP_LOGE(TAG_LOG, "SPI command transmission timeout");
+        ESP_LOGE(TAG_SPI_CTRL, "SPI command transmission timeout");
         return ESP_FAIL;
     }
     // ESP_LOGI(TAG_LOG,"Pass 1/2 CMD");
@@ -233,7 +240,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_LOG, "STM32 was not ready");
+            ESP_LOGE(TAG_SPI_CTRL, "STM32 was not ready");
             return ESP_FAIL;
         }
     }
@@ -242,30 +249,137 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
 
    if (spi_ctrl_single_transaction(&_spi_transaction_rx0) != ESP_OK)
     {   
-        ESP_LOGE(TAG_LOG, "STM32 reception failure");
+        ESP_LOGE(TAG_SPI_CTRL, "STM32 reception failure");
         return ESP_FAIL;
     }
     
-    // ESP_LOGI(TAG_LOG,"Pass 2/2 CMD");    
+
     
     return ESP_OK;
 
 }
 
-void spi_ctrl_print_rx_buffer(uint8_t * rxbuf)
+void spi_ctrl_print_rx_buffer()
 {
-    ESP_LOGI(TAG_LOG, "recvbuf:");
+    ESP_LOGI(TAG_SPI_CTRL, "recvbuf:");
     for (int i=0; i<16;i++)
     {
-        ESP_LOGI(TAG_LOG, "%d", rxbuf[i]);
+        ESP_LOGI(TAG_SPI_CTRL, "%d", recvbuf0[i]);
     }
 }
 
-uint8_t * spi_ctrl_getRxData(){
+rxdata_state_t spi_ctrl_rxstate()
+{
+    return rxdata_state;
+}
+
+esp_err_t spi_ctrl_queue_msg(uint8_t * txData, size_t length)
+{
+    _spi_transaction_rx0.length = length*8;
+    _spi_transaction_rx0.rxlength= length*8;
+    _spi_transaction_rx0.tx_buffer = txData;                 
+    _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0;
+
+    // if(gpio_get_level(GPIO_DATA_RDY_PIN))
+    // {
+    //     // Apparently the STM32 is still in a busy state
+    //     ESP_LOGE(TAG_SPI_CTRL, "STM32 still busy (DATA RDY HIGH)");
+    //     return ESP_FAIL;
+    // }
+
+    // Queue transaction
+    if(spi_device_queue_trans(stm_spi_handle, &_spi_transaction_rx0, 10 / portTICK_PERIOD_MS) != ESP_OK)
+    {
+        ESP_LOGE(TAG_SPI_CTRL, "Cannot queue msg");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+
+
+}
+
+
+esp_err_t spi_ctrl_receive_data()
+{
+    
+    
+    spi_transaction_t * ptr = &_spi_transaction_rx0;
+    // Retreive
+    esp_err_t ret = spi_device_get_trans_result(stm_spi_handle, &ptr, 1000 / portTICK_PERIOD_MS);
+
+    // if(ret == ESP_OK)
+    // {
+       
+        // Logger_GetSingleConversion(&measurement);
+        // ESP_LOGI(TAG_LOG, "%f, %f, %f, %d", measurement.analogData[0], measurement.analogData[1], measurement.temperatureData[0], measurement.timestamp);
+        // ESP_LOGI(TAG_LOG,"Single shot done");
+       
+    // } 
+    
+    if (ret == ESP_ERR_TIMEOUT) 
+    {
+        ESP_LOGE(TAG_LOG, "STM32 timeout; could not receive data");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    if (ret == ESP_ERR_INVALID_ARG )
+    {
+        ESP_LOGE(TAG_LOG, "spi_device_get_trans_result arg error");
+        return ESP_ERR_INVALID_ARG;
+    }
+     return ESP_OK;
+   
+
+}
+
+uint8_t * spi_ctrl_getRxData()
+{
+    rxdata_state = RXDATA_STATE_NODATA;
     return recvbuf0;
 }
 
-esp_err_t spi_ctrl_loop()
+void spi_ctrl_reset_rx_state()
 {
+    rxdata_state = RXDATA_STATE_NODATA;
+}
+
+void spi_ctrl_loop()
+{
+      ulNotificationValue = ulTaskNotifyTake( 
+                                            // xArrayIndex,
+                                            pdTRUE,
+                                            xMaxBlockTime );
+    
+    
+        if (ulNotificationValue)
+        {
+            // if (int_level)
+            // {
+            ESP_LOGI(TAG_SPI_CTRL, "HIGH TRIGGER");
+            
+            if (rxdata_state == RXDATA_STATE_DATA_READY)
+            {
+                rxdata_state = RXDATA_STATE_DATA_OVERRUN;
+                ESP_LOGW(TAG_SPI_CTRL, "Warning: data overrun");
+            } else {
+                rxdata_state = RXDATA_STATE_DATA_READY;
+            }
+
+            
+            //currentLoggingState = LOGGING_START;
+            // }  else  {
+                // ESP_LOGI(TAG_LOG, "LOW TRIGGER");
+            // }
+        }  
+        // else {
+            // Throw error
+
+            // _currentLoggingState = LOGGING_IDLE;
+
+            // ESP_LOGI(TAG_LOG, "No DATA RDY intterupt");
+        // }
+
+        
     
 }

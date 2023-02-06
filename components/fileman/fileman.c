@@ -104,7 +104,7 @@ esp_err_t fileman_search_last_sequence_file(void)
         perror ("The following error occurred");
         return 0;
     }
-    return len;
+    return write_result;
 }
 
 int fileman_csv_write_header()
@@ -119,6 +119,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
   
     int j =0, y=0;
     uint32_t writeptr =0;
+    
     s_date_time_t *date_time_ptr = (s_date_time_t*)dataTime;
     // ESP_LOGI(TAG_FILE,"Lengths: %d, %d, %d", lenAdc, lenGpio, lenTime);
     
@@ -162,7 +163,10 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
  
         j++;
         // ESP_LOGI(TAG_FILE, "%s", strbuffer);
-        fprintf(f, strbuffer);
+        if (fprintf(f, strbuffer) == 0)
+        {
+            return 0;
+        }
         
     }
 
