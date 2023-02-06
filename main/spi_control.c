@@ -104,8 +104,9 @@ esp_err_t spi_ctrl_datardy_int(uint8_t value)
         
             return ESP_OK;
     } else if (value == 0) {
-        ESP_LOGI(TAG_SPI_CTRL, "Disabling data_rdy interrupts");
+        ESP_LOGI(TAG_SPI_CTRL, "Removing ISR handler" );
         gpio_isr_handler_remove(GPIO_DATA_RDY_PIN);
+        ESP_LOGI(TAG_SPI_CTRL, "Uninstalling ISR service");
         gpio_uninstall_isr_service();
         return ESP_OK;
     } else {
@@ -213,7 +214,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
 
     // Wait until data ready pin is LOW
     // ESP_LOGE(TAG_LOG, "Waiting for data rdy pin low..");
-       while(gpio_get_level(GPIO_DATA_RDY_PIN))
+    while(gpio_get_level(GPIO_DATA_RDY_PIN))
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;

@@ -103,22 +103,22 @@ uint8_t Logger_enterSettingsMode()
     }
 }
 
-uint8_t Logger_exitSettingsMode()
-{
-     // Typical usage, go to settings mode, set settings, sync settings, exit settings mode
-    if (_currentLogTaskState == LOGTASK_SETTINGS)
-    {
-        if (Logger_syncSettings() == RET_OK)
-        {
-            _nextLogTaskState = LOGTASK_IDLE;
-            return RET_OK;
-        } else {
-            return RET_NOK;
-        }
-    } else {
-        return RET_NOK;
-    }
-}
+// uint8_t Logger_exitSettingsMode()
+// {
+//      // Typical usage, go to settings mode, set settings, sync settings, exit settings mode
+//     if (_currentLogTaskState == LOGTASK_SETTINGS)
+//     {
+//         if (Logger_syncSettings() == ESP_OK)
+//         {
+//             _nextLogTaskState = LOGTASK_IDLE;
+//             return RET_OK;
+//         } else {
+//             return RET_NOK;
+//         }
+//     } else {
+//         return RET_NOK;
+//     }
+// }
 
 uint8_t Logger_isLogging(void)
 {
@@ -237,7 +237,7 @@ esp_err_t Logger_singleShot()
     
 }
 
-uint8_t Logger_syncSettings()
+esp_err_t Logger_syncSettings()
 {
     settings_persist_settings();
     // Send command to STM32 to go into settings mode
@@ -259,11 +259,11 @@ uint8_t Logger_syncSettings()
         {
             ESP_LOGI(TAG_LOG, "Unable to put STM32 into SETTINGS mode. ");
             spi_ctrl_print_rx_buffer(spi_buffer);
-            return RET_NOK;
+            return ESP_FAIL;
         } 
         ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
     } else {
-        return RET_NOK;
+        return ESP_FAIL;
     }
 
     Settings_t * settings = settings_get();
@@ -274,7 +274,7 @@ uint8_t Logger_syncSettings()
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", spi_buffer[0]);
         spi_ctrl_print_rx_buffer(spi_buffer);
-        return RET_NOK;
+        return ESP_FAIL;
     }
 
     ESP_LOGI(TAG_LOG, "ADC channels set");
@@ -285,7 +285,7 @@ uint8_t Logger_syncSettings()
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", spi_buffer[0]);
         spi_ctrl_print_rx_buffer(spi_buffer);
-        return RET_NOK;
+        return ESP_FAIL;
     } 
     
     ESP_LOGI(TAG_LOG, "ADC resolution set");
@@ -297,7 +297,7 @@ uint8_t Logger_syncSettings()
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 sample rate. ");
         spi_ctrl_print_rx_buffer(spi_buffer);
-        return RET_NOK;
+        return ESP_FAIL;
     }
 
     ESP_LOGI(TAG_LOG, "Sample rate set");
@@ -309,7 +309,7 @@ uint8_t Logger_syncSettings()
     {
         ESP_LOGI(TAG_LOG, "Unable to set STM32 in measure mode");
         spi_ctrl_print_rx_buffer(spi_buffer);
-        return RET_NOK;
+        return ESP_FAIL;
     }
 
     // Re-enable interrupts
@@ -319,7 +319,7 @@ uint8_t Logger_syncSettings()
     
     ESP_LOGI(TAG_LOG, "Sync done");
     // Exit settings mode 
-    return RET_OK;
+    return ESP_OK;
 }
 
 uint8_t Logger_setCsvLog(log_mode_t value)
@@ -587,18 +587,12 @@ esp_err_t Logger_log()
                                     settings_get_adc_channel_type_all());
                                 }
                                 
-                                // Logger_flush_buffer_to_sd_card_csv(adc_buffer_fixed_point, 8, sdcard_data.gpioData, 1, sdcard_data.timeData, 1);
-                                // for (int i=0; i<sizeof(adc_buffer_fixed_point)/16; i++)
-                                // {
-                                //     // ESP_LOGI(TAG_LOG, "ADC %d: %d", i, sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+i]);
-                                //     ESP_LOGI(TAG_LOG, "ADC %d: %d", i, adc_buffer_fixed_point[log_counter*sizeof(adc_buffer_fixed_point)/16+i]);
-                                // }
-                                
+                              
                                 log_counter++; // received bytes = log_counter*512
                                 
                                 // Check, for example, gpio data size to keep track if sdcard_data is full
                                 // Change in the future
-                                
+
                             // Set RX state to NODATA
                             spi_ctrl_reset_rx_state();
                             _nextLoggingState = LOGGING_IDLE;
@@ -609,59 +603,7 @@ esp_err_t Logger_log()
                 }
 
                     
-                            // ESP_LOGI(TAG_LOG, "log_counter:%d", log_counter);
-                            // // for (int i=0; i<sizeof(recvbuf0)/4; i++)
-                            // // {
-                            // //     ESP_LOGI(TAG_LOG, "Byte %d, %d", i, (recvbuf0[i]));
-                            // // }
-
-                            // //  for (int i=sizeof(recvbuf0)*3/4; i<sizeof(recvbuf0); i++)
-                            // // {
-                            // //     ESP_LOGI(TAG_LOG, "Byte %d, %d", i, (recvbuf0[i]));
-                            // // }
-                            
-                            // if (log_counter != (int_counter-1))
-                            // {
-
-                            //     ESP_LOGE(TAG_LOG, "Missing SPI transaction (%d vs. %d)! Stopping", log_counter, (int_counter));
-                            //     return ESP_FAIL;
-                            // }
-
-
-                            // Copy values to buffer
-
-                            // Check if the start bytes are first or last in the received SPI buffer
-                           
-                            
-                                // if (settings_get_logmode() == LOGMODE_CSV)
-                                // {
-                                //     // Write it SD
-                                //     ESP_LOGI(TAG_LOG, "ADC fixed p %d, %d, %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1], adc_buffer_fixed_point[2]);
-                                //     ESP_LOGI(TAG_LOG, "GPIO %d, %d, %d", sdcard_data.gpioData[0], sdcard_data.gpioData[1], sdcard_data.gpioData[2]);
-                                //     ESP_LOGI(TAG_LOG, "Sizes: %d, %d, %d", sizeof(adc_buffer_fixed_point), sizeof(sdcard_data.gpioData), sizeof(sdcard_data.timeData));
-                                    
-                                    
-                                //     Logger_flush_buffer_to_sd_card_csv(
-                                //         adc_buffer_fixed_point, (sizeof(adc_buffer_fixed_point)/sizeof(int32_t)),
-                                //         sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
-                                //         sdcard_data.timeData, (sizeof(sdcard_data.timeData)/sizeof(s_date_time_t)) );
-                                // } else {
-                                //     Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&sdcard_data, sizeof(sdcard_data));
-                                // }                    
-                                
-                            // }
-
                        
-            //             } else {
-            //                 ESP_LOGE(TAG_LOG, "RX0 timed out!");
-            //                 _nextLoggingState = LOGGING_IDLE;
-            //                 return ESP_ERR_TIMEOUT;
-            //             }
-            //             _nextLoggingState = LOGGING_IDLE;
-            //     }
-            //     break;
-
-
             case LOGGING_IDLE:
             {
                 rxdata_state_t state;
@@ -739,7 +681,7 @@ void task_logging(void * pvParameters)
         while(1);
     }
 
-    if (Logger_syncSettings() )
+    if (Logger_syncSettings() != ESP_OK)
     {
         ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
     } else {
@@ -790,19 +732,7 @@ void task_logging(void * pvParameters)
                             break;
                         }
                         fileman_csv_write_header();
-                        // _nextLoggingState = LOGGING_START;
-                        // // upon changing state to logging, make sure these settings are correct. 
-                        // // _spi_transaction_rx0.length=sizeof(sendbuf)*8; // size in bits
-                        // _spi_transaction_rx0.length=STM_SPI_BUFFERSIZE_DATA_RX*8; // size in bits
-                        // _spi_transaction_rx0.rxlength = STM_SPI_BUFFERSIZE_DATA_RX*8; // size in bits
-                        // // _spi_transaction.tx_buffer=sendbuf;
-                        // _spi_transaction_rx0.rx_buffer=(uint8_t*)&recvbuf0;
-                        // _spi_transaction_rx0.tx_buffer=NULL;
-
-                        // _nextLoggingState = LOGGING_IDLE;
-                        // esp_sd_card_mount_open_file();
-                        // enable data_rdy interrupt
-                        // assert(Logger_datardy_int(1) == RET_OK);
+                       
                         // Enable logging
                         gpio_set_level(GPIO_ADC_EN, 1);
                     } else {
@@ -825,12 +755,6 @@ void task_logging(void * pvParameters)
                 if ( _nextLogTaskState == LOGTASK_ERROR_OCCURED || _nextLogTaskState == LOGTASK_STOPPING)
                 {
                     gpio_set_level(GPIO_ADC_EN, 0); 
-                    // disable data_rdy interrupt
-                    // if (_nextLogTaskState == LOGTASK_ERROR_OCCURED)
-                    // {
-                        // Logger_datardy_int(0);
-                    // }
-
                 }
 
                 if(log_counter*sizeof(spi_msg_1_ptr->gpioData) >= sizeof(sdcard_data.gpioData))
@@ -850,20 +774,13 @@ void task_logging(void * pvParameters)
                 {
                     ESP_LOGI(TAG_LOG, "Last msg received");
                      
-                //   disable data_rdy interrupt
-                    // if (Logger_datardy_int(0) != ESP_OK)
-                    // {
-                    //     _nextLogTaskState = LOGTASK_ERROR_OCCURED;
-                    // }
-
                     ESP_LOGI(TAG_LOG, "Flusing buffer");
                     Logger_flush_to_sdcard();
                     fileman_close_file();
                     esp_sd_card_unmount();
                     vTaskDelay(500 / portTICK_PERIOD_MS);
                     _nextLogTaskState = LOGTASK_IDLE;
-                // } else {
-                //     ESP_LOGI(TAG_LOG, "Waiting for last message...");
+             
                     vTaskDelay(100 / portTICK_PERIOD_MS);
                 }
                   

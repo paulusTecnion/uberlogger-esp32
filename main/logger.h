@@ -131,7 +131,7 @@ uint8_t Logger_setCsvLog(log_mode_t value);
 uint8_t Logger_getCsvLog();
 
 uint8_t Logger_mode_button();
-uint8_t Logger_syncSettings();
+esp_err_t Logger_syncSettings();
 
 
 void Logger_GetSingleConversion(converted_reading_t* data);
