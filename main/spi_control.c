@@ -180,7 +180,7 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
 esp_err_t spi_ctrl_single_transaction(spi_transaction_t * transaction)
 {
     
-    if (spi_device_queue_trans(stm_spi_handle, transaction, 100/ portTICK_PERIOD_MS) == ESP_OK)
+    if (spi_device_queue_trans(stm_spi_handle, transaction, 10/ portTICK_PERIOD_MS) == ESP_OK)
     {
         if (spi_device_get_trans_result(stm_spi_handle, &transaction, 1000 / portTICK_PERIOD_MS) == ESP_OK)
         {
@@ -194,36 +194,37 @@ esp_err_t spi_ctrl_single_transaction(spi_transaction_t * transaction)
 
 esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
 {
-    // uint8_t * ptr;
-    // ptr = trans->tx_buffer;
-    // ptr[0] = cmd;
-    // trans->rxlength = 1;
-    // spi_device_transmit(stm_spi_handle, trans);
+
     spi_cmd_t spi_cmd;
     uint8_t timeout = 0;
+    
     spi_cmd.command = cmd;
     spi_cmd.data = data;    
     
-    _spi_transaction_rx0.length = sizeof(spi_cmd)*8; // in bits!
-    _spi_transaction_rx0.rxlength = sizeof(spi_cmd)*8;
-    _spi_transaction_rx0.rx_buffer = recvbuf0;
+    
+    _spi_transaction_rx0.length = sizeof(spi_cmd_t)*8; // in bits!
+    _spi_transaction_rx0.rxlength = sizeof(spi_cmd_t)*8;
+    _spi_transaction_rx0.rx_buffer = NULL;
     _spi_transaction_rx0.tx_buffer = (const void*)&spi_cmd;
 
     // Temporarily disable interrupts
    
 
-    // Wait until data ready pin is LOW
+    
     // ESP_LOGE(TAG_LOG, "Waiting for data rdy pin low..");
+
+    // Make sure data ready pin is low
     while(gpio_get_level(GPIO_DATA_RDY_PIN))
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_SPI_CTRL, "STM32 was not ready");
+            ESP_LOGE(TAG_SPI_CTRL, "STM32 has data rdy still high 1/3");
             return ESP_FAIL;
         }
     }
+
     
     if (spi_ctrl_single_transaction(&_spi_transaction_rx0) != ESP_OK)
     {   
@@ -233,19 +234,21 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
     // ESP_LOGI(TAG_LOG,"Pass 1/2 CMD");
     // assert(spi_device_polling_transmit(stm_spi_handle, &_spi_transaction) == ESP_OK);
     // wait for 5 ms for stm32 to process data
-    // Wait until data is ready for transmission
     
+    
+    // Wait until data is ready for transmission (data rdy turns high)
     while(!gpio_get_level(GPIO_DATA_RDY_PIN))
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_SPI_CTRL, "STM32 was not ready");
+            ESP_LOGE(TAG_SPI_CTRL, "STM32 did put data rdy high 2/3");
             return ESP_FAIL;
         }
     }
-    
+
+    _spi_transaction_rx0.rx_buffer = recvbuf0;
     _spi_transaction_rx0.tx_buffer = NULL;
 
    if (spi_ctrl_single_transaction(&_spi_transaction_rx0) != ESP_OK)
@@ -254,6 +257,17 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
         return ESP_FAIL;
     }
     
+    // Wait until data rdy pin is low again.
+    while(gpio_get_level(GPIO_DATA_RDY_PIN))
+    {
+        vTaskDelay( 10 / portTICK_PERIOD_MS);
+        timeout++;
+        if (timeout >= 100)
+        {
+            ESP_LOGE(TAG_SPI_CTRL, "STM32 did not lower data rdy 3/3");
+            return ESP_FAIL;
+        }
+    }
 
     
     return ESP_OK;
