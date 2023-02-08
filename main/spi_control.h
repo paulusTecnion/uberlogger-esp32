@@ -34,6 +34,10 @@ typedef enum stm32resp {
 typedef struct {
     uint8_t command;
     uint8_t data;
+    // this dummy byte is necessary for the FIFO buffer of the 
+    // SPI controller on the STM32 to fill up. Else if wait forever
+    // to complete the transaction.
+    uint16_t dummy;    
 } spi_cmd_t;
 
 esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point);
