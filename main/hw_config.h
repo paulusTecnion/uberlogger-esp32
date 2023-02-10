@@ -3,10 +3,14 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 */
 #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
 #define GPIO_DATA_RDY_PIN 6
+#define GPIO_DATA_OVERRUN 10
+
 #define STM32_SPI_MOSI 11
 #define STM32_SPI_MISO 13
 #define STM32_SPI_SCLK 12
-#define STM32_SPI_CS 10
+
+
+
 #define GPIO_ADC_EN 5
 
 #define GPIO_OLED_SDA 41

@@ -221,6 +221,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
         if (timeout >= 100)
         {
             ESP_LOGE(TAG_SPI_CTRL, "STM32 has data rdy still high 1/3");
+            
             return ESP_FAIL;
         }
     }
@@ -371,7 +372,7 @@ void spi_ctrl_loop()
         {
             // if (int_level)
             // {
-            ESP_LOGI(TAG_SPI_CTRL, "HIGH TRIGGER");
+            // ESP_LOGI(TAG_SPI_CTRL, "HIGH TRIGGER");
             
             if (rxdata_state == RXDATA_STATE_DATA_READY)
             {

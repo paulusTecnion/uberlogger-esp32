@@ -27,6 +27,7 @@
 #define DATA_TRANSACTIONS_PER_SD_FLUSH 4
 #define SD_BUFFERSIZE (DATA_TRANSACTIONS_PER_SD_FLUSH*STM_DATA_BUFFER_SIZE_PER_TRANSACTION) 
 
+
 static const char* TAG_LOG = "LOGGER";
 
 
@@ -114,11 +115,12 @@ float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
 
 
 LoggerState_t Logger_getState();
-esp_err_t Logger_log();
+esp_err_t Logger_log(uint8_t reset);
 esp_err_t Logger_start();
 esp_err_t Logger_stop();
 
 esp_err_t Logger_singleShot();
+uint32_t Logger_getError();
 
 
 // uint8_t Logger_flush_buffer_to_sd_card();
