@@ -214,18 +214,20 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
     // ESP_LOGE(TAG_LOG, "Waiting for data rdy pin low..");
 
     // Make sure data ready pin is low
+
     while(gpio_get_level(GPIO_DATA_RDY_PIN))
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_SPI_CTRL, "STM32 has data rdy still high 1/3");
+            ESP_LOGE(TAG_SPI_CTRL, "STM32 has data rdy still high, expected low 1/3");
             
             return ESP_FAIL;
         }
     }
 
+    
     
     if (spi_ctrl_single_transaction(&_spi_transaction_rx0) != ESP_OK)
     {   
@@ -236,7 +238,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
     // assert(spi_device_polling_transmit(stm_spi_handle, &_spi_transaction) == ESP_OK);
     // wait for 5 ms for stm32 to process data
     
-    
+    timeout = 0;
     // Wait until data is ready for transmission (data rdy turns high)
     while(!gpio_get_level(GPIO_DATA_RDY_PIN))
     {
@@ -244,7 +246,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_SPI_CTRL, "STM32 did put data rdy high 2/3");
+            ESP_LOGE(TAG_SPI_CTRL, "STM32 was LOW, expected HIGH 2/3");
             return ESP_FAIL;
         }
     }
@@ -252,12 +254,14 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
     _spi_transaction_rx0.rx_buffer = recvbuf0;
     _spi_transaction_rx0.tx_buffer = NULL;
 
+    
    if (spi_ctrl_single_transaction(&_spi_transaction_rx0) != ESP_OK)
     {   
         ESP_LOGE(TAG_SPI_CTRL, "STM32 reception failure");
         return ESP_FAIL;
     }
     
+    timeout = 0;
     // Wait until data rdy pin is low again.
     while(gpio_get_level(GPIO_DATA_RDY_PIN))
     {
@@ -265,7 +269,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_SPI_CTRL, "STM32 did not lower data rdy 3/3");
+            ESP_LOGE(TAG_SPI_CTRL, "STM32 was HIGH, expected LOW 3/3");
             return ESP_FAIL;
         }
     }
