@@ -31,6 +31,7 @@ struct {
     uint8_t timeData[TIME_BYTES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH];
     uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH];
     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH];
+    uint16_t datarows;
 }sdcard_data;
 
 
@@ -428,10 +429,10 @@ size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size)
    
 }
 
-size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime)
+size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime, size_t datarows)
 {
     ESP_LOGI(TAG_LOG, "Flusing CSV buffer to SD card");
-    return fileman_csv_write(adcData, lenAdc, gpioData, lenGpio, timeData ,lenTime);
+    return fileman_csv_write(adcData, lenAdc, gpioData, lenGpio, timeData ,lenTime, datarows);
 }
 
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
@@ -494,7 +495,7 @@ esp_err_t Logger_flush_to_sdcard()
             if (!Logger_flush_buffer_to_sd_card_csv(
                         adc_buffer_fixed_point, (sizeof(adc_buffer_fixed_point)/sizeof(int32_t)),
                         sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
-                        sdcard_data.timeData, (sizeof(sdcard_data.timeData)/sizeof(s_date_time_t))) )
+                        sdcard_data.timeData, (sizeof(sdcard_data.timeData)/sizeof(s_date_time_t)), sdcard_data.datarows) )
                         {
                             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
                             return ESP_FAIL;
@@ -554,6 +555,7 @@ esp_err_t Logger_log(uint8_t reset)
                                     spi_msg_1_ptr->adcData,
                                     sizeof(spi_msg_1_ptr->adcData));
 
+                                sdcard_data.datarows += spi_msg_1_ptr->dataLen;
                                 ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+2]);
                                 ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+2]);
                                 ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+3]);
@@ -577,7 +579,8 @@ esp_err_t Logger_log(uint8_t reset)
                                 // Finally Time bytes
                                 memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_2_ptr->timeData), 
                                     spi_msg_2_ptr->timeData, 
-                                    sizeof(spi_msg_2_ptr->timeData)); 
+                                    sizeof(spi_msg_2_ptr->timeData));
+                                sdcard_data.datarows += spi_msg_2_ptr->dataLen;
                                 ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+2]);
                                 ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+2]);
                                 ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+3]);
@@ -626,6 +629,7 @@ esp_err_t Logger_log(uint8_t reset)
                     if (int_counter==0)
                     {
                         count_offset = 0;
+                        sdcard_data.datarows = 0;
                     } 
                     spi_ctrl_queue_msg(NULL, sizeof(spi_msg_1_t));
                     _nextLoggingState = LOGGING_RX0_WAIT;
@@ -649,6 +653,7 @@ esp_err_t Logger_log(uint8_t reset)
             int_counter = 0;
             count_offset = 0;
             log_counter = 0;
+            sdcard_data.datarows = 0;
         }
 
         if (_nextLoggingState != _currentLoggingState)
@@ -725,6 +730,7 @@ void task_logging(void * pvParameters)
             if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
             {
                 Logger_start();
+                sdcard_data.datarows = 0;
             }
             
             if (_currentLogTaskState == LOGTASK_LOGGING)
@@ -776,9 +782,9 @@ void task_logging(void * pvParameters)
                 }
                 
                 ret = Logger_log(0);
-                if (ret == ESP_FAIL )
+                if (ret == ESP_FAIL || _errorCode > 0)
                 {
-                    ESP_LOGE(TAG_LOG, "Error occured in Logging statemachine. Stopping..");
+                    ESP_LOGE(TAG_LOG, "Error %08X occured in Logging statemachine. Stopping..", _errorCode);
                     
                      
                     ESP_LOGI(TAG_LOG, "Flusing buffer");

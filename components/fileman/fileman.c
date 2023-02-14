@@ -113,7 +113,7 @@ int fileman_csv_write_header()
     
 }
 
-int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio, const uint8_t* dataTime, size_t lenTime)
+int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio, const uint8_t* dataTime, size_t lenTime, size_t datarows)
 {
     
   
@@ -123,7 +123,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
     s_date_time_t *date_time_ptr = (s_date_time_t*)dataTime;
     // ESP_LOGI(TAG_FILE,"Lengths: %d, %d, %d", lenAdc, lenGpio, lenTime);
     
-    for (int i = 0; i<lenAdc; i=i+8)
+    for (int i = 0; i<datarows; i++)
     {
         // Print time stamp
         writeptr = writeptr + sprintf(strbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03d,",

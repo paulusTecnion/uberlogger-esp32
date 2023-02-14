@@ -125,7 +125,7 @@ uint32_t Logger_getError();
 
 // uint8_t Logger_flush_buffer_to_sd_card();
 size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size);
-size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdcBytes, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime);
+size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdcBytes, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime, size_t datarows);
 
 uint8_t Logger_isLogging(void);
 
