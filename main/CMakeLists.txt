@@ -7,6 +7,7 @@ idf_component_register(SRCS
                             "settings.c"
                             "spi_control.c"
                             "tempsensor.c"
+                            "wifi.c" 
                             
                     INCLUDE_DIRS "")
 
