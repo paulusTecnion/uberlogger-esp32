@@ -47,6 +47,8 @@ static int cmd_sample_rate(int argc, char **argv)
         return settings_set_samplerate(settings_args.val->ival[0]);
     } else if (!strcmp(settings_args.arg0->sval[0], "res"))  {   
         return settings_set_resolution(settings_args.val->ival[0]);
+    } else if (!strcmp(settings_args.arg0->sval[0], "print")){
+        return settings_print();
     } else {
         return 1;
     }
@@ -90,12 +92,14 @@ static void register_settings_sample_rate(void)
  int num_args = 2;
     settings_args.arg0 =
         
-    arg_str0(NULL, NULL, "<rate|res>", "Sample rate or resolution");
+    arg_str0(NULL, NULL, "<rate|res|print>", "Set Sample rate, resolution or print the settings");
 
     settings_args.val =
         
-    arg_int1(NULL, NULL, "<n>", "Sample rate in Hz");
+    arg_int1(NULL, NULL, "<n>", "Sample rate or resolution");
     settings_args.end = arg_end(num_args);
+
+
 
     const esp_console_cmd_t cmd = {
         .command = "settings",
@@ -189,6 +193,8 @@ static void register_singleshot(void)
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
+
+
 
 void init_console(){
     esp_console_repl_t *repl = NULL;

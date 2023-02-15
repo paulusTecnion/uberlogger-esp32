@@ -229,6 +229,31 @@ esp_err_t settings_load_persisted_settings()
     return ESP_FAIL;
 }
 
+esp_err_t settings_print()
+{
+    int i =0;
+    ESP_LOGI(TAG_SETTINGS, "ADC Resolution %d", _settings.adc_resolution);
+    ESP_LOGI(TAG_SETTINGS, "ADC Sample rate %d", _settings.log_sample_rate);
+    
+    for (i=0; i<8; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC ch%d type: %s", i, (_settings.adc_channel_type & (1<<i)) ? "NTC" : "Analog");
+    }
+    
+    
+    for (i=0; i<8; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC ch%d range:%s", i, (_settings.adc_channel_range & (1<<i)) ? "+/-60V" : "+/-10V");
+    }
+
+    ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
+    
+    ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);
+    ESP_LOGI(TAG_SETTINGS, "Wifi channel %d", _settings.wifi_channel);
+    
+    return ESP_OK;
+}
+
 esp_err_t settings_persist_settings()
 {
     if ( spiffs_write((const char*)&_settings, sizeof(_settings)) == ESP_OK)

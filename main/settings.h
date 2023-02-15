@@ -11,6 +11,8 @@
 #define MAX_WIFI_SSID_LEN 50
 #define MAX_WIFI_PASSW_LEN 20
 
+#define NUM_ADC_CHANNELS 8
+
 typedef enum adc_channel_e {
 	ADC_CHANNEL_0 = 0x00,
 	ADC_CHANNEL_1 = 0x01,
@@ -140,6 +142,8 @@ esp_err_t settings_set_samplerate(adc_sample_rate_t rate);
 
 esp_err_t settings_load_persisted_settings();
 esp_err_t settings_persist_settings();
+
+esp_err_t settings_print();
 
 adc_resolution_t settings_get_resolution();
 esp_err_t settings_set_resolution(adc_resolution_t res);
