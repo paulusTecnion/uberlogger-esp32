@@ -115,7 +115,7 @@ float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
 
 
 LoggerState_t Logger_getState();
-esp_err_t Logger_log(uint8_t reset);
+esp_err_t Logger_log();
 esp_err_t Logger_start();
 esp_err_t Logger_stop();
 

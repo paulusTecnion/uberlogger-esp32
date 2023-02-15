@@ -192,14 +192,14 @@ esp_err_t spi_ctrl_single_transaction(spi_transaction_t * transaction)
 }
 
 
-esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
+esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t cmd_data, size_t rx_data_length)
 {
 
     spi_cmd_t spi_cmd;
     uint8_t timeout = 0;
     
     spi_cmd.command = cmd;
-    spi_cmd.data = data;    
+    spi_cmd.data = cmd_data;    
     
     
     _spi_transaction_rx0.length = sizeof(spi_cmd_t)*8; // in bits!
@@ -251,6 +251,8 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t data)
         }
     }
 
+    _spi_transaction_rx0.rxlength = 8*rx_data_length;
+    _spi_transaction_rx0.length = 8*rx_data_length;
     _spi_transaction_rx0.rx_buffer = recvbuf0;
     _spi_transaction_rx0.tx_buffer = NULL;
 
@@ -340,6 +342,7 @@ esp_err_t spi_ctrl_receive_data()
     if (ret == ESP_ERR_TIMEOUT) 
     {
         ESP_LOGE(TAG_LOG, "STM32 timeout; could not receive data");
+        
         return ESP_ERR_TIMEOUT;
     }
 
@@ -371,35 +374,24 @@ void spi_ctrl_loop()
                                             pdTRUE,
                                             xMaxBlockTime );
     
-    
+
+        if (gpio_get_level(GPIO_DATA_OVERRUN))
+        {
+            rxdata_state = RXDATA_STATE_DATA_OVERRUN;
+        }
+        
         if (ulNotificationValue)
         {
             // if (int_level)
             // {
             // ESP_LOGI(TAG_SPI_CTRL, "HIGH TRIGGER");
             
-            if (rxdata_state == RXDATA_STATE_DATA_READY)
+            if (rxdata_state != RXDATA_STATE_DATA_OVERRUN)
             {
-                rxdata_state = RXDATA_STATE_DATA_OVERRUN;
-                ESP_LOGW(TAG_SPI_CTRL, "Warning: data overrun");
-            } else {
                 rxdata_state = RXDATA_STATE_DATA_READY;
-            }
+            } 
 
-            
-            //currentLoggingState = LOGGING_START;
-            // }  else  {
-                // ESP_LOGI(TAG_LOG, "LOW TRIGGER");
-            // }
         }  
-        // else {
-            // Throw error
 
-            // _currentLoggingState = LOGGING_IDLE;
-
-            // ESP_LOGI(TAG_LOG, "No DATA RDY intterupt");
-        // }
-
-        
-    
+       
 }
