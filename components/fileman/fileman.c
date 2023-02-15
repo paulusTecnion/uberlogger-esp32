@@ -115,14 +115,17 @@ int fileman_csv_write_header()
 
 int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio, const uint8_t* dataTime, size_t lenTime, size_t datarows)
 {
-    
-  
-    int j =0, y=0;
+    int j = 0;
     uint32_t writeptr =0;
     
     s_date_time_t *date_time_ptr = (s_date_time_t*)dataTime;
     // ESP_LOGI(TAG_FILE,"Lengths: %d, %d, %d", lenAdc, lenGpio, lenTime);
     
+    // for (int i = 0; i<32; i++)
+    // {
+    //     ESP_LOGI(TAG_FILE, "ADC fp: %d", *(dataAdc+i));
+    // }
+
     for (int i = 0; i<datarows; i++)
     {
         // Print time stamp
@@ -136,16 +139,16 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             date_time_ptr[j].subseconds);
 
         // Print ADC
-        for (int x=0; x<8; x++)
+        for (int x=0; x<NUM_ADC_CHANNELS; x++)
         {
             
-            if (dataAdc[i+x] > -1000000 && dataAdc[i+x]<0)
+            if (dataAdc[i*NUM_ADC_CHANNELS+x] > -1000000 && dataAdc[i*NUM_ADC_CHANNELS+x]<0)
             {
                 writeptr = writeptr + snprintf(strbuffer+writeptr, 14, "-%d.%06d,",
-                dataAdc[i+x] / 1000000, abs((dataAdc[i+x] - ((dataAdc[i+x]/ 1000000)*1000000))));
+                dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
             } else {
                 writeptr = writeptr + snprintf(strbuffer+writeptr, 14, "%d.%06d,", 
-                dataAdc[i+x] / 1000000, abs((dataAdc[i+x] - ((dataAdc[i+x]/ 1000000)*1000000))));
+                dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
             }
 
 
