@@ -25,7 +25,7 @@ uint8_t * spi_buffer;
 spi_msg_1_t * spi_msg_1_ptr;
 spi_msg_2_t * spi_msg_2_ptr;
 
-uint8_t msg_part = 0;
+uint8_t msg_part = 0, expected_msg_part = 0;
 
 struct {
     uint8_t timeData[TIME_BYTES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH];
@@ -525,6 +525,7 @@ void Logger_reset()
     log_counter = 0;
     sdcard_data.datarows = 0;
     _errorCode = 0;
+    expected_msg_part = 0;
     spi_ctrl_reset_rx_state();
 
 }
@@ -533,11 +534,15 @@ esp_err_t Logger_processData()
 {
     // there is data
     if (spi_msg_1_ptr->startByte[0] == 0xFF &&
-        spi_msg_1_ptr->startByte[1] == 0xFF)
+        spi_msg_1_ptr->startByte[1] == 0xFF && 
+        expected_msg_part == 0)
         {
             msg_part = 0;
+            expected_msg_part = 1;
             // ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
             // In this case we have Time bytes first...
+            
+
             memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_1_ptr->timeData), 
                 spi_msg_1_ptr->timeData, 
                 sizeof(spi_msg_1_ptr->timeData));
@@ -557,9 +562,11 @@ esp_err_t Logger_processData()
             ESP_LOGI(TAG_LOG, "dataLen: %d", sdcard_data.datarows);
         } 
         else if (spi_msg_2_ptr->stopByte[0] == 0xFF &&
-                spi_msg_2_ptr->stopByte[1] == 0xFF )
+                spi_msg_2_ptr->stopByte[1] == 0xFF &&
+                expected_msg_part == 1)
         {
             msg_part = 1;
+            expected_msg_part = 0;
             // Now the order is reversed.
             // ESP_LOGI(TAG_LOG, "Start bytes found 2/2");
             // First ADC bytes..
@@ -813,6 +820,7 @@ void task_logging(void * pvParameters)
                     Logger_flush_to_sdcard();
                     log_counter = 0;
                     int_counter = 0;
+                    sdcard_data.datarows = 0;
                 }
 
 
