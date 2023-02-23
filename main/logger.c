@@ -207,7 +207,7 @@ esp_err_t Logger_singleShot()
     converted_reading_t measurement;
     uint8_t * spi_buffer = spi_ctrl_getRxData();
 
-    if (Logger_getState() != LOGTASK_LOGGING)
+    if (Logger_getState() == LOGTASK_IDLE)
     {
         if (spi_ctrl_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, 0, sizeof(spi_cmd_t)) == ESP_OK)
         {
@@ -225,19 +225,17 @@ esp_err_t Logger_singleShot()
             SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
             return ESP_FAIL;
         }
-        
-        msg_part = 0;
-        
-        // Get the data from the STM32
-        return (spi_ctrl_receive_data(sizeof(spi_msg_1_t) == ESP_OK));        
+        return ESP_OK;        
     } 
-    else if (Logger_getState() == LOGTASK_LOGGING)
-    {
-        // Data should be already available, since normal logging is enabled
-        return ESP_OK;   
-    } else {
-        return ESP_FAIL;
-    }
+    
+    return ESP_FAIL;
+    // else if (Logger_getState() == LOGTASK_LOGGING)
+    // {
+    //     // Data should be already available, since normal logging is enabled
+    //     return ESP_OK;   
+    // } else {
+    //     return ESP_FAIL;
+    // }
     
     
 }
@@ -364,7 +362,7 @@ uint8_t Logger_mode_button_pushed()
         case 0:
           if(!level) 
           {
-            // ESP_LOGI(TAG_LOG, "MODE press hold");
+            ESP_LOGI(TAG_LOG, "MODE press hold");
             state = 1;
           }
         break;
@@ -372,14 +370,14 @@ uint8_t Logger_mode_button_pushed()
         case 1:
             if(level)
             {
-                // ESP_LOGI(TAG_LOG, "MODE released");
+                ESP_LOGI(TAG_LOG, "MODE released");
                 state = 2;
                 return 1;
             } 
         break;
 
         case 2:
-            // ESP_LOGI(TAG_LOG, "MODE reset");
+            ESP_LOGI(TAG_LOG, "MODE reset");
             state = 0;
             
         break;    
@@ -491,7 +489,7 @@ esp_err_t Logger_flush_to_sdcard()
         // ESP_LOGI(TAG_LOG, "ADC fixed p %d, %d, %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1], adc_buffer_fixed_point[2]);
         //             ESP_LOGI(TAG_LOG, "GPIO %d, %d, %d", sdcard_data.gpioData[0], sdcard_data.gpioData[1], sdcard_data.gpioData[2]);
         //             ESP_LOGI(TAG_LOG, "Sizes: %d, %d, %d", sizeof(adc_buffer_fixed_point), sizeof(sdcard_data.gpioData), sizeof(sdcard_data.timeData));
-                        
+        ESP_LOGI(TAG_LOG, "Flusing buffer");
         if (!Logger_flush_buffer_to_sd_card_csv(
             adc_buffer_fixed_point, (sizeof(adc_buffer_fixed_point)/sizeof(int32_t)),
             sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
@@ -519,22 +517,27 @@ uint32_t Logger_getError()
     return _errorCode;
 }
 
-void Logger_reset()
+void Logger_resetCounter()
 {
     int_counter = 0;
     log_counter = 0;
     sdcard_data.datarows = 0;
-    _errorCode = 0;
     expected_msg_part = 0;
-    spi_ctrl_reset_rx_state();
+    msg_part = 0;
+}
 
+void Logger_reset()
+{
+    Logger_resetCounter();
+    _errorCode = 0;
+    spi_ctrl_reset_rx_state();
 }
 
 esp_err_t Logger_processData()
 {
     // there is data
-    if (spi_msg_1_ptr->startByte[0] == 0xFF &&
-        spi_msg_1_ptr->startByte[1] == 0xFF && 
+    if (spi_msg_1_ptr->startByte[0] == 0xFA &&
+        spi_msg_1_ptr->startByte[1] == 0xFB &&
         expected_msg_part == 0)
         {
             msg_part = 0;
@@ -561,8 +564,8 @@ esp_err_t Logger_processData()
             ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+3]);
             ESP_LOGI(TAG_LOG, "dataLen: %d", sdcard_data.datarows);
         } 
-        else if (spi_msg_2_ptr->stopByte[0] == 0xFF &&
-                spi_msg_2_ptr->stopByte[1] == 0xFF &&
+        else if (spi_msg_2_ptr->stopByte[0] == 0xFB &&
+                spi_msg_2_ptr->stopByte[1] == 0xFA &&
                 expected_msg_part == 1)
         {
             msg_part = 1;
@@ -591,7 +594,7 @@ esp_err_t Logger_processData()
             // }
         }  else {
             //     // No start or stop byte found!
-            ESP_LOGE(TAG_LOG, "No start or stop byte found! Stop bytes: %d, %d and %d, %d", spi_msg_1_ptr->startByte[0], spi_msg_1_ptr->startByte[1], spi_msg_2_ptr->stopByte[0], spi_msg_2_ptr->stopByte[1]);
+            ESP_LOGE(TAG_LOG, "No start or stop byte found! Expected message: %d, stop bytes: %d, %d and %d, %d", expected_msg_part, spi_msg_1_ptr->startByte[0], spi_msg_1_ptr->startByte[1], spi_msg_2_ptr->stopByte[0], spi_msg_2_ptr->stopByte[1]);
             SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
             return ESP_FAIL;
         }
@@ -690,6 +693,7 @@ void task_logging(void * pvParameters)
     esp_err_t ret;
     CLEAR_ERRORS(_errorCode);
    
+    uint32_t lastTick = 0;
     // Init STM32 ADC enable pin
     // gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
 
@@ -756,6 +760,25 @@ void task_logging(void * pvParameters)
             case LOGTASK_IDLE:
                 // Logger_singleShot();
                 vTaskDelay(500 / portTICK_PERIOD_MS);
+                if (lastTick < 2)
+                {
+                    lastTick++;
+                } else {
+                    if (Logger_singleShot() == ESP_OK)
+                    {
+                        if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, 0, sizeof(spi_msg_1_t)) == ESP_OK)
+                        {
+                            ESP_LOGI(TAG_LOG, "Last msg received");
+                            Logger_processData();
+                            Logger_resetCounter();
+                        } else {
+                            ESP_LOGE(TAG_LOG, "Error receiving last message");
+                        }
+                    } else {
+                        ESP_LOGE(TAG_LOG, "Singleshot error");
+                    }
+                    lastTick = 0;
+                }
                 
                 if (_nextLogTaskState == LOGTASK_LOGGING)
                 {
@@ -797,13 +820,12 @@ void task_logging(void * pvParameters)
                 {
                     ESP_LOGE(TAG_LOG, "Error 0x%08X occured in Logging statemachine. Stopping..", _errorCode);
                     
-                     
-                    ESP_LOGI(TAG_LOG, "Flusing buffer");
                     Logger_flush_to_sdcard();
                     fileman_close_file();
                     esp_sd_card_unmount();
                     vTaskDelay(500 / portTICK_PERIOD_MS);
-                    spi_ctrl_reset_rx_state();
+                    // spi_ctrl_reset_rx_state();
+                    Logger_reset();
                     gpio_set_level(GPIO_ADC_EN, 0); 
                     _nextLogTaskState = LOGTASK_IDLE;
                     break;
