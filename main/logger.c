@@ -569,6 +569,7 @@ void Logger_reset()
     Logger_resetCounter();
     _errorCode = 0;
     spi_ctrl_reset_rx_state();
+    _currentLoggingState = LOGGING_IDLE;
 }
 
 esp_err_t Logger_processData()
@@ -683,8 +684,6 @@ esp_err_t Logger_log()
                                            
         }
 
-                    
-                       
         case LOGGING_IDLE:
         {
             rxdata_state_t state;
