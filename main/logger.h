@@ -30,8 +30,8 @@
 
 static const char* TAG_LOG = "LOGGER";
 
-
 // It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
+
 typedef struct {
     uint8_t startByte[START_STOP_NUM_BYTES]; // 2
     uint16_t dataLen;

@@ -25,6 +25,20 @@ uint8_t * spi_buffer;
 spi_msg_1_t * spi_msg_1_ptr;
 spi_msg_2_t * spi_msg_2_ptr;
 
+
+
+typedef struct {
+    uint8_t startByte[START_STOP_NUM_BYTES]; // 2
+    uint16_t dataLen;
+    s_date_time_t timeData; //12*70 = 840
+    uint8_t padding3;
+    uint8_t padding4;
+    uint8_t gpioData; // 70
+    uint8_t adcData[16]; // 1120
+} live_data_t;
+
+live_data_t live_data_buffer;
+
 uint8_t msg_part = 0, expected_msg_part = 0;
 
 struct {
@@ -48,9 +62,6 @@ LoggingState_t _nextLoggingState = LOGGING_IDLE;
 // temporary variables to calculate fixed point numbers
 int64_t t0, t1,t2,t3;
 uint32_t _errorCode;
-
-
-
 
 // Handle to stm32 task
 extern TaskHandle_t xHandle_stm32;
@@ -143,18 +154,20 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
     float tfloat = 0.0;
 
     uint16_t adc0, adc1; 
-    
+
 
     for (int i =0; i < 16; i=i+2)
     {
-        if (!msg_part)
-        {
-            adc0 = spi_msg_1_ptr->adcData[i];
-            adc1 = spi_msg_1_ptr->adcData[i+1];
-        } else {
-            adc0 = spi_msg_2_ptr->adcData[i];
-            adc1 = spi_msg_2_ptr->adcData[i+1];
-        }
+        // if (!msg_part)
+        // {
+        //     adc0 = spi_msg_1_ptr->adcData[i];
+        //     adc1 = spi_msg_1_ptr->adcData[i+1];
+        // } else {
+        //     adc0 = spi_msg_2_ptr->adcData[i];
+        //     adc1 = spi_msg_2_ptr->adcData[i+1];
+        // }
+        adc0 = live_data_buffer.adcData[i];
+        adc1 = live_data_buffer.adcData[i+1];
 
         dataOutput->analogData[j] = Logger_convertAdcFloat(adc0,  adc1);
         calculateTemperatureFloat(&tfloat, (float)(adc0 | (adc1 << 8)) , (float)(0x01 << settings_get_resolution())-1);
@@ -163,45 +176,51 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         j++;
     }
 
-    if (!msg_part)
-    {
-        dataOutput->gpioData[0] = (spi_msg_1_ptr->gpioData[0] & 0x04) && 1;
-        dataOutput->gpioData[1] = (spi_msg_1_ptr->gpioData[0] & 0x08) && 1;
-        dataOutput->gpioData[2] = (spi_msg_1_ptr->gpioData[0] & 0x10) && 1;
-        dataOutput->gpioData[3] = (spi_msg_1_ptr->gpioData[0] & 0x20) && 1;
-        dataOutput->gpioData[4] = (spi_msg_1_ptr->gpioData[0] & 0x40) && 1;
-        dataOutput->gpioData[5] = (spi_msg_1_ptr->gpioData[0] & 0x80) && 1;
-    } else {
-        dataOutput->gpioData[0] = (spi_msg_2_ptr->gpioData[0] & 0x04) && 1;
-        dataOutput->gpioData[1] = (spi_msg_2_ptr->gpioData[0] & 0x08) && 1;
-        dataOutput->gpioData[2] = (spi_msg_2_ptr->gpioData[0] & 0x10) && 1;
-        dataOutput->gpioData[3] = (spi_msg_2_ptr->gpioData[0] & 0x20) && 1;
-        dataOutput->gpioData[4] = (spi_msg_2_ptr->gpioData[0] & 0x40) && 1;
-        dataOutput->gpioData[5] = (spi_msg_2_ptr->gpioData[0] & 0x80) && 1;
-    }
+    // if (!msg_part)
+    // {
+        // dataOutput->gpioData[0] = (spi_msg_1_ptr->gpioData[0] & 0x04) && 1;
+        // dataOutput->gpioData[1] = (spi_msg_1_ptr->gpioData[0] & 0x08) && 1;
+        // dataOutput->gpioData[2] = (spi_msg_1_ptr->gpioData[0] & 0x10) && 1;
+        // dataOutput->gpioData[3] = (spi_msg_1_ptr->gpioData[0] & 0x20) && 1;
+        // dataOutput->gpioData[4] = (spi_msg_1_ptr->gpioData[0] & 0x40) && 1;
+        // dataOutput->gpioData[5] = (spi_msg_1_ptr->gpioData[0] & 0x80) && 1;
+        dataOutput->gpioData[0] = (live_data_buffer.gpioData & 0x04) && 1;
+        dataOutput->gpioData[1] = (live_data_buffer.gpioData & 0x08) && 1;
+        dataOutput->gpioData[2] = (live_data_buffer.gpioData & 0x10) && 1;
+        dataOutput->gpioData[3] = (live_data_buffer.gpioData & 0x20) && 1;
+        dataOutput->gpioData[4] = (live_data_buffer.gpioData & 0x40) && 1;
+        dataOutput->gpioData[5] = (live_data_buffer.gpioData & 0x80) && 1;
+    // } else {
+    //     dataOutput->gpioData[0] = (spi_msg_2_ptr->gpioData[0] & 0x04) && 1;
+    //     dataOutput->gpioData[1] = (spi_msg_2_ptr->gpioData[0] & 0x08) && 1;
+    //     dataOutput->gpioData[2] = (spi_msg_2_ptr->gpioData[0] & 0x10) && 1;
+    //     dataOutput->gpioData[3] = (spi_msg_2_ptr->gpioData[0] & 0x20) && 1;
+    //     dataOutput->gpioData[4] = (spi_msg_2_ptr->gpioData[0] & 0x40) && 1;
+    //     dataOutput->gpioData[5] = (spi_msg_2_ptr->gpioData[0] & 0x80) && 1;
+    // }
     
 
-    if (!msg_part)
-    {
-        t.tm_hour = spi_msg_1_ptr->timeData->hours;
-        t.tm_min = spi_msg_1_ptr->timeData->minutes;
-        t.tm_sec = spi_msg_1_ptr->timeData->seconds;
-        t.tm_year = spi_msg_1_ptr->timeData->year+100;
-        t.tm_mon = spi_msg_1_ptr->timeData->month-1;
-        t.tm_mday = spi_msg_1_ptr->timeData->date;
-    } else {
-        t.tm_hour = spi_msg_2_ptr->timeData->hours;
-        t.tm_min = spi_msg_2_ptr->timeData->minutes;
-        t.tm_sec = spi_msg_2_ptr->timeData->seconds;
-        t.tm_year = spi_msg_2_ptr->timeData->year+100;
-        t.tm_mon = spi_msg_2_ptr->timeData->month-1;
-        t.tm_mday = spi_msg_2_ptr->timeData->date;
-    }
+    // if (!msg_part)
+    // {
+        t.tm_hour = live_data_buffer.timeData.hours;
+        t.tm_min =  live_data_buffer.timeData.minutes;
+        t.tm_sec =  live_data_buffer.timeData.seconds;
+        t.tm_year = live_data_buffer.timeData.year+100;
+        t.tm_mon =  live_data_buffer.timeData.month-1;
+        t.tm_mday = live_data_buffer.timeData.date;
+    // } else {
+    //     t.tm_hour = spi_msg_2_ptr->timeData->hours;
+    //     t.tm_min = spi_msg_2_ptr->timeData->minutes;
+    //     t.tm_sec = spi_msg_2_ptr->timeData->seconds;
+    //     t.tm_year = spi_msg_2_ptr->timeData->year+100;
+    //     t.tm_mon = spi_msg_2_ptr->timeData->month-1;
+    //     t.tm_mday = spi_msg_2_ptr->timeData->date;
+    // }
     
     
 
     dataOutput->timestamp  = (uint32_t)mktime(&t);    
-    // ESP_LOGI(TAG_LOG, "%d, %d-%d-%d %d:%d:%d", dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+    ESP_LOGI(TAG_LOG, "%d %d, %d-%d-%d %d:%d:%d", msg_part, dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 }
 
 esp_err_t Logger_singleShot()
@@ -738,6 +757,7 @@ void task_logging(void * pvParameters)
 
     spi_cmd_t spi_cmd;
 
+
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
     gpio_config_t adc_en_conf={
@@ -817,6 +837,20 @@ void task_logging(void * pvParameters)
                         } else {
                             ESP_LOGE(TAG_LOG, "Error receiving last message");
                         }
+
+                        // copy values to live buffer, else it might be overwritten during a SPI transaction!
+                        if (!msg_part)
+                        {
+                            memcpy(live_data_buffer.adcData, spi_msg_1_ptr->adcData, sizeof(live_data_buffer.adcData));
+                            live_data_buffer.gpioData = spi_msg_1_ptr->gpioData[0];
+                            live_data_buffer.timeData = spi_msg_1_ptr->timeData[0];
+                        } else {
+                            memcpy(live_data_buffer.adcData, spi_msg_2_ptr->adcData, sizeof(live_data_buffer.adcData));
+                            live_data_buffer.gpioData = spi_msg_2_ptr->gpioData[0];
+                            live_data_buffer.timeData = spi_msg_2_ptr->timeData[0];
+                        }
+                        
+
                     } else {
                         ESP_LOGE(TAG_LOG, "Singleshot error");
                     }
