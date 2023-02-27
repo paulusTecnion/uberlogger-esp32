@@ -187,19 +187,21 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         t.tm_min = spi_msg_1_ptr->timeData->minutes;
         t.tm_sec = spi_msg_1_ptr->timeData->seconds;
         t.tm_year = spi_msg_1_ptr->timeData->year+100;
-        t.tm_mon = spi_msg_1_ptr->timeData->month;
+        t.tm_mon = spi_msg_1_ptr->timeData->month-1;
         t.tm_mday = spi_msg_1_ptr->timeData->date;
     } else {
         t.tm_hour = spi_msg_2_ptr->timeData->hours;
         t.tm_min = spi_msg_2_ptr->timeData->minutes;
         t.tm_sec = spi_msg_2_ptr->timeData->seconds;
         t.tm_year = spi_msg_2_ptr->timeData->year+100;
-        t.tm_mon = spi_msg_2_ptr->timeData->month;
+        t.tm_mon = spi_msg_2_ptr->timeData->month-1;
         t.tm_mday = spi_msg_2_ptr->timeData->date;
     }
     
+    
 
     dataOutput->timestamp  = (uint32_t)mktime(&t);    
+    ESP_LOGI(TAG_LOG, "%d, %d-%d-%d %d:%d:%d", dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 }
 
 esp_err_t Logger_singleShot()
