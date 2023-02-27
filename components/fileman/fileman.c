@@ -19,7 +19,7 @@ void fileman_create_filename()
     }
 
     sprintf(file_name, MOUNT_POINT"/log%d%s", file_seq_num, filext);
-    ESP_LOGI(TAG_FILE, "%s", file_name);
+    // ESP_LOGI(TAG_FILE, "%s", file_name);
 }
 
 // fileman_search_last_sequence_file must be called before callign this function!
