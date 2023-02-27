@@ -166,6 +166,10 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         //     adc0 = spi_msg_2_ptr->adcData[i];
         //     adc1 = spi_msg_2_ptr->adcData[i+1];
         // }
+
+
+
+
         adc0 = live_data_buffer.adcData[i];
         adc1 = live_data_buffer.adcData[i+1];
 
@@ -670,6 +674,19 @@ esp_err_t Logger_processData()
         
         log_counter++; // received bytes = log_counter*512
         
+        // copy values to live buffer, else it might be overwritten during a SPI transaction!
+        // could also replace this with a semaphore
+        if (!msg_part)
+        {
+            memcpy(live_data_buffer.adcData, spi_msg_1_ptr->adcData, sizeof(live_data_buffer.adcData));
+            live_data_buffer.gpioData = spi_msg_1_ptr->gpioData[0];
+            live_data_buffer.timeData = spi_msg_1_ptr->timeData[0];
+        } else {
+            memcpy(live_data_buffer.adcData, spi_msg_2_ptr->adcData, sizeof(live_data_buffer.adcData));
+            live_data_buffer.gpioData = spi_msg_2_ptr->gpioData[0];
+            live_data_buffer.timeData = spi_msg_2_ptr->timeData[0];
+        }
+        
         return ESP_OK;
 }
 
@@ -837,20 +854,6 @@ void task_logging(void * pvParameters)
                         } else {
                             ESP_LOGE(TAG_LOG, "Error receiving last message");
                         }
-
-                        // copy values to live buffer, else it might be overwritten during a SPI transaction!
-                        if (!msg_part)
-                        {
-                            memcpy(live_data_buffer.adcData, spi_msg_1_ptr->adcData, sizeof(live_data_buffer.adcData));
-                            live_data_buffer.gpioData = spi_msg_1_ptr->gpioData[0];
-                            live_data_buffer.timeData = spi_msg_1_ptr->timeData[0];
-                        } else {
-                            memcpy(live_data_buffer.adcData, spi_msg_2_ptr->adcData, sizeof(live_data_buffer.adcData));
-                            live_data_buffer.gpioData = spi_msg_2_ptr->gpioData[0];
-                            live_data_buffer.timeData = spi_msg_2_ptr->timeData[0];
-                        }
-                        
-
                     } else {
                         ESP_LOGE(TAG_LOG, "Singleshot error");
                     }
