@@ -402,13 +402,22 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-     item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_MODE");
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_MODE");
     if (item == NULL || settings_set_logmode(item->valueint))
     {
         ESP_LOGE("REST: ", "Log mode missing or wrong value");
         json_send_resp(req, ENDPOINT_RESP_ERROR);
         return ESP_FAIL;
     }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
+    if (item == NULL || settings_set_timestamp(item->valueint))
+    {
+        ESP_LOGE("REST: ", "Log mode missing or wrong value");
+        json_send_resp(req, ENDPOINT_RESP_ERROR);
+        return ESP_FAIL;
+    }
+
 
     settings_persist_settings();
     Logger_syncSettings();
