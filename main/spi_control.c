@@ -192,28 +192,30 @@ esp_err_t spi_ctrl_single_transaction(spi_transaction_t * transaction)
 }
 
 
-esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t cmd_data, size_t rx_data_length)
+esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_length)
 {
 
-    spi_cmd_t spi_cmd;
+    // spi_cmd_t spi_cmd;
     uint8_t timeout = 0;
     
-    spi_cmd.command = cmd;
-    spi_cmd.data = cmd_data;    
-    
+    // spi_cmd.command = cmd;
+    // spi_cmd.data = cmd_data;    
     
     _spi_transaction_rx0.length = sizeof(spi_cmd_t)*8; // in bits!
     _spi_transaction_rx0.rxlength = sizeof(spi_cmd_t)*8;
     _spi_transaction_rx0.rx_buffer = NULL;
-    _spi_transaction_rx0.tx_buffer = (const void*)&spi_cmd;
+    _spi_transaction_rx0.tx_buffer = (const void*)cmd_data;
 
     // Temporarily disable interrupts
    
-
-    
     // ESP_LOGE(TAG_LOG, "Waiting for data rdy pin low..");
 
     // Make sure data ready pin is low
+
+    // for (int i=0; i<7; i++)
+    // {
+    //     ESP_LOGI(TAG_SPI_CTRL, "data%d %d", i, *((&cmd_data->data0) + i));
+    // }
 
     while(gpio_get_level(GPIO_DATA_RDY_PIN))
     {
@@ -310,6 +312,8 @@ esp_err_t spi_ctrl_queue_msg(uint8_t * txData, size_t length)
     // }
 
     // Queue transaction
+    ESP_LOGI(TAG_LOG, "Queuing message %d, %d", _spi_transaction_rx0.length, _spi_transaction_rx0.rxlength);
+    
     if(spi_device_queue_trans(stm_spi_handle, &_spi_transaction_rx0, 10 / portTICK_PERIOD_MS) != ESP_OK)
     {
         ESP_LOGE(TAG_SPI_CTRL, "Cannot queue msg");
@@ -328,7 +332,7 @@ esp_err_t spi_ctrl_receive_data()
     
     spi_transaction_t * ptr = &_spi_transaction_rx0;
     // Retreive
-    esp_err_t ret = spi_device_get_trans_result(stm_spi_handle, &ptr, 1000 / portTICK_PERIOD_MS);
+    esp_err_t ret = spi_device_get_trans_result(stm_spi_handle, &ptr, 2000 / portTICK_PERIOD_MS);
 
     // if(ret == ESP_OK)
     // {

@@ -207,9 +207,14 @@ esp_err_t Logger_singleShot()
     converted_reading_t measurement;
     uint8_t * spi_buffer = spi_ctrl_getRxData();
 
+    spi_cmd_t cmd;
+
+    cmd.command = STM32_CMD_SINGLE_SHOT_MEASUREMENT;
+    cmd.data0 = 0;
+
     if (Logger_getState() == LOGTASK_IDLE)
     {
-        if (spi_ctrl_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, 0, sizeof(spi_cmd_t)) == ESP_OK)
+        if (spi_ctrl_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, &cmd, sizeof(spi_cmd_t)) == ESP_OK)
         {
             
             if (!((spi_buffer[0] == STM32_CMD_SINGLE_SHOT_MEASUREMENT) && (spi_buffer[1] == STM32_RESP_OK)))
@@ -247,6 +252,8 @@ esp_err_t Logger_syncSettings()
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
     spi_buffer = spi_ctrl_getRxData();
 
+    spi_cmd_t cmd;
+
 
     if (spi_ctrl_datardy_int(0) != ESP_OK)
     {
@@ -254,10 +261,11 @@ esp_err_t Logger_syncSettings()
         return ESP_FAIL;
     }
 
-    
+    cmd.command = STM32_CMD_SETTINGS_MODE;
+    cmd.data0 = 0;
     
 
-    if (spi_ctrl_cmd(STM32_CMD_SETTINGS_MODE, 0, sizeof(spi_cmd_t)) == ESP_OK)
+    if (spi_ctrl_cmd(STM32_CMD_SETTINGS_MODE, &cmd, sizeof(spi_cmd_t)) == ESP_OK)
     {
         // spi_ctrl_print_rx_buffer();
         if (spi_buffer[0] != STM32_CMD_SETTINGS_MODE || spi_buffer[1] != STM32_RESP_OK)
@@ -274,7 +282,10 @@ esp_err_t Logger_syncSettings()
 
     Settings_t * settings = settings_get();
 
-     spi_ctrl_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, settings_get_adc_channel_enabled_all(), sizeof(spi_cmd_t));
+    cmd.command = STM32_CMD_SET_ADC_CHANNELS_ENABLED;
+    cmd.data0 = settings_get_adc_channel_enabled_all();
+
+    spi_ctrl_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, &cmd, sizeof(spi_cmd_t));
     // spi_ctrl_print_rx_buffer();
     if (spi_buffer[0] != STM32_CMD_SET_ADC_CHANNELS_ENABLED || spi_buffer[1] != STM32_RESP_OK)
     {
@@ -286,7 +297,10 @@ esp_err_t Logger_syncSettings()
 
     ESP_LOGI(TAG_LOG, "ADC channels set");
 
-    spi_ctrl_cmd(STM32_CMD_SET_RESOLUTION, (uint8_t)settings_get_resolution(), sizeof(spi_cmd_t));
+    cmd.command = STM32_CMD_SET_RESOLUTION;
+    cmd.data0 = (uint8_t)settings_get_resolution();
+
+    spi_ctrl_cmd(STM32_CMD_SET_RESOLUTION, &cmd, sizeof(spi_cmd_t));
     // spi_ctrl_print_rx_buffer();
     if (spi_buffer[0] != STM32_CMD_SET_RESOLUTION || spi_buffer[1] != STM32_RESP_OK)
     {
@@ -298,8 +312,10 @@ esp_err_t Logger_syncSettings()
     
     ESP_LOGI(TAG_LOG, "ADC resolution set");
     
+    cmd.command = STM32_CMD_SET_SAMPLE_RATE;
+    cmd.data0 = (uint8_t)settings_get_samplerate();
 
-    spi_ctrl_cmd(STM32_CMD_SET_SAMPLE_RATE, (uint8_t)settings_get_samplerate(), sizeof(spi_cmd_t));
+    spi_ctrl_cmd(STM32_CMD_SET_SAMPLE_RATE, &cmd, sizeof(spi_cmd_t));
     // spi_ctrl_print_rx_buffer();
     if (spi_buffer[0] != STM32_CMD_SET_SAMPLE_RATE || spi_buffer[1] != STM32_RESP_OK )
     {
@@ -311,8 +327,30 @@ esp_err_t Logger_syncSettings()
 
     ESP_LOGI(TAG_LOG, "Sample rate set");
 
+
+    cmd.command = STM32_CMD_SET_DATETIME;
+    // cmd.data0 = (uint8_t)settings_get_timestamp();
+    uint32_t timestamp = settings_get_timestamp();
+    memcpy(&cmd.data0, &timestamp, sizeof(timestamp));
+
     // Send settings one by one and confirm
-    spi_ctrl_cmd(STM32_CMD_MEASURE_MODE, 0, sizeof(spi_cmd_t));
+    spi_ctrl_cmd(STM32_CMD_SET_DATETIME, &cmd, sizeof(spi_cmd_t));
+    // spi_ctrl_print_rx_buffer();
+    if (spi_buffer[0] != STM32_CMD_SET_DATETIME || spi_buffer[1] != STM32_RESP_OK )
+    {
+        ESP_LOGI(TAG_LOG, "Unable to set timestamp");
+        spi_ctrl_print_rx_buffer(spi_buffer);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG_LOG, "Timestamp set");
+
+    cmd.command = STM32_CMD_MEASURE_MODE;
+    cmd.data0 = 0;
+
+    // Send settings one by one and confirm
+    spi_ctrl_cmd(STM32_CMD_MEASURE_MODE, &cmd, sizeof(spi_cmd_t));
     // spi_ctrl_print_rx_buffer();
     if (spi_buffer[0] != STM32_CMD_MEASURE_MODE || spi_buffer[1] != STM32_RESP_OK )
     {
@@ -697,6 +735,7 @@ void task_logging(void * pvParameters)
     // Init STM32 ADC enable pin
     // gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
 
+    spi_cmd_t spi_cmd;
 
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
@@ -766,7 +805,10 @@ void task_logging(void * pvParameters)
                 } else {
                     if (Logger_singleShot() == ESP_OK)
                     {
-                        if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, 0, sizeof(spi_msg_1_t)) == ESP_OK)
+                        // Wait a bit before requesting the data
+                        spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+
+                        if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
                         {
                             ESP_LOGI(TAG_LOG, "Last msg received");
                             Logger_processData();
@@ -853,7 +895,8 @@ void task_logging(void * pvParameters)
                 
                 // if ( ret == ESP_OK )
                 // {
-                    if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, 0, sizeof(spi_msg_1_t)) == ESP_OK)
+                    spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+                    if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
                     {
                         ESP_LOGI(TAG_LOG, "Last msg received");
                         Logger_processData();

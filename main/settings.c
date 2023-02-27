@@ -264,3 +264,16 @@ esp_err_t settings_persist_settings()
     ESP_LOGE(TAG_SETTINGS, "Persisting settings FAILED");
     return ESP_FAIL;
 }
+
+esp_err_t settings_set_timestamp(uint32_t timestamp)
+{
+    // take timestamp and convert to day, month, year and time
+    ESP_LOGI(TAG_SETTINGS, "Timstamp: %d", timestamp);
+    _settings.timestamp = timestamp;
+    return ESP_OK;
+}
+
+uint32_t settings_get_timestamp()
+{
+    return _settings.timestamp;
+}

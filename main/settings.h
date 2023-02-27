@@ -103,6 +103,7 @@ struct Settings_t {
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_password[MAX_WIFI_PASSW_LEN];
 	uint8_t wifi_channel;
+	uint32_t timestamp; // time in BCD format
 };
 
 typedef struct Settings_t Settings_t;
@@ -147,6 +148,13 @@ esp_err_t settings_print();
 
 adc_resolution_t settings_get_resolution();
 esp_err_t settings_set_resolution(adc_resolution_t res);
+
+/// @brief Sets the current date and time based on the epoch timestamp
+/// @param timestamp 32-bit Unix epoch timestamp
+/// @return ESP_OK when OK and ESP_FAIL for wrong input
+esp_err_t settings_set_timestamp(uint32_t timestamp);
+uint32_t settings_get_timestamp();
+
 
 
 #endif

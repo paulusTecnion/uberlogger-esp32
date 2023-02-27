@@ -22,6 +22,7 @@ typedef enum stm32cmd {
     STM32_CMD_SET_RESOLUTION,
     STM32_CMD_SET_SAMPLE_RATE,
     STM32_CMD_SET_ADC_CHANNELS_ENABLED,
+    STM32_CMD_SET_DATETIME,
     STM32_CMD_SINGLE_SHOT_MEASUREMENT,
     STM32_CMD_SEND_LAST_ADC_BYTES
 } stm32cmd_t;
@@ -34,15 +35,17 @@ typedef enum stm32resp {
  // Struct for sending SPI commands to the STM32
 typedef struct {
     uint8_t command;
-    uint8_t data;
-    // this dummy byte is necessary for the FIFO buffer of the 
-    // SPI controller on the STM32 to fill up. Else if wait forever
-    // to complete the transaction.
-    uint16_t dummy;    
+    uint8_t data0;
+    uint8_t data1;
+    uint8_t data2;
+    uint8_t data3;
+    uint8_t data4;
+    uint8_t data5;
+    uint8_t data6;
 } spi_cmd_t;
 
 esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point);
-esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, uint8_t cmd_data, size_t rx_data_length);
+esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_length);
 esp_err_t spi_ctrl_enable();
 esp_err_t spi_ctrl_disable();
 esp_err_t spi_ctrl_getError();
