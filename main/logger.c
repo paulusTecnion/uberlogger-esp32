@@ -220,7 +220,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
     
 
     dataOutput->timestamp  = (uint32_t)mktime(&t);    
-    ESP_LOGI(TAG_LOG, "%d %d, %d-%d-%d %d:%d:%d", msg_part, dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+    // ESP_LOGI(TAG_LOG, "%d %d, %d-%d-%d %d:%d:%d", msg_part, dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 }
 
 esp_err_t Logger_singleShot()
