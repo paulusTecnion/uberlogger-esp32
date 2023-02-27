@@ -30,7 +30,7 @@ function renderValueList(){
 
     $.getJSON('./ajax/' + query, (data) => {
       // parse JSON data to input list
-      let datetimestr = new Date(Number(data["TIMESTAMP"]));
+      let datetimestr = new Date(1000*Number(data["TIMESTAMP"]));
 
       let htmlstring=[];
       htmlstring+="<p>Timestamp of data: " + datetimestr + "</p>";
@@ -45,7 +45,7 @@ function renderValueList(){
         $.each(category_values["VALUES"], function(channel, channel_value){
           n++;
           htmlstring+="<tr><td>" + channel + "</td><td align='right'>" + channel_value + "</td></tr>";
-          storeDataPoint(category, channel, data["TIMESTAMP"], channel_value, category_values["UNITS"]);
+          storeDataPoint(category, channel, 1000*data["TIMESTAMP"], channel_value, category_values["UNITS"]);
         });
 
         if(n==0){
