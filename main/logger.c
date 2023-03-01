@@ -702,7 +702,7 @@ esp_err_t Logger_log()
         {
             if (spi_ctrl_receive_data() == ESP_OK)
             {
-                
+                // ESP_LOGI(TAG_LOG, "POP QUEUE");
                 if (Logger_processData() != ESP_OK)
                 {
                     return ESP_FAIL;
