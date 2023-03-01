@@ -731,6 +731,7 @@ esp_err_t Logger_log()
             if (state == RXDATA_STATE_DATA_READY)
             {
                 spi_ctrl_queue_msg(NULL, sizeof(spi_msg_1_t));
+                
                 _nextLoggingState = LOGGING_RX0_WAIT;
                 // _nextLoggingState = LOGGING_START;
             }
@@ -813,7 +814,7 @@ void task_logging(void * pvParameters)
     
     spi_msg_1_ptr = (spi_msg_1_t*)spi_buffer;
     spi_msg_2_ptr = (spi_msg_2_t*)spi_buffer;
-
+   spi_ctrl_datardy_int(0);
 
     while(1) {
        
@@ -830,6 +831,7 @@ void task_logging(void * pvParameters)
             }
         }
 
+     
         spi_ctrl_loop();
 
         switch (_currentLogTaskState)
@@ -880,14 +882,14 @@ void task_logging(void * pvParameters)
                             break;
                         }
                         fileman_csv_write_header();
+                        // Enable data ready interrupt
+                        spi_ctrl_datardy_int(1);
                        
                       
                     } else {
                         SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
                         _nextLogTaskState = LOGTASK_IDLE;
                     }
-                   
-                   
                 }
             break;
 
@@ -944,6 +946,8 @@ void task_logging(void * pvParameters)
                     {
                         ESP_LOGI(TAG_LOG, "Last msg received");
                         Logger_processData();
+                        // Disable data ready interrupt
+                        spi_ctrl_datardy_int(0);
                     } else {
                         ESP_LOGE(TAG_LOG, "Error receiving last message");
                     }
