@@ -346,7 +346,6 @@ esp_err_t spi_ctrl_receive_data()
     if (ret == ESP_ERR_TIMEOUT) 
     {
         ESP_LOGE(TAG_LOG, "STM32 timeout; could not receive data");
-        
         return ESP_ERR_TIMEOUT;
     }
 

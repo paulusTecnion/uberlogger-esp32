@@ -27,6 +27,7 @@ spi_msg_2_t * spi_msg_2_ptr;
 uint8_t _stopLogging = 0;
 uint8_t _startLogging = 0;
 uint8_t _dataReceived = 0;
+uint64_t stm32TimerTimeout, currtime_us =0;
 
 
 typedef struct {
@@ -702,6 +703,9 @@ void Logger_disableADCen_and_Interrupt()
 esp_err_t Logger_log()
 {   
     
+    currtime_us = esp_timer_get_time();
+    esp_err_t ret;
+
     switch (_currentLoggingState)
     {
 
@@ -709,6 +713,7 @@ esp_err_t Logger_log()
             // Nothing to do
             if (_nextLoggingState == LOGGING_WAIT_FOR_DATA_READY)
             {
+                stm32TimerTimeout = esp_timer_get_time();
                 // enable data rdy interrupt pin
                 spi_ctrl_datardy_int(1);
                 // Enable logging at STM32
@@ -721,7 +726,8 @@ esp_err_t Logger_log()
             
         case LOGGING_RX0_WAIT:
         {
-            if (spi_ctrl_receive_data() == ESP_OK)
+            ret = spi_ctrl_receive_data();
+            if (ret == ESP_OK)
             {
                 ESP_LOGI(TAG_LOG, "POP QUEUE");
                 _dataReceived = 1;
@@ -740,6 +746,10 @@ esp_err_t Logger_log()
                 // Please  note the fall through to LOGGING_WAIT_FOR_DATA_READY after this
             } else {
                 // Timeout or some other error
+                if (ret == ESP_ERR_TIMEOUT)
+                {
+                    SET_ERROR(_errorCode, ERR_LOGGER_STM32_TIMEOUT);
+                }
                 SET_ERROR(_errorCode, ERR_LOGGER_STM32_NO_RESPONSE);
                 Logger_disableADCen_and_Interrupt();
                _nextLoggingState = LOGGING_ERROR;
@@ -754,10 +764,22 @@ esp_err_t Logger_log()
                 
             state = spi_ctrl_rxstate();
 
+            // To add: timeout function. This, however, depends on the logging rate used. 
+            // For now, the time out is set to 73 seconds, since at 1 Hz, the maximum fill time of the buffer is 70 seconds (it's size is 70)
+            if (currtime_us - stm32TimerTimeout > (DATA_LINES_PER_SPI_TRANSACTION+3)*1000000)
+            {
+                ESP_LOGE(TAG_LOG, "STM32 timed out: %llu", currtime_us - stm32TimerTimeout);
+                SET_ERROR(_errorCode, ERR_LOGGER_STM32_TIMEOUT);
+                Logger_disableADCen_and_Interrupt();
+                _nextLoggingState = LOGGING_ERROR;
+                break;
+            }
+
             if (state == RXDATA_STATE_DATA_READY)
             {
-                spi_ctrl_queue_msg(NULL, sizeof(spi_msg_1_t));
                 
+                spi_ctrl_queue_msg(NULL, sizeof(spi_msg_1_t));
+                stm32TimerTimeout = esp_timer_get_time();
                 _nextLoggingState = LOGGING_RX0_WAIT;
                 // _nextLoggingState = LOGGING_START;
             }
@@ -778,9 +800,10 @@ esp_err_t Logger_log()
                 gpio_set_level(GPIO_ADC_EN, 0);
                 _stopLogging = 0;
                 _nextLoggingState = LOGGING_GET_LAST_DATA;
-
             } 
-                
+
+           
+
         }
        
         break;
@@ -938,8 +961,7 @@ void task_logging(void * pvParameters)
                 if (_startLogging)
                 {
                     Logger_reset();
-                    _nextLogTaskState = LOGTASK_LOGGING;
-                    _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
+                    
                     _startLogging = 0;
                     lastTick = 0;
                     if (esp_sd_card_mount() == ESP_OK)
@@ -954,8 +976,11 @@ void task_logging(void * pvParameters)
                             }
 
                             break;
-                        }
+                        } 
                         fileman_csv_write_header();
+                        // All good, put statemachines in correct state
+                        _nextLogTaskState = LOGTASK_LOGGING;
+                        _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
                     } else {
                         SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
                         _nextLogTaskState = LOGTASK_IDLE;
