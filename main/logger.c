@@ -837,12 +837,14 @@ void task_logging(void * pvParameters)
             case LOGTASK_IDLE:
                 // Logger_singleShot();
                 vTaskDelay(500 / portTICK_PERIOD_MS);
-                if (lastTick < 2)
+                lastTick++;
+                if (lastTick > 1)
                 {
-                    lastTick++;
-                } else {
                     if (Logger_singleShot() == ESP_OK)
                     {
+                        // Wait for the STM32 to acquire data. Takes about 40 ms.
+                        vTaskDelay(50 / portTICK_PERIOD_MS);
+
                         // Wait a bit before requesting the data
                         spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
 
@@ -863,6 +865,7 @@ void task_logging(void * pvParameters)
                 if (_nextLogTaskState == LOGTASK_LOGGING)
                 {
                     Logger_reset();
+                    lastTick = 0;
                     if (esp_sd_card_mount() == ESP_OK)
                     {
                         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
@@ -933,6 +936,9 @@ void task_logging(void * pvParameters)
                 
                 // if ( ret == ESP_OK )
                 // {
+
+                    // Wait 100 ms for the STM32 to stop the ADC and prevent ringing etc. 
+                    vTaskDelay(100 / portTICK_PERIOD_MS);
                     spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
                     if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
                     {
