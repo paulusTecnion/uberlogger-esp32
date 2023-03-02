@@ -197,6 +197,7 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     }
    
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
+    cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
     cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
     cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
     cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", esp_sd_card_get_free_space());
