@@ -47,3 +47,6 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define STM32_SPI_HOST SPI2_HOST
 
 #endif
+
+#define SDCARD_FREE_SPACE_MINIMUM_KB    200
+#define SDCARD_FREE_SPACE_WARNING_KB    1024*8

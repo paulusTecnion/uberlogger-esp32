@@ -10,7 +10,7 @@
 #include "freertos/semphr.h"
 #include "driver/gpio.h"
 #include "u8g2_esp32_hal.h"
-#include "hw_config.h"
+#include "config.h"
 #include "logger.h"
 
 

@@ -13,7 +13,7 @@
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "esp_sd_card.h"
-#include "hw_config.h"
+#include "config.h"
 #include "settings.h"
 #include "spi_control.h"
 #include "tempsensor.h"

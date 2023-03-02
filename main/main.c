@@ -22,7 +22,7 @@
 #include "esp_sd_card.h"
 #include "esp_timer.h"
 #include "u8g2_esp32_hal.h"
-#include "hw_config.h"
+#include "config.h"
 #include "settings.h"
 
 #include "esp_vfs_semihost.h"

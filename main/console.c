@@ -14,7 +14,7 @@
 #include "driver/gpio.h"
 #include "esp_sd_card.h"
 #include "logger.h"
-#include "hw_config.h"
+#include "config.h"
 #include "settings.h"
 #include "fileman.h"
 

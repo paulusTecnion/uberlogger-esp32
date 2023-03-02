@@ -8,7 +8,7 @@
 #include "driver/gpio.h"
 #include "logger.h"
 #include "settings.h"
-#include "hw_config.h"
+#include "config.h"
 
 // Buffer size when sending data to STM. Value in bytes
 #define STM_SPI_BUFFERSIZE_CMD_TX 2
