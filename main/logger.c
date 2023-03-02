@@ -550,6 +550,19 @@ LoggerState_t Logger_getState()
 esp_err_t Logger_flush_to_sdcard()
 {
      // Flush buffer to sd card
+    uint32_t free_space = esp_sd_card_get_free_space();
+    if ( free_space < SDCARD_FREE_SPACE_MINIMUM_KB)
+    {
+        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
+        ESP_LOGE(TAG_LOG, "Not sufficient disk space");
+        return ESP_FAIL;
+    } 
+    else if (free_space < SDCARD_FREE_SPACE_WARNING_KB)
+    {    
+        ESP_LOGW(TAG_LOG, "Warning, low disk space!");
+    }
+
+
     if (settings_get_logmode() == LOGMODE_CSV)
     {
         // ESP_LOGI(TAG_LOG, "ADC fixed p %d, %d, %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1], adc_buffer_fixed_point[2]);
