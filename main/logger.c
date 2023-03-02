@@ -568,7 +568,7 @@ LoggerState_t Logger_getState()
     return _currentLogTaskState;
 }
 
-esp_err_t Logger_flush_to_sdcard()
+esp_err_t Logger_check_sdcard_free_space()
 {
      // Flush buffer to sd card
     uint32_t free_space = esp_sd_card_get_free_space();
@@ -583,6 +583,16 @@ esp_err_t Logger_flush_to_sdcard()
         ESP_LOGW(TAG_LOG, "Warning, low disk space!");
     }
 
+    return ESP_OK;
+}
+
+esp_err_t Logger_flush_to_sdcard()
+{
+
+    if (Logger_check_sdcard_free_space() != ESP_OK)
+    {
+        return ESP_FAIL;
+    }
 
     if (settings_get_logmode() == LOGMODE_CSV)
     {
@@ -972,6 +982,13 @@ void task_logging(void * pvParameters)
                     lastTick = 0;
                     if (esp_sd_card_mount() == ESP_OK)
                     {
+
+                        if (Logger_check_sdcard_free_space() != ESP_OK)
+                        {
+                                esp_sd_card_unmount();
+                            break;
+                        }
+
                         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
                         if (fileman_open_file() != ESP_OK)
                         { 
@@ -983,6 +1000,9 @@ void task_logging(void * pvParameters)
 
                             break;
                         } 
+
+                        
+
                         fileman_csv_write_header();
                         // All good, put statemachines in correct state
                         _nextLogTaskState = LOGTASK_LOGGING;                        
