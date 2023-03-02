@@ -76,9 +76,9 @@ static int cmd_logger(int argc, char **argv)
             return Logger_setCsvLog(LOGMODE_RAW);
         } 
     } else if (!strcmp(logger_args.arg0->sval[0], "start"))  {   
-        return Logger_start();
+        return LogTask_start();
     } else if (!strcmp(logger_args.arg0->sval[0], "stop")) {
-        return Logger_stop();
+        return LogTask_stop();
     } 
     
     return RET_NOK;
@@ -134,27 +134,6 @@ static void register_logger_cmd(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
-static void register_log_start(void)
-{
-     const esp_console_cmd_t cmd = {
-        .command = "logger_start",
-        .help = "Start logger",
-        .hint = NULL,
-        .func = &Logger_start,
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
-
-static void register_log_stop(void)
-{
-     const esp_console_cmd_t cmd = {
-        .command = "logger_stop",
-        .help = "Stop logger",
-        .hint = NULL,
-        .func = &Logger_stop,
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
 
 
 

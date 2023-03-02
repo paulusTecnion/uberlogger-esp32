@@ -26,6 +26,9 @@ spi_msg_1_t * spi_msg_1_ptr;
 spi_msg_2_t * spi_msg_2_ptr;
 uint8_t _stopLogging = 0;
 uint8_t _startLogging = 0;
+uint8_t _startLogTask = 0;
+uint8_t _stopLogTask = 0;
+
 uint8_t _dataReceived = 0;
 uint64_t stm32TimerTimeout, currtime_us =0;
 
@@ -106,6 +109,11 @@ float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1)
 LoggerState_t LogTaskGetState()
 {
     return _currentLogTaskState;
+}
+
+uint32_t LogTaskGetError()
+{
+    return _errorCode;
 }
 
 uint8_t Logger_enterSettingsMode()
@@ -232,7 +240,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
 esp_err_t Logger_singleShot()
 {
-    converted_reading_t measurement;
+    // converted_reading_t measurement;
     uint8_t * spi_buffer = spi_ctrl_getRxData();
 
     spi_cmd_t cmd;
@@ -283,11 +291,11 @@ esp_err_t Logger_syncSettings()
     spi_cmd_t cmd;
 
 
-    if (spi_ctrl_datardy_int(0) != ESP_OK)
-    {
-        SET_ERROR(_errorCode, ERR_LOGGER_SPI_CTRL_ERROR);
-        return ESP_FAIL;
-    }
+    // if (spi_ctrl_datardy_int(0) != ESP_OK)
+    // {
+    //     SET_ERROR(_errorCode, ERR_LOGGER_SPI_CTRL_ERROR);
+    //     return ESP_FAIL;
+    // }
 
     cmd.command = STM32_CMD_SETTINGS_MODE;
     cmd.data0 = 0;
@@ -308,7 +316,7 @@ esp_err_t Logger_syncSettings()
         return ESP_FAIL;
     }
 
-    Settings_t * settings = settings_get();
+    // Settings_t * settings = settings_get();
 
     cmd.command = STM32_CMD_SET_ADC_CHANNELS_ENABLED;
     cmd.data0 = settings_get_adc_channel_enabled_all();
@@ -389,11 +397,11 @@ esp_err_t Logger_syncSettings()
     }
 
     // Re-enable interrupts
-    if (spi_ctrl_datardy_int(1) != ESP_OK)
-    {
-        SET_ERROR(_errorCode, ERR_LOGGER_SPI_CTRL_ERROR);
-        return ESP_FAIL;
-    }
+    // if (spi_ctrl_datardy_int(1) != ESP_OK)
+    // {
+    //     SET_ERROR(_errorCode, ERR_LOGGER_SPI_CTRL_ERROR);
+    //     return ESP_FAIL;
+    // }
         
 
     
@@ -452,14 +460,14 @@ uint8_t Logger_mode_button_pushed()
     return 0;
 }
 
-esp_err_t Logger_start()
+esp_err_t LogTask_start()
 {
     CLEAR_ERRORS(_errorCode);
     if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
     {
         // gpio_set_level(GPIO_ADC_EN, 1);
         // _nextLogTaskState = LOGTASK_LOGGING;
-        _startLogging = 1;
+        _startLogTask = 1;
         return ESP_OK;
     } 
     else 
@@ -468,20 +476,33 @@ esp_err_t Logger_start()
     }
 }
 
-esp_err_t Logger_stop()
+esp_err_t LogTask_stop()
 {
-     ESP_LOGI(TAG_LOG, "Logger_stop() called");
+    ESP_LOGI(TAG_LOG, "LogTask_stop() called");
      
     if (_currentLogTaskState == LOGTASK_LOGGING)
     {
-        _stopLogging = 1;
-       
+        Logging_stop();
         return ESP_OK;
     } 
     else 
     {
         return ESP_FAIL;
     }
+}
+
+esp_err_t Logging_stop()
+{
+    ESP_LOGI(TAG_LOG, "Logging_stop() called");
+    _stopLogging = 1;
+    return ESP_OK;
+}
+
+esp_err_t Logging_start()
+{
+    ESP_LOGI(TAG_LOG, "Logging_start() called");
+    _startLogging = 1;
+    return ESP_OK;
 }
 
 size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size)
@@ -506,7 +527,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
         int j,x=0;
         uint32_t writeptr = 0;
         uint64_t channel_range, channel_offset;
-        uint16_t adc0, adc1=0;
+        // uint16_t adc0, adc1=0;
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
         for (j = 0; j < length; j = j + 2)
         {
@@ -596,8 +617,9 @@ uint32_t Logger_getError()
     return _errorCode;
 }
 
-void Logger_resetCounter()
+void LogTask_resetCounter()
 {
+    ESP_LOGI(TAG_LOG, "LogTask resetCounter");
     int_counter = 0;
     log_counter = 0;
     sdcard_data.datarows = 0;
@@ -605,12 +627,11 @@ void Logger_resetCounter()
     msg_part = 0;
 }
 
-void Logger_reset()
+void LogTask_reset()
 {
-    Logger_resetCounter();
+    ESP_LOGI(TAG_LOG, "LogTask reset");
+    LogTask_resetCounter();
     _errorCode = 0;
-    spi_ctrl_reset_rx_state();
-    _nextLoggingState = LOGGING_IDLE;
 }
 
 esp_err_t Logger_processData()
@@ -713,64 +734,47 @@ void Logger_disableADCen_and_Interrupt()
     spi_ctrl_datardy_int(0);
 }
 
-esp_err_t Logger_log()
+void Logging_reset()
+{
+    ESP_LOGI(TAG_LOG, "Logging reset");
+    _nextLoggingState = LOGGING_IDLE;
+}
+
+esp_err_t Logger_logging()
 {   
     
     currtime_us = esp_timer_get_time();
     esp_err_t ret;
+
+    if (_stopLogging)
+    {
+        Logger_disableADCen_and_Interrupt();
+    }
 
     switch (_currentLoggingState)
     {
 
         case LOGGING_IDLE:
             // Nothing to do
-            if (_nextLoggingState == LOGGING_WAIT_FOR_DATA_READY)
+            if (_startLogging)
             {
+                _startLogging = 0;
+                // Reset the spi controller
+                spi_ctrl_reset_rx_state();
                 stm32TimerTimeout = esp_timer_get_time();
                 // enable data rdy interrupt pin
                 spi_ctrl_datardy_int(1);
                 // Enable logging at STM32
+                ESP_LOGI(TAG_LOG, "Enabling ADC_EN");
                 if(!gpio_get_level(GPIO_ADC_EN))
                 {
                     gpio_set_level(GPIO_ADC_EN, 1);
                 }
+                _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
             }
         break;
             
-        case LOGGING_RX0_WAIT:
-        {
-            ret = spi_ctrl_receive_data();
-            if (ret == ESP_OK)
-            {
-                ESP_LOGI(TAG_LOG, "POP QUEUE");
-                _dataReceived = 1;
-                
-                // Check, for example, gpio data size to keep track if sdcard_data is full
-                // Change in the future
-
-                // Set RX state to NODATA
-                spi_ctrl_reset_rx_state();
-                
-              
-                _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
-                
-                
-
-                // Please  note the fall through to LOGGING_WAIT_FOR_DATA_READY after this
-            } else {
-                // Timeout or some other error
-                if (ret == ESP_ERR_TIMEOUT)
-                {
-                    SET_ERROR(_errorCode, ERR_LOGGER_STM32_TIMEOUT);
-                }
-                SET_ERROR(_errorCode, ERR_LOGGER_STM32_NO_RESPONSE);
-                Logger_disableADCen_and_Interrupt();
-               _nextLoggingState = LOGGING_ERROR;
-            }
-                                           
-        }
-        break;
-
+       
         case LOGGING_WAIT_FOR_DATA_READY:
         {
             rxdata_state_t state;
@@ -795,59 +799,89 @@ esp_err_t Logger_log()
                 stm32TimerTimeout = esp_timer_get_time();
                 _nextLoggingState = LOGGING_RX0_WAIT;
                 // _nextLoggingState = LOGGING_START;
-            }
-
-
-            if (state == RXDATA_STATE_DATA_OVERRUN) 
+            } 
+            else if (state == RXDATA_STATE_DATA_OVERRUN) 
             {
                 ESP_LOGE(TAG_LOG, "Data overrun!");
                 SET_ERROR(_errorCode, ERR_LOGGER_DATA_OVERRUN);
                 Logger_disableADCen_and_Interrupt();
                 _nextLoggingState = LOGGING_ERROR;
-            }
-
-            if (_stopLogging)
-            {
-                ESP_LOGI(TAG_LOG, "Stop logging. Disabling ADC_EN");
-                // disable logging at STM32 
-                gpio_set_level(GPIO_ADC_EN, 0);
-                _stopLogging = 0;
-                _nextLoggingState = LOGGING_GET_LAST_DATA;
             } 
-
-           
-
+            else if (_stopLogging)
+            // state cannot be RXDATA_STATE_DATA_READY, because else we will queue another message for receiving the last ADC leading to a 
+            // system crash
+            {   
+                ESP_LOGI(TAG_LOG, "Setting _stopLogging to 0.");
+                _stopLogging = 0;
+                _nextLoggingState = LOGGING_DONE;
+            } 
         }
        
         break;
 
-        case LOGGING_GET_LAST_DATA:
+        case LOGGING_RX0_WAIT:
         {
-            spi_cmd_t spi_cmd;
-            // Wait 100 ms for the STM32 to stop the ADC . 
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-            spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
-            if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
+            ret = spi_ctrl_receive_data();
+            if (ret == ESP_OK)
             {
-                // Make sure that the processing function knows which spi message structure to use
-                // msg_part = 0;
-                ESP_LOGI(TAG_LOG, "Last data received");
+                ESP_LOGI(TAG_LOG, "POP QUEUE, _dataReceived = 1");
                 _dataReceived = 1;
-                // Disable data ready interrupt
-                spi_ctrl_datardy_int(0);
-              
-                // spi_ctrl_reset_rx_state();
-                _nextLoggingState = LOGGING_IDLE;
-
-            } else {
                 
+                // Check, for example, gpio data size to keep track if sdcard_data is full
+                // Change in the future
+
+                // Set RX state to NODATA
+                spi_ctrl_reset_rx_state();
+                
+                // If in the meantime we got a stop logging request, then stop immediately, else we 
+                // continue logging for too long
+                if (_stopLogging)
+                {
+                    _stopLogging = 0;
+                    _nextLoggingState = LOGGING_DONE;
+                } else {
+                    _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
+                }
+                
+                
+            } else {
+                // Timeout or some other error
+                if (ret == ESP_ERR_TIMEOUT)
+                {
+                    SET_ERROR(_errorCode, ERR_LOGGER_STM32_TIMEOUT);
+                }
+                SET_ERROR(_errorCode, ERR_LOGGER_STM32_NO_RESPONSE);
                 Logger_disableADCen_and_Interrupt();
-                ESP_LOGE(TAG_LOG, "Error receiving last message");
-                _nextLoggingState = LOGGING_ERROR;
+               _nextLoggingState = LOGGING_ERROR;
             }
-        }            
+                                           
+        }
         break;
 
+
+        // case LOGGING_GET_LAST_DATA:
+        // {
+        //     spi_cmd_t spi_cmd;
+        //     // Wait 100 ms for the STM32 to stop the ADC . 
+        //     vTaskDelay(100 / portTICK_PERIOD_MS);
+        //     spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+        //     if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
+        //     {
+        //         // Make sure that the processing function knows which spi message structure to use
+        //         // msg_part = 0;
+        //         ESP_LOGI(TAG_LOG, "Last data received");
+        //         _dataReceived = 1;
+        //         // spi_ctrl_reset_rx_state();
+        //         _nextLoggingState = LOGGING_DONE;
+        //     } else {
+        //         Logger_disableADCen_and_Interrupt();
+        //         ESP_LOGE(TAG_LOG, "Error receiving last message");
+        //         _nextLoggingState = LOGGING_ERROR;
+        //     }
+        // }            
+        // break;
+
+        case LOGGING_DONE:
         case LOGGING_ERROR:
            
 
@@ -858,7 +892,7 @@ esp_err_t Logger_log()
     if (_nextLoggingState != _currentLoggingState)
     {
         
-        // ESP_LOGI(TAG_LOG, "LOGGING state changing from %d to %d", _currentLoggingState, _nextLoggingState);
+        ESP_LOGI(TAG_LOG, "LOGGING state changing from %d to %d", _currentLoggingState, _nextLoggingState);
         _currentLoggingState = _nextLoggingState;
     }
                 
@@ -872,7 +906,7 @@ void task_logging(void * pvParameters)
 {
     
 
-    esp_err_t ret;
+    // esp_err_t ret;
     CLEAR_ERRORS(_errorCode);
    
     uint32_t lastTick = 0;
@@ -889,7 +923,7 @@ void task_logging(void * pvParameters)
         .pin_bit_mask=(1<<GPIO_ADC_EN)
     };
 
-    ret = gpio_config(&adc_en_conf);
+    gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
 
     
@@ -924,58 +958,17 @@ void task_logging(void * pvParameters)
 
     while(1) {
        
-        if (Logger_mode_button_pushed())
-        {
-            if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
-            {
-                Logger_start();
-            }
-            
-            if (_currentLogTaskState == LOGTASK_LOGGING)
-            {
-                Logger_stop();
-            }
-        }
-
-     
+    
         spi_ctrl_loop();
-        Logger_log();
+        Logger_logging();
 
         switch (_currentLogTaskState)
         {
             case LOGTASK_IDLE:
-                // Logger_singleShot();
-                vTaskDelay(500 / portTICK_PERIOD_MS);
-                lastTick++;
-                if (lastTick > 1)
+                // Give starting of logging priority over getting a single shot value.
+                if (_startLogTask)
                 {
-                    if (Logger_singleShot() == ESP_OK)
-                    {
-                        // Wait for the STM32 to acquire data. Takes about 40 ms.
-                        vTaskDelay(50 / portTICK_PERIOD_MS);
-
-                        // Wait a bit before requesting the data
-                        spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
-
-                        if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
-                        {
-                            ESP_LOGI(TAG_LOG, "Last msg received");
-                            Logger_processData();
-                            Logger_resetCounter();
-                        } else {
-                            ESP_LOGE(TAG_LOG, "Error receiving last message");
-                        }
-                    } else {
-                        ESP_LOGE(TAG_LOG, "Singleshot error");
-                    }
-                    lastTick = 0;
-                }
-                
-                if (_startLogging)
-                {
-                    Logger_reset();
-                    
-                    _startLogging = 0;
+                    _startLogTask = 0;
                     lastTick = 0;
                     if (esp_sd_card_mount() == ESP_OK)
                     {
@@ -992,74 +985,143 @@ void task_logging(void * pvParameters)
                         } 
                         fileman_csv_write_header();
                         // All good, put statemachines in correct state
-                        _nextLogTaskState = LOGTASK_LOGGING;
-                        _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
+                        _nextLogTaskState = LOGTASK_LOGGING;                        
+                        // Reset and start the logging statemachine
+                        LogTask_reset();
+                        Logging_reset();
+                        Logging_start();
                     } else {
                         SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
                         _nextLogTaskState = LOGTASK_IDLE;
                     }
+                } else {
+                    vTaskDelay(500 / portTICK_PERIOD_MS);
+                    lastTick++;
+                    if (lastTick > 1)
+                    {
+                        if (Logger_singleShot() == ESP_OK)
+                        {
+                            // Wait for the STM32 to acquire data. Takes about 40 ms.
+                            vTaskDelay(50 / portTICK_PERIOD_MS);
+
+                            // Wait a bit before requesting the data
+                            spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+
+                            LogTask_resetCounter();
+                            if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
+                            {
+                                ESP_LOGI(TAG_LOG, "Last msg received");
+                                Logger_processData();
+                                
+                            } else {
+                                ESP_LOGE(TAG_LOG, "Error receiving last message");
+                            }
+                        } else {
+                            ESP_LOGE(TAG_LOG, "Singleshot error");
+                        }
+                        lastTick = 0;
+                    }
                 }
+            
             break;
 
             case LOGTASK_LOGGING:     
 
                 if (_dataReceived)           
                 {
-                    ESP_LOGI(TAG_LOG, "_dataReceived = 1");
+                    ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
                     if (Logger_processData() != ESP_OK)
                     {
-                       
-                        _stopLogging = 1;
+                        LogTask_stop();
                         SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
                         _nextLogTaskState = LOGTASK_IDLE;
                     }
+                    ESP_LOGI(TAG_LOG, "_dataReceived = 0");
                     _dataReceived = 0;
                 }
                 
-                if (_currentLoggingState == LOGGING_ERROR 
-                    || _errorCode > 0 || 
-                    _currentLoggingState == LOGGING_IDLE)
-                {
-                    if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
-                    {
-                        ESP_LOGE(TAG_LOG, "Error 0x%08X occured in Logging statemachine. Stopping..", _errorCode);
-                    }
-                    
-                    // if (_currentLoggingState == LOGGING_IDLE)
-                    // {
-                    //     Logger_processData();
-                    // }
-                    Logger_flush_to_sdcard();
-                    fileman_close_file();
-                    esp_sd_card_unmount();
-                    vTaskDelay(500 / portTICK_PERIOD_MS);
-                    // spi_ctrl_reset_rx_state();
-                    Logger_reset();
-                     vTaskDelay(500 / portTICK_PERIOD_MS);
-                    _nextLogTaskState = LOGTASK_IDLE;
-                    break;
-                }
-
-
                 // do we need to flush the data? 
                 if(log_counter*sizeof(spi_msg_1_ptr->gpioData) >= sizeof(sdcard_data.gpioData))
                 {
-                    Logger_flush_to_sdcard();
+                    if (Logger_flush_to_sdcard() != ESP_OK)
+                    {
+                        LogTask_stop();
+                    }
+                    
                     log_counter = 0;
                     int_counter = 0;
                     sdcard_data.datarows = 0;
                 }
 
+                if ((_currentLoggingState == LOGGING_ERROR ||
+                    _errorCode > 0) &&
+                    _currentLoggingState != LOGGING_DONE) 
+                {
+                    if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
+                    {
+                        ESP_LOGE(TAG_LOG, "Error 0x%08X occured in Logging statemachine. Stopping..", _errorCode);
+                    } 
+                    
+                }
+
+                if ( _currentLoggingState == LOGGING_DONE)
+                {
+                    // Now either we already received the last message, which is indicated by _dataReceived
+                    // or we will have to retrieve it. 
+                    if ( _dataReceived )
+                    {
+                        ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
+                        Logger_processData();
+                        ESP_LOGI(TAG_LOG,"_dataReceived = 0");
+                        _dataReceived = 0;
+                    } else {
+                        // Wait for STM to stop ADC and go to idle mode
+                        vTaskDelay(200 / portTICK_PERIOD_MS);
+                        spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+                        // Retrieve any remaining ADC bytes
+                        LogTask_resetCounter();
+                        if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
+                        {
+                            ESP_LOGI(TAG_LOG, "Last ADC data received");
+                            // Add check if last number bytes equals number of data lines. If so, we should discard that
+                            Logger_processData();
+                        } else {
+                            ESP_LOGE(TAG_LOG, "Error receiving last message");
+                            SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+                        }
+                        
+                        Logger_flush_to_sdcard();
+                        fileman_close_file();
+                        esp_sd_card_unmount();
+                        vTaskDelay(500 / portTICK_PERIOD_MS);
+                        _nextLogTaskState = LOGTASK_IDLE;
+                    }
+                    
+                   
+                    break;
+                }
 
             break;
-
-           
 
             default:
 
             break;
             // should not come here
         }
+
+         if (Logger_mode_button_pushed())
+        {
+            if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
+            {
+                LogTask_start();
+            }
+            
+            if (_currentLogTaskState == LOGTASK_LOGGING)
+            {
+                LogTask_stop();
+            }
+        }
+
 
         if (_nextLogTaskState != _currentLogTaskState)
         {

@@ -82,6 +82,7 @@ enum LoggingStates{
     LOGGING_RX0_WAIT,
     LOGGING_RX1_WAIT,
     LOGGING_GET_LAST_DATA,
+    LOGGING_DONE,
     LOGGING_ERROR,
     LOGGING_NUM_STATES
 };
@@ -117,9 +118,14 @@ float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
 
 
 LoggerState_t Logger_getState();
+uint32_t LogTaskGetError();
 esp_err_t Logger_log();
-esp_err_t Logger_start();
-esp_err_t Logger_stop();
+
+esp_err_t LogTask_start();
+esp_err_t LogTask_stop();
+
+esp_err_t Logging_stop();
+esp_err_t Logging_start();
 
 esp_err_t Logger_singleShot();
 uint32_t Logger_getError();
