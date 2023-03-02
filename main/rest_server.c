@@ -201,7 +201,7 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
     cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
     cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", esp_sd_card_get_free_space());
-    cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());;
+    cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
