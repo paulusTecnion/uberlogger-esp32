@@ -104,8 +104,8 @@ esp_err_t fileman_search_last_sequence_file(void)
 
 int fileman_write(const void * data, size_t len)
 {
-    size_t write_result = fwrite(data,1, len, f);
-    if (write_result != len)
+    size_t write_result = fwrite(data,len, 1, f);
+    if (write_result != 1)
     {
         ESP_LOGE(TAG_FILE,"Error writing to backing store %d %d\n", (int)len, write_result);
         perror ("The following error occurred");
@@ -173,7 +173,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
  
         j++;
         // ESP_LOGI(TAG_FILE, "%s", strbuffer);
-        if (fprintf(f, strbuffer) == 0)
+        if (fprintf(f, strbuffer) < 0)
         {
             return 0;
         }
