@@ -1107,10 +1107,8 @@ void task_logging(void * pvParameters)
                 // do we need to flush the data? 
                 if(log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH)
                 {
-                    if (Logger_flush_to_sdcard() != ESP_OK)
-                    {
-                        LogTask_stop();
-                    }
+                    // No need to check for error, is done at _errorcode >0 check
+                    Logger_flush_to_sdcard();
                     
                     log_counter = 0;
                     int_counter = 0;
@@ -1124,6 +1122,7 @@ void task_logging(void * pvParameters)
                     if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
                     {
                         ESP_LOGE(TAG_LOG, "Error 0x%08X occured in Logging statemachine. Stopping..", _errorCode);
+                        LogTask_stop();
                     } 
                     
                 }
@@ -1137,10 +1136,8 @@ void task_logging(void * pvParameters)
                         #ifdef DEBUG_LOGTASK
                         ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
                         #endif
-                        if (settings_get_logmode() == LOGMODE_CSV)
-                        {
-                            Logger_processData();
-                        }
+       
+                        Logger_processData();
                         
                         #ifdef DEBUG_LOGTASK_RX
                         ESP_LOGI(TAG_LOG,"_dataReceived = 0");
@@ -1157,11 +1154,10 @@ void task_logging(void * pvParameters)
                             #ifdef DEBUG_LOGTASK_RX
                             ESP_LOGI(TAG_LOG, "Last ADC data received");
                             #endif
-                            if (settings_get_logmode() == LOGMODE_CSV)
-                            {
-                                // Add check if last number bytes equals number of data lines. If so, we should discard that
-                                Logger_processData();
-                            }
+    
+                            // Add check if last number bytes equals number of data lines. If so, we should discard that
+                            Logger_processData();
+                            
                         } else {
                             ESP_LOGE(TAG_LOG, "Error receiving last message");
                             SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
