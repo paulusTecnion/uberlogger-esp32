@@ -95,7 +95,7 @@ esp_err_t fileman_search_last_sequence_file(void)
 }
  
 
- int fileman_write(const void * data, size_t len)
+int fileman_write(const void * data, size_t len)
 {
     size_t write_result = fwrite(data,len, 1, f);
     if (write_result != 1)

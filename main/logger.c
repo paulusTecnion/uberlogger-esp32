@@ -1002,8 +1002,11 @@ void task_logging(void * pvParameters)
                         } 
 
                         
-
-                        fileman_csv_write_header();
+                        if (settings_get_logmode() == LOGMODE_CSV)
+                        {
+                            fileman_csv_write_header();
+                        }
+                            
                         // All good, put statemachines in correct state
                         _nextLogTaskState = LOGTASK_LOGGING;                        
                         // Reset and start the logging statemachine
