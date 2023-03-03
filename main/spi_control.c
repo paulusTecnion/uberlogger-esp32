@@ -88,25 +88,31 @@ esp_err_t spi_ctrl_datardy_int(uint8_t value)
 {
     if (value == 1)
     {
-            ESP_LOGI(TAG_SPI_CTRL, "Enabling data_rdy interrupts");
-            // Trigger on up and down edges
-            if (gpio_install_isr_service(ESP_INTR_FLAG_IRAM) != ESP_OK)
-            {
-                ESP_LOGE(TAG_SPI_CTRL, "Unable to install ISR service");
-                return ESP_FAIL;
-            }
-            // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
-            if (gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) != ESP_OK)
-            {
-                ESP_LOGE(TAG_SPI_CTRL, "Unable to add ISR handler");
-                return ESP_FAIL;
-            }
-        
-            return ESP_OK;
+        #ifdef DEBUG_SPI_CONTROL
+        ESP_LOGI(TAG_SPI_CTRL, "Enabling data_rdy interrupts");
+        #endif
+        // Trigger on up and down edges
+        if (gpio_install_isr_service(ESP_INTR_FLAG_IRAM) != ESP_OK)
+        {
+            ESP_LOGE(TAG_SPI_CTRL, "Unable to install ISR service");
+            return ESP_FAIL;
+        }
+        // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
+        if (gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) != ESP_OK)
+        {
+            ESP_LOGE(TAG_SPI_CTRL, "Unable to add ISR handler");
+            return ESP_FAIL;
+        }
+    
+        return ESP_OK;
     } else if (value == 0) {
+        #ifdef DEBUG_SPI_CONTROL
         ESP_LOGI(TAG_SPI_CTRL, "Removing ISR handler" );
+        #endif
         gpio_isr_handler_remove(GPIO_DATA_RDY_PIN);
+        #ifdef DEBUG_SPI_CONTROL
         ESP_LOGI(TAG_SPI_CTRL, "Uninstalling ISR service");
+        #endif
         gpio_uninstall_isr_service();
         return ESP_OK;
     } else {
@@ -312,8 +318,9 @@ esp_err_t spi_ctrl_queue_msg(uint8_t * txData, size_t length)
     // }
 
     // Queue transaction
+    #ifdef DEBUG_SPI_CONTROL
     ESP_LOGI(TAG_LOG, "Queuing message %d, %d", _spi_transaction_rx0.length, _spi_transaction_rx0.rxlength);
-    
+    #endif
     if(spi_device_queue_trans(stm_spi_handle, &_spi_transaction_rx0, 10 / portTICK_PERIOD_MS) != ESP_OK)
     {
         ESP_LOGE(TAG_SPI_CTRL, "Cannot queue msg");
@@ -385,10 +392,10 @@ void spi_ctrl_loop()
         
         if (ulNotificationValue)
         {
-            // if (int_level)
-            // {
-            // ESP_LOGI(TAG_SPI_CTRL, "HIGH TRIGGER");
-            
+            #ifdef DEBUG_SPI_CONTROL
+            ESP_LOGI(TAG_SPI_CTRL, "HIGH TRIGGER");
+            #endif
+
             if (rxdata_state != RXDATA_STATE_DATA_OVERRUN)
             {
                 rxdata_state = RXDATA_STATE_DATA_READY;

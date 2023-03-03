@@ -10,6 +10,7 @@
 #include <fcntl.h>
 
 #include "rest_server.h"
+#include "config.h"
 
 
 static const char *REST_TAG = "esp-rest";
@@ -68,7 +69,9 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
 
     // char * buf;
     size_t buf_len = httpd_req_get_url_query_len(req);
+    #ifdef DEBUG_REST_SERVER
     ESP_LOGI(REST_TAG, "Query length %d, filepath %d", buf_len, strlen(filepath));
+    #endif
 
     if (buf_len > 0)
     {
@@ -112,7 +115,9 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     } while (read_bytes > 0);
     /* Close file after sending complete */
     close(fd);
+    #ifdef DEBUG_REST_SERVER
     ESP_LOGI(REST_TAG, "File sending complete");
+    #endif
     /* Respond with an empty chunk to signal HTTP response completion */
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
@@ -349,10 +354,14 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             {
                 if (j==0)
                 {
+                    #ifdef DEBUG_REST_SERVER
                     ESP_LOGI("REST: ", "NTC%d %d", i, (subItem->valueint));
+                    #endif
                     settings_set_adc_channel_type(i, subItem->valueint);
                 } else {
+                    #ifdef DEBUG_REST_SERVER
                     ESP_LOGI("REST: ", "AIN%d %d", i, (subItem->valueint));
+                    #endif
                     settings_set_adc_channel_range(i, subItem->valueint);
                 }
                 

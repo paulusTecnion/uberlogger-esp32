@@ -285,7 +285,9 @@ esp_err_t Logger_syncSettings()
 {
     settings_persist_settings();
     // Send command to STM32 to go into settings mode
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
+    #endif
     spi_buffer = spi_ctrl_getRxData();
 
     spi_cmd_t cmd;
@@ -306,12 +308,14 @@ esp_err_t Logger_syncSettings()
         // spi_ctrl_print_rx_buffer();
         if (spi_buffer[0] != STM32_CMD_SETTINGS_MODE || spi_buffer[1] != STM32_RESP_OK)
         {
-            ESP_LOGI(TAG_LOG, "Unable to put STM32 into SETTINGS mode. ");
+            ESP_LOGE(TAG_LOG, "Unable to put STM32 into SETTINGS mode. ");
             spi_ctrl_print_rx_buffer(spi_buffer);
             SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
             return ESP_FAIL;
         } 
+        #ifdef DEBUG_LOGGING
         ESP_LOGI(TAG_LOG, "SETTINGS mode enabled");
+        #endif
     } else {
         return ESP_FAIL;
     }
@@ -325,13 +329,15 @@ esp_err_t Logger_syncSettings()
     // spi_ctrl_print_rx_buffer();
     if (spi_buffer[0] != STM32_CMD_SET_ADC_CHANNELS_ENABLED || spi_buffer[1] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", spi_buffer[0]);
+        ESP_LOGE(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", spi_buffer[0]);
         spi_ctrl_print_rx_buffer(spi_buffer);
         SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
         return ESP_FAIL;
     }
 
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "ADC channels set");
+    #endif
 
     cmd.command = STM32_CMD_SET_RESOLUTION;
     cmd.data0 = (uint8_t)settings_get_resolution();
@@ -340,13 +346,14 @@ esp_err_t Logger_syncSettings()
     // spi_ctrl_print_rx_buffer();
     if (spi_buffer[0] != STM32_CMD_SET_RESOLUTION || spi_buffer[1] != STM32_RESP_OK)
     {
-        ESP_LOGI(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", spi_buffer[0]);
+        ESP_LOGE(TAG_LOG, "Unable to set STM32 ADC resolution. Received %d", spi_buffer[0]);
         spi_ctrl_print_rx_buffer(spi_buffer);
         SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
         return ESP_FAIL;
     } 
-    
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "ADC resolution set");
+    #endif
     
     cmd.command = STM32_CMD_SET_SAMPLE_RATE;
     cmd.data0 = (uint8_t)settings_get_samplerate();
@@ -355,14 +362,14 @@ esp_err_t Logger_syncSettings()
     // spi_ctrl_print_rx_buffer();
     if (spi_buffer[0] != STM32_CMD_SET_SAMPLE_RATE || spi_buffer[1] != STM32_RESP_OK )
     {
-        ESP_LOGI(TAG_LOG, "Unable to set STM32 sample rate. ");
+        ESP_LOGE(TAG_LOG, "Unable to set STM32 sample rate. ");
         spi_ctrl_print_rx_buffer(spi_buffer);
         SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
         return ESP_FAIL;
     }
-
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Sample rate set");
-
+    #endif
 
     cmd.command = STM32_CMD_SET_DATETIME;
     // cmd.data0 = (uint8_t)settings_get_timestamp();
@@ -374,14 +381,16 @@ esp_err_t Logger_syncSettings()
     // spi_ctrl_print_rx_buffer();
     if (spi_buffer[0] != STM32_CMD_SET_DATETIME || spi_buffer[1] != STM32_RESP_OK )
     {
-        ESP_LOGI(TAG_LOG, "Unable to set timestamp");
+     
+        ESP_LOGE(TAG_LOG, "Unable to set timestamp");
+  
         spi_ctrl_print_rx_buffer(spi_buffer);
         SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
         return ESP_FAIL;
     }
-
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Timestamp set");
-
+    #endif
     cmd.command = STM32_CMD_MEASURE_MODE;
     cmd.data0 = 0;
 
@@ -396,16 +405,9 @@ esp_err_t Logger_syncSettings()
         return ESP_FAIL;
     }
 
-    // Re-enable interrupts
-    // if (spi_ctrl_datardy_int(1) != ESP_OK)
-    // {
-    //     SET_ERROR(_errorCode, ERR_LOGGER_SPI_CTRL_ERROR);
-    //     return ESP_FAIL;
-    // }
-        
-
-    
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Sync done");
+    #endif
     // Exit settings mode 
     return ESP_OK;
 }
@@ -436,7 +438,9 @@ uint8_t Logger_mode_button_pushed()
         case 0:
           if(!level) 
           {
+            #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "MODE press hold");
+            #endif
             state = 1;
           }
         break;
@@ -444,14 +448,18 @@ uint8_t Logger_mode_button_pushed()
         case 1:
             if(level)
             {
+                #ifdef DEBUG_LOGGING
                 ESP_LOGI(TAG_LOG, "MODE released");
+                #endif
                 state = 2;
                 return 1;
             } 
         break;
 
         case 2:
+            #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "MODE reset");
+            #endif
             state = 0;
             
         break;    
@@ -478,7 +486,9 @@ esp_err_t LogTask_start()
 
 esp_err_t LogTask_stop()
 {
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "LogTask_stop() called");
+    #endif
      
     if (_currentLogTaskState == LOGTASK_LOGGING)
     {
@@ -493,22 +503,27 @@ esp_err_t LogTask_stop()
 
 esp_err_t Logging_stop()
 {
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Logging_stop() called");
+    #endif
     _stopLogging = 1;
     return ESP_OK;
 }
 
 esp_err_t Logging_start()
 {
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Logging_start() called");
+    #endif
     _startLogging = 1;
     return ESP_OK;
 }
 
 size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size)
 {
+    #ifdef DEBUG_SDCARD
     ESP_LOGI(TAG_LOG, "Flusing buffer to SD card");
-    
+    #endif
     return fileman_write(buffer, size);
     
    
@@ -516,7 +531,9 @@ size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size)
 
 size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime, size_t datarows)
 {
+    #ifdef DEBUG_SDCARD
     ESP_LOGI(TAG_LOG, "Flusing CSV buffer to SD card");
+    #endif
     return fileman_csv_write(adcData, lenAdc, gpioData, lenGpio, timeData ,lenTime, datarows);
 }
 
@@ -528,7 +545,10 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
         uint32_t writeptr = 0;
         uint64_t channel_range, channel_offset;
         // uint16_t adc0, adc1=0;
+        #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
+        #endif
+
         for (j = 0; j < length; j = j + 2)
         {
             // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
@@ -579,8 +599,10 @@ esp_err_t Logger_check_sdcard_free_space()
         return ESP_FAIL;
     } 
     else if (free_space < SDCARD_FREE_SPACE_WARNING_KB)
-    {    
+    {   
+        #ifdef DEBUG_SDCARD 
         ESP_LOGW(TAG_LOG, "Warning, low disk space!");
+        #endif
     }
 
     return ESP_OK;
@@ -599,7 +621,10 @@ esp_err_t Logger_flush_to_sdcard()
         // ESP_LOGI(TAG_LOG, "ADC fixed p %d, %d, %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1], adc_buffer_fixed_point[2]);
         //             ESP_LOGI(TAG_LOG, "GPIO %d, %d, %d", sdcard_data.gpioData[0], sdcard_data.gpioData[1], sdcard_data.gpioData[2]);
         //             ESP_LOGI(TAG_LOG, "Sizes: %d, %d, %d", sizeof(adc_buffer_fixed_point), sizeof(sdcard_data.gpioData), sizeof(sdcard_data.timeData));
+        #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG_LOG, "Flusing buffer");
+        #endif
+
         if (!Logger_flush_buffer_to_sd_card_csv(
             adc_buffer_fixed_point, (sizeof(adc_buffer_fixed_point)/sizeof(int32_t)),
             sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
@@ -611,8 +636,10 @@ esp_err_t Logger_flush_to_sdcard()
         }
 
     } else {
-        if (Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&sdcard_data, SD_BUFFERSIZE) != SD_BUFFERSIZE)
+        size_t len = Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&sdcard_data, SD_BUFFERSIZE) ;
+        if (len != SD_BUFFERSIZE)
         {
+            ESP_LOGE(TAG_LOG, "Raw write error. Returned: %d", len);
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
             return ESP_FAIL;
         }
@@ -629,7 +656,9 @@ uint32_t Logger_getError()
 
 void LogTask_resetCounter()
 {
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "LogTask resetCounter");
+    #endif
     int_counter = 0;
     log_counter = 0;
     sdcard_data.datarows = 0;
@@ -639,7 +668,9 @@ void LogTask_resetCounter()
 
 void LogTask_reset()
 {
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "LogTask reset");
+    #endif
     LogTask_resetCounter();
     _errorCode = 0;
 }
@@ -670,10 +701,12 @@ esp_err_t Logger_processData()
                 sizeof(spi_msg_1_ptr->adcData));
 
             sdcard_data.datarows += spi_msg_1_ptr->dataLen;
+            #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+2]);
             ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+2]);
             ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+3]);
             ESP_LOGI(TAG_LOG, "dataLen: %d", sdcard_data.datarows);
+            #endif
         } 
         else if (spi_msg_2_ptr->stopByte[0] == 0xFB &&
                 spi_msg_2_ptr->stopByte[1] == 0xFA &&
@@ -698,10 +731,12 @@ esp_err_t Logger_processData()
                 spi_msg_2_ptr->timeData, 
                 sizeof(spi_msg_2_ptr->timeData));
             sdcard_data.datarows += spi_msg_2_ptr->dataLen;
+            #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+2]);
             ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+2]);
             ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+3]);
             ESP_LOGI(TAG_LOG, "dataLen: %d", sdcard_data.datarows);
+            #endif
             // }
         }  else {
             //     // No start or stop byte found!
@@ -739,14 +774,18 @@ esp_err_t Logger_processData()
 
 void Logger_disableADCen_and_Interrupt()
 {
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Disabling ADC enable and data rdy interrupt");
+    #endif
     gpio_set_level(GPIO_ADC_EN, 0);
     spi_ctrl_datardy_int(0);
 }
 
 void Logging_reset()
 {
+    #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Logging reset");
+    #endif
     _nextLoggingState = LOGGING_IDLE;
 }
 
@@ -775,7 +814,9 @@ esp_err_t Logger_logging()
                 // enable data rdy interrupt pin
                 spi_ctrl_datardy_int(1);
                 // Enable logging at STM32
+                #ifdef DEBUG_LOGGING
                 ESP_LOGI(TAG_LOG, "Enabling ADC_EN");
+                #endif
                 if(!gpio_get_level(GPIO_ADC_EN))
                 {
                     gpio_set_level(GPIO_ADC_EN, 1);
@@ -812,7 +853,9 @@ esp_err_t Logger_logging()
             } 
             else if (state == RXDATA_STATE_DATA_OVERRUN) 
             {
+                #ifdef DEBUG_LOGGING
                 ESP_LOGE(TAG_LOG, "Data overrun!");
+                #endif
                 SET_ERROR(_errorCode, ERR_LOGGER_DATA_OVERRUN);
                 Logger_disableADCen_and_Interrupt();
                 _nextLoggingState = LOGGING_ERROR;
@@ -821,7 +864,9 @@ esp_err_t Logger_logging()
             // state cannot be RXDATA_STATE_DATA_READY, because else we will queue another message for receiving the last ADC leading to a 
             // system crash
             {   
+                #ifdef DEBUG_LOGGING
                 ESP_LOGI(TAG_LOG, "Setting _stopLogging to 0.");
+                #endif
                 _stopLogging = 0;
                 _nextLoggingState = LOGGING_DONE;
             } 
@@ -834,7 +879,9 @@ esp_err_t Logger_logging()
             ret = spi_ctrl_receive_data();
             if (ret == ESP_OK)
             {
+                #ifdef DEBUG_LOGGING
                 ESP_LOGI(TAG_LOG, "POP QUEUE, _dataReceived = 1");
+                #endif
                 _dataReceived = 1;
                 
                 // Check, for example, gpio data size to keep track if sdcard_data is full
@@ -868,29 +915,6 @@ esp_err_t Logger_logging()
         }
         break;
 
-
-        // case LOGGING_GET_LAST_DATA:
-        // {
-        //     spi_cmd_t spi_cmd;
-        //     // Wait 100 ms for the STM32 to stop the ADC . 
-        //     vTaskDelay(100 / portTICK_PERIOD_MS);
-        //     spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
-        //     if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
-        //     {
-        //         // Make sure that the processing function knows which spi message structure to use
-        //         // msg_part = 0;
-        //         ESP_LOGI(TAG_LOG, "Last data received");
-        //         _dataReceived = 1;
-        //         // spi_ctrl_reset_rx_state();
-        //         _nextLoggingState = LOGGING_DONE;
-        //     } else {
-        //         Logger_disableADCen_and_Interrupt();
-        //         ESP_LOGE(TAG_LOG, "Error receiving last message");
-        //         _nextLoggingState = LOGGING_ERROR;
-        //     }
-        // }            
-        // break;
-
         case LOGGING_DONE:
         case LOGGING_ERROR:
            
@@ -901,8 +925,9 @@ esp_err_t Logger_logging()
 
     if (_nextLoggingState != _currentLoggingState)
     {
-        
+        #ifdef DEBUG_LOGGING
         ESP_LOGI(TAG_LOG, "LOGGING state changing from %d to %d", _currentLoggingState, _nextLoggingState);
+        #endif
         _currentLoggingState = _nextLoggingState;
     }
                 
@@ -940,12 +965,15 @@ void task_logging(void * pvParameters)
     // // Initialize SD card
     if (esp_sd_card_mount() == ESP_OK)
     {
+        #ifdef DEBUG_LOGTASK
         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+        #endif
         esp_sd_card_unmount();
     } 
     
+    #ifdef DEBUG_LOGTASK
     ESP_LOGI(TAG_LOG, "Logger task started");
-
+    #endif
 
     if (spi_ctrl_init(STM32_SPI_HOST, GPIO_DATA_RDY_PIN) != ESP_OK)
     {
@@ -958,7 +986,9 @@ void task_logging(void * pvParameters)
     {
         ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
     } else {
+        #ifdef DEBUG_LOGTASK
         ESP_LOGI(TAG_LOG, "STM32 settings synced");
+        #endif
     }
 
     
@@ -988,8 +1018,9 @@ void task_logging(void * pvParameters)
                                 esp_sd_card_unmount();
                             break;
                         }
-
+                        #ifdef DEBUG_LOGTASK
                         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+                        #endif
                         if (fileman_open_file() != ESP_OK)
                         { 
                             if (esp_sd_card_unmount() == ESP_OK)
@@ -1033,7 +1064,9 @@ void task_logging(void * pvParameters)
                             LogTask_resetCounter();
                             if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
                             {
+                                #ifdef DEBUG_LOGTASK_RX
                                 ESP_LOGI(TAG_LOG, "Last msg received");
+                                #endif
                                 Logger_processData();
                                 
                             } else {
@@ -1052,19 +1085,23 @@ void task_logging(void * pvParameters)
 
                 if (_dataReceived)           
                 {
+                    #ifdef DEBUG_LOGTASK_RX
                     ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
+                    #endif
                     if (Logger_processData() != ESP_OK)
                     {
                         LogTask_stop();
                         SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
                         _nextLogTaskState = LOGTASK_IDLE;
                     }
+                    #ifdef DEBUG_LOGTASK_RX
                     ESP_LOGI(TAG_LOG, "_dataReceived = 0");
+                    #endif
                     _dataReceived = 0;
                 }
                 
                 // do we need to flush the data? 
-                if(log_counter*sizeof(spi_msg_1_ptr->gpioData) >= sizeof(sdcard_data.gpioData))
+                if(log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH)
                 {
                     if (Logger_flush_to_sdcard() != ESP_OK)
                     {
@@ -1093,9 +1130,17 @@ void task_logging(void * pvParameters)
                     // or we will have to retrieve it. 
                     if ( _dataReceived )
                     {
+                        #ifdef DEBUG_LOGTASK
                         ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
-                        Logger_processData();
+                        #endif
+                        if (settings_get_logmode() == LOGMODE_CSV)
+                        {
+                            Logger_processData();
+                        }
+                        
+                        #ifdef DEBUG_LOGTASK_RX
                         ESP_LOGI(TAG_LOG,"_dataReceived = 0");
+                        #endif
                         _dataReceived = 0;
                     } else {
                         // Wait for STM to stop ADC and go to idle mode
@@ -1105,9 +1150,14 @@ void task_logging(void * pvParameters)
                         LogTask_resetCounter();
                         if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
                         {
+                            #ifdef DEBUG_LOGTASK_RX
                             ESP_LOGI(TAG_LOG, "Last ADC data received");
-                            // Add check if last number bytes equals number of data lines. If so, we should discard that
-                            Logger_processData();
+                            #endif
+                            if (settings_get_logmode() == LOGMODE_CSV)
+                            {
+                                // Add check if last number bytes equals number of data lines. If so, we should discard that
+                                Logger_processData();
+                            }
                         } else {
                             ESP_LOGE(TAG_LOG, "Error receiving last message");
                             SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
@@ -1148,7 +1198,9 @@ void task_logging(void * pvParameters)
 
         if (_nextLogTaskState != _currentLogTaskState)
         {
+            #ifdef DEBUG_LOGTASK
             ESP_LOGI(TAG_LOG, "Changing LOGTASK state from %d to %d", _currentLogTaskState, _nextLogTaskState);
+            #endif
             _currentLogTaskState = _nextLogTaskState;
         }
 

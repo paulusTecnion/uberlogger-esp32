@@ -1,5 +1,6 @@
 #include "fileman.h"
 #include "../../main/settings.h"
+#include "../../main/config.h"
 
 #define MOUNT_POINT "/sdcard"
 static const char *TAG_FILE = "FILEMAN";
@@ -27,14 +28,17 @@ esp_err_t fileman_open_file(void)
 {
     if (strcmp(file_name, "") == 0)
     {
+        #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "No file name specified!");
+        #endif
         return ESP_FAIL;
     }
     fileman_create_filename();
     // Use POSIX and C standard library functions to work with files.
     // First create a file.
+    #ifdef DEBUG_FILEMAN
     ESP_LOGI(TAG_FILE, "Opening file %s", file_name);
-
+    #endif
     
     // Open file
     f = fopen(file_name, "w");
@@ -59,7 +63,9 @@ esp_err_t fileman_close_file(void)
     if (f!=NULL)
     {
         fclose(f);
+        #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "Closing file");
+        #endif
         file_seq_num++;
         return ESP_OK;
     } else {
@@ -88,8 +94,9 @@ esp_err_t fileman_search_last_sequence_file(void)
         file_seq_num++;
 
     }
+    #ifdef DEBUG_FILEMAN
     ESP_LOGI(TAG_FILE, "Sequence number: %d", file_seq_num);
-    
+    #endif
 
     return file_seq_num;
 }
@@ -97,8 +104,8 @@ esp_err_t fileman_search_last_sequence_file(void)
 
 int fileman_write(const void * data, size_t len)
 {
-    size_t write_result = fwrite(data,len, 1, f);
-    if (write_result != 1)
+    size_t write_result = fwrite(data,1, len, f);
+    if (write_result != len)
     {
         ESP_LOGE(TAG_FILE,"Error writing to backing store %d %d\n", (int)len, write_result);
         perror ("The following error occurred");

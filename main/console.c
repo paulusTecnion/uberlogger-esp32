@@ -190,7 +190,9 @@ void init_console(){
     repl_config.history_save_path = HISTORY_PATH;
     ESP_LOGI(TAG_CONSOLE, "Command history enabled");
     #else
+    #ifdef DEBUG_CONSOLE
     ESP_LOGI(TAG_CONSOLE, "Command history disabled");
+    #endif
     #endif
 
 

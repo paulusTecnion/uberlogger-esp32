@@ -10,6 +10,7 @@
 #include "sdmmc_cmd.h"
 #include "sdkconfig.h"
 #include "esp_sd_card.h"
+#include "../../main/config.h"
 
 #ifdef CONFIG_IDF_TARGET_ESP32
 #include "driver/sdmmc_host.h"
@@ -89,7 +90,9 @@ esp_err_t esp_sd_card_mount()
 
     if (esp_sd_card_is_mounted)
     {
+        #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG, "Card already mounted");
+        #endif
         return ESP_OK;
     }
 
@@ -138,9 +141,9 @@ esp_err_t esp_sd_card_init(void)
     // If format_if_mount_failed is set to true, SD card will be partitioned and
     // formatted in case when mounting fails.
     
-    
+    #ifdef DEBUG_SDCARD
     ESP_LOGI(TAG, "Initializing SD card");
-
+    #endif
     gpio_set_direction(PIN_SD_CD, GPIO_MODE_INPUT);
 
     // Use settings defined above to initialize SD card and mount FAT filesystem.
@@ -169,8 +172,9 @@ esp_err_t esp_sd_card_init(void)
 
     ret = esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_config, &mount_config, &card);
 #else
+    #ifdef DEBUG_SDCARD
     ESP_LOGI(TAG, "Using SPI peripheral");
-
+    #endif
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI3_HOST;
 
@@ -217,7 +221,9 @@ esp_err_t esp_sd_card_unmount(void)
        if (esp_sd_card_is_mounted)
        {
         esp_vfs_fat_sdcard_unmount(mount_point, card);
+        #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG, "File closed and card unmounted");
+        #endif
         esp_sd_card_is_mounted = false;
         return ESP_OK;
        } else {

@@ -1,5 +1,22 @@
 /*
-Pins in use. The SPI Master can use the GPIO mux, so feel free to change these if needed.
+DEBUG OUTPUT CONFIGURATION
+*/
+
+// #define DEBUG_CONSOLE
+// #define DEBUG_FILEMAN
+#define DEBUG_LOGTASK
+// #define DEBUG_LOGTASK_RX
+// #define DEBUG_LOGGING
+#define DEBUG_MAIN
+// #define DEBUG_REST_SERVER
+#define DEBUG_SETTINGS
+// #define DEBUG_SDCARD
+// #define DEBUG_SPI_CONTROL
+// #define DEBUG_WIFI
+
+
+/*
+HARDWARE CONFIGURATION
 */
 #if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
 #define GPIO_DATA_RDY_PIN 6
@@ -47,6 +64,8 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define STM32_SPI_HOST SPI2_HOST
 
 #endif
-
+/*
+SDCARD CONFIGURATION
+*/
 #define SDCARD_FREE_SPACE_MINIMUM_KB    200
 #define SDCARD_FREE_SPACE_WARNING_KB    1024*8
