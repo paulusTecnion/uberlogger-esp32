@@ -637,7 +637,8 @@ esp_err_t Logger_flush_to_sdcard()
 
     } else {
         size_t len = Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&sdcard_data, SD_BUFFERSIZE) ;
-        if (len != SD_BUFFERSIZE)
+        // if (len != SD_BUFFERSIZE)
+        if (len != 1)
         {
             ESP_LOGE(TAG_LOG, "Raw write error. Returned: %d", len);
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
@@ -1041,9 +1042,12 @@ void task_logging(void * pvParameters)
                         // All good, put statemachines in correct state
                         _nextLogTaskState = LOGTASK_LOGGING;                        
                         // Reset and start the logging statemachine
+                        
+                        
                         LogTask_reset();
                         Logging_reset();
                         Logging_start();
+                        
                     } else {
                         SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
                         _nextLogTaskState = LOGTASK_IDLE;
