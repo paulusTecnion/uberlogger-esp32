@@ -113,20 +113,20 @@ void app_main(void)
     "#################################");
     #endif
 
-    
+
  
     settings_init();
 
     // wifi_init_sta();
-    // wifi_init_softap();
+    wifi_init_softap();
 
     
     // The wifi seems to be either crashing the ESP sometimes due to this: https://github.com/espressif/esp-idf/issues/7404
     // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...
     vTaskDelay (1000/portTICK_PERIOD_MS);
 
-    // ESP_ERROR_CHECK(init_fs());
-    // ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
+    ESP_ERROR_CHECK(init_fs());
+    ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
 
     // Start tasks
     xTaskCreate(task_logging, "task_logging", 3500, NULL, 6, &xHandle_stm32);
