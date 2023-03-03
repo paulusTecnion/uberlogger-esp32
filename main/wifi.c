@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include "u8g2.h"
+// #include "u8g2.h"
 
 #include "freertos/FreeRTOS.h"
 
@@ -15,7 +15,7 @@
 #include "config.h"
 #include "sdkconfig.h"
 #include "esp_netif.h"
-#include "mdns.h"
+// #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
 #include "protocol_examples_common.h"
 

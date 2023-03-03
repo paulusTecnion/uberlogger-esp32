@@ -6,6 +6,7 @@ idf_component_register(SRCS
                             "rest_server.c"
                             "settings.c"
                             "spi_control.c"
+                            "sysinfo.c"
                             "tempsensor.c"
                             "wifi.c" 
                             

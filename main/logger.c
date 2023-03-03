@@ -12,6 +12,7 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
+#include "esp_timer.h"
 #include "esp_sd_card.h"
 #include "config.h"
 #include "settings.h"
@@ -75,7 +76,7 @@ extern TaskHandle_t xHandle_stm32;
 // State of STM interrupt pin. 0 = low, 1 = high
 // bool int_level = 0;
 // Interrupt counter that tracks how many times the interrupt has been triggered. 
-uint8_t volatile int_counter =0;
+
 
 static uint8_t log_counter = 0;
 
@@ -660,7 +661,7 @@ void LogTask_resetCounter()
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "LogTask resetCounter");
     #endif
-    int_counter = 0;
+
     log_counter = 0;
     sdcard_data.datarows = 0;
     expected_msg_part = 0;
@@ -1111,7 +1112,7 @@ void task_logging(void * pvParameters)
                     Logger_flush_to_sdcard();
                     
                     log_counter = 0;
-                    int_counter = 0;
+              
                     sdcard_data.datarows = 0;
                 }
 
@@ -1121,7 +1122,7 @@ void task_logging(void * pvParameters)
                 {
                     if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
                     {
-                        ESP_LOGE(TAG_LOG, "Error 0x%08X occured in Logging statemachine. Stopping..", _errorCode);
+                        ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
                         LogTask_stop();
                     } 
                     

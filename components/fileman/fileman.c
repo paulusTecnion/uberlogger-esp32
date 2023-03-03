@@ -7,7 +7,7 @@ static const char *TAG_FILE = "FILEMAN";
 static uint32_t file_seq_num=0;
 static FILE* f = NULL;
 char file_name[16];
-char strbuffer[200];
+char filestrbuffer[200];
 
 void fileman_create_filename()
 {
@@ -136,7 +136,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
     for (int i = 0; i<datarows; i++)
     {
         // Print time stamp
-        writeptr = writeptr + sprintf(strbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03d,",
+        writeptr = writeptr + sprintf(filestrbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03d,",
             date_time_ptr[j].year, 
             date_time_ptr[j].month,
             date_time_ptr[j].date,
@@ -151,17 +151,17 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             
             if (dataAdc[i*NUM_ADC_CHANNELS+x] > -1000000 && dataAdc[i*NUM_ADC_CHANNELS+x]<0)
             {
-                writeptr = writeptr + snprintf(strbuffer+writeptr, 14, "-%d.%06d,",
+                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "-%d.%06d,",
                 dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
             } else {
-                writeptr = writeptr + snprintf(strbuffer+writeptr, 14, "%d.%06d,", 
+                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%d.%06d,", 
                 dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
             }
 
 
         }
         // Finally the IOs
-        snprintf(strbuffer+writeptr, (2*6+5), "%d,%d,%d,%d,%d,%d\r\n",
+        snprintf(filestrbuffer+writeptr, (2*6+5), "%d,%d,%d,%d,%d,%d\r\n",
             (dataGpio[j] & 0x04) && 1,
             (dataGpio[j] & 0x08) && 1,
             (dataGpio[j] & 0x10) && 1,
@@ -172,8 +172,8 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
         writeptr = 0;
  
         j++;
-        // ESP_LOGI(TAG_FILE, "%s", strbuffer);
-        if (fprintf(f, strbuffer) < 0)
+        // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
+        if (fprintf(f, filestrbuffer) < 0)
         {
             return 0;
         }

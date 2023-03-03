@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include "u8g2.h"
 #include "esp_log.h"
 #include "esp_console.h"
 #include "freertos/FreeRTOS.h"

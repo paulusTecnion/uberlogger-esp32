@@ -3,13 +3,13 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include "u8g2.h"
+
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "driver/gpio.h"
-#include "u8g2_esp32_hal.h"
+
 #include "config.h"
 #include "logger.h"
 

@@ -49,7 +49,7 @@ extern TaskHandle_t xHandle_stm32;
 
 volatile rxdata_state_t rxdata_state = RXDATA_STATE_NODATA;
 
-volatile uint16_t int_counter;
+
 
 /*
 This ISR is called when the handshake line goes high OR low
@@ -75,7 +75,7 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
 
     // if (int_level)
     // int_level = 1;
-    int_counter++;
+
     
     vTaskNotifyGiveFromISR( xHandle_stm32,
                                 //    xArrayIndex,
