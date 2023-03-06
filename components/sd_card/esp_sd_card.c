@@ -98,7 +98,8 @@ esp_err_t esp_sd_card_mount()
 
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = SPI3_HOST;
+    host.slot = SDCARD_SPI_HOST;
+    // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
     
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_NUM_MOSI,
@@ -106,7 +107,7 @@ esp_err_t esp_sd_card_mount()
         .sclk_io_num = PIN_NUM_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 16*1024,
+        .max_transfer_sz = 8*1024,
     };
 
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
@@ -176,7 +177,7 @@ esp_err_t esp_sd_card_init(void)
     ESP_LOGI(TAG, "Using SPI peripheral");
     #endif
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = SPI3_HOST;
+    host.slot = SDCARD_SPI_HOST;
 
     // Max freq 40 MHz
     
@@ -188,16 +189,21 @@ esp_err_t esp_sd_card_init(void)
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = 8*1024,
-        .flags = SPI_TRANS_MODE_DIO | SPI_TRANS_MULTILINE_ADDR 
+        // .flags = SPI_TRANS_MODE_DIO | SPI_TRANS_MULTILINE_ADDR 
     };
+
+    gpio_set_drive_capability(PIN_NUM_MOSI, GPIO_DRIVE_CAP_2);
     
     // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
     
-    ret = spi_bus_initialize(host.slot, &bus_cfg, SPI_DMA_CHAN);
+    ret = spi_bus_initialize(host.slot, &bus_cfg, SDCARD_SPI_HOST);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize bus.");
         return ret;
     } else {
+        #ifdef DEBUG_SDCARD
+        ESP_LOGI(TAG, "SPI bus initialized.");
+        #endif
         esp_sd_spi_is_initialized = true;
     }
     
