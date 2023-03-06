@@ -22,6 +22,7 @@
 #include "esp_timer.h"
 #include "config.h"
 #include "settings.h"
+#include "sysinfo.h"
 
 #include "esp_vfs_semihost.h"
 #include "esp_vfs_fat.h"
@@ -104,8 +105,8 @@ void app_main(void)
     init_console();
     // Register console commands
     vTaskDelay (200/portTICK_PERIOD_MS);
-    esp_log_level_set("wifi", ESP_LOG_ERROR);
-    esp_log_level_set("httpd_txrx", ESP_LOG_ERROR);
+    // esp_log_level_set("wifi", ESP_LOG_ERROR);
+    // esp_log_level_set("httpd_txrx", ESP_LOG_ERROR);
 
     #ifdef DEBUG_MAIN
     ESP_LOGI(TAG, "\r\n"
@@ -117,10 +118,12 @@ void app_main(void)
 
  
     settings_init();
+    sysinfo_init();
 
     // wifi_init_sta();
     wifi_init_softap();
-    esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+    // esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
     
     // The wifi seems to be either crashing the ESP sometimes due to this: https://github.com/espressif/esp-idf/issues/7404
     // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...

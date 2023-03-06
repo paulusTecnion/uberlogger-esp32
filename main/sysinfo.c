@@ -3,6 +3,9 @@
 #include "driver/temperature_sensor.h"
 #include "sysinfo.h"
 
+    temperature_sensor_handle_t temp_handle = NULL;
+
+
 float sysinfo_get_core_temperature()
 {
     // float t;
@@ -18,18 +21,25 @@ float sysinfo_get_core_temperature()
     // return (float)t/100;
 
 
-    temperature_sensor_handle_t temp_handle = NULL;
-    temperature_sensor_config_t temp_sensor = {
-        .range_min = -10,
-        .range_max = 100,
-    };
-    ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor, &temp_handle));
-    ESP_ERROR_CHECK(temperature_sensor_enable(temp_handle));
+
+   
     // Get converted sensor data
-    float tsens_out;
-    ESP_ERROR_CHECK(temperature_sensor_get_celsius(temp_handle, &tsens_out));
+    float tsens_out = 20.0;
+    // ESP_ERROR_CHECK(temperature_sensor_get_celsius(temp_handle, &tsens_out));
     return tsens_out;
 
+}
+
+esp_err_t sysinfo_init()
+{    temperature_sensor_config_t temp_sensor = {
+        .range_min = -10,
+        .range_max = 80,
+    };
+
+
+    ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor, &temp_handle));
+    ESP_ERROR_CHECK(temperature_sensor_enable(temp_handle));
+    return ESP_OK;
 }
 
 const char * sysinfo_get_fw_version()
