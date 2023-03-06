@@ -33,7 +33,6 @@ uint8_t _stopLogTask = 0;
 uint8_t _dataReceived = 0;
 uint64_t stm32TimerTimeout, currtime_us =0;
 
-
 typedef struct {
     uint8_t startByte[START_STOP_NUM_BYTES]; // 2
     uint16_t dataLen;
@@ -707,7 +706,7 @@ esp_err_t Logger_processData()
             ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_1_ptr->timeData)+2]);
             ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_1_ptr->gpioData)+2]);
             ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_1_ptr->adcData)+3]);
-            ESP_LOGI(TAG_LOG, "dataLen: %d", sdcard_data.datarows);
+            ESP_LOGI(TAG_LOG, "dataLen: %ld", sdcard_data.datarows);
             #endif
         } 
         else if (spi_msg_2_ptr->stopByte[0] == 0xFB &&
@@ -737,7 +736,7 @@ esp_err_t Logger_processData()
             ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+2]);
             ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+1], sdcard_data.gpioData[log_counter*sizeof(spi_msg_2_ptr->gpioData)+2]);
             ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+1], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+2], sdcard_data.adcData[log_counter*sizeof(spi_msg_2_ptr->adcData)+3]);
-            ESP_LOGI(TAG_LOG, "dataLen: %d", sdcard_data.datarows);
+            ESP_LOGI(TAG_LOG, "dataLen: %ld", sdcard_data.datarows);
             #endif
             // }
         }  else {
@@ -963,6 +962,9 @@ void task_logging(void * pvParameters)
     gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
 
+    gpio_set_direction(STM32_SPI_CS, GPIO_MODE_OUTPUT);
+    gpio_set_level(STM32_SPI_CS, 0);
+
     
     // // Initialize SD card
     if (esp_sd_card_mount() == ESP_OK)
@@ -1043,7 +1045,6 @@ void task_logging(void * pvParameters)
                         // All good, put statemachines in correct state
                         _nextLogTaskState = LOGTASK_LOGGING;                        
                         // Reset and start the logging statemachine
-                        
                         
                         LogTask_reset();
                         Logging_reset();
