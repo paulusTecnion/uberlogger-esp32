@@ -189,7 +189,7 @@ esp_err_t esp_sd_card_init(void)
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = 8*1024,
-        // .flags = SPI_TRANS_MODE_DIO | SPI_TRANS_MULTILINE_ADDR 
+        .flags = SPI_TRANS_MODE_DIO | SPI_TRANS_MULTILINE_ADDR 
     };
 
     gpio_set_drive_capability(PIN_NUM_MOSI, GPIO_DRIVE_CAP_2);
