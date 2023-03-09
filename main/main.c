@@ -120,6 +120,10 @@ void app_main(void)
     settings_init();
     sysinfo_init();
 
+  // Start tasks
+    xTaskCreate(task_logging, "task_logging", 3500, NULL, 8, &xHandle_stm32);
+    xTaskCreate(task_hmi, "task_hmi", 2000, NULL, tskIDLE_PRIORITY, &xHandle_oled);
+    
     // wifi_init_sta();
     wifi_init_softap();
     esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
@@ -132,9 +136,7 @@ void app_main(void)
     ESP_ERROR_CHECK(init_fs());
     ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
 
-    // Start tasks
-    xTaskCreate(task_logging, "task_logging", 3500, NULL, 8, &xHandle_stm32);
-    xTaskCreate(task_hmi, "task_hmi", 2000, NULL, tskIDLE_PRIORITY, &xHandle_oled);
+  
 
     
 
