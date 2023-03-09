@@ -962,8 +962,8 @@ void task_logging(void * pvParameters)
     gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
 
-    gpio_set_direction(STM32_SPI_CS, GPIO_MODE_OUTPUT);
-    gpio_set_level(STM32_SPI_CS, 0);
+    // gpio_set_direction(STM32_SPI_CS, GPIO_MODE_OUTPUT);
+    // gpio_set_level(STM32_SPI_CS, 0);
 
     
     // // Initialize SD card
