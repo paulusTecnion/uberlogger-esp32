@@ -3,14 +3,14 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include "u8g2.h"
+
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "driver/gpio.h"
-#include "u8g2_esp32_hal.h"
-#include "hw_config.h"
+
+#include "config.h"
 #include "logger.h"
 
 
@@ -70,22 +70,25 @@ void task_hmi(void* ignore) {
     static uint8_t toggle = 1;
 
 
-    switch (Logger_getState())
+    if (Logger_getError() > 0)
     {
-        case LOGTASK_IDLE:
-          toggle = 1;
-          vTaskDelay(1000 / portTICK_PERIOD_MS);
-        break;
-
-        case LOGTASK_LOGGING:
-           toggle = !toggle;  
-           vTaskDelay(1000 / portTICK_PERIOD_MS);
-        break;
-
-        case LOGTASK_ERROR_OCCURED:
           toggle = !toggle;
-          vTaskDelay(300 / portTICK_PERIOD_MS);
-        break;
+          vTaskDelay(200 / portTICK_PERIOD_MS);
+    } else {
+      switch (Logger_getState())
+      {
+          case LOGTASK_IDLE:
+            toggle = 1;
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+          break;
+
+          case LOGTASK_LOGGING:
+            toggle = !toggle;  
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+          break;
+
+      
+      }
     }
     
     gpio_set_level(GPIO_HMI_LED, toggle);

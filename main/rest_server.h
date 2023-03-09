@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _REST_SERVER_H
+#define _REST_SERVER_H
 #include "esp_http_server.h"
 #include "esp_system.h"
 #include "esp_log.h"
@@ -17,11 +18,13 @@ typedef enum
     ENDPOINT_RESP_ERROR = 2
 } endpoint_response_t;
 
-char * endpoint_response_char[] = 
-{
-    "OK",
-    "NACK",
-    "ERROR"
-};
+// char * endpoint_response_char[] = 
+// {
+//     "OK",
+//     "NACK",
+//     "ERROR"
+// };
 
 esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type);
+
+#endif

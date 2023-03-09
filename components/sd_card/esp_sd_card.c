@@ -10,6 +10,7 @@
 #include "sdmmc_cmd.h"
 #include "sdkconfig.h"
 #include "esp_sd_card.h"
+#include "../../main/config.h"
 
 #ifdef CONFIG_IDF_TARGET_ESP32
 #include "driver/sdmmc_host.h"
@@ -31,7 +32,7 @@ static const char *TAG = "SDCARD";
 #define USE_SPI_MODE
 #endif // USE_SPI_MODE
 // on ESP32-S2, DMA channel must be the same as host id
-#define SPI_DMA_CHAN    host.slot
+#define SPI_DMA_CHAN    SPI3_HOST
 #endif //CONFIG_IDF_TARGET_ESP32S2
 
 // DMA channel to be used by the SPI peripheral
@@ -77,7 +78,8 @@ esp_err_t esp_sd_card_mount()
 {
     if (!esp_sd_spi_is_initialized)
     {
-        esp_sd_card_init();
+        if (esp_sd_card_init() != ESP_OK)
+            return ESP_FAIL;
     }
 
     if (esp_sd_card_check_for_card())
@@ -88,13 +90,16 @@ esp_err_t esp_sd_card_mount()
 
     if (esp_sd_card_is_mounted)
     {
+        #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG, "Card already mounted");
+        #endif
         return ESP_OK;
     }
 
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = SPI2_HOST;
+    host.slot = SDCARD_SPI_HOST;
+    // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
     
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_NUM_MOSI,
@@ -102,12 +107,13 @@ esp_err_t esp_sd_card_mount()
         .sclk_io_num = PIN_NUM_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 16*1024,
+        .max_transfer_sz = 8*1024,
     };
 
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_NUM_CS;
     slot_config.host_id = host.slot;
+    
 
     ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
     if (ret != ESP_OK) {
@@ -136,9 +142,9 @@ esp_err_t esp_sd_card_init(void)
     // If format_if_mount_failed is set to true, SD card will be partitioned and
     // formatted in case when mounting fails.
     
-    
+    #ifdef DEBUG_SDCARD
     ESP_LOGI(TAG, "Initializing SD card");
-
+    #endif
     gpio_set_direction(PIN_SD_CD, GPIO_MODE_INPUT);
 
     // Use settings defined above to initialize SD card and mount FAT filesystem.
@@ -167,10 +173,11 @@ esp_err_t esp_sd_card_init(void)
 
     ret = esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_config, &mount_config, &card);
 #else
+    #ifdef DEBUG_SDCARD
     ESP_LOGI(TAG, "Using SPI peripheral");
-
+    #endif
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = SPI2_HOST;
+    host.slot = SDCARD_SPI_HOST;
 
     // Max freq 40 MHz
     
@@ -184,14 +191,19 @@ esp_err_t esp_sd_card_init(void)
         .max_transfer_sz = 8*1024,
         .flags = SPI_TRANS_MODE_DIO | SPI_TRANS_MULTILINE_ADDR 
     };
+
+    gpio_set_drive_capability(PIN_NUM_MOSI, GPIO_DRIVE_CAP_2);
     
     // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
     
-    ret = spi_bus_initialize(host.slot, &bus_cfg, SPI_DMA_CHAN);
+    ret = spi_bus_initialize(host.slot, &bus_cfg, SDCARD_SPI_HOST);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize bus.");
         return ret;
     } else {
+        #ifdef DEBUG_SDCARD
+        ESP_LOGI(TAG, "SPI bus initialized.");
+        #endif
         esp_sd_spi_is_initialized = true;
     }
     
@@ -215,7 +227,9 @@ esp_err_t esp_sd_card_unmount(void)
        if (esp_sd_card_is_mounted)
        {
         esp_vfs_fat_sdcard_unmount(mount_point, card);
+        #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG, "File closed and card unmounted");
+        #endif
         esp_sd_card_is_mounted = false;
         return ESP_OK;
        } else {

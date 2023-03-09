@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include "u8g2.h"
 #include "esp_log.h"
 #include "esp_console.h"
 #include "freertos/FreeRTOS.h"
@@ -14,7 +13,7 @@
 #include "driver/gpio.h"
 #include "esp_sd_card.h"
 #include "logger.h"
-#include "hw_config.h"
+#include "config.h"
 #include "settings.h"
 #include "fileman.h"
 
@@ -47,6 +46,8 @@ static int cmd_sample_rate(int argc, char **argv)
         return settings_set_samplerate(settings_args.val->ival[0]);
     } else if (!strcmp(settings_args.arg0->sval[0], "res"))  {   
         return settings_set_resolution(settings_args.val->ival[0]);
+    } else if (!strcmp(settings_args.arg0->sval[0], "print")){
+        return settings_print();
     } else {
         return 1;
     }
@@ -74,9 +75,9 @@ static int cmd_logger(int argc, char **argv)
             return Logger_setCsvLog(LOGMODE_RAW);
         } 
     } else if (!strcmp(logger_args.arg0->sval[0], "start"))  {   
-        return Logger_start();
+        return LogTask_start();
     } else if (!strcmp(logger_args.arg0->sval[0], "stop")) {
-        return Logger_stop();
+        return LogTask_stop();
     } 
     
     return RET_NOK;
@@ -90,12 +91,14 @@ static void register_settings_sample_rate(void)
  int num_args = 2;
     settings_args.arg0 =
         
-    arg_str0(NULL, NULL, "<rate|res>", "Sample rate or resolution");
+    arg_str0(NULL, NULL, "<rate|res|print>", "Set Sample rate, resolution or print the settings");
 
     settings_args.val =
         
-    arg_int1(NULL, NULL, "<n>", "Sample rate in Hz");
+    arg_int1(NULL, NULL, "<n>", "Sample rate or resolution");
     settings_args.end = arg_end(num_args);
+
+
 
     const esp_console_cmd_t cmd = {
         .command = "settings",
@@ -130,27 +133,6 @@ static void register_logger_cmd(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
-static void register_log_start(void)
-{
-     const esp_console_cmd_t cmd = {
-        .command = "logger_start",
-        .help = "Start logger",
-        .hint = NULL,
-        .func = &Logger_start,
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
-
-static void register_log_stop(void)
-{
-     const esp_console_cmd_t cmd = {
-        .command = "logger_stop",
-        .help = "Stop logger",
-        .hint = NULL,
-        .func = &Logger_stop,
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
 
 
 
@@ -178,6 +160,20 @@ static void register_stm32_sync(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+static void register_singleshot(void)
+{
+
+    const esp_console_cmd_t cmd = {
+        .command = "ss",
+        .help = "Single shot measurment",
+        .hint = NULL,
+        .func = &Logger_singleShot
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+
+
 void init_console(){
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
@@ -193,7 +189,9 @@ void init_console(){
     repl_config.history_save_path = HISTORY_PATH;
     ESP_LOGI(TAG_CONSOLE, "Command history enabled");
     #else
+    #ifdef DEBUG_CONSOLE
     ESP_LOGI(TAG_CONSOLE, "Command history disabled");
+    #endif
     #endif
 
 
@@ -202,6 +200,7 @@ void init_console(){
     register_logger_cmd();
     register_restart();
     register_settings_sample_rate();
+    register_singleshot();
     register_stm32_sync();
 
     esp_console_register_help_command();

@@ -2,13 +2,13 @@ menu "WiFi settings"
 
     config ESP_WIFI_SSID
         string "WiFi SSID"
-        default "myssid"
+        default "Uberlogger"
         help
             SSID (network name) for the example to connect to.
 
     config ESP_WIFI_PASSWORD
         string "WiFi Password"
-        default "mypassword"
+        default ""
         help
             WiFi password (WPA or WPA2) for the example to use.
     config ESP_WIFI_CHANNEL
@@ -17,12 +17,44 @@ menu "WiFi settings"
         default 1
         help
             WiFi channel (network channel) for the example to use.
+    config ESP_MAXIMUM_RETRY
+        int "Wifi connection retries"
+        range 1 10
+        default 3
+        help
+            Maximum WiFi connection retries to connect to AP
+    choice ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD
+        prompt "WiFi Scan auth mode threshold"
+        default ESP_WIFI_AUTH_WPA2_PSK
+        help
+            The weakest authmode to accept in the scan mode.
+            This value defaults to ESP_WIFI_AUTH_WPA2_PSK incase password is present and ESP_WIFI_AUTH_OPEN is used.
+            Please select ESP_WIFI_AUTH_WEP/ESP_WIFI_AUTH_WPA_PSK incase AP is operating in WEP/WPA mode.
 
+        config ESP_WIFI_AUTH_OPEN
+            bool "OPEN"
+        config ESP_WIFI_AUTH_WEP
+            bool "WEP"
+        config ESP_WIFI_AUTH_WPA_PSK
+            bool "WPA PSK"
+        config ESP_WIFI_AUTH_WPA2_PSK
+            bool "WPA2 PSK"
+        config ESP_WIFI_AUTH_WPA_WPA2_PSK
+            bool "WPA/WPA2 PSK"
+        config ESP_WIFI_AUTH_WPA3_PSK
+            bool "WPA3 PSK"
+        config ESP_WIFI_AUTH_WPA2_WPA3_PSK
+            bool "WPA2/WPA3 PSK"
+        config ESP_WIFI_AUTH_WAPI_PSK
+            bool "WAPI PSK"
+    endchoice
+        
     config ESP_MAX_STA_CONN
         int "Maximal STA connections"
         default 4
         help
             Max number of the STA connects to AP.
+
 endmenu
 
 

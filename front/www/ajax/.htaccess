@@ -1,3 +1,0 @@
-RewriteEngine on
-RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.json -f [NC]
-RewriteRule ^ %{REQUEST_URI}.json [PT]

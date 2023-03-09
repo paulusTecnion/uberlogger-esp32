@@ -80,7 +80,9 @@ esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_rang
 
 esp_err_t settings_set_default()
 {
+    #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Setting default settings");
+    #endif
     _settings.adc_resolution = ADC_12_BITS;
     _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
@@ -105,9 +107,13 @@ esp_err_t settings_set_logmode(log_mode_t mode)
     _settings.logMode = mode;
     if (mode == LOGMODE_CSV)
     {
+        #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "Logmode set to CSV");
+        #endif
     } else if (mode == LOGMODE_RAW) {
+        #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "Logmode set to RAW");
+        #endif
     } else {
         return ESP_FAIL;
     }
@@ -180,8 +186,9 @@ esp_err_t settings_set_resolution(adc_resolution_t res)
         default:
         return ESP_FAIL;
     }
-    
+        #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "ADC RESOLUTION = %d", _settings.adc_resolution);
+        #endif
         
     return ESP_OK;    
        
@@ -198,7 +205,9 @@ esp_err_t settings_set_samplerate(adc_sample_rate_t rate)
 {
     if (rate > 0 && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
     {
+        #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "ADC SAMPLE RATE= %d", rate);
+        #endif
         _settings.log_sample_rate = rate;
         return ESP_OK;
     } else {
@@ -214,12 +223,16 @@ adc_sample_rate_t settings_get_samplerate()
 
 esp_err_t settings_load_persisted_settings()
 {
+    #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Loading persisted settings");
+    #endif
     if (spiffs_init(settings_filename) == ESP_OK)
     {
         if (spiffs_read((char*)&_settings, sizeof(_settings)) == ESP_OK)
         {
+            #ifdef DEBUG_SETTINGS
             ESP_LOGI(TAG_SETTINGS, "Persisted settings loaded succesfully");
+            #endif
             return ESP_OK;     
         } else {
             ESP_LOGE(TAG_SETTINGS, "Error reading settings file");
@@ -229,13 +242,57 @@ esp_err_t settings_load_persisted_settings()
     return ESP_FAIL;
 }
 
+esp_err_t settings_print()
+{
+    int i =0;
+    
+    ESP_LOGI(TAG_SETTINGS, "ADC Resolution %d", _settings.adc_resolution);
+    ESP_LOGI(TAG_SETTINGS, "ADC Sample rate %d", _settings.log_sample_rate);
+    
+
+    for (i=0; i<8; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC ch%d type: %s", i, (_settings.adc_channel_type & (1<<i)) ? "NTC" : "Analog");
+    }
+    
+    
+    for (i=0; i<8; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC ch%d range:%s", i, (_settings.adc_channel_range & (1<<i)) ? "+/-60V" : "+/-10V");
+    }
+
+    ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
+    
+    ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);
+    ESP_LOGI(TAG_SETTINGS, "Wifi channel %d", _settings.wifi_channel);
+    
+    return ESP_OK;
+}
+
 esp_err_t settings_persist_settings()
 {
     if ( spiffs_write((const char*)&_settings, sizeof(_settings)) == ESP_OK)
     {
+        #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "Settings persisted");
+        #endif
         return ESP_OK;     
     }
     ESP_LOGE(TAG_SETTINGS, "Persisting settings FAILED");
     return ESP_FAIL;
+}
+
+esp_err_t settings_set_timestamp(uint32_t timestamp)
+{
+    // take timestamp and convert to day, month, year and time
+    #ifdef DEBUG_SETTINGS
+    ESP_LOGI(TAG_SETTINGS, "Timstamp: %d", timestamp);
+    #endif
+    _settings.timestamp = timestamp;
+    return ESP_OK;
+}
+
+uint32_t settings_get_timestamp()
+{
+    return _settings.timestamp;
 }

@@ -11,6 +11,8 @@
 #define MAX_WIFI_SSID_LEN 50
 #define MAX_WIFI_PASSW_LEN 20
 
+#define NUM_ADC_CHANNELS 8
+
 typedef enum adc_channel_e {
 	ADC_CHANNEL_0 = 0x00,
 	ADC_CHANNEL_1 = 0x01,
@@ -48,26 +50,17 @@ typedef enum adc_channel_enable_e {
 typedef enum adc_sample_rate_e {
     ADC_SAMPLE_RATE_1Hz = 1,
 	ADC_SAMPLE_RATE_2Hz,
+	ADC_SAMPLE_RATE_5Hz,
 	ADC_SAMPLE_RATE_10Hz,
 	ADC_SAMPLE_RATE_25Hz,
 	ADC_SAMPLE_RATE_50Hz,
 	ADC_SAMPLE_RATE_100Hz,
-	ADC_SAMPLE_RATE_200Hz,
-	ADC_SAMPLE_RATE_400Hz,
+	ADC_SAMPLE_RATE_250Hz,
 	ADC_SAMPLE_RATE_500Hz,
 	ADC_SAMPLE_RATE_1000Hz,
-	ADC_SAMPLE_RATE_2000Hz,
-	ADC_SAMPLE_RATE_4000Hz,
-	ADC_SAMPLE_RATE_5000Hz,
-	ADC_SAMPLE_RATE_8000Hz,
-	ADC_SAMPLE_RATE_10000Hz,
-	ADC_SAMPLE_RATE_20000Hz,
-	ADC_SAMPLE_RATE_40000Hz,
-	ADC_SAMPLE_RATE_50000Hz,
-	ADC_SAMPLE_RATE_100000Hz,
-	ADC_SAMPLE_RATE_250000Hz,
-	ADC_SAMPLE_RATE_500000Hz,
-	ADC_SAMPLE_RATE_1000000Hz,
+	ADC_SAMPLE_RATE_2500Hz,
+	// ADC_SAMPLE_RATE_5000Hz,
+	// ADC_SAMPLE_RATE_10000Hz,
     ADC_SAMPLE_RATE_NUM_ITEMS
 } adc_sample_rate_t;
 
@@ -101,6 +94,7 @@ struct Settings_t {
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_password[MAX_WIFI_PASSW_LEN];
 	uint8_t wifi_channel;
+	uint32_t timestamp; // time in BCD format
 };
 
 typedef struct Settings_t Settings_t;
@@ -141,8 +135,17 @@ esp_err_t settings_set_samplerate(adc_sample_rate_t rate);
 esp_err_t settings_load_persisted_settings();
 esp_err_t settings_persist_settings();
 
+esp_err_t settings_print();
+
 adc_resolution_t settings_get_resolution();
 esp_err_t settings_set_resolution(adc_resolution_t res);
+
+/// @brief Sets the current date and time based on the epoch timestamp
+/// @param timestamp 32-bit Unix epoch timestamp
+/// @return ESP_OK when OK and ESP_FAIL for wrong input
+esp_err_t settings_set_timestamp(uint32_t timestamp);
+uint32_t settings_get_timestamp();
+
 
 
 #endif

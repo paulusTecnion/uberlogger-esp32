@@ -10,6 +10,7 @@
 #include <fcntl.h>
 
 #include "rest_server.h"
+#include "config.h"
 
 
 static const char *REST_TAG = "esp-rest";
@@ -65,6 +66,23 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     } else {
         strlcat(filepath, req->uri, sizeof(filepath));
     }
+
+    // char * buf;
+    size_t buf_len = httpd_req_get_url_query_len(req);
+    #ifdef DEBUG_REST_SERVER
+    ESP_LOGI(REST_TAG, "Query length %d, filepath %d", buf_len, strlen(filepath));
+    #endif
+
+    if (buf_len > 0)
+    {
+        strlcpy(filepath, filepath, strlen(filepath)-buf_len);
+    }
+    
+    if (strncmp(filepath, rest_context->base_path, strlen(filepath) - 1) == 0)
+    {
+        strlcat(filepath, "index.html", sizeof(filepath));
+    }
+
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
         ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
@@ -97,7 +115,9 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     } while (read_bytes > 0);
     /* Close file after sending complete */
     close(fd);
+    #ifdef DEBUG_REST_SERVER
     ESP_LOGI(REST_TAG, "File sending complete");
+    #endif
     /* Respond with an empty chunk to signal HTTP response completion */
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
@@ -114,7 +134,6 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     converted_reading_t data;
     
     
-
     Logger_GetSingleConversion(&data);
     
     cJSON_AddNumberToObject(root, "TIMESTAMP", data.timestamp);
@@ -152,7 +171,7 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     
    cJSON *digital = cJSON_AddObjectToObject(readings, "DIGITAL");
    cJSON_AddStringToObject(digital, "UNITS", "Level");
-   cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
+//    cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
     
     cJSON_AddNumberToObject(digital, "DI0", data.gpioData[0]);
     cJSON_AddNumberToObject(digital, "DI1", data.gpioData[1]);
@@ -183,10 +202,11 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     }
    
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
+    cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
     cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
     cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
     cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", esp_sd_card_get_free_space());
-    cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());;
+    cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
@@ -271,12 +291,22 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 
 static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 {
+
+    
+
     httpd_resp_set_type(req, "application/json");
+    if (Logger_getState() == LOGTASK_LOGGING)
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK);
+        return ESP_OK;
+    }
     cJSON * root = cJSON_CreateObject();
     if (root == NULL)
     {
         return ESP_FAIL;
     }
+
+
 
     int total_len = req->content_len;
     int cur_len = 0;
@@ -310,21 +340,23 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             if (j ==0)
             {
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTC_SELECT");
-                if (item == NULL)
+                if (item != NULL)
                 {
-                    json_send_resp(req, ENDPOINT_RESP_ERROR);
-                    return ESP_FAIL;
+                    sprintf(buf2, "NTC%d", i);
+                    // json_send_resp(req, ENDPOINT_RESP_ERROR);
+                    // return ESP_FAIL;
                 }
 
-                sprintf(buf2, "NTC%d", i);
+                
             } else {
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "AIN_RANGE_SELECT");
-                if (item == NULL)
+                if (item != NULL)
                 {
-                    json_send_resp(req, ENDPOINT_RESP_ERROR);
-                    return ESP_FAIL;
+                    sprintf(buf2, "AIN%d", i);
+                    // json_send_resp(req, ENDPOINT_RESP_ERROR);
+                    // return ESP_FAIL;
                 }
-                sprintf(buf2, "AIN%d", i);
+                
             }
                 
             cJSON * subItem = cJSON_GetObjectItemCaseSensitive(item, buf2);
@@ -332,71 +364,161 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             {
                 if (j==0)
                 {
+                    #ifdef DEBUG_REST_SERVER
                     ESP_LOGI("REST: ", "NTC%d %d", i, (subItem->valueint));
+                    #endif
                     settings_set_adc_channel_type(i, subItem->valueint);
                 } else {
+                    #ifdef DEBUG_REST_SERVER
                     ESP_LOGI("REST: ", "AIN%d %d", i, (subItem->valueint));
+                    #endif
                     settings_set_adc_channel_range(i, subItem->valueint);
                 }
                 
-            } else {
-                json_send_resp(req, ENDPOINT_RESP_ERROR);
-                return ESP_FAIL;
-            }
+            } 
+            // else {
+            //     json_send_resp(req, ENDPOINT_RESP_ERROR);
+            //     return ESP_FAIL;
+            // }
         
         }
     }
         
+    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID");
+    // if (item == NULL || settings_set_wifi_ssid(item->valuestring))
+    // {
+    //     ESP_LOGE("REST: ", "Error setting Wifi SSID");
+    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
+    //     return ESP_FAIL;
+    // }
+
+    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_CHANNEL");
+    // if (item == NULL || settings_set_wifi_channel(item->valueint))
+    // {
+    //     ESP_LOGE("REST: ", "Error setting Wifi channel");
+    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
+    //     return ESP_FAIL;
+    // }
+
+    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
+    // if (item == NULL || settings_set_wifi_password(item->valuestring))
+    // {
+    //     ESP_LOGE("REST: ", "Error setting Wifi SSID");
+    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
+    //     return ESP_FAIL;
+    // }
+
+
+    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "ADC_RESOLUTION");
+    // if (item == NULL || settings_set_resolution(item->valueint))
+    // {
+    //     ESP_LOGE("REST: ", "ADC resolution missing or wrong value");
+    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
+    //     return ESP_FAIL;
+    // }
+
+    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_SAMPLE_RATE");
+    // if (item == NULL || settings_set_samplerate(item->valueint))
+    // {
+    //     ESP_LOGE("REST: ", "Log sample rate missing or wrong value");
+    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
+    //     return ESP_FAIL;
+    // }
+
+    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_MODE");
+    // if (item == NULL || settings_set_logmode(item->valueint))
+    // {
+    //     ESP_LOGE("REST: ", "Log mode missing or wrong value");
+    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
+    //     return ESP_FAIL;
+    // }
+
+    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
+    // if (item == NULL || settings_set_timestamp(item->valueint))
+    // {
+    //     ESP_LOGE("REST: ", "Log mode missing or wrong value");
+    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
+    //     return ESP_FAIL;
+    // }
+
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID");
-    if (item == NULL || settings_set_wifi_ssid(item->valuestring))
+    if (item != NULL)
     {
-        ESP_LOGE("REST: ", "Error setting Wifi SSID");
-        json_send_resp(req, ENDPOINT_RESP_ERROR);
-        return ESP_FAIL;
+        if (settings_set_wifi_ssid(item->valuestring) != ESP_OK)
+        {
+            ESP_LOGE("REST: ", "Error setting Wifi SSID");
+            json_send_resp(req, ENDPOINT_RESP_ERROR);
+            return ESP_FAIL;
+        }
     }
+    
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_CHANNEL");
-    if (item == NULL || settings_set_wifi_channel(item->valueint))
+    if (item != NULL)
     {
-        ESP_LOGE("REST: ", "Error setting Wifi channel");
-        json_send_resp(req, ENDPOINT_RESP_ERROR);
-        return ESP_FAIL;
+        if (settings_set_wifi_channel(item->valueint) != ESP_OK)
+        {
+            ESP_LOGE("REST: ", "Error setting Wifi channel");
+            json_send_resp(req, ENDPOINT_RESP_ERROR);
+            return ESP_FAIL;
+        }
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
-    if (item == NULL || settings_set_wifi_password(item->valuestring))
+    if (item != NULL)
     {
-        ESP_LOGE("REST: ", "Error setting Wifi SSID");
-        json_send_resp(req, ENDPOINT_RESP_ERROR);
-        return ESP_FAIL;
+        if (settings_set_wifi_password(item->valuestring) != ESP_OK)
+        {
+            ESP_LOGE("REST: ", "Error setting Wifi SSID");
+            json_send_resp(req, ENDPOINT_RESP_ERROR);
+            return ESP_FAIL;
+        }
     }
 
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "ADC_RESOLUTION");
-    if (item == NULL || settings_set_resolution(item->valueint))
+    if (item != NULL)
     {
-        ESP_LOGE("REST: ", "ADC resolution missing or wrong value");
-        json_send_resp(req, ENDPOINT_RESP_ERROR);
-        return ESP_FAIL;
+        if (settings_set_resolution(item->valueint) != ESP_OK)
+        {
+            ESP_LOGE("REST: ", "ADC resolution missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_ERROR);
+            return ESP_FAIL;
+        }
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_SAMPLE_RATE");
-    if (item == NULL || settings_set_samplerate(item->valueint))
+    if (item != NULL)
     {
-        ESP_LOGE("REST: ", "Log sample rate missing or wrong value");
-        json_send_resp(req, ENDPOINT_RESP_ERROR);
-        return ESP_FAIL;
+        if (settings_set_samplerate(item->valueint) != ESP_OK)
+        {
+            ESP_LOGE("REST: ", "Log sample rate missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_ERROR);
+            return ESP_FAIL;
+        }
     }
 
-     item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_MODE");
-    if (item == NULL || settings_set_logmode(item->valueint))
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_MODE");
+    if (item != NULL)
     {
-        ESP_LOGE("REST: ", "Log mode missing or wrong value");
-        json_send_resp(req, ENDPOINT_RESP_ERROR);
-        return ESP_FAIL;
+        if (settings_set_logmode(item->valueint) != ESP_OK)
+        {
+            ESP_LOGE("REST: ", "Log mode missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_ERROR);
+            return ESP_FAIL;
+        }
     }
 
-    settings_persist_settings();
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
+    {
+        if (settings_set_timestamp(item->valueint) != ESP_OK)
+        {
+            ESP_LOGE("REST: ", "Log mode missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_ERROR);
+            return ESP_FAIL;
+        }
+    }
+
     Logger_syncSettings();
 
     free((void*)settings_in);
@@ -412,7 +534,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 static esp_err_t Logger_start_handler(httpd_req_t *req)
 {
     
-    if (Logger_start() == ESP_OK)
+    if (LogTask_start() == ESP_OK)
     {
         json_send_resp(req, ENDPOINT_RESP_ACK);
     } else {
@@ -425,7 +547,7 @@ static esp_err_t Logger_start_handler(httpd_req_t *req)
 
 static esp_err_t Logger_stop_handler(httpd_req_t *req)
 {
-    if (Logger_stop() == ESP_OK)
+    if (LogTask_stop() == ESP_OK)
     {
         json_send_resp(req, ENDPOINT_RESP_ACK);
     } else {
@@ -479,6 +601,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     ESP_LOGI(REST_TAG, "Starting HTTP Server");

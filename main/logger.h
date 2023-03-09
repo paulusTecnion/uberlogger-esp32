@@ -27,10 +27,11 @@
 #define DATA_TRANSACTIONS_PER_SD_FLUSH 4
 #define SD_BUFFERSIZE (DATA_TRANSACTIONS_PER_SD_FLUSH*STM_DATA_BUFFER_SIZE_PER_TRANSACTION) 
 
+
 static const char* TAG_LOG = "LOGGER";
 
-
 // It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
+
 typedef struct {
     uint8_t startByte[START_STOP_NUM_BYTES]; // 2
     uint16_t dataLen;
@@ -53,6 +54,9 @@ typedef struct {
 // END OF NO TOUCH
 // *********************************************************************************************************************
 
+
+
+
 typedef struct {
     uint8_t gpioData[6];
     float   temperatureData[8];
@@ -66,32 +70,24 @@ enum LogTaskStates
     LOGTASK_IDLE,
     LOGTASK_LOGGING,
     LOGTASK_SETTINGS,
+    LOGTASK_STOPPING,
     LOGTASK_ERROR_OCCURED,
     LOGTASK_NUM_STATES
 };
 
 
 enum LoggingStates{
-    LOGGING_START = 0,
+    LOGGING_IDLE = 0,
+    LOGGING_WAIT_FOR_DATA_READY,
     LOGGING_RX0_WAIT,
     LOGGING_RX1_WAIT,
-    LOGGING_IDLE,
+    LOGGING_GET_LAST_DATA,
+    LOGGING_DONE,
+    LOGGING_ERROR,
     LOGGING_NUM_STATES
 };
 
-typedef enum stm32cmd {
-    STM32_CMD_NOP=0,
-    STM32_CMD_SETTINGS_MODE,
-    STM32_CMD_MEASURE_MODE,
-    STM32_CMD_SET_RESOLUTION,
-    STM32_CMD_SET_SAMPLE_RATE,
-    STM32_CMD_SET_ADC_CHANNELS_ENABLED
-} stm32cmd_t;
 
-typedef enum stm32resp {
-    STM32_RESP_OK = 1,
-    STM32_RESP_NOK
- } stm32resp_t;
 
 
 typedef uint8_t LoggerState_t;
@@ -118,18 +114,26 @@ float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
  *         - RET_NOK  if interrupt setting failed
  *         - RET_OK                on success
  */
-esp_err_t Logger_datardy_int(uint8_t value);
+// esp_err_t Logger_datardy_int(uint8_t value);
 
 
 LoggerState_t Logger_getState();
+uint32_t LogTaskGetError();
 esp_err_t Logger_log();
-esp_err_t Logger_start();
-esp_err_t Logger_stop();
+
+esp_err_t LogTask_start();
+esp_err_t LogTask_stop();
+
+esp_err_t Logging_stop();
+esp_err_t Logging_start();
+
+esp_err_t Logger_singleShot();
+uint32_t Logger_getError();
 
 
 // uint8_t Logger_flush_buffer_to_sd_card();
-uint8_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size);
-uint8_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdcBytes, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime);
+size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size);
+size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdcBytes, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime, size_t datarows);
 
 uint8_t Logger_isLogging(void);
 
@@ -137,8 +141,7 @@ uint8_t Logger_setCsvLog(log_mode_t value);
 uint8_t Logger_getCsvLog();
 
 uint8_t Logger_mode_button();
-uint8_t Logger_syncSettings();
-uint8_t Logger_sendSTM32cmd(stm32cmd_t cmd);
+esp_err_t Logger_syncSettings();
 
 
 void Logger_GetSingleConversion(converted_reading_t* data);

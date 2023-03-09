@@ -1,12 +1,13 @@
 #include "fileman.h"
 #include "../../main/settings.h"
+#include "../../main/config.h"
 
 #define MOUNT_POINT "/sdcard"
 static const char *TAG_FILE = "FILEMAN";
 static uint32_t file_seq_num=0;
 static FILE* f = NULL;
 char file_name[16];
-char strbuffer[200];
+char filestrbuffer[200];
 
 void fileman_create_filename()
 {
@@ -19,7 +20,7 @@ void fileman_create_filename()
     }
 
     sprintf(file_name, MOUNT_POINT"/log%d%s", file_seq_num, filext);
-    ESP_LOGI(TAG_FILE, "%s", file_name);
+    // ESP_LOGI(TAG_FILE, "%s", file_name);
 }
 
 // fileman_search_last_sequence_file must be called before callign this function!
@@ -27,14 +28,17 @@ esp_err_t fileman_open_file(void)
 {
     if (strcmp(file_name, "") == 0)
     {
+        #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "No file name specified!");
+        #endif
         return ESP_FAIL;
     }
     fileman_create_filename();
     // Use POSIX and C standard library functions to work with files.
     // First create a file.
+    #ifdef DEBUG_FILEMAN
     ESP_LOGI(TAG_FILE, "Opening file %s", file_name);
-
+    #endif
     
     // Open file
     f = fopen(file_name, "w");
@@ -59,7 +63,9 @@ esp_err_t fileman_close_file(void)
     if (f!=NULL)
     {
         fclose(f);
+        #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "Closing file");
+        #endif
         file_seq_num++;
         return ESP_OK;
     } else {
@@ -88,14 +94,15 @@ esp_err_t fileman_search_last_sequence_file(void)
         file_seq_num++;
 
     }
+    #ifdef DEBUG_FILEMAN
     ESP_LOGI(TAG_FILE, "Sequence number: %d", file_seq_num);
-    
+    #endif
 
     return file_seq_num;
 }
  
 
- int fileman_write(const void * data, size_t len)
+int fileman_write(const void * data, size_t len)
 {
     size_t write_result = fwrite(data,len, 1, f);
     if (write_result != 1)
@@ -104,7 +111,7 @@ esp_err_t fileman_search_last_sequence_file(void)
         perror ("The following error occurred");
         return 0;
     }
-    return len;
+    return write_result;
 }
 
 int fileman_csv_write_header()
@@ -113,19 +120,23 @@ int fileman_csv_write_header()
     
 }
 
-int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio, const uint8_t* dataTime, size_t lenTime)
+int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio, const uint8_t* dataTime, size_t lenTime, size_t datarows)
 {
-    
-  
-    int j =0, y=0;
+    int j = 0;
     uint32_t writeptr =0;
+    
     s_date_time_t *date_time_ptr = (s_date_time_t*)dataTime;
     // ESP_LOGI(TAG_FILE,"Lengths: %d, %d, %d", lenAdc, lenGpio, lenTime);
     
-    for (int i = 0; i<lenAdc; i=i+8)
+    // for (int i = 0; i<32; i++)
+    // {
+    //     ESP_LOGI(TAG_FILE, "ADC fp: %d", *(dataAdc+i));
+    // }
+
+    for (int i = 0; i<datarows; i++)
     {
         // Print time stamp
-        writeptr = writeptr + sprintf(strbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03d,",
+        writeptr = writeptr + sprintf(filestrbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03d,",
             date_time_ptr[j].year, 
             date_time_ptr[j].month,
             date_time_ptr[j].date,
@@ -135,22 +146,22 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             date_time_ptr[j].subseconds);
 
         // Print ADC
-        for (int x=0; x<8; x++)
+        for (int x=0; x<NUM_ADC_CHANNELS; x++)
         {
             
-            if (dataAdc[i+x] > -1000000 && dataAdc[i+x]<0)
+            if (dataAdc[i*NUM_ADC_CHANNELS+x] > -1000000 && dataAdc[i*NUM_ADC_CHANNELS+x]<0)
             {
-                writeptr = writeptr + snprintf(strbuffer+writeptr, 14, "-%d.%06d,",
-                dataAdc[i+x] / 1000000, abs((dataAdc[i+x] - ((dataAdc[i+x]/ 1000000)*1000000))));
+                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "-%d.%06d,",
+                dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
             } else {
-                writeptr = writeptr + snprintf(strbuffer+writeptr, 14, "%d.%06d,", 
-                dataAdc[i+x] / 1000000, abs((dataAdc[i+x] - ((dataAdc[i+x]/ 1000000)*1000000))));
+                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%d.%06d,", 
+                dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
             }
 
 
         }
         // Finally the IOs
-        snprintf(strbuffer+writeptr, (2*6+5), "%d,%d,%d,%d,%d,%d\r\n",
+        snprintf(filestrbuffer+writeptr, (2*6+5), "%d,%d,%d,%d,%d,%d\r\n",
             (dataGpio[j] & 0x04) && 1,
             (dataGpio[j] & 0x08) && 1,
             (dataGpio[j] & 0x10) && 1,
@@ -161,8 +172,11 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
         writeptr = 0;
  
         j++;
-        // ESP_LOGI(TAG_FILE, "%s", strbuffer);
-        fprintf(f, strbuffer);
+        // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
+        if (fprintf(f, filestrbuffer) < 0)
+        {
+            return 0;
+        }
         
     }
 
