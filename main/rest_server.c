@@ -292,13 +292,14 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 {
 
+    
+
+    httpd_resp_set_type(req, "application/json");
     if (Logger_getState() == LOGTASK_LOGGING)
     {
         json_send_resp(req, ENDPOINT_RESP_NACK);
         return ESP_OK;
     }
-    
-    httpd_resp_set_type(req, "application/json");
     cJSON * root = cJSON_CreateObject();
     if (root == NULL)
     {
