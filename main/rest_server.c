@@ -12,6 +12,14 @@
 #include "rest_server.h"
 #include "config.h"
 
+char * endpoint_response_char[] = 
+{
+    "OK",
+    "NACK",
+    "ERROR"
+};
+
+
 
 static const char *REST_TAG = "esp-rest";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
@@ -85,9 +93,6 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     {
         strlcat(filepath, "index.html", sizeof(filepath));
     }
-
-    ESP_LOGE(REST_TAG, "%s", filepath + (strlen(filepath) - 3));
-   
 
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
@@ -258,28 +263,11 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
     cJSON * root = cJSON_CreateObject();
     if (root == NULL)
     {
+
         return ESP_FAIL;
     }
-
-    // int total_len = req->content_len;
-    // int cur_len = 0;
-    // char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
-    // int received = 0;
-    // if (total_len >= SCRATCH_BUFSIZE) {
-    //     /* Respond with 500 Internal Server Error */
-    //     httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
-    //     return ESP_FAIL;
-    // }
-    // while (cur_len < total_len) {
-    //     received = httpd_req_recv(req, buf + cur_len, total_len);
-    //     if (received <= 0) {
-    //         /* Respond with 500 Internal Server Error */
-    //         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
-    //         return ESP_FAIL;
-    //     }
-    //     cur_len += received;
-    // }
-    // buf[total_len] = '\0';
+  
+    
     Settings_t *settings = settings_get();
 
     cJSON *range_select = cJSON_AddObjectToObject(root, "AIN_RANGE_SELECT");
@@ -288,38 +276,14 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
-        // if (settings_get_adc_channel_type(i))
-        // {
+
             sprintf(buf,"NTC%d", i);
             cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(i));
-        // } else {
+
             sprintf(buf,"AIN%d", i);
              cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(i));
-        // }
-        
+
     }
-    
-    // cJSON_AddBoolToObject(ntc_select, "NTC1", settings_get_adc_channel_type(ADC_CHANNEL_1));
-    // cJSON_AddBoolToObject(ntc_select, "NTC2", settings_get_adc_channel_type(ADC_CHANNEL_2));
-    // cJSON_AddBoolToObject(ntc_select, "NTC3", settings_get_adc_channel_type(ADC_CHANNEL_3));
-    // cJSON_AddBoolToObject(ntc_select, "NTC4", settings_get_adc_channel_type(ADC_CHANNEL_4));
-    // cJSON_AddBoolToObject(ntc_select, "NTC5", settings_get_adc_channel_type(ADC_CHANNEL_5));
-    // cJSON_AddBoolToObject(ntc_select, "NTC6", settings_get_adc_channel_type(ADC_CHANNEL_6));
-    // cJSON_AddBoolToObject(ntc_select, "NTC7", settings_get_adc_channel_type(ADC_CHANNEL_7));
-
-    
-
-    // // For future use. Always enabled now.
-    // // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
-
-    // cJSON_AddBoolToObject(range_select, "AIN0", settings_get_adc_channel_range(ADC_CHANNEL_0));
-    // cJSON_AddBoolToObject(range_select, "AIN1", settings_get_adc_channel_range(ADC_CHANNEL_1));
-    // cJSON_AddBoolToObject(range_select, "AIN2", settings_get_adc_channel_range(ADC_CHANNEL_2));
-    // cJSON_AddBoolToObject(range_select, "AIN3", settings_get_adc_channel_range(ADC_CHANNEL_3));
-    // cJSON_AddBoolToObject(range_select, "AIN4", settings_get_adc_channel_range(ADC_CHANNEL_4));
-    // cJSON_AddBoolToObject(range_select, "AIN5", settings_get_adc_channel_range(ADC_CHANNEL_5));
-    // cJSON_AddBoolToObject(range_select, "AIN6", settings_get_adc_channel_range(ADC_CHANNEL_6));
-    // cJSON_AddBoolToObject(range_select, "AIN7", settings_get_adc_channel_range(ADC_CHANNEL_7));
     
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
@@ -342,12 +306,11 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 {
 
-    
-
     httpd_resp_set_type(req, "application/json");
     if (Logger_getState() == LOGTASK_LOGGING)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK);
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging");
+        
         return ESP_OK;
     }
     cJSON * root = cJSON_CreateObject();
@@ -365,14 +328,16 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     if (total_len >= SCRATCH_BUFSIZE) {
         /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
-        return ESP_FAIL;
+        // return ESP_FAIL;
+        goto error;
     }
     while (cur_len < total_len) {
         received = httpd_req_recv(req, buf + cur_len, total_len);
         if (received <= 0) {
             /* Respond with 500 Internal Server Error */
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
-            return ESP_FAIL;
+            // return ESP_FAIL;
+            goto error;
         }
         cur_len += received;
     }
@@ -496,9 +461,10 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_wifi_ssid(item->valuestring) != ESP_OK)
         {
-            ESP_LOGE("REST: ", "Error setting Wifi SSID");
-            json_send_resp(req, ENDPOINT_RESP_ERROR);
-            return ESP_FAIL;
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID");
+            // return ESP_FAIL;
+            goto error;
         }
     }
     
@@ -508,9 +474,10 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_wifi_channel(item->valueint) != ESP_OK)
         {
-            ESP_LOGE("REST: ", "Error setting Wifi channel");
-            json_send_resp(req, ENDPOINT_RESP_ERROR);
-            return ESP_FAIL;
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel");
+            // return ESP_FAIL;
+            goto error;
         }
     }
 
@@ -519,9 +486,10 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_wifi_password(item->valuestring) != ESP_OK)
         {
-            ESP_LOGE("REST: ", "Error setting Wifi SSID");
-            json_send_resp(req, ENDPOINT_RESP_ERROR);
-            return ESP_FAIL;
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID");
+            // return ESP_FAIL;
+            goto error;
         }
     }
 
@@ -531,9 +499,10 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_resolution(item->valueint) != ESP_OK)
         {
-            ESP_LOGE("REST: ", "ADC resolution missing or wrong value");
-            json_send_resp(req, ENDPOINT_RESP_ERROR);
-            return ESP_FAIL;
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "ADC resolution missing or wrong value");
+            // return ESP_FAIL;
+            goto error;
         }
     }
 
@@ -542,9 +511,10 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_samplerate(item->valueint) != ESP_OK)
         {
-            ESP_LOGE("REST: ", "Log sample rate missing or wrong value");
-            json_send_resp(req, ENDPOINT_RESP_ERROR);
-            return ESP_FAIL;
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Log sample rate missing or wrong value");
+            // return ESP_FAIL;
+            goto error;
         }
     }
 
@@ -553,9 +523,10 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_logmode(item->valueint) != ESP_OK)
         {
-            ESP_LOGE("REST: ", "Log mode missing or wrong value");
-            json_send_resp(req, ENDPOINT_RESP_ERROR);
-            return ESP_FAIL;
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Log mode missing or wrong value");
+            // return ESP_FAIL;
+            goto error;
         }
     }
 
@@ -565,20 +536,25 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_timestamp(item->valueint) != ESP_OK)
         {
-            ESP_LOGE("REST: ", "Log mode missing or wrong value");
-            json_send_resp(req, ENDPOINT_RESP_ERROR);
-            return ESP_FAIL;
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
+            // return ESP_FAIL;
+            goto error;
         }
     }
 
     Logger_syncSettings();
-
+    json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+    
     free((void*)settings_in);
     free((void*)item);
-
-    json_send_resp(req, ENDPOINT_RESP_ACK);
     
+error:
+    
+    free((void*)root);
+
     return ESP_OK;
+   
 }
 
 
@@ -588,9 +564,9 @@ static esp_err_t Logger_start_handler(httpd_req_t *req)
     
     if (LogTask_start() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK);
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK);
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger already logging");
     }
 
     
@@ -601,15 +577,15 @@ static esp_err_t Logger_stop_handler(httpd_req_t *req)
 {
     if (LogTask_stop() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK);
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK);
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not logging");
     }
     
     return ESP_OK;
 }
 
-esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type)
+esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reason)
 {
 
     httpd_resp_set_type(req, "application/json");
@@ -634,7 +610,13 @@ esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type)
         break;
 
     }
+    
     cJSON_AddStringToObject(root, (const char*)"resp", str);
+    
+    if (type == ENDPOINT_RESP_NACK && reason != NULL)
+    {
+        cJSON_AddStringToObject(root, (const char*)"reason", reason);
+    }
     const char *sys_info = cJSON_Print(root);
     httpd_resp_sendstr(req, sys_info);
     free((void *)sys_info);
@@ -700,7 +682,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     httpd_uri_t logger_stop_uri = {
         .uri = "/ajax/loggerStop",
-        .method = HTTP_GET,
+        .method = HTTP_POST,
         .handler = Logger_stop_handler,
         .user_ctx = rest_context
     };
@@ -708,7 +690,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     httpd_uri_t logger_start_uri = {
         .uri = "/ajax/loggerStart",
-        .method = HTTP_GET,
+        .method = HTTP_POST,
         .handler = Logger_start_handler,
         .user_ctx = rest_context
     };
