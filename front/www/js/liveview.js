@@ -1,10 +1,11 @@
-$.getScript("js/plotly-2.16.1-basic.min.js");
+$.getScript("js/plotly-basic-2.18.2.min.js");
 
-setInterval(renderValueList, 1000);
+setInterval(renderValueList, 250);
 
 var dataPoints={};
 var dataPointsArray=[];
 var plot_drawn_state=0;
+const divPlot="plotly";
 
 function sanitizeCategoryName(category){
   switch(category){
@@ -30,22 +31,30 @@ function renderValueList(){
 
     $.getJSON('./ajax/' + query, (data) => {
       // parse JSON data to input list
-      let datetimestr = new Date(1000*Number(data["TIMESTAMP"]));
+      data['TIMESTAMP'] = Date.now();
+      let datetimestr = new Date(Number(data["TIMESTAMP"]));
 
       let htmlstring=[];
       htmlstring+="<p>Timestamp of data: " + datetimestr + "</p>";
 
       $.each(data["READINGS"], function(category, category_values){
 
-        htmlstring+="<div class='block'><h3 class='first'>" + sanitizeCategoryName(category) + "</h3>";
+        htmlstring+="<div class='block' style='width: 150px;'><h3 class='first'>" + sanitizeCategoryName(category) + "</h3>";
         htmlstring+="<table>";
         htmlstring+="<tr><th>Input</th><th align='right'>" + category_values["UNITS"] + "</th></tr>";
 
-        let n=0;  
+        let n=0;
         $.each(category_values["VALUES"], function(channel, channel_value){
           n++;
-          htmlstring+="<tr><td>" + channel + "</td><td align='right'>" + channel_value + "</td></tr>";
-          storeDataPoint(category, channel, 1000*data["TIMESTAMP"], channel_value, category_values["UNITS"]);
+          htmlstring+="<tr><td>" + channel + "</td>";
+
+          if(typeof(channel_value) === "number"){
+            htmlstring+="<td align='right'>" + parseFloat(channel_value).toFixed(3) + "</td></tr>";
+          }else{
+            htmlstring+="<td align='right'>" + channel_value + "</td></tr>";
+          }
+
+          storeDataPoint(category, channel, data["TIMESTAMP"], channel_value, category_values["UNITS"]);
         });
 
         if(n==0){
@@ -84,19 +93,27 @@ function storeDataPoint(category, channel, timestamp, value, unit){
 
 
 function plotDataPoints(){
-  const divPlot="plotly";
-  
-  // convert JSON to array
   const dataPointsArray=Object.values(dataPoints);
+
   let layout={
-    datarevision: Number(new Date())
+    datarevision: Number(new Date()),
+	  margin:{
+		  l: 30,
+		  r: 10,
+		  t: 30,
+		  pad: 0
+  	}
   };
 
+  let config={
+	  responsive: true
+  }
+
   if(plot_drawn_state==0){
-    Plotly.newPlot(divPlot, dataPointsArray, layout);
+    Plotly.newPlot(divPlot, dataPointsArray, layout, config);
     plot_drawn_state=1;
   }else{
     // we have a plot, do update of data only
-    Plotly.update(divPlot, dataPointsArray, layout);
+    Plotly.update(divPlot, dataPointsArray, layout, config);
   }
 }

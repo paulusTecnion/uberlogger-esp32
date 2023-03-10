@@ -4,23 +4,23 @@ function loadPage(){
   const page = urlParams.get('page');
   
   if((page=="")||(page == undefined)){
-    renderPage("overview");
+    renderPage("liveview", page_version);
   }else{
-    renderPage(page);
+    renderPage(page, page_version);
   }
 }
 
-function renderPage(page){
+function renderPage(page, page_version){
   // get HTML of page
-  $.get("html/" + page + ".html", (data) => {
+  $.get("html/" + page + ".html?version=" + page_version, (data) => {
     $("#render").html(data);
   });
 
   // load JS of page
-  $.getScript("js/" + page + ".js");
+  $.getScript("js/" + page + ".js?version=" + page_version);
 }
 
-function gotoPage(page){
+function gotoPage(page, version){
   location.href="index.html?page=" + page;
 }
 

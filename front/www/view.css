@@ -6,7 +6,7 @@ body
 	color:#000;	
 	margin:8px auto 16px auto;
 	text-align:center;
-	min-width:340px;
+	min-width:500px;
 	max-width:95%;
 }
 
@@ -170,6 +170,16 @@ p
 
 
 
+.invisible
+{
+	display: none;
+}
+
+.visible
+{
+	display: block;
+}
+
 .group p{
 	margin:0.1em 0 1em 0;
 }
@@ -180,24 +190,14 @@ p
 	border-bottom:2px dotted #ccc;
 }
 
-
-.group.invisible
-{
-	display: none;
-}
-
-.group.visible
-{
-	display: block;
-}
-
-.group.visible.last
+.group.last
 {
 	border-bottom:none;
 }
 
 
 /* styling of table */
+/*
 table, td, th
 {
 	border: 1px solid gray;
@@ -206,6 +206,20 @@ table, td, th
 
 table td, table th
 {
+	padding: 10px;
+}
+*/
+
+table
+{
+  border-collapse: collapse;
+}
+
+td, th
+{
+	border-color:#ddd;
+	border-style: solid;
+	border-width: 2px;
 	padding: 10px;
 }
 
@@ -249,9 +263,9 @@ table td, table th
 {
 	display:inline-block;
 	padding: 10px 10px;
-	margin: 0 5px;
-	background-color: #efefef;
-	border-style: groove;
+	margin: 5px 5px;
+	background-color: #efefef8c;
+	border: 0;
 	border-radius: 10px;
 	vertical-align: top;
 }
@@ -364,3 +378,31 @@ input[type=radio]
 	max-width: 480px;
 	margin: 25px 0 15px 0;
 }
+
+
+#values {
+	display: inline-block;
+	min-width: 400px;
+	width: 25%;
+	vertical-align: top;
+}
+
+#plot {
+	display: inline-block;
+	min-width: 400px;
+	width: 70%;
+	vertical-align: top;
+	margin-top: 30px;
+}
+
+
+@media screen and (max-width: 1600px) {
+	#values {
+	  width: 100%;
+	}
+
+	#plot {
+	  width: 100%;
+	}
+}
+

@@ -1,6 +1,6 @@
 <h1>Configuration</h1>
 
-<form id="configuration" method="post" action="ajax/setConfig">
+<form id="configuration">
 
 <div class="visible" id="loading">
 	<p><i>Loading current configuration, please wait...</i></p>
@@ -8,7 +8,13 @@
 
 <div class="invisible" id="config">
 	<p>Updating the configuration requires clicking the "Save settings" button to save the configuration and activate it. Intermediate changes will not be saved.</p>
-	
+
+	<h2 class="first">Firmware</h2>
+	<p>
+		Current firmware version: <span name="FW_VERSION">-</span><br/>
+		<a href="/fwupdate">Update firmware</a>
+	</p>
+
 	<h2>Backup or restore configuration</h2>
 	<div class="group" id="backuprestoreconfig">
 		<h3 class="first">Restore defaults</h3>
@@ -27,11 +33,26 @@
 	<h2>WiFi configuration</h2>
 	<div class="group" id="wifi_configuration">
 		<h3>Connection details</h3>
+		<p>Enter the details of your WiFi-network below to allow the UberLogger to connect.</p>
+		<p><i><b>Note:</b> in case connecting to WiFi fails, press the MODE button for 10 seconds to enable the hotspot mode.</i></p>
 		<label for="WIFI_SSID">Network name (SSID)</label>
 		<input id="WIFI_SSID" name="WIFI_SSID" class="element" type="text" maxlength="32" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
 
 		<label for="WIFI_PASSWORD">Password</label>
 		<input id="WIFI_PASSWORD" name="WIFI_PASSWORD" class="element" type="text" maxlength="64" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
+
+		<h3>Connection test</h3>
+		<div id="WIFI_TEST_BTN">
+			<p>After entering the connection details above, you can test the WiFi connection by clicking on the button below.</p>
+			<p><i><b>Tip:</b> after configuring, this page will be available via http://IPADDRESS (e.g. http://192.168.1.123).</i></p>
+			<input id="btn_test_wifi_network" class="button_text" type="button" value="Test connection" onclick="testWifiNetwork()">
+		</div>
+		<p>
+			Connection: <span id="WIFI_TEST_STATUS" name="WIFI_TEST_STATUS">...</span><br/>
+			IP-address: <span id="WIFI_TEST_IP" name="WIFI_TEST_IP">0.0.0.0</span><br/>
+			RSSI: <span id="WIFI_TEST_RSSI" name="WIFI_TEST_RSSI">-</span> dB
+		</p>
+		<p><i><b>Note:</b> the WiFi-signal strength (RSSI) should be above -80 dB for a stable connection (e.g. -75 dB is OK).</i></p>
 	</div>
 
 	<h2>Logging</h2>
@@ -87,8 +108,8 @@
 	<div class="group" id="channel_configuration">
 		<h3>Analog channels</h3>
 		<p>Select the mode used for the analog channels.</p>
-		<p><i><b>Important:</b> Ensure the hardware configuration is equal to the settings below.</i></p>
-		<p><i><b>Note:</b> Range select has no effect when the NTC temperature input is used.</i></p>
+		<p><i><b>Important:</b> ensure the hardware configuration is equal to the settings below.</i></p>
+		<p><i><b>Note:</b> range select has no effect when the NTC temperature input is used.</i></p>
 
 		<table>
 			<tr>
@@ -224,7 +245,7 @@
 	</div>
 
 	<div id="configuration_done">
-		<input id="saveForm" class="button_text" type="submit" value="Save all settings"/>
+		<input id="saveForm" class="button_text" type="button" onClick="configSubmit()" value="Save all settings"/>
 	</div>
 </div>
 
