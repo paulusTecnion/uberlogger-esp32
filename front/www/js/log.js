@@ -6,6 +6,65 @@ $( document ).ready(function() {
     setInterval(getStatus, 5000);    
 });
 
+
+function loggerStart() {
+	let input = { ACTION: "START" };
+
+	$.ajax({
+		method: "POST",
+		url: "ajax/loggerStart",
+		data: JSON.stringify(input),
+
+		processData: false,
+		dataType: "json",
+		contentType: "application/json",
+
+		success: function(response){
+			if(response["resp"] == "ack"){
+        alert("Logger started.");
+			}else{
+				alert("Error: could not start logger, response=" + response["reason"] + ".");
+        console.log( "Failed, response=" + JSON.stringify(response));
+			}
+		},
+
+    error: function(response) {
+      alert("Error: could not start logger, response=" + JSON.stringify(response));
+      console.log( "Failed, response=" + JSON.stringify(response));
+    }
+	});
+}
+
+function loggerStop() {
+	let input = { ACTION: "STOP" };
+
+	$.ajax({
+		method: "POST",
+		url: "ajax/loggerStop",
+		data: JSON.stringify(input),
+
+		processData: false,
+		dataType: "json",
+		contentType: "application/json",
+
+		success: function(response){
+			if(response["resp"] == "ack"){
+        alert("Logger stopped.");
+			}else{
+				alert("Error: could not stop logger, response=" + response["reason"] + ".");
+        console.log( "Failed, response=" + JSON.stringify(response));
+			}
+		},
+
+    error: function(response) {
+      alert("Error: could not stop logger, response=" + JSON.stringify(response));
+      console.log( "Failed, response=" + JSON.stringify(response));
+    }
+	});
+
+}
+
+
 function getStatus(){
   parent="#log";
   query="getStatus";

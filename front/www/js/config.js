@@ -77,19 +77,6 @@ function parseConfig(data){
 
 }
 
-function syncTime() {
-	$.post("ajax/setConfig", { "TIMESTAMP": Math.floor(Number(new Date())/1000) }, function( data ) {
-		let datetimestr = new Date(Number(data["TIMESTAMP"]));
-		alert("Time synchronized succesfully.");
-		console.log( "Time set to " + datetimestr);	
-	}, "json")
-	.fail(function() {
-		alert("Error: could not synchronize time.");
-		console.log( "Failed, could not sync time." );
-	});
-
-}
-
 
 function testWifiNetwork(){
 	var frm="#wifi_configuration";
@@ -141,25 +128,70 @@ function getStatus(){
 		populateFields(parent, data);
 	})
 	.fail(function() {
-    alert("Error: could not update status.");
+    	alert("Error: could not update status.");
 		console.log("Data query failed.");
 	});		
 
 }
 
 
+function syncTime() {
+	let input = { TIMESTAMP: Number(new Date()) };
 
-function configSubmit() {
-	var input = getFormDataAsJsonObject($("#configuration")); 
+	$.ajax({
+		method: "POST",
+		url: "ajax/setConfig",
+		data: JSON.stringify(input),
 
-	$.post("ajax/setConfig", JSON.stringify(input), function( data ) {
-		alert("Settings saved.");
-	})
-	.fail(function() {
-		alert("Error: could not save settings.");
-		console.log( "Failed, could not save settings." );
+		processData: false,
+		dataType: "json",
+		contentType: "application/json",
+
+		success: function(response){
+			if(response["resp"] == "ack"){
+				alert("Time synchronized succesfully to " + new Date(input["TIMESTAMP"]) + ".");
+				console.log( "Time synchronized, response=" + JSON.stringify(response));
+			}else{
+				alert("Error: could not synchronize time, error=" + response["reason"] + ".");
+		        console.log( "Failed, response=" + JSON.stringify(response));
+			}
+		},
+
+		error: function(response) {
+			alert("Error: could not synchronize time, response=" + JSON.stringify(response));
+			console.log( "Failed, response=" + JSON.stringify(response));
+		}
 	});
 }
+
+function setConfig() {
+	let input = getFormDataAsJsonObject($("#configuration")); 
+
+	$.ajax({
+		method: "POST",
+		url: "ajax/setConfig",
+		data: JSON.stringify(input),
+
+		processData: false,
+		dataType: "json",
+		contentType: "application/json",
+
+		success: function(response){
+			if(response["resp"] == "ack"){
+				alert("Settings saved succesfully.");
+			}else{
+				alert("Error: could not save settings, response=" + response["reason"] + ".");
+		        console.log( "Failed, response=" + JSON.stringify(response));
+			}
+		},
+
+		error: function(response) {
+			alert("Error: could not save settings, response=" + JSON.stringify(response));
+			console.log( "Failed, response=" + JSON.stringify(response));
+		}
+	});
+}
+
 
 function getFormDataAsJsonObject(object) {
 	let array = {};

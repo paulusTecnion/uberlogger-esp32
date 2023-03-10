@@ -58,7 +58,7 @@ function renderValueList(){
         });
 
         if(n==0){
-          htmlstring+="<tr><td>-<td><td align='right'>-</td></tr>";
+          htmlstring+="<tr><td>-</td><td align='right'>-</td></tr>";
         }
 
         htmlstring+="</table></div>";
