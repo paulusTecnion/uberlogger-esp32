@@ -1150,7 +1150,7 @@ void task_logging(void * pvParameters)
                         vTaskDelay(200 / portTICK_PERIOD_MS);
                         spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
                         // Retrieve any remaining ADC bytes
-                        LogTask_resetCounter();
+                        
                         if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
                         {
                             #ifdef DEBUG_LOGTASK_RX
@@ -1168,6 +1168,7 @@ void task_logging(void * pvParameters)
                         Logger_flush_to_sdcard();
                         fileman_close_file();
                         esp_sd_card_unmount();
+                        
                         vTaskDelay(500 / portTICK_PERIOD_MS);
                         _nextLogTaskState = LOGTASK_IDLE;
                     }
