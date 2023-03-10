@@ -50,7 +50,10 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
         type = "image/x-icon";
     } else if (CHECK_FILE_EXTENSION(filepath, ".svg")) {
         type = "text/xml";
+    } else if (CHECK_FILE_EXTENSION(filepath, ".gz")) {
+        type = "application/javscript";
     }
+    
     return httpd_resp_set_type(req, type);
 }
 
@@ -83,15 +86,33 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
         strlcat(filepath, "index.html", sizeof(filepath));
     }
 
+    ESP_LOGE(REST_TAG, "%s", filepath + (strlen(filepath) - 3));
+   
+
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
         ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
-        return ESP_FAIL;
+        if (CHECK_FILE_EXTENSION(filepath, ".js"))
+        {
+            strlcat(filepath, ".gz", sizeof(filepath));
+        }
+        ESP_LOGE(REST_TAG, "Trying %s", filepath);
+        fd = open(filepath, O_RDONLY, 0);
+
+        if (fd == -1)
+        {
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
+            return ESP_FAIL;
+        }
     }
 
     set_content_type_from_file(req, filepath);
+
+    if (CHECK_FILE_EXTENSION(filepath, ".gz"))
+    {
+        httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+    }
 
     char *chunk = rest_context->scratch;
     ssize_t read_bytes;
@@ -144,30 +165,46 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     cJSON_AddStringToObject(temperature, "UNITS", "DEG C");
     cJSON *tValues = cJSON_AddObjectToObject(temperature, "VALUES");
 
-    cJSON_AddNumberToObject(tValues, "T0", data.temperatureData[0]);
-    cJSON_AddNumberToObject(tValues, "T1", data.temperatureData[1]);
-    cJSON_AddNumberToObject(tValues, "T2", data.temperatureData[2]);
-    cJSON_AddNumberToObject(tValues, "T3", data.temperatureData[3]);
-    cJSON_AddNumberToObject(tValues, "T4", data.temperatureData[4]);
-    cJSON_AddNumberToObject(tValues, "T5", data.temperatureData[5]);
-    cJSON_AddNumberToObject(tValues, "T6", data.temperatureData[6]);
-    cJSON_AddNumberToObject(tValues, "T7", data.temperatureData[7]);
-
-    
     cJSON *analog = cJSON_AddObjectToObject(readings, "ANALOG");
     cJSON_AddStringToObject(analog, "UNITS", "Volt");
     cJSON * aValues = cJSON_AddObjectToObject(analog, "VALUES");
-    // For future use. Always enabled now.
-    // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
+    
+    char buf[5];
+    for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
+    {
+        if (settings_get_adc_channel_type(i))
+        {
+            sprintf(buf,"T%d", i);
+             cJSON_AddNumberToObject(tValues, buf, data.temperatureData[i]);
+        } else {
+            sprintf(buf,"AIN%d", i);
+            cJSON_AddNumberToObject(aValues, buf, data.analogData[i]);
+        }
+        
+    }
+   
+    // cJSON_AddNumberToObject(tValues, "T1", data.temperatureData[1]);
+    // cJSON_AddNumberToObject(tValues, "T2", data.temperatureData[2]);
+    // cJSON_AddNumberToObject(tValues, "T3", data.temperatureData[3]);
+    // cJSON_AddNumberToObject(tValues, "T4", data.temperatureData[4]);
+    // cJSON_AddNumberToObject(tValues, "T5", data.temperatureData[5]);
+    // cJSON_AddNumberToObject(tValues, "T6", data.temperatureData[6]);
+    // cJSON_AddNumberToObject(tValues, "T7", data.temperatureData[7]);
 
-    cJSON_AddNumberToObject(aValues, "AIN0", data.analogData[0]);
-    cJSON_AddNumberToObject(aValues, "AIN1", data.analogData[1]);
-    cJSON_AddNumberToObject(aValues, "AIN2", data.analogData[2]);
-    cJSON_AddNumberToObject(aValues, "AIN3", data.analogData[3]);
-    cJSON_AddNumberToObject(aValues, "AIN4", data.analogData[4]);
-    cJSON_AddNumberToObject(aValues, "AIN5", data.analogData[5]);
-    cJSON_AddNumberToObject(aValues, "AIN6", data.analogData[6]);
-    cJSON_AddNumberToObject(aValues, "AIN7", data.analogData[7]);
+    
+    
+   
+    // // For future use. Always enabled now.
+    // // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
+
+    // cJSON_AddNumberToObject(aValues, "AIN0", data.analogData[0]);
+    // cJSON_AddNumberToObject(aValues, "AIN1", data.analogData[1]);
+    // cJSON_AddNumberToObject(aValues, "AIN2", data.analogData[2]);
+    // cJSON_AddNumberToObject(aValues, "AIN3", data.analogData[3]);
+    // cJSON_AddNumberToObject(aValues, "AIN4", data.analogData[4]);
+    // cJSON_AddNumberToObject(aValues, "AIN5", data.analogData[5]);
+    // cJSON_AddNumberToObject(aValues, "AIN6", data.analogData[6]);
+    // cJSON_AddNumberToObject(aValues, "AIN7", data.analogData[7]);
     
    cJSON *digital = cJSON_AddObjectToObject(readings, "DIGITAL");
    cJSON_AddStringToObject(digital, "UNITS", "Level");
@@ -247,29 +284,42 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 
     cJSON *range_select = cJSON_AddObjectToObject(root, "AIN_RANGE_SELECT");
     cJSON *ntc_select = cJSON_AddObjectToObject(root, "NTC_SELECT");
+    char buf[5];
 
-    cJSON_AddBoolToObject(ntc_select, "NTC0", settings_get_adc_channel_type(ADC_CHANNEL_0));
-    cJSON_AddBoolToObject(ntc_select, "NTC1", settings_get_adc_channel_type(ADC_CHANNEL_1));
-    cJSON_AddBoolToObject(ntc_select, "NTC2", settings_get_adc_channel_type(ADC_CHANNEL_2));
-    cJSON_AddBoolToObject(ntc_select, "NTC3", settings_get_adc_channel_type(ADC_CHANNEL_3));
-    cJSON_AddBoolToObject(ntc_select, "NTC4", settings_get_adc_channel_type(ADC_CHANNEL_4));
-    cJSON_AddBoolToObject(ntc_select, "NTC5", settings_get_adc_channel_type(ADC_CHANNEL_5));
-    cJSON_AddBoolToObject(ntc_select, "NTC6", settings_get_adc_channel_type(ADC_CHANNEL_6));
-    cJSON_AddBoolToObject(ntc_select, "NTC7", settings_get_adc_channel_type(ADC_CHANNEL_7));
+    for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
+    {
+        // if (settings_get_adc_channel_type(i))
+        // {
+            sprintf(buf,"NTC%d", i);
+            cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(i));
+        // } else {
+            sprintf(buf,"AIN%d", i);
+             cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(i));
+        // }
+        
+    }
+    
+    // cJSON_AddBoolToObject(ntc_select, "NTC1", settings_get_adc_channel_type(ADC_CHANNEL_1));
+    // cJSON_AddBoolToObject(ntc_select, "NTC2", settings_get_adc_channel_type(ADC_CHANNEL_2));
+    // cJSON_AddBoolToObject(ntc_select, "NTC3", settings_get_adc_channel_type(ADC_CHANNEL_3));
+    // cJSON_AddBoolToObject(ntc_select, "NTC4", settings_get_adc_channel_type(ADC_CHANNEL_4));
+    // cJSON_AddBoolToObject(ntc_select, "NTC5", settings_get_adc_channel_type(ADC_CHANNEL_5));
+    // cJSON_AddBoolToObject(ntc_select, "NTC6", settings_get_adc_channel_type(ADC_CHANNEL_6));
+    // cJSON_AddBoolToObject(ntc_select, "NTC7", settings_get_adc_channel_type(ADC_CHANNEL_7));
 
     
 
-    // For future use. Always enabled now.
-    // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
+    // // For future use. Always enabled now.
+    // // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
 
-    cJSON_AddBoolToObject(range_select, "AIN0", settings_get_adc_channel_range(ADC_CHANNEL_0));
-    cJSON_AddBoolToObject(range_select, "AIN1", settings_get_adc_channel_range(ADC_CHANNEL_1));
-    cJSON_AddBoolToObject(range_select, "AIN2", settings_get_adc_channel_range(ADC_CHANNEL_2));
-    cJSON_AddBoolToObject(range_select, "AIN3", settings_get_adc_channel_range(ADC_CHANNEL_3));
-    cJSON_AddBoolToObject(range_select, "AIN4", settings_get_adc_channel_range(ADC_CHANNEL_4));
-    cJSON_AddBoolToObject(range_select, "AIN5", settings_get_adc_channel_range(ADC_CHANNEL_5));
-    cJSON_AddBoolToObject(range_select, "AIN6", settings_get_adc_channel_range(ADC_CHANNEL_6));
-    cJSON_AddBoolToObject(range_select, "AIN7", settings_get_adc_channel_range(ADC_CHANNEL_7));
+    // cJSON_AddBoolToObject(range_select, "AIN0", settings_get_adc_channel_range(ADC_CHANNEL_0));
+    // cJSON_AddBoolToObject(range_select, "AIN1", settings_get_adc_channel_range(ADC_CHANNEL_1));
+    // cJSON_AddBoolToObject(range_select, "AIN2", settings_get_adc_channel_range(ADC_CHANNEL_2));
+    // cJSON_AddBoolToObject(range_select, "AIN3", settings_get_adc_channel_range(ADC_CHANNEL_3));
+    // cJSON_AddBoolToObject(range_select, "AIN4", settings_get_adc_channel_range(ADC_CHANNEL_4));
+    // cJSON_AddBoolToObject(range_select, "AIN5", settings_get_adc_channel_range(ADC_CHANNEL_5));
+    // cJSON_AddBoolToObject(range_select, "AIN6", settings_get_adc_channel_range(ADC_CHANNEL_6));
+    // cJSON_AddBoolToObject(range_select, "AIN7", settings_get_adc_channel_range(ADC_CHANNEL_7));
     
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
@@ -510,6 +560,8 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
+    
+    if (item != NULL)
     {
         if (settings_set_timestamp(item->valueint) != ESP_OK)
         {
