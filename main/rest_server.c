@@ -534,7 +534,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     
     if (item != NULL)
     {
-        if (settings_set_timestamp(item->valueint) != ESP_OK)
+        if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
         {
             
             json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");

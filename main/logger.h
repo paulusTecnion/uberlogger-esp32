@@ -61,7 +61,7 @@ typedef struct {
     uint8_t gpioData[6];
     float   temperatureData[8];
     float   analogData[8];
-    uint32_t timestamp;
+    uint64_t timestamp;
 } converted_reading_t;
 
 enum LogTaskStates
