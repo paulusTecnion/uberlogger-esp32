@@ -282,13 +282,16 @@ esp_err_t settings_persist_settings()
     return ESP_FAIL;
 }
 
-esp_err_t settings_set_timestamp(uint32_t timestamp)
+esp_err_t settings_set_timestamp(uint64_t timestamp)
 {
     // take timestamp and convert to day, month, year and time
     #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Timstamp: %d", timestamp);
     #endif
-    _settings.timestamp = timestamp;
+    // Expecting this in ms, but convert it to seconds
+    ESP_LOGI(TAG_SETTINGS, "Incoming timestamp: %lld, outgoing %ld", timestamp, (uint32_t)(timestamp/1000));
+
+    _settings.timestamp = (uint32_t)(timestamp/1000);
     return ESP_OK;
 }
 

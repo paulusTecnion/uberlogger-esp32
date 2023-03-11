@@ -143,7 +143,7 @@ esp_err_t settings_set_resolution(adc_resolution_t res);
 /// @brief Sets the current date and time based on the epoch timestamp
 /// @param timestamp 32-bit Unix epoch timestamp
 /// @return ESP_OK when OK and ESP_FAIL for wrong input
-esp_err_t settings_set_timestamp(uint32_t timestamp);
+esp_err_t settings_set_timestamp(uint64_t timestamp);
 uint32_t settings_get_timestamp();
 
 

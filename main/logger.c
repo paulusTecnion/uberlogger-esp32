@@ -234,7 +234,8 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
     
     
 
-    dataOutput->timestamp  = (uint32_t)mktime(&t);    
+    dataOutput->timestamp  = (uint64_t)mktime(&t) * 1000LL;    
+    dataOutput->timestamp = dataOutput->timestamp + live_data_buffer.timeData.subseconds;
     // ESP_LOGI(TAG_LOG, "%d %d, %d-%d-%d %d:%d:%d", msg_part, dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 }
 
@@ -535,7 +536,9 @@ size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uint
     ESP_LOGI(TAG_LOG, "Flusing CSV buffer to SD card");
     #endif
     return fileman_csv_write(adcData, lenAdc, gpioData, lenGpio, timeData ,lenTime, datarows);
+    
 }
+
 
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
 uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t length, uint8_t range, uint8_t type)
@@ -961,6 +964,13 @@ void task_logging(void * pvParameters)
 
     gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
+
+    gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_NUM_21, 1);
+
+    gpio_set_direction(GPIO_NUM_26, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_NUM_26, 1);
+
 
     // gpio_set_direction(STM32_SPI_CS, GPIO_MODE_OUTPUT);
     // gpio_set_level(STM32_SPI_CS, 0);
