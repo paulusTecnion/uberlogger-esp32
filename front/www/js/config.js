@@ -165,7 +165,11 @@ function syncTime() {
 }
 
 function setConfig() {
-	let input = getFormDataAsJsonObject($("#configuration")); 
+	let input_all = getFormDataAsJsonObject($("#configuration"));
+	let input_numbers = getFormDataAsJsonObject($("#configuration .json-as-number"));
+	let input_bools = getFormDataAsJsonObject($("#configuration .json-as-bool"));
+
+	input = fixInputFieldNumbers(input_all, input_numbers, input_bools);
 
 	$.ajax({
 		method: "POST",

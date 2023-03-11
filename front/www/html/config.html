@@ -67,19 +67,24 @@
 		<label class="description" for="LOG_MODE" style="padding-bottom: 10px;">Select the desired logging mode:</label>           
 		<span>
 			<p>
-				<input id="log_mode_raw" name="LOG_MODE" class="element radio" type="radio" value="0" checked="checked"/>
+				<input id="log_mode_raw" name="LOG_MODE" class="element radio json-as-number" type="radio" value="0" checked="checked"/>
 				<label class="choice" for="log_mode_raw">Write raw data to file</label>
 
-			<input id="log_mode_csv" name="LOG_MODE" class="element radio" type="radio" value="1"/>
-			<label class="choice" for="log_mode_csv">Write to CSV-file</label>          
+				<input id="log_mode_csv" name="LOG_MODE" class="element radio json-as-number" type="radio" value="1"/>
+				<label class="choice" for="log_mode_csv">Write to CSV-file</label>
+			</p>
 		</span>
 		<p><i><b>Note:</b> a new file will be created for each log (after stopping and starting).</i></p>
+	</div>
 
-		<h3>Sample rate</h3>
+
+	<h2>Channel configuration</h2>
+	<div class="group" id="sampling_configuration">
+		<h3>Sampling</h3>
 		<p>
-			Select the desired logging rate:
-			<select name="LOG_SAMPLE_RATE" id="LOG_SAMPLE_RATE">
-				<option value="0">1 Samples/s</option>
+			Select the desired sample rate:
+			<select name="LOG_SAMPLE_RATE" id="LOG_SAMPLE_RATE" class="json-as-number">
+				<option value="0">1 Sample/s</option>
 				<option value="1">2 Samples/s</option>
 				<option value="2">5 Samples/s</option>
 				<option value="3">10 Samples/s</option>
@@ -93,18 +98,15 @@
 			</select>
 		</p>
 
-		<h3>Analog resolution</h3>
 		<p>
 			Select the desired analog resolution:
-			<select name="ADC_RESOLUTION" id="ADC_RESOLUTION">
+			<select name="ADC_RESOLUTION" id="ADC_RESOLUTION" class="json-as-number">
 				<option value="12">12 bits</option>
 				<option value="16">16 bits</option>
 			</select>
 		</p>
 	</div>
 
-
-	<h2>Channel configuration</h2>
 	<div class="group" id="channel_configuration">
 		<h3>Analog channels</h3>
 		<p>Select the mode used for the analog channels.</p>
@@ -120,13 +122,13 @@
 			<tr>
 				<td>Channel 0</td>
 				<td>
-					<select name="NTC0" id="NTC0">
+					<select name="NTC0" id="NTC0" class="json-as-bool">
 						<option value="0">Analog in</option>
 						<option value="1">NTC</option>
 					</span>
 				</td>
 				<td>
-					<select name="AIN0" id="AIN0">
+					<select name="AIN0" id="AIN0" class="json-as-bool">
 						<option value="0">+/-10 V</option>
 						<option value="1">+/-60 V</option>
 					</span>
@@ -135,13 +137,13 @@
 			<tr>
 				<td>Channel 1</td>
 				<td>
-					<select name="NTC1" id="NTC1">
+					<select name="NTC1" id="NTC1" class="json-as-bool">
 						<option value="0">Analog in</option>
 						<option value="1">NTC</option>
 					</span>
 				</td>
 				<td>
-					<select name="AIN1" id="AIN1">
+					<select name="AIN1" id="AIN1" class="json-as-bool">
 						<option value="0">+/-10 V</option>
 						<option value="1">+/-60 V</option>
 					</span>
@@ -150,13 +152,13 @@
 			<tr>
 				<td>Channel 2</td>
 				<td>
-					<select name="NTC2" id="NTC2">
+					<select name="NTC2" id="NTC2" class="json-as-bool">
 						<option value="0">Analog in</option>
 						<option value="1">NTC</option>
 					</span>
 				</td>
 				<td>
-					<select name="AIN2" id="AIN2">
+					<select name="AIN2" id="AIN2" class="json-as-bool">
 						<option value="0">+/-10 V</option>
 						<option value="1">+/-60 V</option>
 					</span>
@@ -165,13 +167,13 @@
 			<tr>
 				<td>Channel 3</td>
 				<td>
-					<select name="NTC3" id="NTC3">
+					<select name="NTC3" id="NTC3" class="json-as-bool">
 						<option value="0">Analog in</option>
 						<option value="1">NTC</option>
 					</span>
 				</td>
 				<td>
-					<select name="AIN3" id="AIN3">
+					<select name="AIN3" id="AIN3" class="json-as-bool">
 						<option value="0">+/-10 V</option>
 						<option value="1">+/-60 V</option>
 					</span>
@@ -180,13 +182,13 @@
 			<tr>
 				<td>Channel 4</td>
 				<td>
-					<select name="NTC4" id="NTC4">
+					<select name="NTC4" id="NTC4" class="json-as-bool">
 						<option value="0">Analog in</option>
 						<option value="1">NTC</option>
 					</span>
 				</td>
 				<td>
-					<select name="AIN4" id="AIN4">
+					<select name="AIN4" id="AIN4" class="json-as-bool">
 						<option value="0">+/-10 V</option>
 						<option value="1">+/-60 V</option>
 					</span>
@@ -195,13 +197,13 @@
 			<tr>
 				<td>Channel 5</td>
 				<td>
-					<select name="NTC5" id="NTC5">
+					<select name="NTC5" id="NTC5" class="json-as-bool">
 						<option value="0">Analog in</option>
 						<option value="1">NTC</option>
 					</span>
 				</td>
 				<td>
-					<select name="AIN5" id="AIN5">
+					<select name="AIN5" id="AIN5" class="json-as-bool">
 						<option value="0">+/-10 V</option>
 						<option value="1">+/-60 V</option>
 					</span>
@@ -210,13 +212,13 @@
 			<tr>
 				<td>Channel 6</td>
 				<td>
-					<select name="NTC6" id="NTC6">
+					<select name="NTC6" id="NTC6" class="json-as-bool">
 						<option value="0">Analog in</option>
 						<option value="1">NTC</option>
 					</span>
 				</td>
 				<td>
-					<select name="AIN6" id="AIN6">
+					<select name="AIN6" id="AIN6" class="json-as-bool">
 						<option value="0">+/-10 V</option>
 						<option value="1">+/-60 V</option>
 					</span>
@@ -225,13 +227,13 @@
 			<tr>
 				<td>Channel 7</td>
 				<td>
-					<select name="NTC7" id="NTC7">
+					<select name="NTC7" id="NTC7" class="json-as-bool">
 						<option value="0">Analog in</option>
 						<option value="1">NTC</option>
 					</span>
 				</td>
 				<td>
-					<select name="AIN7" id="AIN7">
+					<select name="AIN7" id="AIN7" class="json-as-bool">
 						<option value="0">+/-10 V</option>
 						<option value="1">+/-60 V</option>
 					</span>

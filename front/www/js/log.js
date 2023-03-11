@@ -93,6 +93,8 @@ function getStatus(){
       case 3:
         data["LOGGER_STATE"]="SETTINGS";
          break;
+
+         
     }
 
     if(data["LOGGER_STATE"] == "IDLE"){

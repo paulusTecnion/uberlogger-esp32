@@ -14,10 +14,11 @@ function renderPage(page, page_version){
   // get HTML of page
   $.get("html/" + page + ".html?version=" + page_version, (data) => {
     $("#render").html(data);
+
+    // load JS of page
+    $.getScript("js/" + page + ".js?version=" + page_version);
   });
 
-  // load JS of page
-  $.getScript("js/" + page + ".js?version=" + page_version);
 }
 
 function gotoPage(page, version){
@@ -108,4 +109,30 @@ function populateFields(parent, data) {
     }
   }
   });  
+}
+
+
+function fixInputFieldNumbers(input_all, input_numbers, input_bools){ 
+  // input = all fields to save as object
+  // input_numbers = all fields in input to save as number in object
+  // input_bools = all fields in input to save as boolean in object
+
+  let input_new=input_all;
+
+  $.each(input_numbers, function(key, value){
+    input_new[key] = Number(value);
+  });
+
+  $.each(input_bools, function(key, value){
+    if(value==0){
+      value = false;
+    }else{
+      value = true;
+    }
+    
+    input_new[key] = Boolean(value);
+  });
+
+
+  return(input_new);
 }

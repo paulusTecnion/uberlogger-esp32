@@ -31,7 +31,6 @@ function renderValueList(){
 
     $.getJSON('./ajax/' + query, (data) => {
       // parse JSON data to input list
-      data['TIMESTAMP'] = Date.now();
       let datetimestr = new Date(Number(data["TIMESTAMP"]));
 
       let htmlstring=[];
@@ -39,8 +38,8 @@ function renderValueList(){
 
       $.each(data["READINGS"], function(category, category_values){
 
-        htmlstring+="<div class='block' style='width: 150px;'><h3 class='first'>" + sanitizeCategoryName(category) + "</h3>";
-        htmlstring+="<table>";
+        htmlstring+="<div class='block'><h2 class='first'>" + sanitizeCategoryName(category) + "</h2>";
+        htmlstring+="<table width='100%'>";
         htmlstring+="<tr><th>Input</th><th align='right'>" + category_values["UNITS"] + "</th></tr>";
 
         let n=0;
@@ -98,8 +97,8 @@ function plotDataPoints(){
   let layout={
     datarevision: Number(new Date()),
 	  margin:{
-		  l: 30,
-		  r: 10,
+		  l: 60,
+		  r: 15,
 		  t: 30,
 		  pad: 0
   	}

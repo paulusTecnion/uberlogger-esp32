@@ -1,11 +1,14 @@
 body
 {
 	background:#336699;
+
 	font-family:Arial, Helvetica, sans-serif;
 	font-size:normal;
+	text-align:center;
+	line-height:130%;
+
 	color:#000;	
 	margin:8px auto 16px auto;
-	text-align:center;
 	min-width:500px;
 	max-width:95%;
 }
@@ -91,10 +94,6 @@ body
 }
 
 
-#plotly
-{
-	height:90vh;
-}
 
 #footer
 {
@@ -135,11 +134,12 @@ h1
 h2
 {
 	padding-top: 10px;
-	padding-bottom: 10px;
+	padding-bottom: 5px;
 	border-bottom:2px dotted #ccc;
 	font-size:140%;
 	font-weight:400;
-	margin:50px 0 10px 0;
+	color:#222;
+	margin:25px 0 10px 0;
 }
 
 h2.first
@@ -152,6 +152,10 @@ h3
 	padding-top: 10px;
 	font-size:120%;
 	font-weight:400;
+	color: #222;
+	text-decoration-line: underline;
+	text-decoration-style: line;
+	text-decoration-color: #ccc;
 	margin:15px 0 15px 0;
 }
 
@@ -163,8 +167,6 @@ h3.first
 
 p
 {
-	font-size:95%;
-	line-height:130%;
 	margin:5px 0 10px;
 }
 
@@ -187,7 +189,8 @@ p
 .group
 {
 	display: block;
-	border-bottom:2px dotted #ccc;
+	/*border-bottom:2px dotted #ccc;*/
+	/*padding-bottom:10px;*/
 }
 
 .group.last
@@ -380,29 +383,41 @@ input[type=radio]
 }
 
 
+
+
+.flexcontainer{
+	display: flex;
+	flex-flow: row wrap;
+	gap: 30px;
+}
+
+.flexdiv-sm{
+	flex-basis: 320px;
+	flex-grow: 1;
+}
+.flexdiv-md{
+	flex-basis: 480px;
+	flex-grow: 2;
+}
+.flexdiv-lg{
+	flex-basis: 640px;
+	flex-grow: 3;
+}
+
 #values {
-	display: inline-block;
-	min-width: 400px;
-	width: 25%;
-	vertical-align: top;
+	font-size: small;
+
+	flex-basis: 480px;
 }
 
 #plot {
-	display: inline-block;
-	min-width: 400px;
-	width: 70%;
-	vertical-align: top;
 	margin-top: 30px;
+
+	flex-grow: 2;
+	flex-basis: 800px;
 }
 
-
-@media screen and (max-width: 1600px) {
-	#values {
-	  width: 100%;
-	}
-
-	#plot {
-	  width: 100%;
-	}
+#plotly
+{
+	height: 75vh;
 }
-
