@@ -252,6 +252,7 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
 
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
+     free((void *)settings_json);
     cJSON_Delete(root);
     return ESP_OK;
 }
@@ -546,12 +547,12 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     Logger_syncSettings();
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
     
-    free((void*)settings_in);
-    free((void*)item);
-    
+
 error:
+
+    free((void*)settings_in);
+    cJSON_Delete(root);
     
-    free((void*)root);
 
     return ESP_OK;
    
