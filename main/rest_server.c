@@ -330,7 +330,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
         // return ESP_FAIL;
-        goto error;
+        goto error2;
     }
     while (cur_len < total_len) {
         received = httpd_req_recv(req, buf + cur_len, total_len);
@@ -338,7 +338,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             /* Respond with 500 Internal Server Error */
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
             // return ESP_FAIL;
-            goto error;
+            goto error2;
         }
         cur_len += received;
     }
@@ -549,8 +549,8 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     
 
 error:
-
     free((void*)settings_in);
+error2:
     cJSON_Delete(root);
     
 

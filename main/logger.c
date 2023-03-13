@@ -965,11 +965,12 @@ void task_logging(void * pvParameters)
     gpio_config(&adc_en_conf);
     gpio_set_level(GPIO_ADC_EN, 0);
 
-    gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_NUM_21, 1);
+    gpio_set_direction(GPIO_STM32_BOOT0, GPIO_MODE_OUTPUT);
+    // boot STM32 normally
+    gpio_set_level(GPIO_STM32_BOOT0, 0);
 
-    gpio_set_direction(GPIO_NUM_26, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_NUM_26, 1);
+    gpio_set_direction(GPIO_STM32_NRESET, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_STM32_NRESET, 1);
 
 
     // gpio_set_direction(STM32_SPI_CS, GPIO_MODE_OUTPUT);
@@ -1069,28 +1070,28 @@ void task_logging(void * pvParameters)
                     lastTick++;
                     if (lastTick > 1)
                     {
-                        if (Logger_singleShot() == ESP_OK)
-                        {
-                            // Wait for the STM32 to acquire data. Takes about 40 ms.
-                            vTaskDelay(50 / portTICK_PERIOD_MS);
+                        // if (Logger_singleShot() == ESP_OK)
+                        // {
+                        //     // Wait for the STM32 to acquire data. Takes about 40 ms.
+                        //     vTaskDelay(50 / portTICK_PERIOD_MS);
 
-                            // Wait a bit before requesting the data
-                            spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+                        //     // Wait a bit before requesting the data
+                        //     spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
 
-                            LogTask_resetCounter();
-                            if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
-                            {
-                                #ifdef DEBUG_LOGTASK_RX
-                                ESP_LOGI(TAG_LOG, "Last msg received");
-                                #endif
-                                Logger_processData();
+                        //     LogTask_resetCounter();
+                        //     if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
+                        //     {
+                        //         #ifdef DEBUG_LOGTASK_RX
+                        //         ESP_LOGI(TAG_LOG, "Last msg received");
+                        //         #endif
+                        //         Logger_processData();
                                 
-                            } else {
-                                ESP_LOGE(TAG_LOG, "Error receiving last message");
-                            }
-                        } else {
-                            ESP_LOGE(TAG_LOG, "Singleshot error");
-                        }
+                        //     } else {
+                        //         ESP_LOGE(TAG_LOG, "Error receiving last message");
+                        //     }
+                        // } else {
+                        //     ESP_LOGE(TAG_LOG, "Singleshot error");
+                        // }
                         lastTick = 0;
                     }
                 }
