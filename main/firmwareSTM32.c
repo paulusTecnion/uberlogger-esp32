@@ -15,20 +15,24 @@
 #define UART_RX_PIN GPIO_STM32_UART_TX
 #define UART_BAUDRATE 115200 
 #define UART_PORT UART_NUM_0
-#define FLASH_START_ADDR 0x08000000
+#define FLASH_START_ADDR 0x08000000UL
 #define FLASH_PAGE_SIZE 1024
 
 // Flash command definitions
 #define CMD_GET_ID       0x02
-#define CMD_WRITE_MEMORY 0x31
-#define CMD_GO           0x21
-#define CMD_ERASE_PAGE_1_2  0x43
-#define CMD_ERASE_PAGE_2_2  0xBC
+#define CMD_WRITE_MEMORY_1_2 0x31
+#define CMD_WRITE_MEMORY_2_2 0xCE
+#define CMD_GO_1_2           0x21
+#define CMD_GO_2_2           0xDE
+#define CMD_EXTENDED_ERASE_1_2  0x44
+#define CMD_EXTENDED_ERASE_2_2  0xBB
 #define CMD_WRITE_UNPROTECT_1_2 0x73
 #define CMD_WRITE_UNPROTECT_2_2 0x8C
 #define CMD_ACTIVATE     0x7F
 #define ACK              0x79
 #define NACK             0x1F
+
+
 
 static void send_byte(uint8_t byte)
 {
@@ -40,7 +44,7 @@ static void send_byte(uint8_t byte)
 static uint8_t recv_byte()
 {
     uint8_t data;
-    uart_read_bytes(UART_PORT, &data, 1, 1000 / portTICK_PERIOD_MS);
+    uart_read_bytes(UART_PORT, &data, 1, 2000 / portTICK_PERIOD_MS);
     return data;
 }
 
@@ -100,48 +104,28 @@ static esp_err_t flash_wipe()
     uint8_t cmd[2];
     uint8_t rxBuf[15];
     memset(rxBuf, 0, sizeof(rxBuf));
-    
-    // cmd[0]= 0x00;
-    // cmd[1]= 0xFF;
+        
 
-    // send_data(cmd, 2);
-
-    // while(1)
-    // {
-    //     rxBuf[0] = recv_byte();
-    //     if (rxBuf != 0x00)
-    //     {            
-    //         ESP_LOGI(TAG, "0x%02X", rxBuf[0]);
-    //         rxBuf[0] = 0x00;
-    //     } else {
-    //         ESP_LOGE(TAG, "Only got zeros");
-    //     }
-    // }
-
-    
-
-   
-
-    // cmd[0] =  CMD_WRITE_UNPROTECT_1_2;
-    // cmd[1] =  CMD_WRITE_UNPROTECT_2_2; 
-    
-    // send_data(cmd, 2);
-    
-    // // Require 2 ACKs for this command
-    // for (int i = 0; i< 2; i++)
-    // {
-    //     if (!recv_ack())
-    //     {
-    //         ESP_LOGE(TAG, "Got NACK for Write unprotect. Attempts %d", i);
-    //         return ESP_FAIL;
-    //     }
-    // }
-    
-
-    cmd[0] = CMD_ERASE_PAGE_1_2;
-    cmd[1] = CMD_ERASE_PAGE_2_2;
+    cmd[0] = CMD_EXTENDED_ERASE_1_2;
+    cmd[1] = CMD_EXTENDED_ERASE_2_2;
 
     send_data(cmd, 2);
+    if (!recv_ack())
+    {
+        return ESP_FAIL;
+    }
+
+    // Send mass erase code
+    cmd[0] = 0xFF;
+    cmd[1] = 0xFF;
+
+    send_data(cmd, 2);
+
+    // Send checksum
+    cmd[0] = 0x00;
+    send_data(cmd, 1);  
+
+    // Wait for ack
     if (!recv_ack())
     {
         return ESP_FAIL;
@@ -154,36 +138,76 @@ static esp_err_t flash_wipe()
 
 
 
-static esp_err_t flash_write(uint32_t addr, uint8_t* data, uint32_t len)
+static esp_err_t flash_write(uint32_t addr, uint8_t *data, uint32_t len)
 {
-    uint8_t cmd[5] = {CMD_WRITE_MEMORY, len - 1, 0, (addr >> 24) & 0xFF, (addr >> 16) & 0xFF};
-    send_data(cmd, 5);
+    // uint8_t cmd[5] = {CMD_WRITE_MEMORY, len - 1, 0, (addr >> 24) & 0xFF, (addr >> 16) & 0xFF};
+    uint8_t cmd[5];
+    cmd[0] = CMD_WRITE_MEMORY_1_2;
+    cmd[1] = CMD_WRITE_MEMORY_2_2;
+    unsigned int aligned_len;
+    
+    uint8_t tmp[256 + 2];
+
+    if (addr & 0x3)
+    {
+        ESP_LOGE(TAG, "Address must be 4-byte aligned");
+        return ESP_FAIL;
+    }
+
+    // Align to 256 bytes
+    aligned_len = (len + 3) & ~3;
+
+    ESP_LOGI(TAG, "Sending Write Memory command");
+
+    send_data(cmd, 2);
     if (!recv_ack())
     {
         ESP_LOGE(TAG, "Got NACK for Write Memory command");
         return ESP_FAIL;
     }
-    
-    send_cmd(CMD_GET_ID);
-    if (!recv_ack())
-    {
-        ESP_LOGE(TAG, "Got NACK for Get ID command");
-        return ESP_FAIL;
-    }
+
+    // Send start address aand checksum
+    cmd[0] = (addr >> 24) & 0xFF;
+    cmd[1] = (addr >> 16) & 0xFF;
+    cmd[2] = (addr >> 8) & 0xFF;
+    cmd[3] = (addr) & 0xFF;
+    // Checksum
+    cmd[4] = cmd[0] ^ cmd[1] ^ cmd[2] ^ cmd[3];
      
-    uint8_t data_addr[2] = {(addr >> 8) & 0xFF, addr & 0xFF};
-    send_data(data_addr, 2);
+    ESP_LOGI(TAG, "Sending start address and checksum");
+    send_data(cmd, 5);
     if (!recv_ack())
     {
         ESP_LOGE(TAG, "Got NACK for data address");
         return ESP_FAIL;
     }
 
-    send_data(data, len);
+    ESP_LOGI(TAG, "Sending length, data and checksum bytes");
+    // Send length and checksum
+    uint8_t checksum = aligned_len - 1;
+     // Send the number of bytes to be received
+    tmp[0] = aligned_len - 1;
+    // Fill data bytes, calculate checksum
+    for (int i = 0; i < aligned_len; i++) {
+        checksum ^= data[i];
+        tmp[i+1] = data[i];
+    }
+
+    /* padding data */
+	for (int i = len; i < aligned_len; i++) {
+		checksum ^= 0xFF;
+		tmp[i + 1] = 0xFF;
+	}
+
+    tmp[len+1]  = checksum;
+    send_data(tmp, len+2);
+
+    
     if (recv_ack())
     {
         ESP_LOGI(TAG, "Wrote %ld bytes to address 0x%08lX", len, addr);
     } else {
+        ESP_LOGE(TAG, "Got NACK for data");
         return ESP_FAIL;
     }
     
@@ -193,11 +217,32 @@ static esp_err_t flash_write(uint32_t addr, uint8_t* data, uint32_t len)
 
 static void flash_jump_to(uint32_t addr)
 {
-    uint8_t cmd[5] = {CMD_GO, (addr >> 24) & 0xFF, (addr >> 16) & 0xFF, (addr >> 8) & 0xFF, addr & 0xFF};
+    uint8_t cmd[5];
+
+    cmd[0] = CMD_GO_1_2;
+    cmd[1] = CMD_GO_2_2;
+
+    send_data(cmd, 2);
+
+    if (!recv_ack())
+    {
+        ESP_LOGE(TAG, "Got NACK for GO command");
+        return;
+    }
+
+    // Send start address aand checksum
+    cmd[0] = (addr >> 24) & 0xFF;
+    cmd[1] = (addr >> 16) & 0xFF;
+    cmd[2] = (addr >> 8) & 0xFF;
+    cmd[3] = (addr) & 0xFF;
+    // Checksum
+    cmd[4] = cmd[0] ^ cmd[1] ^ cmd[2] ^ cmd[3];
+
+
     send_data(cmd, 5);
     if (recv_ack())
     {
-    ESP_LOGI(TAG, "Jumped to address 0x%08lX", addr);
+        ESP_LOGI(TAG, "Jumped to address 0x%08lX", addr);
     }
 }
 
@@ -211,13 +256,13 @@ esp_err_t flash_stm32()
     // vTaskDelay(500 / portTICK_PERIOD_MS);
 
 
-    ESP_LOGI(TAG, "Starting STM32G030 flashing...");
+   
     esp_err_t err = ESP_OK;
     FILE *file = NULL;
 
     // Write firmware data to OTA partition
-    const int buff_size = 1024;
-    char *buffer = malloc(buff_size);
+    const int buff_size = 256;
+    uint8_t *buffer = (uint8_t*)malloc(buff_size);
 
     if (esp_sd_card_mount() != ESP_OK)
     {
@@ -244,21 +289,21 @@ esp_err_t flash_stm32()
  
 
     // activating flash mode 
-    
+     ESP_LOGI(TAG, "Starting STM32G030 bootloader");
     send_cmd(CMD_ACTIVATE);
     if (recv_ack())
     {
-        ESP_LOGI(TAG, "STM32G030 in flash mode");
+        ESP_LOGI(TAG, "STM32G030 in bootloader mode");
     } else {
         err = ESP_FAIL;
         goto error;
     }
 
     // Erase flash pages
-    ESP_LOGI(TAG, "Erasing pages");
+    ESP_LOGI(TAG, "Mass erasing");
     if (flash_wipe() == ESP_OK)
     {
-        ESP_LOGI(TAG, "Pages erased");
+        ESP_LOGI(TAG, "Flash erased");
     } else {
         ESP_LOGE(TAG, "Failed to erase pages");
         err = ESP_FAIL;
@@ -275,19 +320,24 @@ esp_err_t flash_stm32()
     }
 
     ESP_LOGI(TAG, "Flashing firmware...")  ;
+    uint32_t write_address = FLASH_START_ADDR;
+
+
     while (1) {
-        int bytes_read = fread(buffer, 1, buff_size, file);
+        uint32_t bytes_read = fread(buffer, 1, buff_size, file);
         if (bytes_read == 0) {
             break;
         }
         // esp_err_t err = esp_ota_write(ota_handle, buffer, bytes_read);
-        err = flash_write(FLASH_START_ADDR, bytes_read, sizeof(bytes_read));
+        err = flash_write(write_address, buffer, bytes_read);
+        write_address += bytes_read;
+
         if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Error writing firmware to OTA partition: %d\n", err);
+        ESP_LOGE(TAG, "Error writing firmware: %d\n", err);
         
         err = ESP_FAIL;
         goto error;
-        }
+        } 
     }
     
 
@@ -296,13 +346,15 @@ esp_err_t flash_stm32()
     flash_jump_to(FLASH_START_ADDR);
 
     ESP_LOGI(TAG, "Flashing complete.");
+    fclose(file);
     esp_sd_card_unmount();
 
 error:    
     free(buffer);
-    fclose(file);
-    uart_driver_delete(UART_PORT);
 
+    uart_driver_delete(UART_PORT);
+        
+        ESP_LOGI(TAG, "Booting STM32G030 into normal mode...");
         gpio_set_level(GPIO_STM32_BOOT0, 0);
         gpio_set_level(GPIO_STM32_NRESET, 0);
         vTaskDelay(250 / portTICK_PERIOD_MS);
@@ -313,9 +365,8 @@ error:
         ESP_LOGE(TAG, "Firmware flashing failed!");
         return ESP_FAIL;
     } else {
-        ESP_LOGI(TAG, "Booting STM32G030 into normal mode...");
        
-
+       
         return ESP_OK;
     }
     
