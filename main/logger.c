@@ -969,7 +969,14 @@ void task_logging(void * pvParameters)
     // boot STM32 normally
     gpio_set_level(GPIO_STM32_BOOT0, 0);
 
-    gpio_set_direction(GPIO_STM32_NRESET, GPIO_MODE_OUTPUT);
+    gpio_config_t nreset_conf={
+        .mode=GPIO_MODE_OUTPUT,
+        .pin_bit_mask=(1<<GPIO_STM32_NRESET),
+        .pull_up_en=GPIO_PULLUP_DISABLE
+    };
+
+    gpio_config(&nreset_conf);
+    // gpio_set_direction(GPIO_STM32_NRESET, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_STM32_NRESET, 1);
 
 
