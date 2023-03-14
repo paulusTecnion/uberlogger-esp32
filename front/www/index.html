@@ -8,7 +8,7 @@
 </head>
 
 <script>
-	var page_version="46";
+	var page_version="9";
 </script>
 
 <body onload="loadPage();">
@@ -16,15 +16,13 @@
 <div id="content">
 	<div id="shadow_top"></div>
 	<div id="window">
-
 		<div id="top">
-			<div id="topbar"></div>
-			<div id="toptitle">UberLogger One</div>
+			<div id="toptitle"><h1>UberLogger One</h1><p>High-performance data logging</p></div>
 			<div id="topmenubar">
-				<button onclick="gotoPage('home');">Home</button>
-				<button onclick="gotoPage('liveview');">View live data</button>
-				<button onclick="gotoPage('log');">Logging</button>
-				<button onclick="gotoPage('config');">Configuration</button>
+				<button id="menu_home" onclick="gotoPage('home');">Home</button>
+				<button id="menu_liveview" onclick="gotoPage('liveview');">View live data</button>
+				<button id="menu_log" onclick="gotoPage('log');">Logging</button>
+				<button id="menu_config" onclick="gotoPage('config');">Configuration</button>
 			</div>
 		</div>
 		
@@ -38,7 +36,7 @@
 </div>
 
 <!--- JavaScript includes --->
-<script src="js/jquery-3.6.1.min.js"></script>
+<script src="js/jquery-3.6.4.min.js"></script>
 <script src="js/generic.js"></script>
 
 </body>

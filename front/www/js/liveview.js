@@ -38,7 +38,7 @@ function renderValueList(){
 
       $.each(data["READINGS"], function(category, category_values){
 
-        htmlstring+="<div class='block'><h2 class='first'>" + sanitizeCategoryName(category) + "</h2>";
+        htmlstring+="<div class='block greybox'><h2 class='first'>" + sanitizeCategoryName(category) + "</h2>";
         htmlstring+="<table width='100%'>";
         htmlstring+="<tr><th>Input</th><th align='right'>" + category_values["UNITS"] + "</th></tr>";
 
@@ -94,25 +94,44 @@ function storeDataPoint(category, channel, timestamp, value, unit){
 function plotDataPoints(){
   const dataPointsArray=Object.values(dataPoints);
 
-  let layout={
-    datarevision: Number(new Date()),
-	  margin:{
-		  l: 60,
-		  r: 15,
-		  t: 30,
-		  pad: 0
-  	}
-  };
-
   let config={
 	  responsive: true
   }
 
   if(plot_drawn_state==0){
-    Plotly.newPlot(divPlot, dataPointsArray, layout, config);
-    plot_drawn_state=1;
+	let layout={
+		datarevision: Number(new Date()),
+		margin: {
+			  l: 75,
+			  r: 15,
+			  t: 45,
+			  pad: 0
+		},
+		title: {
+			text:'Measured data',
+			xref: 'paper',
+			font: {
+				size: 16
+			},
+			x: 0.5,
+		},
+		xaxis: {
+			title: {
+				text: 'Time',
+				font: {
+					size: 14
+				}
+			},
+		}	
+	};
+	Plotly.newPlot(divPlot, dataPointsArray, layout, config);
+	plot_drawn_state=1;
+	
   }else{
     // we have a plot, do update of data only
+	let layout={
+		datarevision: Number(new Date())
+	}
     Plotly.update(divPlot, dataPointsArray, layout, config);
   }
 }

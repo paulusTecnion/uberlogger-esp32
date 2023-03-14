@@ -5,9 +5,9 @@
 <h2 class="first">Overview</h2>
   <p>Within the control panel you can:
     <ul>
-      <li>Plot measured data from a live stream using the "View live data"-panel;</li>
-      <li>Start SD-card logging using the "Logging"-panel;</li>
-      <li>Configure the logger, input channels and WiFi-functionality through the "Configuration"-panel.</li>
+      <li>Plot measured data from a live stream using the "View live data"-page;</li>
+      <li>Start SD-card logging using the "Logging"-page;</li>
+      <li>Configure the logger, input channels and WiFi-functionality through the "Configuration"-page.</li>
     </ul>
   </p>
   <p>Click on the corresponding buttons above to navigate.</p>
@@ -18,23 +18,42 @@
   <h2>Quick user manual</h2>
 
   <div class="flexcontainer">
-    <div class="flexdiv-md">
+	<div class="flexdiv-md greybox">
+      <h3 class="first">WiFi configuration</h3>
+      <p>
+        The UberLogger is controlled via this control panel over WiFi, which can operate in two modes:
+		<ol>
+			<li>
+				<p>Hotspot mode</p>
+				<p>In hotspot mode, you can connect to UberLogger via any device with an integrated WiFi adapter, and access the control panel through http://192.168.4.1 via your favorite web browser. Note that using this mode will  disconnect you from internet while you're connected to the UberLogger hotspot. You also might have to disable any active mobile data connections.</p>
+			</li>
+			<li>
+				<p>Client mode</p>
+				<p>In client mode, the UberLogger will attempt to connect to an available WiFi access point. You will have to configure this mode through the "Configuration"-page. After configuring and successful connection, you will be able to access the control panel through http://IPADDRESS, where IPADDRESS is the IP-address that is obtained through the DHCP-server. You can find this address when clicking "Test connection" in the "Configuration"-page.</p>
+				<p><i><b>Important:</b> in case the connection fails, you can temporarily re-enable the hotspot mode by pressing the MODE-button for 10 seconds to regain access to the control panel.</i></p>
+			</li>
+		</ol>
+      </p>
+    </div>
+
+  
+    <div class="flexdiv-md greybox">
       <h3 class="first">Channel configuration</h3>
       <p>
         The UberLogger can measure three types of signals: temperature, analog voltage, and digital signals. Additionally, the sample rate, resolution and (analog) scaling can be adjusted to ensure your measurements are recorded accurately.
       </p>
       <p>
         <b>NTCx/AINx selection:</b> The temperature and analog voltage channels are shared, which means you have to select whether you want to measure temperature or voltage for each individual channel (NTC0/AIN0, NTC1/AIN1, ...).
-        <i>Important: this selection needs to be done on two locations: using the hardware DIP-switches on the UberLogger, and you need to tell the logger what the current DIP-switch configuration is through the "Configuration"-panel.</i>
+        <i>Important: this selection needs to be done on two locations: using the hardware DIP-switches on the UberLogger, and you need to tell the logger what the current DIP-switch configuration is through the "Configuration"-page.</i>
       </p>
       <p>
         <b>AINx range selection:</b> The AINx channels can be individually set on two ranges: -10V ... +10V and -60V ... +60V. The range select is changing the analog frontend gain.
         This results in more bits per Volt when the lower range is used, improving resolution and reducing quantization noise.
-        <i>Important: this selection needs to be done on two locations: using the hardware DIP-switches on the UberLogger, and you need to tell the logger what the current DIP-switch configuration is through the "Configuration"-panel.</i>
+        <i>Important: this selection needs to be done on two locations: using the hardware DIP-switches on the UberLogger, and you need to tell the logger what the current DIP-switch configuration is through the "Configuration"-page.</i>
       </p>
     </div>
 
-    <div class="flexdiv-md">
+    <div class="flexdiv-md greybox">
       <h3 class="first">Sampling</h3>
       The analog frontend of the UberLogger has a configurable sample rate and resolution. Before starting any measurement, it is important to select a suitable sample rate and resolution. 
       <p>
@@ -51,13 +70,15 @@
       </p>
     </div>
 
-    <div class="flexdiv-md">
-      <h3 class="first">Time synchronization</h3>
-      <p>
-        The UberLogger has an integrated real-time clock (RTC) which accurately keeps track of the elapsed time.
-        The RTC can be synchronized to your PC's time easily through the "Configuration"-panel, by clicking on "Synchronize to local time". The data timestamp in the live data view will update to the local time.
-        <i>Important: UberLogger will save all data to the SD-card in the coordinated universal time (UTC) format, which excludes any time zone offset. This format allows effortless merging of multiple recorded datasets and gives accurate reader-independent results.</i> 
-      </p>
+    <div class="flexdiv-md greybox">
+		<h3 class="first">Time synchronization</h3>
+		<p>
+			The UberLogger has an integrated real-time clock (RTC) which accurately keeps track of the elapsed time.
+			The RTC can be synchronized to your PC's time easily through the "Configuration"-page, by clicking on "Synchronize to local time". The data timestamp in the live data view will update to the local time.
+		</p>
+		<p>
+			<i><b>Important:</b> UberLogger will save all data to the SD-card in the coordinated universal time (UTC) format, which excludes any time zone offset. This format allows effortless merging of multiple recorded datasets and gives accurate reader-independent results.</i>
+		</p>
     </div>
 
   </div>

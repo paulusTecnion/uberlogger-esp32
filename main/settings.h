@@ -48,7 +48,7 @@ typedef enum adc_channel_enable_e {
 } adc_channel_enable_t;
 
 typedef enum adc_sample_rate_e {
-    ADC_SAMPLE_RATE_1Hz = 1,
+    ADC_SAMPLE_RATE_1Hz = 0,
 	ADC_SAMPLE_RATE_2Hz,
 	ADC_SAMPLE_RATE_5Hz,
 	ADC_SAMPLE_RATE_10Hz,

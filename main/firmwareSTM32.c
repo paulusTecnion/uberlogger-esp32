@@ -13,7 +13,8 @@
 
 #define UART_TX_PIN GPIO_STM32_UART_RX
 #define UART_RX_PIN GPIO_STM32_UART_TX
-#define UART_BAUDRATE 115200
+#define UART_BAUDRATE 115200 
+#define UART_PORT UART_NUM_0
 #define FLASH_START_ADDR 0x08000000
 #define FLASH_PAGE_SIZE 1024
 
@@ -31,19 +32,21 @@
 
 static void send_byte(uint8_t byte)
 {
-    uart_write_bytes(UART_NUM_1, (const char*)&byte, 1);
+    // uart_write_bytes(UART_PORT, (const char*)&byte, 1);
+    uart_write_bytes(UART_PORT, (const char*)&byte, 1);
+    ESP_ERROR_CHECK(uart_wait_tx_done(UART_PORT, 100)); 
 }
 
 static uint8_t recv_byte()
 {
     uint8_t data;
-    uart_read_bytes(UART_NUM_1, &data, 1, 1000 / portTICK_PERIOD_MS);
+    uart_read_bytes(UART_PORT, &data, 1, 1000 / portTICK_PERIOD_MS);
     return data;
 }
 
 static void recv_bytes(uint8_t* data, uint32_t len)
 {
-    uart_read_bytes(UART_NUM_1, data, len, 1000 / portTICK_PERIOD_MS);
+    uart_read_bytes(UART_PORT, data, len, 1000 / portTICK_PERIOD_MS);
 }
 
 static void send_data(uint8_t* data, uint32_t len)
@@ -78,6 +81,18 @@ static uint8_t recv_ack()
     }
 }
 
+static uint8_t recv_resp(uint8_t resp)
+{
+    uint8_t ack = recv_byte();
+    if (ack == resp)
+    {
+        return 1;
+    } else {
+        ESP_LOGE(TAG, "Unexpected response: %02X", ack);
+        return 0;
+    }
+}
+
 static esp_err_t flash_wipe()
 {
     
@@ -86,45 +101,41 @@ static esp_err_t flash_wipe()
     uint8_t rxBuf[15];
     memset(rxBuf, 0, sizeof(rxBuf));
     
-    cmd[0]= 0x00;
-    cmd[1]= 0xFF;
+    // cmd[0]= 0x00;
+    // cmd[1]= 0xFF;
 
-    send_data(cmd, 2);
+    // send_data(cmd, 2);
 
-    while(1)
-    {
-        recv_byte(rxBuf[0]);
-        if (rxBuf != 0x00)
-        {            
-            ESP_LOGI(TAG, "0x%02X", rxBuf[0]);
-            rxBuf[0] = 0x00;
-        } else {
-            ESP_LOGE(TAG, "Only got zeros");
-        }
-    }
+    // while(1)
+    // {
+    //     rxBuf[0] = recv_byte();
+    //     if (rxBuf != 0x00)
+    //     {            
+    //         ESP_LOGI(TAG, "0x%02X", rxBuf[0]);
+    //         rxBuf[0] = 0x00;
+    //     } else {
+    //         ESP_LOGE(TAG, "Only got zeros");
+    //     }
+    // }
 
     
 
-    for (int i = 0; i < 2; i++)
-    {
-        cmd[0] = recv_byte();
-        ESP_LOGI(TAG, "0x%02X", cmd[0]);
-    }
+   
 
-    cmd[0] =  CMD_WRITE_UNPROTECT_1_2;
-    cmd[1] =  CMD_WRITE_UNPROTECT_2_2; 
+    // cmd[0] =  CMD_WRITE_UNPROTECT_1_2;
+    // cmd[1] =  CMD_WRITE_UNPROTECT_2_2; 
     
-    send_data(cmd, 2);
+    // send_data(cmd, 2);
     
-    // Require 2 ACKs for this command
-    for (int i = 0; i< 2; i++)
-    {
-        if (!recv_ack())
-        {
-            ESP_LOGE(TAG, "Got NACK for Write unprotect. Attempts %d", i);
-            return ESP_FAIL;
-        }
-    }
+    // // Require 2 ACKs for this command
+    // for (int i = 0; i< 2; i++)
+    // {
+    //     if (!recv_ack())
+    //     {
+    //         ESP_LOGE(TAG, "Got NACK for Write unprotect. Attempts %d", i);
+    //         return ESP_FAIL;
+    //     }
+    // }
     
 
     cmd[0] = CMD_ERASE_PAGE_1_2;
@@ -195,11 +206,11 @@ esp_err_t flash_stm32()
     ESP_LOGI(TAG, "Booting STM32G030 into bootloader mode...");
     gpio_set_level(GPIO_STM32_BOOT0, 1);
     gpio_set_level(GPIO_STM32_NRESET, 0);
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     gpio_set_level(GPIO_STM32_NRESET, 1);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    
-    
+    // vTaskDelay(500 / portTICK_PERIOD_MS);
+
+
     ESP_LOGI(TAG, "Starting STM32G030 flashing...");
     esp_err_t err = ESP_OK;
     FILE *file = NULL;
@@ -222,11 +233,15 @@ esp_err_t flash_stm32()
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_APB,
+        .source_clk = UART_SCLK_DEFAULT,
     };
-    uart_param_config(UART_NUM_1, &uart_config);
-    uart_set_pin(UART_NUM_1, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    uart_driver_install(UART_NUM_1, 2048, 2048, 0, NULL, 0);
+
+     
+
+    ESP_ERROR_CHECK(uart_driver_install(UART_PORT, 256, 256, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(UART_PORT, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(UART_PORT, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+ 
 
     // activating flash mode 
     
@@ -286,19 +301,20 @@ esp_err_t flash_stm32()
 error:    
     free(buffer);
     fclose(file);
-    uart_driver_delete(UART_NUM_1);
+    uart_driver_delete(UART_PORT);
 
+        gpio_set_level(GPIO_STM32_BOOT0, 0);
+        gpio_set_level(GPIO_STM32_NRESET, 0);
+        vTaskDelay(250 / portTICK_PERIOD_MS);
+        gpio_set_level(GPIO_STM32_NRESET, 1);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     if (err!=ESP_OK)
     {
         ESP_LOGE(TAG, "Firmware flashing failed!");
         return ESP_FAIL;
     } else {
         ESP_LOGI(TAG, "Booting STM32G030 into normal mode...");
-        gpio_set_level(GPIO_STM32_BOOT0, 0);
-        gpio_set_level(GPIO_STM32_NRESET, 0);
-        vTaskDelay(50 / portTICK_PERIOD_MS);
-        gpio_set_level(GPIO_STM32_NRESET, 1);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+       
 
         return ESP_OK;
     }

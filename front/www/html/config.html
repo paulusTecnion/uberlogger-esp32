@@ -1,254 +1,259 @@
 <h1>Configuration</h1>
-
 <form id="configuration">
 
-<div class="visible" id="loading">
-	<p><i>Loading current configuration, please wait...</i></p>
-</div>
-
-<div class="invisible" id="config">
-	<p>Updating the configuration requires clicking the "Save settings" button to save the configuration and activate it. Intermediate changes will not be saved.</p>
-
-	<h2 class="first">Firmware</h2>
-	<p>
-		Current firmware version: <span name="FW_VERSION">-</span><br/>
-		<a href="/fwupdate">Update firmware</a>
-	</p>
-
-	<h2>Backup or restore configuration</h2>
-	<div class="group" id="backuprestoreconfig">
-		<h3 class="first">Restore defaults</h3>
-		<label class="description" style="padding-bottom: 10px;">Restore the default settings by clicking the button below. They will be saved after clicking the save button at the bottom of this page.</label>
-		<input id="btn_load_defaults" class="button" type="button" name="btn_load_defaults" value="Restore default settings" onclick="loadFormDefaults()"/>
-		
-		<br/>
-		
-		<h3>Import/export configuration</h3>
-		<label class="description" style="padding-bottom: 10px;">You can download the current configuration and import it at a later time. When importing, the settings will be saved only after clicking the save button at the bottom of this page.</label>
-		<input id="btn_import_config" name="btn_import_config" class="button" type="button" value="Import settings from file..." onclick="importConfigfile()"/>
-		<input id="file_import_config" name="file_import_config" class="button" type="file" onchange="importConfigFileSelected()" accept=".json" style="visibility: hidden; display: none;">
-		<a href="ajax/downloadConfig"><button class="button" type="button">Download current settings</button></a>
+	<div class="visible" id="loading">
+		<p><i>Loading current configuration, please wait...</i></p>
 	</div>
 
-	<h2>WiFi configuration</h2>
-	<div class="group" id="wifi_configuration">
-		<h3>Connection details</h3>
-		<p>Enter the details of your WiFi-network below to allow the UberLogger to connect.</p>
-		<p><i><b>Note:</b> in case connecting to WiFi fails, press the MODE button for 10 seconds to enable the hotspot mode.</i></p>
-		<label for="WIFI_SSID">Network name (SSID)</label>
-		<input id="WIFI_SSID" name="WIFI_SSID" class="element" type="text" maxlength="32" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
+	<div class="invisible" id="config">
+		<p>Updating the configuration requires clicking the "Save settings" button to save the configuration and activate it. Intermediate changes will not be saved.</p>
 
-		<label for="WIFI_PASSWORD">Password</label>
-		<input id="WIFI_PASSWORD" name="WIFI_PASSWORD" class="element" type="text" maxlength="64" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
-
-		<h3>Connection test</h3>
-		<div id="WIFI_TEST_BTN">
-			<p>After entering the connection details above, you can test the WiFi connection by clicking on the button below.</p>
-			<p><i><b>Tip:</b> after configuring, this page will be available via http://IPADDRESS (e.g. http://192.168.1.123).</i></p>
-			<input id="btn_test_wifi_network" class="button_text" type="button" value="Test connection" onclick="testWifiNetwork()">
-		</div>
+		<h2 class="first">Firmware</h2>
 		<p>
-			Connection: <span id="WIFI_TEST_STATUS" name="WIFI_TEST_STATUS">...</span><br/>
-			IP-address: <span id="WIFI_TEST_IP" name="WIFI_TEST_IP">0.0.0.0</span><br/>
-			RSSI: <span id="WIFI_TEST_RSSI" name="WIFI_TEST_RSSI">-</span> dB
+			Current firmware version: <span name="FW_VERSION">-</span><br/>
+			<a href="/fwupdate">Update firmware</a>
 		</p>
-		<p><i><b>Note:</b> the WiFi-signal strength (RSSI) should be above -80 dB for a stable connection (e.g. -75 dB is OK).</i></p>
-	</div>
 
-	<h2>Logging</h2>
-	<div class="group" id="logging_configuration">
-		<h3>System time</h3>
-		
-		<p>To ensure recordings are indicating the correct time, you can synchronize the real time clock with the local time.</p>
-		<input id="btn_sync_time" class="button" type="button" name="btn_sync_time" value="Synchronize to local time" onclick="syncTime()"/>
-		
+		<h2>Backup or restore configuration</h2>
+		<div class="group" id="backuprestoreconfig">
+			<h3 class="first">Restore defaults</h3>
+			<label class="description" style="padding-bottom: 10px;">Restore the default settings by clicking the button below. They will be saved after clicking the save button at the bottom of this page.</label>
+			<input id="btn_load_defaults" class="button" type="button" name="btn_load_defaults" value="Restore default settings" onclick="loadFormDefaults()"/>
+			
+			<br/>
+			
+			<h3>Import/export configuration</h3>
+			<label class="description" style="padding-bottom: 10px;">You can download the current configuration and import it at a later time. When importing, the settings will be saved only after clicking the save button at the bottom of this page.</label>
+			<input id="btn_import_config" name="btn_import_config" class="button" type="button" value="Import settings from file..." onclick="importConfigfile()"/>
+			<input id="file_import_config" name="file_import_config" class="button" type="file" onchange="importConfigFileSelected()" accept=".json" style="visibility: hidden; display: none;">
+			<a href="ajax/downloadConfig"><button class="button" type="button">Download current settings</button></a>
+		</div>
 
-		<h3>Logging mode</h3>
-		<label class="description" for="LOG_MODE" style="padding-bottom: 10px;">Select the desired logging mode:</label>           
-		<span>
-			<p>
-				<input id="log_mode_raw" name="LOG_MODE" class="element radio json-as-number" type="radio" value="0" checked="checked"/>
+		<h2>WiFi configuration</h2>
+		<div class="group" id="wifi_configuration">
+			<h3>Connection mode</h3>
+			<span>
+				<input id="wifi_mode_hotspot" name="WIFI_MODE" class="element radio json-as-number" type="radio" value="0" checked="true" onclick="wifiConfigVisibilityUpdate();"/>
+				<label class="choice" for="wifi_mode_hotspot">Hotspot mode<br/>UberLogger acts as a WiFi-hotspot where you can directly connect to.</label>
+
+				<input id="wifi_mode_client" name="WIFI_MODE" class="element radio json-as-number" type="radio" value="1" onclick="wifiConfigVisibilityUpdate();"/>
+				<label class="choice" for="wifi_mode_client">Client mode<br/>UberLogger connects to your WiFi-network as a client, and you can access the UberLogger through the IP-address that is assigned through your DHCP server.</label>
+			</span>
+			
+			<div id="wifi_client_settings">
+				<h3>Client details</h3>
+				<p>Enter the details of your WiFi-network below to allow the UberLogger to connect.</p>
+				<p><i><b>Note:</b> in case connecting to WiFi fails, press the MODE button for 10 seconds to enable the hotspot mode.</i></p>
+				<label for="WIFI_SSID">Network name (SSID)</label>
+				<input id="WIFI_SSID" name="WIFI_SSID" class="element" type="text" maxlength="32" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
+
+				<label for="WIFI_PASSWORD">Password</label>
+				<input id="WIFI_PASSWORD" name="WIFI_PASSWORD" class="element" type="text" maxlength="64" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
+
+				<p>After entering the connection details above, you can test the WiFi connection by clicking on the button below.</p>
+				<p><i><b>Tip:</b> after configuring, this page will be available via http://IPADDRESS (e.g. http://192.168.1.123).</i></p>
+				<input id="btn_test_wifi_network" class="button_text" type="button" value="Test connection" onclick="testWifiNetwork()">
+				<p>
+					Connection: <span id="WIFI_TEST_STATUS" name="WIFI_TEST_STATUS">...</span><br/>
+					IP-address: <span id="WIFI_TEST_IP" name="WIFI_TEST_IP">0.0.0.0</span><br/>
+					RSSI: <span id="WIFI_TEST_RSSI" name="WIFI_TEST_RSSI">-</span> dB
+				</p>
+				<p><i><b>Note:</b> the WiFi-signal strength (RSSI) should be above -80 dB for a stable connection (e.g. -75 dB is OK).</i></p>
+			</div>
+		</div>
+
+		<h2>Logging</h2>
+		<div class="group" id="logging_configuration">
+			<h3>System time</h3>
+			
+			<p>To ensure recordings are indicating the correct time, you can synchronize the real time clock with the local time.</p>
+			<input id="btn_sync_time" class="button" type="button" name="btn_sync_time" value="Synchronize to local time" onclick="syncTime()"/>
+			
+
+			<h3>Logging mode</h3>
+			<label class="description" style="padding-bottom: 10px;">Select the desired logging mode:</label>           
+			<span>
+				<input id="log_mode_raw" name="LOG_MODE" class="element radio json-as-number" type="radio" value="0" checked="true"/>
 				<label class="choice" for="log_mode_raw">Write raw data to file</label>
 
 				<input id="log_mode_csv" name="LOG_MODE" class="element radio json-as-number" type="radio" value="1"/>
 				<label class="choice" for="log_mode_csv">Write to CSV-file</label>
+			</span>
+			<p><i><b>Note:</b> a new file will be created for each log (after stopping and starting).</i></p>
+		</div>
+
+
+		<h2>Channel configuration</h2>
+		<div class="group" id="sampling_configuration">
+			<h3>Sampling</h3>
+			<p>
+				Select the desired sample rate:
+				<select name="LOG_SAMPLE_RATE" id="LOG_SAMPLE_RATE" class="json-as-number">
+					<option value="0">1 Sample/s</option>
+					<option value="1">2 Samples/s</option>
+					<option value="2">5 Samples/s</option>
+					<option value="3">10 Samples/s</option>
+					<option value="4">25 Samples/s</option>
+					<option value="5">50 Samples/s</option>
+					<option value="6">100 Samples/s</option>
+					<option value="7">250 Samples/s</option>
+					<option value="8">500 Samples/s</option>
+					<option value="9">1 kS/s</option>
+					<option value="10">2.5 kS/s</option>
+				</select>
 			</p>
-		</span>
-		<p><i><b>Note:</b> a new file will be created for each log (after stopping and starting).</i></p>
+
+			<p>
+				Select the desired analog resolution:
+				<select name="ADC_RESOLUTION" id="ADC_RESOLUTION" class="json-as-number">
+					<option value="12">12 bits</option>
+					<option value="16">16 bits</option>
+				</select>
+			</p>
+		</div>
+
+		<div class="group" id="channel_configuration">
+			<h3>Analog channels</h3>
+			<p>Select the mode used for the analog channels.</p>
+			<p><i><b>Important:</b> ensure the hardware configuration (DIP-switch setting) is equal to the settings below.</i></p>
+			<p><i><b>Note:</b> range select has no effect when the NTC temperature input is used.</i></p>
+
+			<table>
+				<tr>
+					<th>Analog channel</th>
+					<th>Mode</th>
+					<th>Range</th>
+				</tr>
+				<tr>
+					<td>Channel 0</td>
+					<td>
+						<select name="NTC0" id="NTC0" class="json-as-bool">
+							<option value="0">Analog in</option>
+							<option value="1">NTC</option>
+						</span>
+					</td>
+					<td>
+						<select name="AIN0" id="AIN0" class="json-as-bool">
+							<option value="0">+/-10 V</option>
+							<option value="1">+/-60 V</option>
+						</span>
+					</td>
+				</tr>
+				<tr>
+					<td>Channel 1</td>
+					<td>
+						<select name="NTC1" id="NTC1" class="json-as-bool">
+							<option value="0">Analog in</option>
+							<option value="1">NTC</option>
+						</span>
+					</td>
+					<td>
+						<select name="AIN1" id="AIN1" class="json-as-bool">
+							<option value="0">+/-10 V</option>
+							<option value="1">+/-60 V</option>
+						</span>
+					</td>
+				</tr>
+				<tr>
+					<td>Channel 2</td>
+					<td>
+						<select name="NTC2" id="NTC2" class="json-as-bool">
+							<option value="0">Analog in</option>
+							<option value="1">NTC</option>
+						</span>
+					</td>
+					<td>
+						<select name="AIN2" id="AIN2" class="json-as-bool">
+							<option value="0">+/-10 V</option>
+							<option value="1">+/-60 V</option>
+						</span>
+					</td>
+				</tr>
+				<tr>
+					<td>Channel 3</td>
+					<td>
+						<select name="NTC3" id="NTC3" class="json-as-bool">
+							<option value="0">Analog in</option>
+							<option value="1">NTC</option>
+						</span>
+					</td>
+					<td>
+						<select name="AIN3" id="AIN3" class="json-as-bool">
+							<option value="0">+/-10 V</option>
+							<option value="1">+/-60 V</option>
+						</span>
+					</td>
+				</tr>
+				<tr>
+					<td>Channel 4</td>
+					<td>
+						<select name="NTC4" id="NTC4" class="json-as-bool">
+							<option value="0">Analog in</option>
+							<option value="1">NTC</option>
+						</span>
+					</td>
+					<td>
+						<select name="AIN4" id="AIN4" class="json-as-bool">
+							<option value="0">+/-10 V</option>
+							<option value="1">+/-60 V</option>
+						</span>
+					</td>
+				</tr>
+				<tr>
+					<td>Channel 5</td>
+					<td>
+						<select name="NTC5" id="NTC5" class="json-as-bool">
+							<option value="0">Analog in</option>
+							<option value="1">NTC</option>
+						</span>
+					</td>
+					<td>
+						<select name="AIN5" id="AIN5" class="json-as-bool">
+							<option value="0">+/-10 V</option>
+							<option value="1">+/-60 V</option>
+						</span>
+					</td>
+				</tr>
+				<tr>
+					<td>Channel 6</td>
+					<td>
+						<select name="NTC6" id="NTC6" class="json-as-bool">
+							<option value="0">Analog in</option>
+							<option value="1">NTC</option>
+						</span>
+					</td>
+					<td>
+						<select name="AIN6" id="AIN6" class="json-as-bool">
+							<option value="0">+/-10 V</option>
+							<option value="1">+/-60 V</option>
+						</span>
+					</td>
+				</tr>
+				<tr>
+					<td>Channel 7</td>
+					<td>
+						<select name="NTC7" id="NTC7" class="json-as-bool">
+							<option value="0">Analog in</option>
+							<option value="1">NTC</option>
+						</span>
+					</td>
+					<td>
+						<select name="AIN7" id="AIN7" class="json-as-bool">
+							<option value="0">+/-10 V</option>
+							<option value="1">+/-60 V</option>
+						</span>
+					</td>
+				</tr>
+
+			</table>
+
+			<h3>Digital channels</h3>
+			<p>Digital channels currently have no configuration options.</p>
+		</div>
+
+		<div id="configuration_done">
+			<input id="saveForm" class="button_text" type="button" onClick="setConfig()" value="Save all settings"/>
+		</div>
 	</div>
-
-
-	<h2>Channel configuration</h2>
-	<div class="group" id="sampling_configuration">
-		<h3>Sampling</h3>
-		<p>
-			Select the desired sample rate:
-			<select name="LOG_SAMPLE_RATE" id="LOG_SAMPLE_RATE" class="json-as-number">
-				<option value="0">1 Sample/s</option>
-				<option value="1">2 Samples/s</option>
-				<option value="2">5 Samples/s</option>
-				<option value="3">10 Samples/s</option>
-				<option value="4">25 Samples/s</option>
-				<option value="5">50 Samples/s</option>
-				<option value="6">100 Samples/s</option>
-				<option value="7">250 Samples/s</option>
-				<option value="8">500 Samples/s</option>
-				<option value="9">1 kS/s</option>
-				<option value="10">2.5 kS/s</option>
-			</select>
-		</p>
-
-		<p>
-			Select the desired analog resolution:
-			<select name="ADC_RESOLUTION" id="ADC_RESOLUTION" class="json-as-number">
-				<option value="12">12 bits</option>
-				<option value="16">16 bits</option>
-			</select>
-		</p>
-	</div>
-
-	<div class="group" id="channel_configuration">
-		<h3>Analog channels</h3>
-		<p>Select the mode used for the analog channels.</p>
-		<p><i><b>Important:</b> ensure the hardware configuration is equal to the settings below.</i></p>
-		<p><i><b>Note:</b> range select has no effect when the NTC temperature input is used.</i></p>
-
-		<table>
-			<tr>
-				<th>Analog channel</th>
-				<th>Mode</th>
-				<th>Range</th>
-			</tr>
-			<tr>
-				<td>Channel 0</td>
-				<td>
-					<select name="NTC0" id="NTC0" class="json-as-bool">
-						<option value="0">Analog in</option>
-						<option value="1">NTC</option>
-					</span>
-				</td>
-				<td>
-					<select name="AIN0" id="AIN0" class="json-as-bool">
-						<option value="0">+/-10 V</option>
-						<option value="1">+/-60 V</option>
-					</span>
-				</td>
-			</tr>
-			<tr>
-				<td>Channel 1</td>
-				<td>
-					<select name="NTC1" id="NTC1" class="json-as-bool">
-						<option value="0">Analog in</option>
-						<option value="1">NTC</option>
-					</span>
-				</td>
-				<td>
-					<select name="AIN1" id="AIN1" class="json-as-bool">
-						<option value="0">+/-10 V</option>
-						<option value="1">+/-60 V</option>
-					</span>
-				</td>
-			</tr>
-			<tr>
-				<td>Channel 2</td>
-				<td>
-					<select name="NTC2" id="NTC2" class="json-as-bool">
-						<option value="0">Analog in</option>
-						<option value="1">NTC</option>
-					</span>
-				</td>
-				<td>
-					<select name="AIN2" id="AIN2" class="json-as-bool">
-						<option value="0">+/-10 V</option>
-						<option value="1">+/-60 V</option>
-					</span>
-				</td>
-			</tr>
-			<tr>
-				<td>Channel 3</td>
-				<td>
-					<select name="NTC3" id="NTC3" class="json-as-bool">
-						<option value="0">Analog in</option>
-						<option value="1">NTC</option>
-					</span>
-				</td>
-				<td>
-					<select name="AIN3" id="AIN3" class="json-as-bool">
-						<option value="0">+/-10 V</option>
-						<option value="1">+/-60 V</option>
-					</span>
-				</td>
-			</tr>
-			<tr>
-				<td>Channel 4</td>
-				<td>
-					<select name="NTC4" id="NTC4" class="json-as-bool">
-						<option value="0">Analog in</option>
-						<option value="1">NTC</option>
-					</span>
-				</td>
-				<td>
-					<select name="AIN4" id="AIN4" class="json-as-bool">
-						<option value="0">+/-10 V</option>
-						<option value="1">+/-60 V</option>
-					</span>
-				</td>
-			</tr>
-			<tr>
-				<td>Channel 5</td>
-				<td>
-					<select name="NTC5" id="NTC5" class="json-as-bool">
-						<option value="0">Analog in</option>
-						<option value="1">NTC</option>
-					</span>
-				</td>
-				<td>
-					<select name="AIN5" id="AIN5" class="json-as-bool">
-						<option value="0">+/-10 V</option>
-						<option value="1">+/-60 V</option>
-					</span>
-				</td>
-			</tr>
-			<tr>
-				<td>Channel 6</td>
-				<td>
-					<select name="NTC6" id="NTC6" class="json-as-bool">
-						<option value="0">Analog in</option>
-						<option value="1">NTC</option>
-					</span>
-				</td>
-				<td>
-					<select name="AIN6" id="AIN6" class="json-as-bool">
-						<option value="0">+/-10 V</option>
-						<option value="1">+/-60 V</option>
-					</span>
-				</td>
-			</tr>
-			<tr>
-				<td>Channel 7</td>
-				<td>
-					<select name="NTC7" id="NTC7" class="json-as-bool">
-						<option value="0">Analog in</option>
-						<option value="1">NTC</option>
-					</span>
-				</td>
-				<td>
-					<select name="AIN7" id="AIN7" class="json-as-bool">
-						<option value="0">+/-10 V</option>
-						<option value="1">+/-60 V</option>
-					</span>
-				</td>
-			</tr>
-
-		</table>
-
-		<h3>Digital channels</h3>
-		<p>Digital channels currently have no configuration options.</p>
-	</div>
-
-	<div id="configuration_done">
-		<input id="saveForm" class="button_text" type="button" onClick="setConfig()" value="Save all settings"/>
-	</div>
-</div>
 
 </form>

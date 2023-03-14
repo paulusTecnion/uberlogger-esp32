@@ -308,6 +308,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 {
 
     httpd_resp_set_type(req, "application/json");
+    cJSON *settings_in = NULL;
     if (Logger_getState() == LOGTASK_LOGGING)
     {
         json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging");
@@ -344,7 +345,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     }
     buf[total_len] = '\0';
 
-    cJSON *settings_in = cJSON_Parse(buf);
+    settings_in = cJSON_Parse(buf);
     cJSON * item;
 
     
