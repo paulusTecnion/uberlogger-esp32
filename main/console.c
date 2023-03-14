@@ -184,6 +184,16 @@ static void register_update_stm32(){
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+static void register_update_esp32(){
+    const esp_console_cmd_t cmd = {
+        .command = "update-esp32",
+        .help = "Update ESP32 firmware",
+        .hint = NULL,
+        .func = &updateESP32
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
 
 void init_console(){
     esp_console_repl_t *repl = NULL;
@@ -214,6 +224,7 @@ void init_console(){
     register_settings_sample_rate();
     register_singleshot();
     register_stm32_sync();
+    register_update_esp32();
     register_update_stm32();
     esp_console_register_help_command();
 

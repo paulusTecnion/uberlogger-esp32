@@ -157,7 +157,7 @@ static esp_err_t flash_write(uint32_t addr, uint8_t *data, uint32_t len)
     // Align to 256 bytes
     aligned_len = (len + 3) & ~3;
 
-    ESP_LOGI(TAG, "Sending Write Memory command");
+    // ESP_LOGI(TAG, "Sending Write Memory command");
 
     send_data(cmd, 2);
     if (!recv_ack())
@@ -174,7 +174,7 @@ static esp_err_t flash_write(uint32_t addr, uint8_t *data, uint32_t len)
     // Checksum
     cmd[4] = cmd[0] ^ cmd[1] ^ cmd[2] ^ cmd[3];
      
-    ESP_LOGI(TAG, "Sending start address and checksum");
+    // ESP_LOGI(TAG, "Sending start address and checksum");
     send_data(cmd, 5);
     if (!recv_ack())
     {
@@ -182,7 +182,7 @@ static esp_err_t flash_write(uint32_t addr, uint8_t *data, uint32_t len)
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Sending length, data and checksum bytes");
+    // ESP_LOGI(TAG, "Sending length, data and checksum bytes");
     // Send length and checksum
     uint8_t checksum = aligned_len - 1;
      // Send the number of bytes to be received
@@ -193,7 +193,7 @@ static esp_err_t flash_write(uint32_t addr, uint8_t *data, uint32_t len)
         tmp[i+1] = data[i];
     }
 
-    /* padding data */
+    // padding data bytes
 	for (int i = len; i < aligned_len; i++) {
 		checksum ^= 0xFF;
 		tmp[i + 1] = 0xFF;
