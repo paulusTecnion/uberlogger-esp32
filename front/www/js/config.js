@@ -178,7 +178,7 @@ function setConfig() {
 		"WIFI_PASSWORD": input["WIFI_PASSWORD"],
 		"WIFI_MODE": input["WIFI_MODE"],
 		"LOG_SAMPLE_RATE": input["LOG_SAMPLE_RATE"],
-		"ADC_RESOLUTION": input["LOG_SAMPLE_RATE"],
+		"ADC_RESOLUTION": input["ADC_RESOLUTION"],
 		"LOG_MODE": input["LOG_MODE"],
 
 		NTC_SELECT: {
