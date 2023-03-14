@@ -1,10 +1,11 @@
 {
+  "TIMESTAMP": 1673607089000,
+  "WIFI_MODE": 1,
   "WIFI_SSID": "test wifi",
   "WIFI_PASSWORD": "lol+lol=hihi",
-  "TIMESTAMP": 1673607089000,
+  "LOG_MODE": 1,
   "LOG_SAMPLE_RATE": 3,
   "ADC_RESOLUTION": 16,
-  "LOG_MODE": 0,
   "NTC_SELECT": {
     "NTC0": false,
     "NTC1": false,

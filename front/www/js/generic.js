@@ -1,4 +1,4 @@
-// load correct page after document is ready
+// load correct page after document is ready and highlight correct item in menu
 function loadPage(){
   const urlParams = new URLSearchParams(window.location.search);
   const page = urlParams.get('page');
@@ -8,6 +8,8 @@ function loadPage(){
   }else{
     renderPage(page, page_version);
   }
+  
+  $('#menu_' + page).addClass("selected");
 }
 
 function renderPage(page, page_version){
@@ -57,7 +59,7 @@ function populateFields(parent, data) {
 
     if($ctrl.is('select')){
       $("option",$ctrl).each(function(){
-        if (this.value==value){
+        if(this.value==value){
           this.selected=true;
         }else{
           this.selected=false;
@@ -74,18 +76,12 @@ function populateFields(parent, data) {
           }
           break;
         
-        case "select":
-          $ctrl.each(function(){
-            $(this).attr('value') == value;
-          });
-          break;
-
         case "radio":
           $ctrl.each(function(){
             if($(this).attr('value') == value){
-              $(this).prop("checked",true);
+              $(this).prop("checked", true);
             }else{
-              $(this).prop("checked",false);
+              $(this).prop("checked", false);
             }
           });
           break;
@@ -108,7 +104,7 @@ function populateFields(parent, data) {
       $ctrl.html(Number(value).toFixed(2));   
     }
   }
-  });  
+  });
 }
 
 

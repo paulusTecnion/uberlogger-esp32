@@ -12,14 +12,12 @@ function importConfigfile() {
 function importConfigFileSelected(){
 	var reader = new FileReader();
 	var file = $("#file_import_config").prop("files")[0];
-	var frm="#configuration";
 
 	console.log( "Reading configuration file..." );
 
 	reader.onload = function(event) {
 		var data = $.parseJSON(event.target.result);
-		populateFields(frm, data);
-		showFirstPage();
+		parseConfig(data);
 
 		alert("Settings imported succesfully.");
 
@@ -38,6 +36,7 @@ function loadForm(){
 	$.getJSON('ajax/getConfig', (data) => {
 		// parse JSON data to form
 		parseConfig(data);
+		wifiConfigVisibilityUpdate();
 
 		document.querySelector("#loading").style.display = "none";
 		document.querySelector("#config").style.display = "block";
@@ -68,13 +67,11 @@ function loadFormDefaults(){
 	});
 };
 
-function parseConfig(data){
-	
-	populateFields("#configuration", data);
 
+function parseConfig(data){
+	populateFields("#configuration", data);
 	populateFields("#channel_configuration", data["NTC_SELECT"]);
 	populateFields("#channel_configuration", data["AIN_RANGE_SELECT"]);
-
 }
 
 
@@ -83,20 +80,30 @@ function testWifiNetwork(){
 	var ssid=$('[name=WIFI_SSID]', frm).val();
 	var passwd=$('[name=WIFI_PASSWORD]', frm).val();
 	
-	$.post( "/testWifiNetwork", {"WIFI_SSID": ssid, "WIFI_PASSWORD": passwd}, (data) => {
+	$.post( "./ajax/testWifiNetwork", {"WIFI_SSID": ssid, "WIFI_PASSWORD": passwd}, (data) => {
 		setTimeout(getStatus, 100);
 		setTimeout(getStatus, 3000);
 	});
 };
 
+function wifiConfigVisibilityUpdate(){
+	var show_parameters=$("input[name='WIFI_MODE']:checked").val();
+	
+	if(show_parameters == "1"){
+		document.querySelector("#wifi_client_settings").style.display = "inline-block"; // hide parameters
+	}else{
+		document.querySelector("#wifi_client_settings").style.display = "none"; // show parameters
+	}
+}
+
 function getStatus(){
-  parent="#wifi_configuration";
-  query="getStatus";
+	parent="#wifi_configuration";
+	query="getStatus";
 
 	$.getJSON('./ajax/' + query, (data) => {
 		// parse JSON data to div
 
-    // sanitize data
+		// sanitize data
 		switch(data["WIFI_TEST_STATUS"]){
 			case 0:
 			default:
@@ -117,18 +124,11 @@ function getStatus(){
 		}
 		data["WIFI_TEST_STATUS"]=value;
 
-		if(data["WIFI_MODE"] == 0){
-			// hotspot mode, enable dialog
-			document.querySelector("#WIFI_TEST_BTN").style.display = "block";
-		}else{
-			document.querySelector("#WIFI_TEST_BTN").style.display = "none";
-		}
-
-    // populate form
+		// populate form
 		populateFields(parent, data);
 	})
 	.fail(function() {
-    	alert("Error: could not update status.");
+		alert("Error: could not update status.");
 		console.log("Data query failed.");
 	});		
 
@@ -164,6 +164,7 @@ function syncTime() {
 	});
 }
 
+
 function setConfig() {
 	let input_all = getFormDataAsJsonObject($("#configuration"));
 	let input_numbers = getFormDataAsJsonObject($("#configuration .json-as-number"));
@@ -171,10 +172,41 @@ function setConfig() {
 
 	input = fixInputFieldNumbers(input_all, input_numbers, input_bools);
 
+	// merge input to config struct
+	let config = {
+		"WIFI_SSID": input["WIFI_SSID"],
+		"WIFI_PASSWORD": input["WIFI_PASSWORD"],
+		"WIFI_MODE": input["WIFI_MODE"],
+		"LOG_SAMPLE_RATE": input["LOG_SAMPLE_RATE"],
+		"ADC_RESOLUTION": input["LOG_SAMPLE_RATE"],
+		"LOG_MODE": input["LOG_MODE"],
+
+		NTC_SELECT: {
+			"NTC0": input["NTC0"],
+			"NTC1": input["NTC1"],
+			"NTC2": input["NTC2"],
+			"NTC3": input["NTC3"],
+			"NTC4": input["NTC4"],
+			"NTC5": input["NTC5"],
+			"NTC6": input["NTC6"],
+			"NTC7": input["NTC7"]
+		},
+		"AIN_RANGE_SELECT": {
+			"AIN0": input["AIN0"],
+			"AIN1": input["AIN1"],
+			"AIN2": input["AIN2"],
+			"AIN3": input["AIN3"],
+			"AIN4": input["AIN4"],
+			"AIN5": input["AIN5"],
+			"AIN6": input["AIN6"],
+			"AIN7": input["AIN7"]			
+		}		
+	};
+
 	$.ajax({
 		method: "POST",
 		url: "ajax/setConfig",
-		data: JSON.stringify(input),
+		data: JSON.stringify(config),
 
 		processData: false,
 		dataType: "json",
