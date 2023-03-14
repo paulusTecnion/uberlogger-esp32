@@ -57,6 +57,10 @@ esp_err_t updateESP32() {
 
   // End OTA update process
   err = esp_ota_end(ota_handle);
+
+  // Unmount SD card
+  esp_sd_card_unmount();
+  
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Error ending OTA update: %d\n", err);
     return ESP_FAIL;
