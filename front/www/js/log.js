@@ -72,73 +72,84 @@ function getStatus(){
 	$.getJSON('./ajax/' + query, (data) => {
 		// parse JSON data to div
 
-    // sanitize data
-    let datetimestr = new Date(Number(data["TIMESTAMP"]));
-    data["TIMESTAMPSTR"] = String(datetimestr);
+		// sanitize data
+		let datetimestr = new Date(Number(data["TIMESTAMP"]));
+		data["TIMESTAMPSTR"] = String(datetimestr);
 
-    switch(data["LOGGER_STATE"]){
-      default:
-      case 0:
-        data["LOGGER_STATE"]="INIT";
-        break;
+		switch(data["SD_CARD_STATUS"]){
+		  default:
+		  case 0:
+			data["SD_CARD_STATUS"]="EJECTED";
+			break;
 
-      case 1:
-        data["LOGGER_STATE"]="IDLE";
-        break;
+		  case 1:
+			data["SD_CARD_STATUS"]="UNMOUNTED";
+			break;
 
-      case 2:
-        data["LOGGER_STATE"]="LOGGING";
-        break;
-        
-      case 3:
-        data["LOGGER_STATE"]="SETTINGS";
-         break;
+		  case 2:
+			data["SD_CARD_STATUS"]="MOUNTED";
+			break;
+		}
 
-         
-    }
+		switch(data["LOGGER_STATE"]){
+		  default:
+		  case 0:
+			data["LOGGER_STATE"]="INIT";
+			break;
 
-    if(data["LOGGER_STATE"] == "IDLE"){
-      $("#btn_logger_start").removeAttr("disabled");
-    }else{
-      $("#btn_logger_start").attr("disabled", true);
-    }
-    if(data["LOGGER_STATE"] == "LOGGING"){
-      $("#btn_logger_stop").removeAttr("disabled");
-    }else{
-      $("#btn_logger_stop").attr("disabled", true);
-    }
+		  case 1:
+			data["LOGGER_STATE"]="IDLE";
+			break;
 
-    
-    // populate form
+		  case 2:
+			data["LOGGER_STATE"]="LOGGING";
+			break;
+			
+		  case 3:
+			data["LOGGER_STATE"]="SETTINGS";
+			 break;
+		}
+
+		if(data["LOGGER_STATE"] == "IDLE"){
+		  $("#btn_logger_start").removeAttr("disabled");
+		}else{
+		  $("#btn_logger_start").attr("disabled", true);
+		}
+		if(data["LOGGER_STATE"] == "LOGGING"){
+		  $("#btn_logger_stop").removeAttr("disabled");
+		}else{
+		  $("#btn_logger_stop").attr("disabled", true);
+		}
+
+		// populate form
 		populateFields(parent, data);
 	})
 	.fail(function() {
-    alert("Error: could not update status.");
+		alert("Error: could not update status.");
 		console.log("Data query failed.");
 	});		
 
 }
 
 function filebrowserRefresh(){
-  parent="#filelist";
-  query="getFileList";
+	parent="#filelist";
+	query="getFileList";
 
 	$.getJSON('./ajax/' + query, (data) => {
-    let htmlstring=[];
-    htmlstring+="<table width='100%'>";
-    htmlstring+="<tr><th width='60%'>Name</th><th width='20%'>Size</th><th width='20%'>Action</th></tr>"
-    htmlstring=buildFileTree(data["root"], htmlstring, 1, "");
-    htmlstring+="</table>";
+		let htmlstring=[];
+		htmlstring+="<table width='100%'>";
+		htmlstring+="<tr><th width='60%'>Name</th><th width='20%'>Size</th><th width='20%'>Action</th></tr>"
+		htmlstring=buildFileTree(data["root"], htmlstring, 1, "");
+		htmlstring+="</table>";
 
-    $("#filelist").html(htmlstring);
+		$("#filelist").html(htmlstring);
 
-    console.log("Data query done.");
+		console.log("Data query done.");
 	})
 	.fail(function() {
-    alert("Error: could not get list of SD-card files.");
+		alert("Error: could not get list of SD-card files.");
 		console.log("Data query failed.");
 	});		
-
 }
 
 function filebrowserFormat(){
