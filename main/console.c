@@ -18,7 +18,7 @@
 #include "fileman.h"
 #include "firmwareSTM32.h"
 #include "firmwareESP32.h"
-#include "firmwareWWW.h"
+#include "firmware-www.h"
 
 
 static const char* TAG_CONSOLE = "CONSOLE";

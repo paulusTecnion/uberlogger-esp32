@@ -3,7 +3,7 @@
 #include "esp_flash.h"
 #include "esp_partition.h"
 #include "esp_sd_card.h"
-#include "firmwareWWW.h"
+#include "firmware-www.h"
 
 #include "esp_vfs_semihost.h"
 #include "esp_vfs_fat.h"
@@ -11,7 +11,7 @@
 
 // Define the partition label and data bin file path
 #define PARTITION_LABEL "www"
-#define BIN_PATH "/sdcard/www.bin"
+#define BIN_PATH "/sdcard/ota_filesystem.bin"
 
 const char * TAG_WWW = "FW-WWW";
 

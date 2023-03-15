@@ -2,7 +2,7 @@ idf_component_register(SRCS
                             "console.c"
                             "firmwareESP32.c"
                             "firmwareSTM32.c"
-                            "firmwareWWW.c"
+                            "firmware-www.c"
                             "hmi.c"                            
                             "logger.c"                    
                             "main.c"

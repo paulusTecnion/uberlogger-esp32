@@ -9,7 +9,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define TAG "FLASHING"
+#define TAG "FW-STM32"
+#define FILE_STM32 "/sdcard/ota_support.bin"
 
 #define UART_TX_PIN GPIO_STM32_UART_RX
 #define UART_RX_PIN GPIO_STM32_UART_TX
@@ -312,7 +313,7 @@ esp_err_t flash_stm32()
 
         // Open firmware file on SD card
     ESP_LOGI(TAG, "Opening firmware")  ;
-    file = fopen("/sdcard/stm32g030c6.bin", "rb");
+    file = fopen(FILE_STM32, "rb");
     if (!file) {
         ESP_LOGE(TAG, "Error opening firmware file.\n");
         err = ESP_FAIL;

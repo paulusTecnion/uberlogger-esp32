@@ -29,7 +29,7 @@ esp_err_t updateESP32() {
 
   // Open firmware file on SD card
   ESP_LOGI(TAG, "Opening firmware");
-  FILE *file = fopen("/sdcard/firmware.bin", "rb");
+  FILE *file = fopen("/sdcard/ota_main.bin", "rb");
   if (!file) {
     ESP_LOGE(TAG, "Error opening firmware file.\n");
     return ESP_FAIL;
