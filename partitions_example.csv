@@ -4,6 +4,6 @@ nvs,      data, nvs,     0x9000,  0x6000,
 otadata, data, ota,     0xf000,  0x2000,
 ota_0,  app,  ota_0,         , 1M,
 ota_1,  app,  ota_1,         , 1M,
-www,      data, spiffs,  ,        752K, 
-data,     data, spiffs,  ,        10K,
+www,      data, spiffs,      , 752K, 
+settings, data, spiffs,      , 50K,
 

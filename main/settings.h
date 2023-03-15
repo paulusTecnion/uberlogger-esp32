@@ -99,7 +99,7 @@ struct Settings_t {
 
 typedef struct Settings_t Settings_t;
 
-static const char settings_filename[] = "settings1.json";
+static const char * settings_filename = "settings.json";
 
 void settings_init();
 Settings_t * settings_get();

@@ -235,7 +235,9 @@ esp_err_t settings_load_persisted_settings()
             #endif
             return ESP_OK;     
         } else {
-            ESP_LOGE(TAG_SETTINGS, "Error reading settings file");
+            ESP_LOGE(TAG_SETTINGS, "Error reading settings file, setting and persisting defaults");
+            settings_set_default();
+            settings_persist_settings();
         }
     }
     ESP_LOGE(TAG_SETTINGS, "Loading persisted settings FAILED");

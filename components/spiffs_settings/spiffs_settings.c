@@ -5,16 +5,20 @@
 
 static const char *TAG = "SPIFFS";
 
+#define SETTINGS_BASE_PATH  "/data"
+
+
+
 FILE * f;
 char _filename[30];
 
 esp_err_t spiffs_init(const char * filename_settings)
 {
-    ESP_LOGI(TAG, "Initializing SPIFFS");
+    ESP_LOGI(TAG, "Initializing SPIFFS using %s", filename_settings);
 
     esp_vfs_spiffs_conf_t conf = {
       .base_path = "/spiffs",
-      .partition_label = SPIFFS_LABEL,
+      .partition_label = "settings",
       .max_files = 5,
       .format_if_mount_failed = true
     };
@@ -85,20 +89,20 @@ esp_err_t spiffs_write(const char* data, size_t length)
 {
     size_t writeSize = 0;
     char buffer[30];
-    sprintf(buffer, "/spiffs/%s", _filename);
+    sprintf(buffer, "/spiffs/%s" ,_filename);
     
-     esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/spiffs",
-      .partition_label = SPIFFS_LABEL,
-      .max_files = 5,
-      .format_if_mount_failed = false
-    };
+    //  esp_vfs_spiffs_conf_t conf = {
+    //   .base_path = SETTINGS_BASE_PATH,
+    //   .partition_label = SPIFFS_LABEL,
+    //   .max_files = 5,
+    //   .format_if_mount_failed = false
+    // };
 
    
     f = fopen(buffer, "w");
     if (!f)
     {
-        ESP_LOGE(TAG, "Cannot open file for read");
+        ESP_LOGE(TAG, "Cannot open file for write: %d", f);
         return ESP_FAIL;
     }
 
@@ -124,12 +128,12 @@ esp_err_t spiffs_read(char* data, size_t length)
     char buffer[30];
     sprintf(buffer, "/spiffs/%s", _filename);
     
-     esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/spiffs",
-      .partition_label = SPIFFS_LABEL,
-      .max_files = 5,
-      .format_if_mount_failed = false
-    };
+    //  esp_vfs_spiffs_conf_t conf = {
+    //   .base_path = SETTINGS_BASE_PATH,
+    //   .partition_label = SPIFFS_LABEL,
+    //   .max_files = 5,
+    //   .format_if_mount_failed = false
+    // };
 
    
     f = fopen(buffer, "r");
