@@ -133,7 +133,7 @@ function getStatus(){
 
 function filebrowserRefresh(){
 	parent="#filelist";
-	query="getFileList";
+	query="getFileList/";
 
 	$.getJSON('./ajax/' + query, (data) => {
 		let htmlstring=[];
@@ -173,8 +173,8 @@ function buildFileTree(data, htmlstring, depth, path){
     if(value["TYPE"] == "FILE"){
       htmlstring+="<tr>";
       htmlstring+="<td style='padding-left: " + depth * 10 + "px;'>" + value["NAME"] + "</td>";
-      htmlstring+="<td>" + value["SIZE"] + " MB</td>";
-      htmlstring+="<td><a href='/ajax/getFile?file=" + encodeURIComponent(path + "/" + value["NAME"]) + "'>download</a></td>";
+      htmlstring+="<td>" + value["SIZE"] + " Bytes</td>";
+      htmlstring+="<td><a href='/ajax/getFileList/" + encodeURIComponent(path + value["NAME"]) + "'>download</a></td>";
       htmlstring+="</tr>";
     }else if(value["TYPE"] == "DIRECTORY"){
       htmlstring+="<tr>";

@@ -643,7 +643,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     /* URI handler for getting uploaded files */
     httpd_uri_t file_download = {
-        .uri       = "/data/*",  // Match all URIs of type /path/to/file
+        .uri       = "/ajax/getFileList/*",  // Match all URIs of type /path/to/file
         .method    = HTTP_GET,
         .handler   = download_get_handler,
         .user_ctx  = rest_context    // Pass server data as context

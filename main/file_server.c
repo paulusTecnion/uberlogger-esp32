@@ -4,7 +4,7 @@
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
-
+#include "cJSON.h"
 #include "esp_err.h"
 #include "esp_log.h"
 
@@ -89,27 +89,40 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
         return ESP_FAIL;
     }
 
-    /* Send HTML file header */
-    httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
+    // /* Send HTML file header */
+    // httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
 
-    /* Get handle to embedded file upload script */
-    extern const unsigned char upload_script_start[] asm("_binary_upload_script_html_start");
-    extern const unsigned char upload_script_end[]   asm("_binary_upload_script_html_end");
-    const size_t upload_script_size = (upload_script_end - upload_script_start);
+    // /* Get handle to embedded file upload script */
+    // extern const unsigned char upload_script_start[] asm("_binary_upload_script_html_start");
+    // extern const unsigned char upload_script_end[]   asm("_binary_upload_script_html_end");
+    // const size_t upload_script_size = (upload_script_end - upload_script_start);
 
-    /* Add file upload form and script which on execution sends a POST request to /upload */
-    httpd_resp_send_chunk(req, (const char *)upload_script_start, upload_script_size);
+    // /* Add file upload form and script which on execution sends a POST request to /upload */
+    // httpd_resp_send_chunk(req, (const char *)upload_script_start, upload_script_size);
 
-    /* Send file-list table definition and column labels */
-    httpd_resp_sendstr_chunk(req,
-        "<table class=\"fixed\" border=\"1\">"
-        "<col width=\"800px\" /><col width=\"300px\" /><col width=\"300px\" /><col width=\"100px\" />"
-        "<thead><tr><th>Name</th><th>Type</th><th>Size (Bytes)</th><th>Delete</th></tr></thead>"
-        "<tbody>");
+    // /* Send file-list table definition and column labels */
+    // httpd_resp_sendstr_chunk(req,
+    //     "<table class=\"fixed\" border=\"1\">"
+    //     "<col width=\"800px\" /><col width=\"300px\" /><col width=\"300px\" /><col width=\"100px\" />"
+    //     "<thead><tr><th>Name</th><th>Type</th><th>Size (Bytes)</th><th>Delete</th></tr></thead>"
+    //     "<tbody>");
 
     /* Iterate over all files / folders and fetch their names and sizes */
+    int i = 1;
+    // create new root cjson
+    
+    httpd_resp_set_type(req, "application/json");
+    cJSON * main = cJSON_CreateObject();
+    if (main == NULL)
+    {
+        return ESP_FAIL;
+    }
+
+    cJSON * root = cJSON_AddObjectToObject(main, "root");
+    char int2str[5];
+
     while ((entry = readdir(dir)) != NULL) {
-        entrytype = (entry->d_type == DT_DIR ? "directory" : "file");
+        entrytype = (entry->d_type == DT_DIR ? "DIRECTORY" : "FILE");
 
         strlcpy(entrypath + dirpath_len, entry->d_name, sizeof(entrypath) - dirpath_len);
         if (stat(entrypath, &entry_stat) == -1) {
@@ -120,35 +133,53 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
         ESP_LOGI(TAG_FILESERVER, "Found %s : %s (%s bytes)", entrytype, entry->d_name, entrysize);
 
         /* Send chunk of HTML file containing table entries with file name and size */
-        httpd_resp_sendstr_chunk(req, "<tr><td><a href=\"");
-        httpd_resp_sendstr_chunk(req, req->uri);
-        httpd_resp_sendstr_chunk(req, entry->d_name);
-        if (entry->d_type == DT_DIR) {
-            httpd_resp_sendstr_chunk(req, "/");
-        }
-        httpd_resp_sendstr_chunk(req, "\">");
-        httpd_resp_sendstr_chunk(req, entry->d_name);
-        httpd_resp_sendstr_chunk(req, "</a></td><td>");
-        httpd_resp_sendstr_chunk(req, entrytype);
-        httpd_resp_sendstr_chunk(req, "</td><td>");
-        httpd_resp_sendstr_chunk(req, entrysize);
-        httpd_resp_sendstr_chunk(req, "</td><td>");
-        httpd_resp_sendstr_chunk(req, "<form method=\"post\" action=\"/delete");
-        httpd_resp_sendstr_chunk(req, req->uri);
-        httpd_resp_sendstr_chunk(req, entry->d_name);
-        httpd_resp_sendstr_chunk(req, "\"><button type=\"submit\">Delete</button></form>");
-        httpd_resp_sendstr_chunk(req, "</td></tr>\n");
+
+        // Add entry to cJSON
+        sprintf(int2str, "%d", i);
+        cJSON * item = cJSON_AddObjectToObject(root, int2str);
+        cJSON_AddStringToObject(item, "NAME", entry->d_name);
+        cJSON_AddStringToObject(item, "TYPE", entrytype);
+        cJSON_AddStringToObject(item, "SIZE", entrysize);
+        i++;
+
+        // httpd_resp_sendstr_chunk(req, "<tr><td><a href=\"");
+        // httpd_resp_sendstr_chunk(req, req->uri);
+        // httpd_resp_sendstr_chunk(req, entry->d_name);
+        // if (entry->d_type == DT_DIR) {
+        //     httpd_resp_sendstr_chunk(req, "/");
+        // }
+        // httpd_resp_sendstr_chunk(req, "\">");
+        // httpd_resp_sendstr_chunk(req, entry->d_name);
+        // httpd_resp_sendstr_chunk(req, "</a></td><td>");
+        // httpd_resp_sendstr_chunk(req, entrytype);
+        // httpd_resp_sendstr_chunk(req, "</td><td>");
+        // httpd_resp_sendstr_chunk(req, entrysize);
+        // httpd_resp_sendstr_chunk(req, "</td><td>");
+        // httpd_resp_sendstr_chunk(req, "<form method=\"post\" action=\"/delete");
+        // httpd_resp_sendstr_chunk(req, req->uri);
+        // httpd_resp_sendstr_chunk(req, entry->d_name);
+        // httpd_resp_sendstr_chunk(req, "\"><button type=\"submit\">Delete</button></form>");
+        // httpd_resp_sendstr_chunk(req, "</td></tr>\n");
+
+
     }
     closedir(dir);
 
-    /* Finish the file list table */
-    httpd_resp_sendstr_chunk(req, "</tbody></table>");
+    char* json_resp = cJSON_Print(main);
+    // Send cJSON
+    httpd_resp_send(req, json_resp, strlen(json_resp));
 
-    /* Send remaining chunk of HTML file to complete it */
-    httpd_resp_sendstr_chunk(req, "</body></html>");
+    free(json_resp);
+    cJSON_Delete(main);
 
-    /* Send empty chunk to signal HTTP response completion */
-    httpd_resp_sendstr_chunk(req, NULL);
+    // /* Finish the file list table */
+    // httpd_resp_sendstr_chunk(req, "</tbody></table>");
+
+    // /* Send remaining chunk of HTML file to complete it */
+    // httpd_resp_sendstr_chunk(req, "</body></html>");
+
+    // /* Send empty chunk to signal HTTP response completion */
+    // httpd_resp_sendstr_chunk(req, NULL);
     return ESP_OK;
 }
 
@@ -209,7 +240,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
     struct stat file_stat;
 
     // Strip out the /data part
-    const char *data_substr = "/data";
+    const char *data_substr = "/ajax/getFileList";
     const char *data_pos = strstr(req->uri, data_substr);
     
     // create new buffer
