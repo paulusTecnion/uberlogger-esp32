@@ -9,6 +9,7 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include "file_server.h"
 #include "rest_server.h"
 #include "config.h"
 
@@ -39,6 +40,12 @@ typedef struct rest_server_context {
     char base_path[ESP_VFS_PATH_MAX + 1];
     char scratch[SCRATCH_BUFSIZE];
 } rest_server_context_t;
+
+static const char *UPLOAD_FORM = "<html><body>\
+<form method='POST' enctype='multipart/form-data' action='/upload'>\
+<input type='file' name='file'><br>\
+<input type='submit' value='Upload'><br>\
+</form></body></html>";
 
 #define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
@@ -187,29 +194,10 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
         }
         
     }
-   
-    // cJSON_AddNumberToObject(tValues, "T1", data.temperatureData[1]);
-    // cJSON_AddNumberToObject(tValues, "T2", data.temperatureData[2]);
-    // cJSON_AddNumberToObject(tValues, "T3", data.temperatureData[3]);
-    // cJSON_AddNumberToObject(tValues, "T4", data.temperatureData[4]);
-    // cJSON_AddNumberToObject(tValues, "T5", data.temperatureData[5]);
-    // cJSON_AddNumberToObject(tValues, "T6", data.temperatureData[6]);
-    // cJSON_AddNumberToObject(tValues, "T7", data.temperatureData[7]);
-
-    
-    
+      
    
     // // For future use. Always enabled now.
     // // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
-
-    // cJSON_AddNumberToObject(aValues, "AIN0", data.analogData[0]);
-    // cJSON_AddNumberToObject(aValues, "AIN1", data.analogData[1]);
-    // cJSON_AddNumberToObject(aValues, "AIN2", data.analogData[2]);
-    // cJSON_AddNumberToObject(aValues, "AIN3", data.analogData[3]);
-    // cJSON_AddNumberToObject(aValues, "AIN4", data.analogData[4]);
-    // cJSON_AddNumberToObject(aValues, "AIN5", data.analogData[5]);
-    // cJSON_AddNumberToObject(aValues, "AIN6", data.analogData[6]);
-    // cJSON_AddNumberToObject(aValues, "AIN7", data.analogData[7]);
     
    cJSON *digital = cJSON_AddObjectToObject(readings, "DIGITAL");
    cJSON_AddStringToObject(digital, "UNITS", "Level");
@@ -303,6 +291,9 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
     
     return ESP_OK;
 }
+
+
+
 
 static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 {
@@ -401,62 +392,6 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
         
-    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID");
-    // if (item == NULL || settings_set_wifi_ssid(item->valuestring))
-    // {
-    //     ESP_LOGE("REST: ", "Error setting Wifi SSID");
-    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
-    //     return ESP_FAIL;
-    // }
-
-    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_CHANNEL");
-    // if (item == NULL || settings_set_wifi_channel(item->valueint))
-    // {
-    //     ESP_LOGE("REST: ", "Error setting Wifi channel");
-    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
-    //     return ESP_FAIL;
-    // }
-
-    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
-    // if (item == NULL || settings_set_wifi_password(item->valuestring))
-    // {
-    //     ESP_LOGE("REST: ", "Error setting Wifi SSID");
-    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
-    //     return ESP_FAIL;
-    // }
-
-
-    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "ADC_RESOLUTION");
-    // if (item == NULL || settings_set_resolution(item->valueint))
-    // {
-    //     ESP_LOGE("REST: ", "ADC resolution missing or wrong value");
-    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
-    //     return ESP_FAIL;
-    // }
-
-    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_SAMPLE_RATE");
-    // if (item == NULL || settings_set_samplerate(item->valueint))
-    // {
-    //     ESP_LOGE("REST: ", "Log sample rate missing or wrong value");
-    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
-    //     return ESP_FAIL;
-    // }
-
-    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "LOG_MODE");
-    // if (item == NULL || settings_set_logmode(item->valueint))
-    // {
-    //     ESP_LOGE("REST: ", "Log mode missing or wrong value");
-    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
-    //     return ESP_FAIL;
-    // }
-
-    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
-    // if (item == NULL || settings_set_timestamp(item->valueint))
-    // {
-    //     ESP_LOGE("REST: ", "Log mode missing or wrong value");
-    //     json_send_resp(req, ENDPOINT_RESP_ERROR);
-    //     return ESP_FAIL;
-    // }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID");
     if (item != NULL)
@@ -559,7 +494,13 @@ error2:
    
 }
 
-
+esp_err_t upload_form_handler(httpd_req_t *req)
+{
+// Send the HTML form as the response
+httpd_resp_set_type(req, "text/html");
+httpd_resp_send(req, UPLOAD_FORM, HTTPD_RESP_USE_STRLEN);
+return ESP_OK;
+}
 
 static esp_err_t Logger_start_handler(httpd_req_t *req)
 {
@@ -637,6 +578,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers = 11;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -698,7 +640,35 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &logger_start_uri);
 
-    /* URI handler for getting web server files */
+
+    /* URI handler for getting uploaded files */
+    httpd_uri_t file_download = {
+        .uri       = "/data/*",  // Match all URIs of type /path/to/file
+        .method    = HTTP_GET,
+        .handler   = download_get_handler,
+        .user_ctx  = rest_context    // Pass server data as context
+    };
+    httpd_register_uri_handler(server, &file_download);
+
+    /* URI handler for uploading files to server */
+    httpd_uri_t file_upload = {
+        .uri       = "/upload/*",   // Match all URIs of type /upload/path/to/file
+        .method    = HTTP_POST,
+        .handler   = upload_post_handler,
+        .user_ctx  = rest_context    // Pass server data as context
+    };
+    httpd_register_uri_handler(server, &file_upload);
+
+    /* URI handler for deleting files from server */
+    httpd_uri_t file_delete = {
+        .uri       = "/delete/*",   // Match all URIs of type /delete/path/to/file
+        .method    = HTTP_POST,
+        .handler   = delete_post_handler,
+        .user_ctx  = rest_context    // Pass server data as context
+    };
+    httpd_register_uri_handler(server, &file_delete);
+
+        /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {
         .uri = "/*",
         .method = HTTP_GET,
@@ -706,6 +676,7 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &common_get_uri);
+
 
     return ESP_OK;
 err_start:

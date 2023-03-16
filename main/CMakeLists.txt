@@ -1,5 +1,6 @@
 idf_component_register(SRCS 
                             "console.c"
+                            "file_server.c"
                             "firmwareESP32.c"
                             "firmwareSTM32.c"
                             "firmware-www.c"
@@ -13,7 +14,8 @@ idf_component_register(SRCS
                             "tempsensor.c"
                             "wifi.c" 
                             
-                    INCLUDE_DIRS "")
+                    INCLUDE_DIRS "" 
+                    EMBED_FILES "favicon.ico" "upload_script.html")
 
 if(CONFIG_EXAMPLE_WEB_DEPLOY_SF)
     set(WEB_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../front")
