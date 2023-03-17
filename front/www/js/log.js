@@ -180,7 +180,7 @@ function buildFileTree(data, htmlstring, depth, path){
       htmlstring+="<tr>";
       htmlstring+="<td style='padding-left: " + depth * 10 + "px;'><b><i>" + value["NAME"] + "</i></b></td>";
       htmlstring+="<td><i>(directory)</i></td>";
-      htmlstring+="<td></td>";
+	  htmlstring+="<td><a href='/ajax/getFileList/" + encodeURIComponent(path + value["NAME"] ) + "/" + "'>Open</a></td>"; 
       htmlstring+="</tr>";
       
       htmlstring=buildFileTree(value, htmlstring, depth + 1, path + "/" + value["NAME"]);

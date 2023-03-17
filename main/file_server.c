@@ -13,6 +13,11 @@
 #include "esp_http_server.h"
 #include "file_server.h"
 #include "esp_sd_card.h"
+#include "firmware-www.h"
+#include "firmwareESP32.h"
+#include "firmwareSTM32.h"
+#include "logger.h"
+
 
 /* Max length a file path can have on storage */
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + CONFIG_SPIFFS_OBJ_NAME_LEN)
@@ -275,11 +280,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
         /* If file not present on SPIFFS check if URI
          * corresponds to one of the hardcoded paths */
         ESP_LOGE(TAG_FILESERVER, "%s", filename);
-        if (strcmp(filename, "/index.html") == 0) {
-            return index_html_get_handler(req);
-        } else if (strcmp(filename, "/favicon.ico") == 0) {
-            return favicon_get_handler(req);
-        }
+        
         ESP_LOGE(TAG_FILESERVER, "Failed to stat file : %s", filepath);
         /* Respond with 404 Not Found */
         httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File does not exist");
@@ -348,6 +349,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
     FILE *fd = NULL;
     struct stat file_stat;
 
+
     /* Skip leading "/upload" from URI to get filename */
     /* Note sizeof() counts NULL termination hence the -1 */
     const char *filename = get_path_from_uri(filepath, "/sdcard",
@@ -365,12 +367,12 @@ esp_err_t upload_post_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    if (stat(filepath, &file_stat) == 0) {
-        ESP_LOGE(TAG_FILESERVER, "File already exists : %s", filepath);
-        /* Respond with 400 Bad Request */
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File already exists");
-        return ESP_FAIL;
-    }
+    // if (stat(filepath, &file_stat) == 0) {
+    //     ESP_LOGE(TAG_FILESERVER, "File already exists : %s", filepath);
+    //     /* Respond with 400 Bad Request */
+    //     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File already exists");
+    //     return ESP_FAIL;
+    // }
 
     /* File cannot be larger than a limit */
     if (req->content_len > MAX_FILE_SIZE) {
@@ -453,9 +455,9 @@ esp_err_t upload_post_handler(httpd_req_t *req)
     esp_sd_card_unmount();
     ESP_LOGI(TAG_FILESERVER, "File reception complete");
 
-    /* Redirect onto root to see the updated file list */
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/data/");
+    // /* Redirect onto root to see the updated file list */
+    // httpd_resp_set_status(req, "303 See Other");
+    // httpd_resp_set_hdr(req, "Location", "/data/");
 #ifdef CONFIG_EXAMPLE_HTTPD_CONN_CLOSE_HEADER
     httpd_resp_set_hdr(req, "Connection", "close");
 #endif
@@ -533,3 +535,76 @@ esp_err_t delete_post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+
+esp_err_t fwupdate_get_handler(httpd_req_t *req)
+{
+   // Detect if request is pointing to /fwupdate/startupgrade
+    if (strstr(req->uri, "/fwupdate/startupgrade") != NULL) {
+        ESP_LOGI(TAG_FILESERVER, "Starting firmware upgrade");
+        /* Send HTML file header */
+        httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
+        httpd_resp_sendstr_chunk(req, "<h1>Firmware Upgrade Status</h1>");
+        httpd_resp_sendstr_chunk(req, "<p>Starting firmware upgrade...(0 / 3)</p>");
+        
+
+        /* Start firmware upgrade */
+        if (flash_stm32() != ESP_OK) {
+            ESP_LOGE(TAG_FILESERVER, "Support chip  failed!");
+            httpd_resp_sendstr_chunk(req, "<p>Support chip  failed!</p>");
+            return ESP_FAIL;
+        } else {
+            ESP_LOGI(TAG_FILESERVER, "Support chip flashed (1 / 3)");
+            httpd_resp_sendstr_chunk(req, "<p>Support chip flashed (1 / 3)</p>");
+        }
+
+        if (update_www() != ESP_OK) {
+            ESP_LOGE(TAG_FILESERVER, "File system flash failed");
+            httpd_resp_sendstr_chunk(req, "<p>File system flash failed!</p>");
+            return ESP_FAIL;
+        } else {
+            ESP_LOGI(TAG_FILESERVER, "File system flashed (2 / 3)");
+            httpd_resp_sendstr_chunk(req, "<p>File system flashed (2 / 3)</p>");
+        }
+        
+        httpd_resp_sendstr_chunk(req, "<p>Flashing main chip ...(3/3)</p>");
+        // httpd_resp_sendstr_chunk(req, "<p>WiFi will be disabled and should re-enable again. If upgrade failed it will be shown here.</p>");
+        
+        
+        if (updateESP32() != ESP_OK) {
+            ESP_LOGE(TAG_FILESERVER, "Main chip flash failed");
+            httpd_resp_sendstr_chunk(req, "<p>Main chip flash failed!</p>");
+            httpd_resp_send_chunk(req, NULL, 0);
+            return ESP_FAIL;
+        } else {
+            ESP_LOGI(TAG_FILESERVER, "Main flash chip flashed (3 / 3)");
+            httpd_resp_sendstr_chunk(req, "<p>Main flash chip flashed (3 / 3)</p>");
+        }
+
+        httpd_resp_sendstr_chunk(req, "succesfull");
+        // httpd_resp_send_chunk(req, NULL, 0);
+
+        httpd_resp_send_chunk(req, NULL, 0);
+
+        
+        // Reboot to apply firmware update
+        Logging_restartSystem();
+        
+
+        return ESP_OK;
+    }
+
+
+   // /* Send HTML file header */
+    httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
+
+    /* Get handle to embedded file upload script */
+    extern const unsigned char upload_script_start[] asm("_binary_upload_script_html_start");
+    extern const unsigned char upload_script_end[]   asm("_binary_upload_script_html_end");
+    const size_t upload_script_size = (upload_script_end - upload_script_start);
+
+    /* Add file upload form and script which on execution sends a POST request to /upload */
+    httpd_resp_send_chunk(req, (const char *)upload_script_start, upload_script_size);
+    httpd_resp_send_chunk(req, NULL, 0);
+
+    return ESP_OK;
+}

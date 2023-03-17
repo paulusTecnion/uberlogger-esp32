@@ -793,6 +793,11 @@ void Logging_reset()
     _nextLoggingState = LOGGING_IDLE;
 }
 
+void Logging_restartSystem()
+{
+    _nextLogTaskState = LOGTASK_REBOOT_SYSTEM;
+}
+
 esp_err_t Logger_logging()
 {   
     
@@ -939,6 +944,7 @@ esp_err_t Logger_logging()
     
     
 }
+
 
 
 void task_logging(void * pvParameters)
@@ -1195,6 +1201,13 @@ void task_logging(void * pvParameters)
                     break;
                 }
 
+                
+
+            break;
+
+            case LOGTASK_REBOOT_SYSTEM:
+                vTaskDelay(3000 / portTICK_PERIOD_MS);
+                esp_restart();
             break;
 
             default:

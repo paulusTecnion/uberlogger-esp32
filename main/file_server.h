@@ -6,5 +6,6 @@
  esp_err_t download_get_handler(httpd_req_t *req);
  esp_err_t upload_post_handler(httpd_req_t *req);
  esp_err_t delete_post_handler(httpd_req_t *req);
+ esp_err_t fwupdate_get_handler(httpd_req_t *req);
 
 #endif

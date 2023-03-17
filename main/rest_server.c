@@ -578,7 +578,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 11;
+    config.max_uri_handlers = 13;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -649,6 +649,15 @@ esp_err_t start_rest_server(const char *base_path)
         .user_ctx  = rest_context    // Pass server data as context
     };
     httpd_register_uri_handler(server, &file_download);
+
+    httpd_uri_t file_fwupdate = {
+        .uri       = "/fwupdate/*",  // Match all URIs of type /path/to/file
+        .method    = HTTP_GET,
+        .handler   = fwupdate_get_handler,
+        .user_ctx  = rest_context    // Pass server data as context
+    };
+    httpd_register_uri_handler(server, &file_fwupdate);
+
 
     /* URI handler for uploading files to server */
     httpd_uri_t file_upload = {

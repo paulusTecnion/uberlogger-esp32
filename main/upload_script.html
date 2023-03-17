@@ -1,26 +1,69 @@
 <table class="fixed" border="0">
     <col width="1000px" /><col width="500px" />
     <tr><td>
-        <h2>ESP32 File Server</h2>
-    </td><td>
+        <h2>Uberlogger Firmware upgrade</h2>
+    </td>
+    </tr>
+    <tr>
+    <td>
         <table border="0">
             <tr>
                 <td>
-                    <label for="newfile">Upload a file</label>
+                    <label for="ota_main">File ota_main.bin</label>
                 </td>
                 <td colspan="2">
-                    <input id="newfile" type="file" onchange="setpath()" style="width:100%;">
+                    <input id="ota_main" type="file" onchange="setpath()" style="width:100%;">
                 </td>
             </tr>
             <tr>
                 <td>
-                    <label for="filepath">Set path on server</label>
+                    <label for="mainbinlabel">ota_main.bin path</label>
                 </td>
                 <td>
-                    <input id="filepath" type="text" style="width:100%;">
+                    <input id="filepath_ota_main" type="text" style="width:100%;">
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <label for="ota_support">File ota_support.bin</label>
+                </td>
+                <td colspan="2">
+                    <input id="ota_support" type="file" onchange="setpath()" style="width:100%;">
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <label for="supportlabel">ota_support.bin path</label>
                 </td>
                 <td>
-                    <button id="upload" type="button" onclick="upload()">Upload</button>
+                    <input id="filepath_ota_support" type="text" style="width:100%;">
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <label for="ota_filesystem">File ota_filesystem.bin</label>
+                </td>
+                <td colspan="2">
+                    <input id="ota_filesystem" type="file" onchange="setpath()" style="width:100%;">
+                </td>
+            </tr>
+
+    
+
+            <tr>
+                <td>
+                    <label for="filesystemlabel">ota_filesystem.bin path</label>
+                </td>
+                <td>
+                    <input id="filepath_ota_filesystem" type="text" style="width:100%;">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <button id="upload" type="button" onclick="upload()">Upload & update</button>
                 </td>
             </tr>
         </table>
@@ -28,53 +71,128 @@
 </table>
 <script>
 function setpath() {
-    var default_path = document.getElementById("newfile").files[0].name;
-    document.getElementById("filepath").value = default_path;
+    var default_path = document.getElementById("ota_main").files[0].name;    
+    document.getElementById("filepath_ota_main").value = default_path;
+
+    default_path = document.getElementById("ota_support").files[0].name;    
+    document.getElementById("filepath_ota_support").value = default_path;
+
+
+    default_path = document.getElementById("ota_filesystem").files[0].name;    
+    document.getElementById("filepath_ota_filesystem").value = default_path;
 }
+
 function upload() {
-    var filePath = document.getElementById("filepath").value;
-    var upload_path = "/upload/" + filePath;
-    var fileInput = document.getElementById("newfile").files;
 
-    /* Max size of an individual file. Make sure this
-     * value is same as that set in file_server.c */
-    var MAX_FILE_SIZE = 1000*1024;
-    var MAX_FILE_SIZE_STR = "1MB";
-
-    if (fileInput.length == 0) {
-        alert("No file selected!");
-    } else if (filePath.length == 0) {
-        alert("File path on server is not set!");
-    } else if (filePath.indexOf(' ') >= 0) {
-        alert("File path on server cannot have spaces!");
-    } else if (filePath[filePath.length-1] == '/') {
-        alert("File name not specified after path!");
-    } else if (fileInput[0].size > MAX_FILE_SIZE) {
-        alert("File size must be less than 1MB!");
-    } else {
-        document.getElementById("newfile").disabled = true;
-        document.getElementById("filepath").disabled = true;
-        document.getElementById("upload").disabled = true;
-
-        var file = fileInput[0];
-        var xhttp = new XMLHttpRequest();
-        xhttp.onreadystatechange = function() {
-            if (xhttp.readyState == 4) {
-                if (xhttp.status == 200) {
-                    document.open();
-                    document.write(xhttp.responseText);
-                    document.close();
-                } else if (xhttp.status == 0) {
-                    alert("Server closed the connection abruptly!");
-                    location.reload()
-                } else {
-                    alert(xhttp.status + " Error!\n" + xhttp.responseText);
-                    location.reload()
-                }
+    if (!confirm("You are about to flash your Uberlogger. Are you sure you have selected the correct files in the correct fields? Failing to do so will result in bricking your Uberlogger!!"))
+            {
+                return;
             }
-        };
-        xhttp.open("POST", upload_path, true);
-        xhttp.send(file);
+
+    for (i = 0; i < 2; i++)
+    {
+        var filePath = '', fileInput = '';
+
+        switch (i) {
+            case 0:
+               filePath = document.getElementById("filepath_ota_main").value;
+                fileInput = document.getElementById("ota_main").files;
+                break;
+            case 1:
+                filePath = document.getElementById("filepath_ota_support").value;
+                fileInput = document.getElementById("ota_support").files;
+                break;
+            case 2:
+                 filePath = document.getElementById("filepath_ota_filesystem").value;
+                 fileInput = document.getElementById("ota_filesystem").files;
+                break;
+        }
+
+       
+        var upload_path = "/upload/" + filePath;
+
+        /* Get the file input element. */
+        switch (i) {
+            case 0:
+                fileInput = document.getElementById("ota_main").files;
+                break;
+            case 1:
+                fileInput = document.getElementById("ota_support").files;
+                break;
+            case 2:
+                fileInput = document.getElementById("ota_filesystem").files;
+                break;
+        }
+        
+
+        /* Max size of an individual file. Make sure this
+        * value is same as that set in file_server.c */
+        var MAX_FILE_SIZE = 1000*1024;
+        var MAX_FILE_SIZE_STR = "1MB";
+
+        if (fileInput.length == 0) {
+            alert("No file selected!");
+            break;
+        } else if (filePath.length == 0) {
+            alert("File path on server is not set!");
+            break;
+        } else if (filePath.indexOf(' ') >= 0) {
+            alert("File path on server cannot have spaces!");
+            break;
+        } else if (filePath[filePath.length-1] == '/') {
+            alert("File name not specified after path!");
+            break;
+        } else if (fileInput[0].size > MAX_FILE_SIZE) {
+            alert("File size must be less than 1MB!");
+            break;
+        } else {
+
+
+            /* Disable the file input and upload button. */
+
+            // document.getElementById("newfile").disabled = true;
+            // document.getElementById("filepath").disabled = true;
+            // document.getElementById("upload").disabled = true;
+
+            var file = fileInput[0];
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (xhttp.readyState == 4) {
+                    if (xhttp.status == 200) {
+                        // document.open();
+                        // document.write(xhttp.responseText);
+                        // document.close();
+                        var xhttp2 = new XMLHttpRequest();
+                        xhttp2.onreadystatechange = function() {
+                            if (xhttp2.readyState == 4 && xhttp2.status == 200) {
+                                // Get the response from the server
+                                var response2 = xhttp2.responseText;
+                                var responseElement = document.createElement("div");
+                                responseElement.innerHTML = response;
+                                document.body.appendChild(responseElement);
+                                // Process the response here
+                                if (response2.indexOf("succesfull") != -1)
+                                {
+                                    alert("Firmware upgrade succesfull!");
+                                    window.location.href = "/";
+                                }
+                            }
+                        };
+                        xhttp2.open("GET", "/fwupdate/startupgrade", true);
+                        xhttp2.send();
+                    } else if (xhttp.status == 0) {
+                        alert("Server closed the connection abruptly!");
+                        location.reload()
+                    } else {
+                        alert(xhttp.status + " Error!\n" + xhttp.responseText);
+                        location.reload()
+                    }
+                }
+            };
+            xhttp.open("POST", upload_path, true);
+            xhttp.send(file);
+        }
     }
+    
 }
 </script>

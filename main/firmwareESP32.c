@@ -74,8 +74,7 @@ esp_err_t updateESP32() {
   }
 
   ESP_LOGI(TAG, "Firmware update complete. Rebooting...\n");
-  // Reboot to apply firmware update
-  esp_restart();
+
 
   return ESP_OK;
 }
