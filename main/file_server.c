@@ -543,30 +543,31 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         ESP_LOGI(TAG_FILESERVER, "Starting firmware upgrade");
         /* Send HTML file header */
         httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
-        httpd_resp_sendstr_chunk(req, "<h1>Firmware Upgrade Status</h1>");
-        httpd_resp_sendstr_chunk(req, "<p>Starting firmware upgrade...(0 / 3)</p>");
         
-
+        httpd_resp_sendstr_chunk(req, "<p>Starting firmware upgrade...</p>");
+        
+        httpd_resp_sendstr_chunk(req, "<p>Flashing support chip ...(1/6)</p>");
         /* Start firmware upgrade */
         if (flash_stm32() != ESP_OK) {
             ESP_LOGE(TAG_FILESERVER, "Support chip  failed!");
             httpd_resp_sendstr_chunk(req, "<p>Support chip  failed!</p>");
             return ESP_FAIL;
         } else {
-            ESP_LOGI(TAG_FILESERVER, "Support chip flashed (1 / 3)");
-            httpd_resp_sendstr_chunk(req, "<p>Support chip flashed (1 / 3)</p>");
+            ESP_LOGI(TAG_FILESERVER, "Support chip flashed (2 / 6)");
+            httpd_resp_sendstr_chunk(req, "<p>Support chip flashed (2 / 6)</p>");
         }
 
+        httpd_resp_sendstr_chunk(req, "<p>Flashing file system ...(3 / 6)</p>");
         if (update_www() != ESP_OK) {
             ESP_LOGE(TAG_FILESERVER, "File system flash failed");
             httpd_resp_sendstr_chunk(req, "<p>File system flash failed!</p>");
             return ESP_FAIL;
         } else {
-            ESP_LOGI(TAG_FILESERVER, "File system flashed (2 / 3)");
-            httpd_resp_sendstr_chunk(req, "<p>File system flashed (2 / 3)</p>");
+            ESP_LOGI(TAG_FILESERVER, "File system flashed (4 / 6)");
+            httpd_resp_sendstr_chunk(req, "<p>File system flashed (4 / 6)</p>");
         }
         
-        httpd_resp_sendstr_chunk(req, "<p>Flashing main chip ...(3/3)</p>");
+        httpd_resp_sendstr_chunk(req, "<p>Flashing main chip ...(5 / 6)</p>");
         // httpd_resp_sendstr_chunk(req, "<p>WiFi will be disabled and should re-enable again. If upgrade failed it will be shown here.</p>");
         
         
@@ -576,8 +577,8 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
             httpd_resp_send_chunk(req, NULL, 0);
             return ESP_FAIL;
         } else {
-            ESP_LOGI(TAG_FILESERVER, "Main flash chip flashed (3 / 3)");
-            httpd_resp_sendstr_chunk(req, "<p>Main flash chip flashed (3 / 3)</p>");
+            ESP_LOGI(TAG_FILESERVER, "Main flash chip flashed (6 / 6)");
+            httpd_resp_sendstr_chunk(req, "<p>Main flash chip flashed (6 / 6)</p>");
         }
 
         httpd_resp_sendstr_chunk(req, "succesfull");

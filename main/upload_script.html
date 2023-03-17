@@ -4,6 +4,10 @@
         <h2>Uberlogger Firmware upgrade</h2>
     </td>
     </tr>
+    <tr><td>
+        <h4>Make sure you have an SD card inserted! Do not power-toggle the device while flashing!!</h2>
+    </td>
+    </tr>
     <tr>
     <td>
         <table border="0">
@@ -12,7 +16,7 @@
                     <label for="ota_main">File ota_main.bin</label>
                 </td>
                 <td colspan="2">
-                    <input id="ota_main" type="file" onchange="setpath()" style="width:100%;">
+                    <input id="ota_main" type="file" accept=".bin" value="ota_main.bin" onchange="setpath()" style="width:100%;">
                 </td>
             </tr>
             <tr>
@@ -29,7 +33,7 @@
                     <label for="ota_support">File ota_support.bin</label>
                 </td>
                 <td colspan="2">
-                    <input id="ota_support" type="file" onchange="setpath()" style="width:100%;">
+                    <input id="ota_support" type="file" accept=".bin" value="ota_support.bin" onchange="setpath()" style="width:100%;">
                 </td>
             </tr>
 
@@ -47,7 +51,7 @@
                     <label for="ota_filesystem">File ota_filesystem.bin</label>
                 </td>
                 <td colspan="2">
-                    <input id="ota_filesystem" type="file" onchange="setpath()" style="width:100%;">
+                    <input id="ota_filesystem" type="file" accept=".bin" value="ota_filesystem" onchange="setpath()" style="width:100%;">
                 </td>
             </tr>
 
@@ -69,6 +73,7 @@
         </table>
     </td></tr>
 </table>
+<div id="fw-update-state"></div>
 <script>
 function setpath() {
     var default_path = document.getElementById("ota_main").files[0].name;    
@@ -85,9 +90,15 @@ function setpath() {
 function upload() {
 
     if (!confirm("You are about to flash your Uberlogger. Are you sure you have selected the correct files in the correct fields? Failing to do so will result in bricking your Uberlogger!!"))
-            {
-                return;
-            }
+    {
+        return;
+    }
+    
+    var lastResponseLength = 0;
+
+    var myDiv = document.getElementById("fw-update-state");
+        myDiv.innerHTML += "<p>Uploading files...</p>";
+        
 
     for (i = 0; i < 2; i++)
     {
@@ -124,7 +135,7 @@ function upload() {
                 break;
         }
         
-
+      
         /* Max size of an individual file. Make sure this
         * value is same as that set in file_server.c */
         var MAX_FILE_SIZE = 1000*1024;
@@ -164,17 +175,31 @@ function upload() {
                         // document.close();
                         var xhttp2 = new XMLHttpRequest();
                         xhttp2.onreadystatechange = function() {
-                            if (xhttp2.readyState == 4 && xhttp2.status == 200) {
-                                // Get the response from the server
-                                var response2 = xhttp2.responseText;
-                                var responseElement = document.createElement("div");
-                                responseElement.innerHTML = response;
-                                document.body.appendChild(responseElement);
+                            if (xhttp2.readyState == 3)
+                            {
+                                var partialResponse = xhttp2.responseText;
+                                // Extract the new data from the partial response
+                                var newData = partialResponse.substring(lastResponseLength);
+                                // Update the length of the response
+                                lastResponseLength = partialResponse.length;
+                                
+
+                                myDiv.innerHTML += newData;
+                            } else if (xhttp2.readyState == 4 && xhttp2.status == 200) {
+                                var partialResponse = xhttp2.responseText;
+                                // Extract the new data from the partial response
+                                var newData = partialResponse.substring(lastResponseLength);
+                                // Update the length of the response
+                                lastResponseLength = partialResponse.length;
+                                myDiv.innerHTML += newData;
                                 // Process the response here
-                                if (response2.indexOf("succesfull") != -1)
+                                if (partialResponse.indexOf("succesfull") != -1)
                                 {
                                     alert("Firmware upgrade succesfull!");
                                     window.location.href = "/";
+                                } else if (partialResponse.indexOf("failed") != -1)
+                                {
+                                    alert("Flashing Uberlogger failed!");
                                 }
                             }
                         };
