@@ -1,14 +1,16 @@
 # Instructions to develop for the ESP32 using this repo
 
-First, make you sure have installed the correct ESP-IDF version: 4.4.4 release version (NOT 4.4 release branch!)
+First, make you sure have installed the correct ESP-IDF version: 5.0.1 release version. In Linux you will have to use these instructions:
 
-For some reason, the sdkconfig does not contain all settings used for the ESP32-S2, so we first need to configure it after you have downloaded the repository on your pc.
+https://docs.espressif.com/projects/esp-idf/en/v5.0.1/esp32/get-started/linux-macos-setup.html
+
+For some reason, the sdkconfig does not always contain all settings used for the ESP32-S2, so we first need to check the configuration after you have downloaded the repository on your pc.
 
 - Open the ESP-IDF console
 - Execute `idf.py menuconfig` from the esp-idf command prompt
 - Go to `Component config`
 
-Set the following items:
+Make sure the following items are set if not done already:
 - Component config
     - ESP32S2-specific:
         - CPU frequency = 240 MHz
