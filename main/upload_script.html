@@ -118,15 +118,18 @@ async function upload(file, upload_path) {
     return new Promise((resolve, reject) => {
         const xhttp = new XMLHttpRequest();
         
-        xhttp.onreadystatechange = function () {
-        if (this.readyState === 4) {
+        xhttp.onreadystatechange = function() {
+        if (xhttp.readyState === 4) {
             
-            if (this.status === 200 || this.status === 0) {
-                resolve(this.responseText);
+            if (xhttp.status === 200 || xhttp.status === 0) {
+                
+                resolve(xhttp.responseText);
+                // return;
             } 
-            else if (this.status >= 400) 
+            else if (xhttp.status >= 400) 
             {
-                reject();
+                reject(xhttp.responseText);
+                // return xhttp.responseText;
             }
         }
         };
@@ -137,6 +140,66 @@ async function upload(file, upload_path) {
     
 }
 
+
+async function uploadFiles(files, upload_path, myDiv) {
+
+    
+        try {
+
+        for (let i = 0; i < 3; i++)
+        {
+            if (files[i])
+            {
+                myDiv.innerHTML += "<p>Uploading file " + (i+1) + " of 3...</p>";
+                const resultMsg = await upload(files[i], upload_path[i]);
+            }
+        }
+        } catch (err) {
+        alert("Upload failed: " + err);
+        };
+    
+}
+
+
+async function doWork(files, upload_path, myDiv)
+{
+    try
+        {
+            await uploadFiles(files, upload_path, myDiv);
+            xhttp2 = new XMLHttpRequest();
+                let lastResponseLength = 0;
+                xhttp2.onreadystatechange = function() 
+                {
+                    if (xhttp2.readyState == 3) {
+                        var partialResponse = xhttp2.responseText;
+                        // Extract the new data from the partial response
+                        var newData = partialResponse.substring(lastResponseLength);
+                        // Update the length of the response
+                        lastResponseLength = partialResponse.length;
+                        myDiv.innerHTML += newData;
+                    } else if (xhttp2.readyState == 4 && xhttp2.status == 200) {
+                        var partialResponse = xhttp2.responseText;
+                        // Extract the new data from the partial response
+                        var newData = partialResponse.substring(lastResponseLength);
+                        // Update the length of the response
+                        lastResponseLength = partialResponse.length;
+                        myDiv.innerHTML += newData;
+                        // Process the response here
+                        if (partialResponse.indexOf("succesfull") != -1) {
+                            alert("Firmware upgrade succesfull!");
+                            window.location.href = "/";
+                        } else if (partialResponse.indexOf("failed") != -1) {
+                            alert("Flashing Uberlogger failed!");
+                        }
+                    }
+                };
+
+            xhttp2.open("GET", upload_prefix + "/fwupdate/startupgrade", true);
+            xhttp2.send();    
+        } catch (err) {
+            alert("Upload failed: " + err);
+        }
+}
 
 const form = document.getElementById("file-upload-form");
 
@@ -156,23 +219,26 @@ form.addEventListener("submit", async function(e) {
         // myDiv.innerHTML += "<p>Uploading files...</p>";
         
     let files = [];
+    let upload_path = [];
+    var filePath = [];
+    var fileInput = [];
 
     for (i=0; i<3; i++)
     {
-        var filePath = '', fileInput = '';
+        
 
         switch (i) {
             case 0:
-                filePath = document.getElementById("filepath_ota_main").value;
-                fileInput = document.getElementById("ota_main").files;
+                filePath[i] = document.getElementById("filepath_ota_main").value;
+                fileInput[i] = document.getElementById("ota_main").files;
                 break;
             case 1:
-                filePath = document.getElementById("filepath_ota_support").value;
-                fileInput = document.getElementById("ota_support").files;
+                filePath[i] = document.getElementById("filepath_ota_support").value;
+                fileInput[i] = document.getElementById("ota_support").files;
                 break;
             case 2:
-                    filePath = document.getElementById("filepath_ota_filesystem").value;
-                    fileInput = document.getElementById("ota_filesystem").files;
+                filePath[i] = document.getElementById("filepath_ota_filesystem").value;
+                fileInput[i] = document.getElementById("ota_filesystem").files;
                 break;
         }
 
@@ -183,18 +249,18 @@ form.addEventListener("submit", async function(e) {
             upload_prefix = "";
         }
 
-        var upload_path = upload_prefix + "/upload/" + filePath;
+        upload_path[i] = upload_prefix + "/upload/" + filePath[i];
 
         /* Get the file input element. */
         switch (i) {
             case 0:
-                fileInput = document.getElementById("ota_main").files;
+                fileInput[i] = document.getElementById("ota_main").files;
                 break;
             case 1:
-                fileInput = document.getElementById("ota_support").files;
+                fileInput[i] = document.getElementById("ota_support").files;
                 break;
             case 2:
-                fileInput = document.getElementById("ota_filesystem").files;
+                fileInput[i] = document.getElementById("ota_filesystem").files;
                 break;
         }
         
@@ -204,82 +270,33 @@ form.addEventListener("submit", async function(e) {
         var MAX_FILE_SIZE = 1000*1024;
         var MAX_FILE_SIZE_STR = "1MB";
 
-        if (fileInput.length == 0) {
+        if (fileInput[i].length == 0) {
             alert("No file selected!");
             return;
-        } else if (filePath.length == 0) {
+        } else if (filePath[i].length == 0) {
             alert("File path on server is not set!");
             return;
-        } else if (filePath.indexOf(' ') >= 0) {
+        } else if (filePath[i].indexOf(' ') >= 0) {
             alert("File path on server cannot have spaces!");
             return;
-        } else if (filePath[filePath.length-1] == '/') {
+        } else if (filePath[i][filePath[i].length-1] == '/') {
             alert("File name not specified after path!");
             return;
-        } else if (fileInput[0].size > MAX_FILE_SIZE) {
+        } else if (fileInput[i][0].size > MAX_FILE_SIZE) {
             alert("File size must be less than 1MB!");
             return;
         } 
 
-        files[i] = fileInput[0];
+        files[i] = fileInput[i][0];
         
     }
 
-    // Upload file
-    (async () => 
-    {
-        for (let i = 0; i < 3; i++)
-        {
-            if (files[i])
-            {
-                try {
+    // Upload files
+    doWork(files, upload_path, myDiv);
 
-                    myDiv.innerHTML += "<p>Uploading file " + (i+1) + " of 3...</p>";
-                    await upload(files[i], upload_path);
-
-                    if (i === 2) 
-                    { // last file uploaded
-                        xhttp2 = new XMLHttpRequest();
-                        let lastResponseLength = 0;
-                        xhttp2.onreadystatechange = function() 
-                        {
-                            if (xhttp2.readyState == 3) {
-                                var partialResponse = xhttp2.responseText;
-                                // Extract the new data from the partial response
-                                var newData = partialResponse.substring(lastResponseLength);
-                                // Update the length of the response
-                                lastResponseLength = partialResponse.length;
-                                myDiv.innerHTML += newData;
-                            } else if (xhttp2.readyState == 4 && xhttp2.status == 200) {
-                                var partialResponse = xhttp2.responseText;
-                                // Extract the new data from the partial response
-                                var newData = partialResponse.substring(lastResponseLength);
-                                // Update the length of the response
-                                lastResponseLength = partialResponse.length;
-                                myDiv.innerHTML += newData;
-                                // Process the response here
-                                if (partialResponse.indexOf("succesfull") != -1) {
-                                    alert("Firmware upgrade succesfull!");
-                                    window.location.href = "/";
-                                } else if (partialResponse.indexOf("failed") != -1) {
-                                    alert("Flashing Uberlogger failed!");
-                                }
-                            }
-                        };
-
-                        xhttp2.open("GET", upload_prefix + "/fwupdate/startupgrade", true);
-                        xhttp2.send();
-                    }
-                } catch {
-                    alert("Upload failed");
-                    if (xhttp2) {
-                    xhttp2.abort();
-                    }
-                }
-            }
-    }
-    })();
-
+ 
+    
+    
 });
     // var xhttp2 = new XMLHttpRequest();
     // xhttp2.onreadystatechange = function() {
