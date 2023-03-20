@@ -146,16 +146,19 @@ async function uploadFiles(files, upload_path, myDiv) {
     
         try {
 
-        for (let i = 0; i < 3; i++)
-        {
-            if (files[i])
+            for (let i = 0; i < 3; i++)
             {
-                myDiv.innerHTML += "<p>Uploading file " + (i+1) + " of 3...</p>";
-                const resultMsg = await upload(files[i], upload_path[i]);
+                if (files[i])
+                {
+                    myDiv.innerHTML += "<p>Uploading file " + (i+1) + " of 3...</p>";
+                    const resultMsg = await upload(files[i], upload_path[i]);
+                }
             }
-        }
+            
+            return true;
         } catch (err) {
-        alert("Upload failed: " + err);
+            alert("Upload failed: " + err);
+            return false;
         };
     
 }
@@ -165,7 +168,11 @@ async function doWork(files, upload_path, myDiv)
 {
     try
         {
-            await uploadFiles(files, upload_path, myDiv);
+            const result = await uploadFiles(files, upload_path, myDiv);
+            if (!result)
+            {
+                return;
+            }
             xhttp2 = new XMLHttpRequest();
                 let lastResponseLength = 0;
                 xhttp2.onreadystatechange = function() 
@@ -194,10 +201,17 @@ async function doWork(files, upload_path, myDiv)
                     }
                 };
 
+                xhttp2.timeout = 60000; // time in milliseconds
+                
+                xhttp2.ontimeout = () => {
+                    alert("Connection timed out. Please check the connection and reset your Uberlogger");
+
+                };
             xhttp2.open("GET", upload_prefix + "/fwupdate/startupgrade", true);
             xhttp2.send();    
         } catch (err) {
             alert("Upload failed: " + err);
+            return;
         }
 }
 
@@ -216,6 +230,7 @@ form.addEventListener("submit", async function(e) {
     var lastResponseLength = 0;
 
     var myDiv = document.getElementById("fw-update-state");
+    myDiv.innerHTML = "";
         // myDiv.innerHTML += "<p>Uploading files...</p>";
         
     let files = [];

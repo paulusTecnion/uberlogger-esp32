@@ -15,7 +15,9 @@ idf_component_register(SRCS
                             "wifi.c" 
                             
                     INCLUDE_DIRS "" 
-                    EMBED_FILES "favicon.ico" "upload_script.html")
+                    EMBED_FILES 
+                    # "favicon.ico" 
+                    "upload_script.html")
 
 if(CONFIG_EXAMPLE_WEB_DEPLOY_SF)
     set(WEB_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../front")
