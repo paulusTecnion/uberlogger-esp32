@@ -655,13 +655,17 @@ esp_err_t Logger_flush_to_sdcard()
 
 esp_err_t Logger_startFWupdate()
 {
-    if (_currentLogTaskState != LOGTASK_IDLE)
+    if (_currentLogTaskState != LOGTASK_IDLE && 
+        _currentLogTaskState != LOGTASK_FWUPDATE)
     {
-        #ifdef DEBUG_LOGGING
-        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: Logger is not idle");
-        #endif
+        // #ifdef DEBUG_LOGGING
+        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: Logger is not idle. Curent state: %d", _currentLogTaskState);
+        // #endif
         return ESP_FAIL;
     } else {
+        // #ifdef DEBUG_LOGGING
+        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: putting logger into LOGTASK_FWUPDATEs");
+        // #endif
         _nextLogTaskState = LOGTASK_FWUPDATE;
         return ESP_OK;
     }

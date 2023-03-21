@@ -334,7 +334,7 @@ esp_err_t flash_stm32()
         write_address += bytes_read;
 
         if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Error writing firmware: %d\n", err);
+        // ESP_LOGE(TAG, "Error writing firmware: %d\n", err);
         
         err = ESP_FAIL;
         goto error;
