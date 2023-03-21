@@ -1,297 +1,302 @@
 <table class="fixed" border="0">
-    <col width="1000px" /><col width="500px" />
-    <tr><td>
-        <h2>Uberlogger Firmware upgrade</h2>
-    </td>
-    </tr>
-    <tr><td>
-        <h4>Make sure you have an SD card inserted! Do not power-toggle the device while flashing!!</h2>
-    </td>
-    </tr>
-    <tr>
+  <col width="1000px" />
+  <col width="500px" />
+  <tr>
     <td>
-        <form id="file-upload-form">
+      <h2>Uberlogger Firmware upgrade</h2>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h4>
+        Make sure you have an SD card inserted! Do not power-toggle the device
+        while flashing!!
+      </h4>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <form id="file-upload-form">
         <table border="0">
-            <tr>
-                <td>
-                    <label for="ota_main">File ota_main.bin</label>
-                </td>
-                <td colspan="2">
-                    <input id="ota_main" type="file" accept=".bin" value="ota_main.bin" onchange="setpath()" style="width:100%;">
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <label for="mainbinlabel">ota_main.bin path</label>
-                </td>
-                <td>
-                    <input id="filepath_ota_main" type="text" style="width:100%;">
-                </td>
-            </tr>
+          <tr>
+            <td>
+              <label for="ota_main">File ota_main.bin</label>
+            </td>
+            <td colspan="2">
+              <input
+                id="ota_main"
+                type="file"
+                accept=".bin"
+                value="ota_main.bin"
+                onchange="setpath()"
+                style="width: 100%"
+              />
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <label for="mainbinlabel">ota_main.bin path</label>
+            </td>
+            <td>
+              <input id="filepath_ota_main" type="text" style="width: 100%" />
+            </td>
+          </tr>
 
-            <tr>
-                <td>
-                    <label for="ota_support">File ota_support.bin</label>
-                </td>
-                <td colspan="2">
-                    <input id="ota_support" type="file" accept=".bin" value="ota_support.bin" onchange="setpath()" style="width:100%;">
-                </td>
-            </tr>
+          <tr>
+            <td>
+              <label for="ota_support">File ota_support.bin</label>
+            </td>
+            <td colspan="2">
+              <input
+                id="ota_support"
+                type="file"
+                accept=".bin"
+                value="ota_support.bin"
+                onchange="setpath()"
+                style="width: 100%"
+              />
+            </td>
+          </tr>
 
-            <tr>
-                <td>
-                    <label for="supportlabel">ota_support.bin path</label>
-                </td>
-                <td>
-                    <input id="filepath_ota_support" type="text" style="width:100%;">
-                </td>
-            </tr>
+          <tr>
+            <td>
+              <label for="supportlabel">ota_support.bin path</label>
+            </td>
+            <td>
+              <input
+                id="filepath_ota_support"
+                type="text"
+                style="width: 100%"
+              />
+            </td>
+          </tr>
 
-            <tr>
-                <td>
-                    <label for="ota_filesystem">File ota_filesystem.bin</label>
-                </td>
-                <td colspan="2">
-                    <input id="ota_filesystem" type="file" accept=".bin" value="ota_filesystem" onchange="setpath()" style="width:100%;">
-                </td>
-            </tr>
+          <tr>
+            <td>
+              <label for="ota_filesystem">File ota_filesystem.bin</label>
+            </td>
+            <td colspan="2">
+              <input
+                id="ota_filesystem"
+                type="file"
+                accept=".bin"
+                value="ota_filesystem"
+                onchange="setpath()"
+                style="width: 100%"
+              />
+            </td>
+          </tr>
 
-    
-
-            <tr>
-                <td>
-                    <label for="filesystemlabel">ota_filesystem.bin path</label>
-                </td>
-                <td>
-                    <input id="filepath_ota_filesystem" type="text" style="width:100%;">
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <button id="upload" type="submit">Upload & update</button>
-                </td>
-            </tr>
+          <tr>
+            <td>
+              <label for="filesystemlabel">ota_filesystem.bin path</label>
+            </td>
+            <td>
+              <input
+                id="filepath_ota_filesystem"
+                type="text"
+                style="width: 100%"
+              />
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <button id="upload" type="submit">Upload & update</button>
+            </td>
+          </tr>
         </table>
-    </form>
-    </td></tr>
+      </form>
+    </td>
+  </tr>
 </table>
 <div id="fw-update-state"></div>
 <script>
-function setpath() {
-    var default_path = document.getElementById("ota_main").files[0].name;    
+  function setpath() {
+    var default_path = document.getElementById("ota_main").files[0].name;
     document.getElementById("filepath_ota_main").value = default_path;
 
-    default_path = document.getElementById("ota_support").files[0].name;    
+    default_path = document.getElementById("ota_support").files[0].name;
     document.getElementById("filepath_ota_support").value = default_path;
 
-
-    default_path = document.getElementById("ota_filesystem").files[0].name;    
+    default_path = document.getElementById("ota_filesystem").files[0].name;
     document.getElementById("filepath_ota_filesystem").value = default_path;
-}
+  }
 
-
-
-async function upload(file, upload_path) {
-
+  async function upload(file, upload_path) {
     return new Promise((resolve, reject) => {
-        const xhttp = new XMLHttpRequest();
-        
-        xhttp.onreadystatechange = function() {
+      const xhttp = new XMLHttpRequest();
+
+      xhttp.onreadystatechange = function () {
         if (xhttp.readyState === 4) {
-            
-            if (xhttp.status === 200 || xhttp.status === 0) {
-                
-                resolve(xhttp.responseText);
-                // return;
-            } 
-            else if (xhttp.status >= 400) 
-            {
-                reject(xhttp.responseText);
-                // return xhttp.responseText;
-            }
+          if (xhttp.status === 200 || xhttp.status === 0) {
+            resolve(xhttp.responseText);
+            // return;
+          } else if (xhttp.status >= 400) {
+            reject(xhttp.responseText);
+            // return xhttp.responseText;
+          }
         }
-        };
-        xhttp.open("POST", upload_path, true);
-        xhttp.setRequestHeader("Content-Type", "multipart/form-data");
-        xhttp.send(file);
-  });
-    
-}
+      };
+      xhttp.open("POST", upload_path, true);
+      xhttp.setRequestHeader("Content-Type", "multipart/form-data");
+      xhttp.send(file);
+    });
+  }
 
-
-async function uploadFiles(files, upload_path, myDiv) {
-
-    
-        try {
-
-            for (let i = 0; i < 3; i++)
-            {
-                if (files[i])
-                {
-                    myDiv.innerHTML += "<p>Uploading file " + (i+1) + " of 3...</p>";
-                    const resultMsg = await upload(files[i], upload_path[i]);
-                }
-            }
-            
-            return true;
-        } catch (err) {
-            alert("Upload failed: " + err);
-            return false;
-        };
-    
-}
-
-
-async function doWork(files, upload_path, myDiv)
-{
-    try
-        {
-            const result = await uploadFiles(files, upload_path, myDiv);
-            if (!result)
-            {
-                return;
-            }
-            xhttp2 = new XMLHttpRequest();
-                let lastResponseLength = 0;
-                xhttp2.onreadystatechange = function() 
-                {
-                    if (xhttp2.readyState == 3) {
-                        var partialResponse = xhttp2.responseText;
-                        // Extract the new data from the partial response
-                        var newData = partialResponse.substring(lastResponseLength);
-                        // Update the length of the response
-                        lastResponseLength = partialResponse.length;
-                        myDiv.innerHTML += newData;
-                    } else if (xhttp2.readyState == 4 && xhttp2.status == 200) {
-                        var partialResponse = xhttp2.responseText;
-                        // Extract the new data from the partial response
-                        var newData = partialResponse.substring(lastResponseLength);
-                        // Update the length of the response
-                        lastResponseLength = partialResponse.length;
-                        myDiv.innerHTML += newData;
-                        // Process the response here
-                        if (partialResponse.indexOf("succesfull") != -1) {
-                            alert("Firmware upgrade succesfull!");
-                            window.location.href = "/";
-                        } else if (partialResponse.indexOf("failed") != -1) {
-                            alert("Flashing Uberlogger failed!");
-                        }
-                    }
-                };
-
-                xhttp2.timeout = 60000; // time in milliseconds
-                
-                xhttp2.ontimeout = () => {
-                    alert("Connection timed out. Please check the connection and reset your Uberlogger");
-
-                };
-            xhttp2.open("GET", upload_prefix + "/fwupdate/startupgrade", true);
-            xhttp2.send();    
-        } catch (err) {
-            alert("Upload failed: " + err);
-            return;
+  async function uploadFiles(files, upload_path, myDiv) {
+    try {
+      for (let i = 0; i < 3; i++) {
+        if (files[i]) {
+          myDiv.innerHTML += "<p>Uploading file " + (i + 1) + " of 3...</p>";
+          const resultMsg = await upload(files[i], upload_path[i]);
         }
-}
+      }
 
-const form = document.getElementById("file-upload-form");
+      return true;
+    } catch (err) {
+      alert("Upload failed: " + err);
+      return false;
+    }
+  }
 
-form.addEventListener("submit", async function(e) {
-    
+  async function doWork(files, upload_path, myDiv) {
+    try {
+      const result = await uploadFiles(files, upload_path, myDiv);
+      if (!result) {
+        return;
+      }
+      xhttp2 = new XMLHttpRequest();
+      let lastResponseLength = 0;
+      xhttp2.onreadystatechange = function () {
+        if (xhttp2.readyState == 3) {
+          var partialResponse = xhttp2.responseText;
+          // Extract the new data from the partial response
+          var newData = partialResponse.substring(lastResponseLength);
+          // Update the length of the response
+          lastResponseLength = partialResponse.length;
+          myDiv.innerHTML += newData;
+        } else if (xhttp2.readyState == 4 && xhttp2.status == 200) {
+          var partialResponse = xhttp2.responseText;
+          // Extract the new data from the partial response
+          var newData = partialResponse.substring(lastResponseLength);
+          // Update the length of the response
+          lastResponseLength = partialResponse.length;
+          myDiv.innerHTML += newData;
+          // Process the response here
+          if (partialResponse.indexOf("succesfull") != -1) {
+            alert("Firmware upgrade succesfull!");
+            window.location.href = "/";
+          } else if (partialResponse.indexOf("failed") != -1) {
+            alert("Flashing Uberlogger failed!");
+          }
+        }
+      };
+
+      xhttp2.timeout = 60000; // time in milliseconds
+
+      xhttp2.ontimeout = () => {
+        alert(
+          "Connection timed out. Please check the connection and reset your Uberlogger"
+        );
+      };
+      xhttp2.open("GET", upload_prefix + "/fwupdate/startupgrade", true);
+      xhttp2.send();
+    } catch (err) {
+      alert("Upload failed: " + err);
+      return;
+    }
+  }
+
+  const form = document.getElementById("file-upload-form");
+
+  form.addEventListener("submit", async function (e) {
     e.preventDefault();
     let localtest = false;
 
-    if (!confirm("You are about to flash your Uberlogger. Are you sure you have selected the correct files in the correct fields? Failing to do so will result in bricking your Uberlogger!!"))
-    {
-        return;
+    if (
+      !confirm(
+        "You are about to flash your Uberlogger. Are you sure you have selected the correct files in the correct fields? Failing to do so will result in bricking your Uberlogger!!"
+      )
+    ) {
+      return;
     }
 
     var lastResponseLength = 0;
 
     var myDiv = document.getElementById("fw-update-state");
     myDiv.innerHTML = "";
-        // myDiv.innerHTML += "<p>Uploading files...</p>";
-        
+    // myDiv.innerHTML += "<p>Uploading files...</p>";
+
     let files = [];
     let upload_path = [];
     var filePath = [];
     var fileInput = [];
 
-    for (i=0; i<3; i++)
-    {
-        
+    for (i = 0; i < 3; i++) {
+      switch (i) {
+        case 0:
+          filePath[i] = document.getElementById("filepath_ota_main").value;
+          fileInput[i] = document.getElementById("ota_main").files;
+          break;
+        case 1:
+          filePath[i] = document.getElementById("filepath_ota_support").value;
+          fileInput[i] = document.getElementById("ota_support").files;
+          break;
+        case 2:
+          filePath[i] = document.getElementById(
+            "filepath_ota_filesystem"
+          ).value;
+          fileInput[i] = document.getElementById("ota_filesystem").files;
+          break;
+      }
 
-        switch (i) {
-            case 0:
-                filePath[i] = document.getElementById("filepath_ota_main").value;
-                fileInput[i] = document.getElementById("ota_main").files;
-                break;
-            case 1:
-                filePath[i] = document.getElementById("filepath_ota_support").value;
-                fileInput[i] = document.getElementById("ota_support").files;
-                break;
-            case 2:
-                filePath[i] = document.getElementById("filepath_ota_filesystem").value;
-                fileInput[i] = document.getElementById("ota_filesystem").files;
-                break;
-        }
+      if (localtest) {
+        upload_prefix = "http://192.168.4.1";
+      } else {
+        upload_prefix = "";
+      }
 
-        if (localtest)
-        {
-            upload_prefix = "http://192.168.4.1";
-        } else {
-            upload_prefix = "";
-        }
+      upload_path[i] = upload_prefix + "/upload/" + filePath[i];
 
-        upload_path[i] = upload_prefix + "/upload/" + filePath[i];
+      /* Get the file input element. */
+      switch (i) {
+        case 0:
+          fileInput[i] = document.getElementById("ota_main").files;
+          break;
+        case 1:
+          fileInput[i] = document.getElementById("ota_support").files;
+          break;
+        case 2:
+          fileInput[i] = document.getElementById("ota_filesystem").files;
+          break;
+      }
 
-        /* Get the file input element. */
-        switch (i) {
-            case 0:
-                fileInput[i] = document.getElementById("ota_main").files;
-                break;
-            case 1:
-                fileInput[i] = document.getElementById("ota_support").files;
-                break;
-            case 2:
-                fileInput[i] = document.getElementById("ota_filesystem").files;
-                break;
-        }
-        
-        
-        /* Max size of an individual file. Make sure this
-        * value is same as that set in file_server.c */
-        var MAX_FILE_SIZE = 1000*1024;
-        var MAX_FILE_SIZE_STR = "1MB";
+      /* Max size of an individual file. Make sure this
+       * value is same as that set in file_server.c */
+      var MAX_FILE_SIZE = 1000 * 1024;
+      var MAX_FILE_SIZE_STR = "1MB";
 
-        if (fileInput[i].length == 0) {
-            alert("No file selected!");
-            return;
-        } else if (filePath[i].length == 0) {
-            alert("File path on server is not set!");
-            return;
-        } else if (filePath[i].indexOf(' ') >= 0) {
-            alert("File path on server cannot have spaces!");
-            return;
-        } else if (filePath[i][filePath[i].length-1] == '/') {
-            alert("File name not specified after path!");
-            return;
-        } else if (fileInput[i][0].size > MAX_FILE_SIZE) {
-            alert("File size must be less than 1MB!");
-            return;
-        } 
+      if (fileInput[i].length == 0) {
+        alert("No file selected!");
+        return;
+      } else if (filePath[i].length == 0) {
+        alert("File path on server is not set!");
+        return;
+      } else if (filePath[i].indexOf(" ") >= 0) {
+        alert("File path on server cannot have spaces!");
+        return;
+      } else if (filePath[i][filePath[i].length - 1] == "/") {
+        alert("File name not specified after path!");
+        return;
+      } else if (fileInput[i][0].size > MAX_FILE_SIZE) {
+        alert("File size must be less than 1MB!");
+        return;
+      }
 
-        files[i] = fileInput[i][0];
-        
+      files[i] = fileInput[i][0];
     }
 
     // Upload files
     doWork(files, upload_path, myDiv);
-
- 
-    
-    
-});
-    
-    
-
+  });
 </script>
