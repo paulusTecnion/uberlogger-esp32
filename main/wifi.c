@@ -281,8 +281,14 @@ esp_err_t wifi_start(void)
     }
 
     if (settings_get_wifi_mode() == WIFI_MODE_AP) {
+        #ifdef DEBUG_WIFI
+        ESP_LOGI(TAG, "Starting in AP mode");
+        #endif
         wifi_init_softap();
     } else {
+        #ifdef DEBUG_WIFI
+        ESP_LOGI(TAG, "Starting in STA mode");
+        #endif
         wifi_init_sta();
     }
 
