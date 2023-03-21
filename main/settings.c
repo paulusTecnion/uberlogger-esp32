@@ -1,5 +1,6 @@
 #include "settings.h"
 #include "spiffs_settings.h"
+#include "esp_wifi_types.h"
 
 static const char* TAG_SETTINGS = "SETTINGS";
 Settings_t _settings;
@@ -84,6 +85,7 @@ esp_err_t settings_set_default()
     ESP_LOGI(TAG_SETTINGS, "Setting default settings");
     #endif
     _settings.adc_resolution = ADC_12_BITS;
+
     _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
@@ -91,6 +93,7 @@ esp_err_t settings_set_default()
     _settings.logMode = LOGMODE_CSV;
     strcpy(_settings.wifi_ssid, "Uberlogger");
     strcpy(_settings.wifi_password, "");
+    _settings.wifi_mode = WIFI_MODE_AP;
     _settings.wifi_channel = 1;
 
     return ESP_OK;
@@ -300,4 +303,20 @@ esp_err_t settings_set_timestamp(uint64_t timestamp)
 uint32_t settings_get_timestamp()
 {
     return _settings.timestamp;
+}
+
+uint8_t settings_get_wifi_mode()
+{
+    return _settings.wifi_mode;
+}
+
+esp_err_t settings_set_wifi_mode(uint8_t mode)
+{
+    if (mode == WIFI_MODE_AP || mode == WIFI_MODE_STA)
+    {
+        _settings.wifi_mode = mode;
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
 }

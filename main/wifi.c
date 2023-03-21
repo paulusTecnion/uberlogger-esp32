@@ -30,6 +30,7 @@
 #include "lwip/sys.h"
 
 #include "settings.h"
+#include "wifi.h"
 
 /* The examples use WiFi configuration that you can set via project configuration menu.
    If you'd rather not, just change the below entries to strings with
@@ -85,6 +86,7 @@ static EventGroupHandle_t s_wifi_event_group;
 
 
 static int s_retry_num = 0;
+static uint8_t wifi_enabled = 0;
 
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
@@ -134,7 +136,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         #endif
     }
 }
-
+ 
 void wifi_init_sta(void)
 {
     s_wifi_event_group = xEventGroupCreate();
@@ -267,4 +269,23 @@ void wifi_init_softap(void)
     #endif
 
     
+}
+
+esp_err_t wifi_start(void)
+{
+    if (wifi_enabled) {
+        
+        if (esp_wifi_stop() != ESP_OK) {
+            return ESP_FAIL;
+        }
+    }
+
+    if (settings_get_wifi_mode() == WIFI_MODE_AP) {
+        wifi_init_softap();
+    } else {
+        wifi_init_sta();
+    }
+
+    wifi_enabled = 1;
+    return ESP_OK;
 }

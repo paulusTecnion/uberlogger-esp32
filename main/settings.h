@@ -94,6 +94,7 @@ struct Settings_t {
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_password[MAX_WIFI_PASSW_LEN];
 	uint8_t wifi_channel;
+	uint8_t wifi_mode;
 	uint32_t timestamp; // time in BCD format
 };
 
@@ -145,6 +146,10 @@ esp_err_t settings_set_resolution(adc_resolution_t res);
 /// @return ESP_OK when OK and ESP_FAIL for wrong input
 esp_err_t settings_set_timestamp(uint64_t timestamp);
 uint32_t settings_get_timestamp();
+
+uint8_t settings_get_wifi_mode();
+esp_err_t settings_set_wifi_mode(uint8_t mode);
+
 
 
 
