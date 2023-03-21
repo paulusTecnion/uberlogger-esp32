@@ -93,28 +93,6 @@ function setpath() {
 
 async function upload(file, upload_path) {
 
-   
-    // var file = fileInput[0];
-    // const xhttp = new XMLHttpRequest();
-    // xhttp.onreadystatechange = function() {
-    //     if (xhttp.readyState == 4) {
-    //         if (xhttp.status == 200) {
-    //             // document.open();
-    //             // document.write(xhttp.responseText);
-    //             // document.close();
-    //             return true;
-    //         } else if (xhttp.status >= 400) {
-    //             alert("Server closed the connection abruptly!");
-    //             // location.reload()
-    //             return false;
-    //         } 
-    //             // location.reload()
-    //     }
-    // };
-
-    // xhttp.open("POST", upload_path, true);
-    // xhttp.setRequestHeader("Content-Type", "multipart/form-data");
-    // xhttp.send(file);
     return new Promise((resolve, reject) => {
         const xhttp = new XMLHttpRequest();
         
@@ -313,44 +291,6 @@ form.addEventListener("submit", async function(e) {
     
     
 });
-    // var xhttp2 = new XMLHttpRequest();
-    // xhttp2.onreadystatechange = function() {
-    //     if (xhttp2.readyState == 3)
-    //     {
-    //         var partialResponse = xhttp2.responseText;
-    //         // Extract the new data from the partial response
-    //         var newData = partialResponse.substring(lastResponseLength);
-    //         // Update the length of the response
-    //         lastResponseLength = partialResponse.length;
-            
-
-    //         myDiv.innerHTML += newData;
-    //     } else if (xhttp2.readyState == 4 && xhttp2.status == 200) {
-    //         var partialResponse = xhttp2.responseText;
-    //         // Extract the new data from the partial response
-    //         var newData = partialResponse.substring(lastResponseLength);
-    //         // Update the length of the response
-    //         lastResponseLength = partialResponse.length;
-    //         myDiv.innerHTML += newData;
-    //         // Process the response here
-    //         if (partialResponse.indexOf("succesfull") != -1)
-    //         {
-    //             alert("Firmware upgrade succesfull!");
-    //             window.location.href = "/";
-    //         } else if (partialResponse.indexOf("failed") != -1)
-    //         {
-    //             alert("Flashing Uberlogger failed!");
-    //         }
-    //     }
-    // }
-    
-    // xhttp2.open("GET", upload_prefix + "/fwupdate/startupgrade", true);
-    // xhttp2.send();
-      
-    
-
-
-
     
     
 
