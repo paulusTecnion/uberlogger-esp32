@@ -51,4 +51,5 @@ esp_err_t iir_set_filter_length(uint8_t length)
 
     
     filter_length = length;
+    return ESP_OK;
 }
