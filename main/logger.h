@@ -73,6 +73,7 @@ enum LogTaskStates
     LOGTASK_STOPPING,
     LOGTASK_ERROR_OCCURED,
     LOGTASK_REBOOT_SYSTEM,
+    LOGTASK_FWUPDATE,
     LOGTASK_NUM_STATES
 };
 
@@ -143,6 +144,8 @@ uint8_t Logger_getCsvLog();
 
 uint8_t Logger_mode_button();
 esp_err_t Logger_syncSettings();
+
+esp_err_t Logger_startFWupdate();
 
 void Logging_restartSystem();
 

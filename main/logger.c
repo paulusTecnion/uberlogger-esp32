@@ -653,6 +653,20 @@ esp_err_t Logger_flush_to_sdcard()
    
 }
 
+esp_err_t Logger_startFWupdate()
+{
+    if (_currentLogTaskState != LOGTASK_IDLE)
+    {
+        #ifdef DEBUG_LOGGING
+        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: Logger is not idle");
+        #endif
+        return ESP_FAIL;
+    } else {
+        _nextLogTaskState = LOGTASK_FWUPDATE;
+        return ESP_OK;
+    }
+}
+
 uint32_t Logger_getError()
 {
     return _errorCode;
@@ -1203,6 +1217,10 @@ void task_logging(void * pvParameters)
 
                 
 
+            break;
+
+            case LOGTASK_FWUPDATE:
+                // do nothing
             break;
 
             case LOGTASK_REBOOT_SYSTEM:

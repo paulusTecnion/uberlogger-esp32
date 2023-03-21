@@ -538,6 +538,14 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 
 esp_err_t fwupdate_get_handler(httpd_req_t *req)
 {
+
+    if (Logger_startFWupdate() != ESP_OK)
+    {
+        ESP_LOGE(TAG_FILESERVER, "Failed to start firmware update");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Logger not idle, cannot update firwmare");
+        return ESP_FAIL;
+    }
+    
    // Detect if request is pointing to /fwupdate/startupgrade
     if (strstr(req->uri, "/fwupdate/startupgrade") != NULL) {
         ESP_LOGI(TAG_FILESERVER, "Starting firmware upgrade");
@@ -573,7 +581,7 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         
         if (updateESP32() != ESP_OK) {
             ESP_LOGE(TAG_FILESERVER, "Main chip flash failed");
-            httpd_resp_sendstr_chunk(req, "<p>Main chip flash failed!</p>");
+            httpd_resp_sendstr_chunk(req, "<p>Main chip flash failed! Please don't reset your Uberlogger and try again</p>");
             httpd_resp_send_chunk(req, NULL, 0);
             return ESP_FAIL;
         } else {
