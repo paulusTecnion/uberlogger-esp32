@@ -12,6 +12,8 @@
 #include "file_server.h"
 #include "rest_server.h"
 #include "config.h"
+#include "wifi.h"
+#include "esp_wifi_types.h"
 
 char * endpoint_response_char[] = 
 {
@@ -277,6 +279,14 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
     cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
+    if (settings->wifi_mode == WIFI_MODE_AP)
+    {
+        cJSON_AddNumberToObject(root, "WIFI_MODE", 0);
+    } else if (settings->wifi_mode == WIFI_MODE_STA)
+    {
+        cJSON_AddNumberToObject(root, "WIFI_MODE", 1);
+    }
+    
 
     cJSON_AddNumberToObject(root, "ADC_RESOLUTION", settings->adc_resolution);
     cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->log_sample_rate);
@@ -405,6 +415,23 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
     
+    
+    uint8_t  old_wifi_mode = settings_get_wifi_mode();
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_MODE");
+    if (item != NULL)
+    {
+        if (item->valueint == 0)
+        {
+            // Wifi ap mode
+            settings_set_wifi_mode(WIFI_MODE_AP);
+        } 
+        else if (item->valueint == 1)
+        {
+            // Wifi station mode
+            settings_set_wifi_mode(WIFI_MODE_STA);
+        }
+    }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_CHANNEL");
     if (item != NULL)
@@ -478,6 +505,12 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             // return ESP_FAIL;
             goto error;
         }
+    }
+
+    // Restart wifi if mode has changed
+    if (old_wifi_mode != settings_get_wifi_mode())
+    {
+        wifi_start();
     }
 
     Logger_syncSettings();
