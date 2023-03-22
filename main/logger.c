@@ -263,8 +263,8 @@ esp_err_t Logger_singleShot()
             } 
             
         } else {
-            ESP_LOGE(TAG_LOG, "Single shot command failed.");
-            SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+            // ESP_LOGE(TAG_LOG, "Single shot command failed.");
+            // SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
             return ESP_FAIL;
         }
         return ESP_OK;        
@@ -285,6 +285,8 @@ esp_err_t Logger_singleShot()
 esp_err_t Logger_syncSettings()
 {
     settings_persist_settings();
+
+    
     // Send command to STM32 to go into settings mode
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
@@ -1113,16 +1115,17 @@ void task_logging(void * pvParameters)
                             if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
                             {
                                 #ifdef DEBUG_LOGTASK_RX
-                                ESP_LOGI(TAG_LOG, "Last msg received");
+                                // ESP_LOGI(TAG_LOG, "Last msg received");
                                 #endif
                                 Logger_processData();
                                 
                             } else {
                                 ESP_LOGE(TAG_LOG, "Error receiving last message");
                             }
-                        } else {
-                            ESP_LOGE(TAG_LOG, "Singleshot error");
-                        }
+                        } 
+                        // else {
+                        //     ESP_LOGE(TAG_LOG, "Singleshot error");
+                        // }
                         lastTick = 0;
                     }
                 }
