@@ -76,7 +76,8 @@ void task_hmi(void* ignore) {
     {
           toggle_red = !toggle_red;
           vTaskDelay(200 / portTICK_PERIOD_MS);
-          ESP_LOGI(TAG, "Toggle red");
+
+          // ESP_LOGI(TAG, "Toggle red");
     } else {
       toggle_red = 0;
     }
