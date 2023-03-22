@@ -49,7 +49,8 @@ void task_hmi(void* ignore) {
 // //   ESP_LOGI(TAG, "u8g2_SendBuffer");
 //   u8g2_SendBuffer(&u8g2);
 //   int i=0;
-  gpio_set_direction(GPIO_HMI_LED, GPIO_MODE_OUTPUT);
+  gpio_set_direction(GPIO_HMI_LED_GREEN, GPIO_MODE_OUTPUT);
+  gpio_set_direction(GPIO_HMI_LED_RED, GPIO_MODE_OUTPUT);
   while(1)
   {
     // if (i > 100)
@@ -67,31 +68,37 @@ void task_hmi(void* ignore) {
     //     i = 0;
     // }
     // i = i + 20;
-    static uint8_t toggle = 1;
+    static uint8_t toggle_green = 1;
+    static uint8_t toggle_red = 0;
 
 
     if (Logger_getError() > 0)
     {
-          toggle = !toggle;
+          toggle_red = !toggle_red;
           vTaskDelay(200 / portTICK_PERIOD_MS);
+          ESP_LOGI(TAG, "Toggle red");
     } else {
+      toggle_red = 0;
+    }
+
       switch (Logger_getState())
       {
           case LOGTASK_IDLE:
-            toggle = 1;
+            toggle_green = 1;
+
             vTaskDelay(1000 / portTICK_PERIOD_MS);
           break;
 
           case LOGTASK_LOGGING:
-            toggle = !toggle;  
+            toggle_green = !toggle_green;  
             vTaskDelay(1000 / portTICK_PERIOD_MS);
           break;
 
       
       }
-    }
     
-    gpio_set_level(GPIO_HMI_LED, toggle);
+    gpio_set_level(GPIO_HMI_LED_GREEN, toggle_green);
+    gpio_set_level(GPIO_HMI_LED_RED, toggle_red);
     
 
   }
