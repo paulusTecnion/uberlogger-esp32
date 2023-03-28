@@ -3,13 +3,14 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include "settings.h"
+
 
 /// @brief 
 /// @param input 
 /// @return 
-int32_t iir_filter(int16_t input);
-
-esp_err_t iir_set_filter_length(uint8_t length);
+void  iir_filter(int32_t input, int32_t * output, uint8_t channel);
+esp_err_t iir_set_settings(adc_sample_rate_t rate, adc_channel_range_t* ranges);
 void iir_reset();
 
 #endif

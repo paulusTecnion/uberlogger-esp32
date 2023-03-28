@@ -56,14 +56,26 @@ typedef enum adc_sample_rate_e {
 	ADC_SAMPLE_RATE_50Hz,
 	ADC_SAMPLE_RATE_100Hz,
 	ADC_SAMPLE_RATE_250Hz,
-	ADC_SAMPLE_RATE_500Hz,
-	ADC_SAMPLE_RATE_1000Hz,
-	ADC_SAMPLE_RATE_2500Hz,
+	// ADC_SAMPLE_RATE_500Hz,
+	// ADC_SAMPLE_RATE_1000Hz,
+	// ADC_SAMPLE_RATE_2500Hz,
 	// ADC_SAMPLE_RATE_5000Hz,
 	// ADC_SAMPLE_RATE_10000Hz,
     ADC_SAMPLE_RATE_NUM_ITEMS
 } adc_sample_rate_t;
 
+// Multiply offsets and coefficients with 10000000 to work with these factors
+enum int32 {
+	ADC_12_BITS_10V_FACTOR = 488401,// 100000000
+	ADC_12_BITS_60V_FACTOR = 293040,// 10000000
+	ADC_16_BITS_10V_FACTOR = 30518, // 100000000
+	ADC_16_BITS_60V_FACTOR = 18310	// 10000000
+} adc_factors;
+
+typedef enum int64 {
+	ADC_MULT_FACTOR_10V =  	100000000LL,
+	ADC_MULT_FACTOR_60V = 	10000000LL
+} adc_mult_factor;
 
 typedef enum log_mode_e {
     LOGMODE_RAW = 0,

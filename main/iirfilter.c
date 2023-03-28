@@ -1,55 +1,77 @@
 #include "esp_system.h"
 #include "iirfilter.h"
+#include "settings.h"
 
-#define Q 16
+// Original coefficients from https://tecnionnl.sharepoint.com/:x:/s/uberlogger/EeEoN_zLy7BHslnFgKYobd4BH9o46vYH16z9PU2SE_CJCw?e=e9fFJc
+// 0.085849253
+// 0.164328412
+// 0.324768093
+// 0.544061872
+// 0.792120424
+// 0.956786082
 
 #define NUMER_COEFFICIENTS 6   // Filter length
-const int32_t c[NUMER_COEFFICIENTS] = {889719, 1715413, 3387829, 5671618, 8223192, 9962013};  // Coefficients in Q21.11 format
+const int64_t c_10v[NUMER_COEFFICIENTS] = {8584925, 16432841, 32476809, 54406187, 79212042, 95678608};      // mulitplied with 100000000 
+const int64_t c_60v[NUMER_COEFFICIENTS] = {858493, 1643284, 3247681, 5440619, 7921204, 9567861};            // multiplied with 10000000
 
-int32_t x_state;
-int32_t y_state = 0;
+int64_t * c[NUM_ADC_CHANNELS];
+int64_t x_state[NUM_ADC_CHANNELS];
+int64_t y_state[NUM_ADC_CHANNELS];
+uint8_t coeff_index;
+adc_mult_factor coeff_factor[NUM_ADC_CHANNELS];
 
-// default length is 70 (for 1 Hz sample rate)
-uint8_t filter_length = 70;
 
-int32_t iir_filter(int16_t input)
+void iir_filter(int32_t input, int32_t * output, uint8_t channel)
 {
-    int i;
+    // Based on the factor, we need to pick the correct coefficients 
 
-    // Normalize input to range -1.0 to 1.0 in Q15.16 format
-    int32_t x = ((int32_t)input << 16) / 32768;
+    // Multiply and accumulate
+    y_state[channel] = (c[channel][coeff_index] * (int64_t)input) + ((coeff_factor)-c[channel][coeff_index] * y_state[channel]);
 
-    // Perform filtering
-    for (i = 0; i < filter_length; i++)
-    {
-        // Multiply and accumulate using Q21.11 format
-        y_state = ((c[i] * x_state) >> 11) + ((c[i] * y_state) >> 11);
-
-        // Update state
-        x_state = (i == 0) ? x_state : x_state;;
-    }
-
-    // Normalize output to range -1.0 to 1.0 in Q15.16 format
-    int32_t output = (y_state * 32768) >> 16;
-
-    return (int16_t)output;
+    // the factor 1000000 is used 
+    *output = (int32_t)(y_state[channel] / coeff_factor[channel]);
 }
 
 void iir_reset()
 {
     // Clear state
-    x_state = 0;
-    y_state = 0;
-}
-
-esp_err_t iir_set_filter_length(uint8_t length)
-{
-    if (length > 70 || length < 2)
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
-        return ESP_FAIL;
+        y_state[i] = 0;
     }
 
-    
-    filter_length = length;
-    return ESP_OK;
 }
+
+esp_err_t iir_set_settings(adc_sample_rate_t rate, adc_channel_range_t* ranges)
+{
+    if (rate <= ADC_SAMPLE_RATE_50Hz)
+    {
+        // Bit dirty, but turns out that the enum values are the same as the index
+        coeff_index = rate;
+        return ESP_OK;
+    } else {
+        // no need for iir when > 50 Hz
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    for (int i=0; i<NUM_ADC_CHANNELS; i++)
+    {
+        switch (ranges[i])
+        {
+            case ADC_RANGE_10V:
+                coeff_factor[i] = ADC_MULT_FACTOR_10V;
+                c[i] = c_10v;
+            break;
+
+            case ADC_RANGE_60V:
+                coeff_factor[i] = ADC_MULT_FACTOR_60V;
+                c[i] = c_60v;
+            break;
+
+            default:
+                return ESP_ERR_INVALID_ARG;
+        }    
+    }
+    
+}
+

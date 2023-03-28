@@ -102,7 +102,7 @@ typedef uint8_t LoggingState_t;
 /// @param range Range of channel. I.e. if total range is 20V, use 20000000
 /// @param offset Offset of the channel. If total range is 20V and minimum range value is -10V use 10000000
 /// @return 
-int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t range, uint64_t offset);
+// int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t range, uint32_t offset);
 float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
 
 /**

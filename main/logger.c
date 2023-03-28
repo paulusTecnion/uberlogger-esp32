@@ -14,6 +14,7 @@
 #include "driver/spi_master.h"
 #include "esp_timer.h"
 #include "esp_sd_card.h"
+#include "iirfilter.h"
 #include "config.h"
 #include "settings.h"
 #include "spi_control.h"
@@ -408,6 +409,21 @@ esp_err_t Logger_syncSettings()
         return ESP_FAIL;
     }
 
+    adc_channel_range_t ranges[NUM_ADC_CHANNELS];
+    for (int i=0; i<NUM_ADC_CHANNELS; i++)
+    {
+        if(!settings_get_adc_channel_range(i))
+        {
+            ranges[i] = ADC_RANGE_10V;
+        } else {
+            ranges[i] = ADC_RANGE_60V;
+        }
+    }
+
+
+    iir_set_settings(settings_get_samplerate(), ranges);
+    iir_reset();
+
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Sync done");
     #endif
@@ -548,40 +564,105 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
      
         int j,x=0;
         uint32_t writeptr = 0;
-        uint64_t channel_range, channel_offset;
+        int32_t channel_range, channel_offset;
+        int32_t filtered_value;
+        int32_t factor, downshift;
         // uint16_t adc0, adc1=0;
         #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
         #endif
+        adc_resolution_t  resolution = settings_get_resolution();
+        
 
-        for (j = 0; j < length; j = j + 2)
+        if (resolution == ADC_12_BITS)
         {
-            // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
-            if ((range >> x) & 0x01)
-            {
-                // Bit == 1
-                channel_range = 120000000LL;
-                channel_offset = 60000000LL;
-            } else {
-                channel_range = 20000000LL;
-                channel_offset = 10000000LL;
-            }
+            downshift = 0;
+        } else {
+            // Downshift with 4 bits to get 12 bits resolution for temperature sensor
+            downshift = 4;
+        }
 
-            // Detect type of sensor and conver accordingly
-            if ((type >> x) & 0x01)
+        // For 12 bits, we can directly convert the data. For 16-bits, only if the sample rate is > 50Hz we don't need filtering
+        if (resolution == ADC_12_BITS || (resolution == ADC_16_BITS && settings_get_samplerate() > ADC_SAMPLE_RATE_50Hz))
+        {
+            for (j = 0; j < length; j = j + 2)
             {
-                // ESP_LOGI(TAG_LOG,"temp detected");
-                // calculateTemperatureLUT(&(adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]), ((uint16_t)adcData[j]) | ((uint16_t)adcData[j+1] << 8), (1 << settings_get_resolution()) - 1);
-                adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8))*100000;
-            } else {
-                adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);    
-            }
+                // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
+                if ((range >> x) & 0x01)
+                {
+                    // Bit == 1
+                    channel_offset = 60*ADC_MULT_FACTOR_60V;
+                    if (resolution == ADC_12_BITS)
+                    {
+                        // Factor is 1000000*120/4095 
+                        factor = ADC_12_BITS_60V_FACTOR;
+                    } else {
+                        // Factor is 1000000*120/65535 
+                        factor = ADC_16_BITS_60V_FACTOR;
+                    }
+                } else {
+                    channel_offset = 10*ADC_MULT_FACTOR_10V;
+                    if (resolution == ADC_12_BITS)
+                    {
+                        factor = ADC_12_BITS_10V_FACTOR;
+                    } else {
+                        factor = ADC_16_BITS_10V_FACTOR;
+                    }
+                }
+            
+                // Detect type of sensor and conver accordingly
+                if ((type >> x) & 0x01)
+                {
+                    // ESP_LOGI(TAG_LOG,"temp detected");
+                    // calculateTemperatureLUT(&(adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]), ((uint16_t)adcData[j]) | ((uint16_t)adcData[j+1] << 8), (1 << settings_get_resolution()) - 1);
+                    adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8) >> downshift)*100000;
+                } else {
+                    // adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);   
+                    
+                    adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
+                }
             
 
-            x++;
-            x = x % 8;
-            writeptr++;
+                x++;
+                x = x % 8;
+                writeptr++;
+            }
+        } else if (resolution == ADC_16_BITS && settings_get_samplerate() <= ADC_SAMPLE_RATE_50Hz) { // 16 bit adc
+        
+            // IIR filter required for these cases
+            for (j = 0; j < length; j = j + 2)
+            {
+                if ((range >> x) & 0x01)
+                {
+                    // Bit == 1
+                    channel_offset = 60000000L;
+                    factor = ADC_16_BITS_60V_FACTOR;
+                } else {
+                    channel_offset = 10000000L;
+                    factor = ADC_16_BITS_10V_FACTOR;
+                }
+
+                // Detect type of sensor and conver accordingly
+                if ((type >> x) & 0x01)
+                {
+                    // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
+                    filtered_value = NTC_ADC2Temperature(((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)) >> downshift)*100000;
+                } else {
+                    // 4884 is 1000000*20/4095
+                    filtered_value = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
+                    iir_filter(filtered_value, &filtered_value, x);
+                }
+
+                adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = filtered_value;
+                
+
+                x++;
+                x = x % 8;
+                writeptr++;
+            }
+            
         }
+        
 
         //ESP_LOGI(TAG_LOG, "ADC FP: %d %d %d %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1] , adc_buffer_fixed_point[2], adc_buffer_fixed_point[3]);
     
