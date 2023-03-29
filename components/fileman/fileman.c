@@ -1,4 +1,5 @@
 #include "fileman.h"
+#include "../../main/iirfilter.h"
 #include "../../main/settings.h"
 #include "../../main/config.h"
 
@@ -149,16 +150,21 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
         for (int x=0; x<NUM_ADC_CHANNELS; x++)
         {
             
-            if (dataAdc[i*NUM_ADC_CHANNELS+x] > -1000000 && dataAdc[i*NUM_ADC_CHANNELS+x]<0)
-            {
-                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "-%d.%06d,",
-                dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
-            } else {
-                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%d.%06d,", 
-                dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
-            }
+            // if (dataAdc[i*NUM_ADC_CHANNELS+x] > -1000000 && dataAdc[i*NUM_ADC_CHANNELS+x]<0)
+            // {
+            //     writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "-%d.%06d,",
+            //     dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
+            // } else {
+            //     writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%d.%06d,", 
+            //     dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
+            // }
 
 
+                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%06d,",
+                    (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
+                    abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_10V)), 
+                    abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_10V));
+            
         }
         // Finally the IOs
         snprintf(filestrbuffer+writeptr, (2*6+5), "%d,%d,%d,%d,%d,%d\r\n",
@@ -173,6 +179,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
  
         j++;
         // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
+        // replace by put function. Much faster
         if (fprintf(f, filestrbuffer) < 0)
         {
             return 0;

@@ -559,22 +559,22 @@ size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uint
 
 
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
-uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t length, uint8_t range, uint8_t type)
+uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t length)
 {
      
         int j,x=0;
         uint32_t writeptr = 0;
         int32_t channel_range, channel_offset;
         int32_t filtered_value;
-        int32_t factor, downshift;
+        int32_t factor, downshift, multfactor;
         // uint16_t adc0, adc1=0;
         #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
         #endif
-        adc_resolution_t  resolution = settings_get_resolution();
+       
         
 
-        if (resolution == ADC_12_BITS)
+        if (settings_get()->adc_resolution == ADC_12_BITS)
         {
             downshift = 0;
         } else {
@@ -582,44 +582,58 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             downshift = 4;
         }
 
+        // factor[resolution][range]
         // For 12 bits, we can directly convert the data. For 16-bits, only if the sample rate is > 50Hz we don't need filtering
-        if (resolution == ADC_12_BITS || (resolution == ADC_16_BITS && settings_get_samplerate() > ADC_SAMPLE_RATE_50Hz))
-        {
+        // if  ( settings_get()->adc_resolution == ADC_12_BITS || 
+        //     (settings_get()->adc_resolution == ADC_16_BITS && settings_get_samplerate() > ADC_SAMPLE_RATE_50Hz)
+        //     )
+        // {
             for (j = 0; j < length; j = j + 2)
             {
                 // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
-                if ((range >> x) & 0x01)
-                {
-                    // Bit == 1
-                    channel_offset = 60*ADC_MULT_FACTOR_60V;
-                    if (resolution == ADC_12_BITS)
-                    {
-                        // Factor is 1000000*120/4095 
-                        factor = ADC_12_BITS_60V_FACTOR;
-                    } else {
-                        // Factor is 1000000*120/65535 
-                        factor = ADC_16_BITS_60V_FACTOR;
-                    }
-                } else {
-                    channel_offset = 10*ADC_MULT_FACTOR_10V;
-                    if (resolution == ADC_12_BITS)
-                    {
-                        factor = ADC_12_BITS_10V_FACTOR;
-                    } else {
-                        factor = ADC_16_BITS_10V_FACTOR;
-                    }
-                }
+                // if (settings_get_adc_channel_range(x))
+                // {
+                //     // 60V range
+                //     channel_offset = 60*ADC_MULT_FACTOR_60V;
+                    
+                //     if (settings_get()->adc_resolution  == ADC_12_BITS)
+                //     {
+                //         // Factor is 1000000*120/4095 
+                //         factor = ADC_12_BITS_60V_FACTOR;
+                //         channel_offset = 60*1000000;
+                //     } else {
+                //         // Factor is 1000000*120/65535 
+                //         factor = ADC_16_BITS_60V_FACTOR;
+                //           channel_offset = 60*ADC_MULT_FACTOR_60V;
+                //     }
+                // } else {
+                //     channel_offset = 10*ADC_MULT_FACTOR_10V;
+                //     if (settings_get()->adc_resolution  == ADC_12_BITS)
+                //     {
+                //         factor = ADC_12_BITS_10V_FACTOR;
+                //     } else {
+                //         factor = ADC_16_BITS_10V_FACTOR;
+                        
+                //     }
+                // }
+                multfactor = ADC_MULT_FACTOR_10V;
+                channel_offset = 10*multfactor;
+                factor = ADC_12_BITS_10V_FACTOR;
+                
             
                 // Detect type of sensor and conver accordingly
-                if ((type >> x) & 0x01)
+                if (settings_get_adc_channel_type(x))
                 {
                     // ESP_LOGI(TAG_LOG,"temp detected");
                     // calculateTemperatureLUT(&(adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]), ((uint16_t)adcData[j]) | ((uint16_t)adcData[j+1] << 8), (1 << settings_get_resolution()) - 1);
-                    adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8) >> downshift)*100000;
+                    int temp = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+                    ESP_LOGI(TAG_LOG,"temp %d, %d", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
+                    adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = temp;
                 } else {
                     // adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);   
-                    
+                   
                     adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
+                    ESP_LOGI(TAG_LOG,"%d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]);
                 }
             
 
@@ -627,41 +641,42 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 x = x % 8;
                 writeptr++;
             }
-        } else if (resolution == ADC_16_BITS && settings_get_samplerate() <= ADC_SAMPLE_RATE_50Hz) { // 16 bit adc
+        // } 
+        // else if (settings_get()->adc_resolution  == ADC_16_BITS && settings_get_samplerate() <= ADC_SAMPLE_RATE_50Hz) { // 16 bit adc
         
-            // IIR filter required for these cases
-            for (j = 0; j < length; j = j + 2)
-            {
-                if ((range >> x) & 0x01)
-                {
-                    // Bit == 1
-                    channel_offset = 60000000L;
-                    factor = ADC_16_BITS_60V_FACTOR;
-                } else {
-                    channel_offset = 10000000L;
-                    factor = ADC_16_BITS_10V_FACTOR;
-                }
+        //     // IIR filter required for these cases
+        //     for (j = 0; j < length; j = j + 2)
+        //     {
+        //         if (settings_get_adc_channel_range(x))
+        //         {
+        //             // Bit == 1
+        //             channel_offset = 60*ADC_MULT_FACTOR_60V;
+        //             factor = ADC_16_BITS_60V_FACTOR;
+        //         } else {
+        //             channel_offset = 10*ADC_MULT_FACTOR_10V;
+        //             factor = ADC_16_BITS_10V_FACTOR;
+        //         }
 
-                // Detect type of sensor and conver accordingly
-                if ((type >> x) & 0x01)
-                {
-                    // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
-                    filtered_value = NTC_ADC2Temperature(((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)) >> downshift)*100000;
-                } else {
-                    // 4884 is 1000000*20/4095
-                    filtered_value = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
-                    iir_filter(filtered_value, &filtered_value, x);
-                }
+        //         // Detect type of sensor and conver accordingly
+        //         if (settings_get_adc_channel_type(x))
+        //         {
+        //             // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
+        //             filtered_value = NTC_ADC2Temperature(((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)) >> downshift)*100000;
+        //         } else {
+        //             // 4884 is 1000000*20/4095
+        //             filtered_value = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
+        //             iir_filter(filtered_value, &filtered_value, x);
+        //         }
 
-                adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = filtered_value;
+        //         adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = filtered_value;
                 
 
-                x++;
-                x = x % 8;
-                writeptr++;
-            }
+        //         x++;
+        //         x = x % 8;
+        //         writeptr++;
+        //     }
             
-        }
+        // }
         
 
         //ESP_LOGI(TAG_LOG, "ADC FP: %d %d %d %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1] , adc_buffer_fixed_point[2], adc_buffer_fixed_point[3]);
@@ -835,6 +850,12 @@ esp_err_t Logger_processData()
             memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_2_ptr->timeData), 
                 spi_msg_2_ptr->timeData, 
                 sizeof(spi_msg_2_ptr->timeData));
+
+            // Or do everything in one shot :-)
+            // memcpy(&sdcard_data+log_counter*spi_msg_2_ptr->dataLen, spi_msg_2_ptr, spi_msg_2_ptr->dataLen);
+            // Or do it in one shot and with DMA :-D
+
+
             sdcard_data.datarows += spi_msg_2_ptr->dataLen;
             #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+1], sdcard_data.timeData[log_counter*sizeof(spi_msg_2_ptr->timeData)+2]);
@@ -854,9 +875,7 @@ esp_err_t Logger_processData()
         // Convert data to fixed point if necessary
         if (settings_get_logmode() == LOGMODE_CSV)
         {
-            Logger_raw_to_csv(log_counter, sdcard_data.adcData+log_counter*sizeof(spi_msg_1_ptr->adcData), sizeof(spi_msg_1_ptr->adcData), 
-            settings_get_adc_channel_range_all(), 
-            settings_get_adc_channel_type_all());
+            Logger_raw_to_csv(log_counter, sdcard_data.adcData+log_counter*sizeof(spi_msg_1_ptr->adcData), sizeof(spi_msg_1_ptr->adcData));
         }
         
         log_counter++; // received bytes = log_counter*512

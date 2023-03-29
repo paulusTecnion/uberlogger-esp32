@@ -5,6 +5,11 @@
 static const char* TAG_SETTINGS = "SETTINGS";
 Settings_t _settings;
 
+// Mult factor for the ADC channels.
+// Use as follows: mult_factor[resolution][range]
+// int32_t adc_factor[2][2];
+// int64_t adc_mult_factor[2];
+
 void settings_init()
 {
     if (settings_load_persisted_settings() != ESP_OK)
@@ -12,7 +17,14 @@ void settings_init()
         settings_set_default();
         settings_persist_settings();
     }
-    
+
+    // Set mult_factor 
+    // adc_factor[ADC_12_BITS0][ADC_RANGE_10V] = ADC_12_BITS_10V_FACTOR;
+    // adc_factor[ADC_12_BITS0][ADC_RANGE_60V] = ADC_12_BITS_60V_FACTOR;
+    // adc_factor[ADC_16_BITS0][ADC_RANGE_10V] = ADC_16_BITS_10V_FACTOR;
+    // adc_factor[ADC_16_BITS0][ADC_RANGE_60V] = ADC_16_BITS_60V_FACTOR;
+    // adc_mult_factor[ADC_RANGE_10V] = ADC_MULT_FACTOR_10V;
+    // adc_mult_factor[ADC_RANGE_60V] = ADC_MULT_FACTOR_60V;
 }
 
 uint8_t settings_get_adc_channel_enabled(adc_channel_t channel)

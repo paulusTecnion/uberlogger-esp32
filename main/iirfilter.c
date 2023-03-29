@@ -18,7 +18,7 @@ int64_t * c[NUM_ADC_CHANNELS];
 int64_t x_state[NUM_ADC_CHANNELS];
 int64_t y_state[NUM_ADC_CHANNELS];
 uint8_t coeff_index;
-adc_mult_factor coeff_factor[NUM_ADC_CHANNELS];
+adc_mult_factor_t coeff_factor[NUM_ADC_CHANNELS];
 
 
 void iir_filter(int32_t input, int32_t * output, uint8_t channel)
@@ -26,7 +26,7 @@ void iir_filter(int32_t input, int32_t * output, uint8_t channel)
     // Based on the factor, we need to pick the correct coefficients 
 
     // Multiply and accumulate
-    y_state[channel] = (c[channel][coeff_index] * (int64_t)input) + ((coeff_factor)-c[channel][coeff_index] * y_state[channel]);
+    y_state[channel] = (c[channel][coeff_index] * (int64_t)input) + ((coeff_factor[channel])-c[channel][coeff_index] * y_state[channel]);
 
     // the factor 1000000 is used 
     *output = (int32_t)(y_state[channel] / coeff_factor[channel]);
@@ -48,7 +48,6 @@ esp_err_t iir_set_settings(adc_sample_rate_t rate, adc_channel_range_t* ranges)
     {
         // Bit dirty, but turns out that the enum values are the same as the index
         coeff_index = rate;
-        return ESP_OK;
     } else {
         // no need for iir when > 50 Hz
         return ESP_ERR_INVALID_ARG;
@@ -72,6 +71,12 @@ esp_err_t iir_set_settings(adc_sample_rate_t rate, adc_channel_range_t* ranges)
                 return ESP_ERR_INVALID_ARG;
         }    
     }
+
+    return ESP_OK;
     
 }
 
+int32_t iir_get_mult_factor (adc_channel_t channel)
+{
+    return (int32_t)coeff_factor[channel];
+}

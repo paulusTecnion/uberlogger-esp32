@@ -42,6 +42,12 @@ typedef enum adc_resolution_e {
     ADC_16_BITS = 16
 } adc_resolution_t;
 
+typedef enum adc_resolution_0_t
+{
+	ADC_12_BITS0 = 0,
+	ADC_16_BITS0 
+};
+
 typedef enum adc_channel_enable_e {
 	ADC_CHANNEL_DISABLED = 0,
 	ADC_CHANNEL_ENABLED = 1
@@ -65,17 +71,17 @@ typedef enum adc_sample_rate_e {
 } adc_sample_rate_t;
 
 // Multiply offsets and coefficients with 10000000 to work with these factors
-enum int32 {
-	ADC_12_BITS_10V_FACTOR = 488401,// 100000000
-	ADC_12_BITS_60V_FACTOR = 293040,// 10000000
-	ADC_16_BITS_10V_FACTOR = 30518, // 100000000
-	ADC_16_BITS_60V_FACTOR = 18310	// 10000000
-} adc_factors;
+typedef enum int32 {
+	ADC_12_BITS_10V_FACTOR = 488400,
+	ADC_12_BITS_60V_FACTOR = 293040,
+	ADC_16_BITS_10V_FACTOR = 30518, 
+	ADC_16_BITS_60V_FACTOR = 18310	
+} adc_factors_t;
 
 typedef enum int64 {
 	ADC_MULT_FACTOR_10V =  	100000000LL,
 	ADC_MULT_FACTOR_60V = 	10000000LL
-} adc_mult_factor;
+} adc_mult_factor_t;
 
 typedef enum log_mode_e {
     LOGMODE_RAW = 0,
