@@ -11,7 +11,7 @@
 // 0.956786082
 #define TAG_IIR "IIR"
 
-#define NUM_COEFFICIENTS 7   // Filter length                                             
+#define NUM_COEFFICIENTS 7   // Filter length                                                       
 const int64_t c_10v[NUM_COEFFICIENTS] = {8584925, 16432841, 32476809, 54406187, 79212042, 95678608, 100000000};      // mulitplied with 100000000 
 const int64_t c_60v[NUM_COEFFICIENTS] = {858493, 1643284, 3247681, 5440619, 7921204, 9567861, 10000000};            // multiplied with 10000000
 

@@ -582,33 +582,19 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             for (j = 0; j < length; j = j + 2)
             {
                 // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
-                // if (settings_get_adc_channel_range(x))
-                // {
-                //     // 60V range
-                //     channel_offset = 60*ADC_MULT_FACTOR_60V;
+                if (settings_get_adc_channel_range(x))
+                {
+                    // 60V range
+                    channel_offset = 60*ADC_MULT_FACTOR_60V;
+
+                } else {
+                    channel_offset = 10*ADC_MULT_FACTOR_10V;
                     
-                //     if (settings_get()->adc_resolution  == ADC_12_BITS)
-                //     {
-                //         // Factor is 1000000*120/4095 
-                //         factor = ADC_12_BITS_60V_FACTOR;
-                //         channel_offset = 60*1000000;
-                //     } else {
-                //         // Factor is 1000000*120/65535 
-                //         factor = ADC_16_BITS_60V_FACTOR;
-                //           channel_offset = 60*ADC_MULT_FACTOR_60V;
-                //     }
-                // } else {
-                //     channel_offset = 10*ADC_MULT_FACTOR_10V;
-                //     if (settings_get()->adc_resolution  == ADC_12_BITS)
-                //     {
-                //         factor = ADC_12_BITS_10V_FACTOR;
-                //     } else {
-                //         factor = ADC_16_BITS_10V_FACTOR;
-                        
-                //     }
-                // }
-                multfactor = ADC_MULT_FACTOR_10V;
-                channel_offset = 10*multfactor;
+                }
+
+                channel_range = 2*channel_offset;
+                // multfactor = ADC_MULT_FACTOR_10V;
+                // channel_offset = 10*multfactor;
                 factor = ADC_12_BITS_10V_FACTOR;
                 
             
@@ -621,9 +607,9 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                     // ESP_LOGI(TAG_LOG,"temp %d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
                     adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = temp;
                 } else {
-                    // adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);   
-                   
-                    adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
+                    adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);   
+                    // adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
+                    
                     // ESP_LOGI(TAG_LOG,"%d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]);
                 }
             
@@ -643,11 +629,11 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 {
                     // Bit == 1
                     channel_offset = 60*ADC_MULT_FACTOR_60V;
-                    factor = ADC_16_BITS_60V_FACTOR;
                 } else {
                     channel_offset = 10*ADC_MULT_FACTOR_10V;
-                    factor = ADC_16_BITS_10V_FACTOR;
                 }
+                channel_range = 2*channel_offset;
+                factor = ADC_16_BITS_60V_FACTOR;
 
                 // Detect type of sensor and conver accordingly
                 if (settings_get_adc_channel_type(x))
@@ -656,7 +642,8 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                     filtered_value = NTC_ADC2Temperature(((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)) >> 4)*100000;
                 } else {
                     // 4884 is 1000000*20/4095
-                    unfiltered_value = (factor*(int32_t)((int32_t)adcData[j] | ((int32_t)adcData[j+1]<<8))) - channel_offset;
+                    unfiltered_value = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);   
+                    // unfiltered_value = (factor*(int32_t)((int32_t)adcData[j] | ((int32_t)adcData[j+1]<<8))) - channel_offset;
                     if (settings_get()->log_sample_rate > ADC_SAMPLE_RATE_50Hz)
                     {
                         filtered_value = unfiltered_value;
