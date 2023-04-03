@@ -9,10 +9,11 @@
 // 0.544061872
 // 0.792120424
 // 0.956786082
+#define TAG_IIR "IIR"
 
-#define NUMER_COEFFICIENTS 6   // Filter length
-const int64_t c_10v[NUMER_COEFFICIENTS] = {8584925, 16432841, 32476809, 54406187, 79212042, 95678608};      // mulitplied with 100000000 
-const int64_t c_60v[NUMER_COEFFICIENTS] = {858493, 1643284, 3247681, 5440619, 7921204, 9567861};            // multiplied with 10000000
+#define NUM_COEFFICIENTS 7   // Filter length                                             
+const int64_t c_10v[NUM_COEFFICIENTS] = {8584925, 16432841, 32476809, 54406187, 79212042, 95678608, 100000000};      // mulitplied with 100000000 
+const int64_t c_60v[NUM_COEFFICIENTS] = {858493, 1643284, 3247681, 5440619, 7921204, 9567861, 10000000};            // multiplied with 10000000
 
 int64_t * c[NUM_ADC_CHANNELS];
 int64_t x_state[NUM_ADC_CHANNELS];
@@ -26,10 +27,11 @@ void iir_filter(int32_t input, int32_t * output, uint8_t channel)
     // Based on the factor, we need to pick the correct coefficients 
 
     // Multiply and accumulate
-    y_state[channel] = (c[channel][coeff_index] * (int64_t)input) + ((coeff_factor[channel])-c[channel][coeff_index] * y_state[channel]);
+    // ESP_LOGI(TAG_IIR, "input: %ld, coeff: %lld, y_state: %lld", input, c[channel][coeff_index], y_state[channel]);
+    y_state[channel] = ((c[channel][coeff_index] * (int64_t)input ) + ((coeff_factor[channel]-c[channel][coeff_index]) * y_state[channel]))/ coeff_factor[channel];
 
     // the factor 1000000 is used 
-    *output = (int32_t)(y_state[channel] / coeff_factor[channel]);
+    *output = (int32_t)(y_state[channel]);
 }
 
 void iir_reset()
@@ -50,8 +52,10 @@ esp_err_t iir_set_settings(adc_sample_rate_t rate, adc_channel_range_t* ranges)
         coeff_index = rate;
     } else {
         // no need for iir when > 50 Hz
-        return ESP_ERR_INVALID_ARG;
+        coeff_index = NUM_COEFFICIENTS;
+        // return ESP_OK;
     }
+
 
     for (int i=0; i<NUM_ADC_CHANNELS; i++)
     {
@@ -70,8 +74,12 @@ esp_err_t iir_set_settings(adc_sample_rate_t rate, adc_channel_range_t* ranges)
             default:
                 return ESP_ERR_INVALID_ARG;
         }    
+        ESP_LOGI(TAG_IIR, "%d, coeff index: %d, %s, %s", i, coeff_index, 
+        (coeff_factor[i] == ADC_MULT_FACTOR_10V ? "ADC_MULT_10V" : "ADC_MULT_60V"),
+        (c[i] == c_10v ? "c_10v" : "c_60v"));
     }
 
+    
     return ESP_OK;
     
 }

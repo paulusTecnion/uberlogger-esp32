@@ -564,9 +564,9 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
      
         int j,x=0;
         uint32_t writeptr = 0;
-        int32_t channel_range, channel_offset;
-        int32_t filtered_value;
-        int32_t factor, downshift, multfactor;
+        int32_t channel_range=0, channel_offset=0;
+        int32_t filtered_value=0, unfiltered_value=0;
+        int32_t factor=0,  multfactor=0;
         // uint16_t adc0, adc1=0;
         #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
@@ -574,20 +574,11 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
        
         
 
-        if (settings_get()->adc_resolution == ADC_12_BITS)
-        {
-            downshift = 0;
-        } else {
-            // Downshift with 4 bits to get 12 bits resolution for temperature sensor
-            downshift = 4;
-        }
 
         // factor[resolution][range]
         // For 12 bits, we can directly convert the data. For 16-bits, only if the sample rate is > 50Hz we don't need filtering
-        // if  ( settings_get()->adc_resolution == ADC_12_BITS || 
-        //     (settings_get()->adc_resolution == ADC_16_BITS && settings_get_samplerate() > ADC_SAMPLE_RATE_50Hz)
-        //     )
-        // {
+        if  ( settings_get()->adc_resolution == ADC_12_BITS )
+        {
             for (j = 0; j < length; j = j + 2)
             {
                 // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
@@ -626,14 +617,14 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 {
                     // ESP_LOGI(TAG_LOG,"temp detected");
                     // calculateTemperatureLUT(&(adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]), ((uint16_t)adcData[j]) | ((uint16_t)adcData[j+1] << 8), (1 << settings_get_resolution()) - 1);
-                    int temp = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
-                    ESP_LOGI(TAG_LOG,"temp %d, %d", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
+                    int32_t temp = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+                    // ESP_LOGI(TAG_LOG,"temp %d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
                     adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = temp;
                 } else {
                     // adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);   
                    
                     adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
-                    ESP_LOGI(TAG_LOG,"%d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]);
+                    // ESP_LOGI(TAG_LOG,"%d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]);
                 }
             
 
@@ -641,45 +632,51 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 x = x % 8;
                 writeptr++;
             }
-        // } 
-        // else if (settings_get()->adc_resolution  == ADC_16_BITS && settings_get_samplerate() <= ADC_SAMPLE_RATE_50Hz) { // 16 bit adc
+        } 
+        else
+        { // 16 bit adc
         
-        //     // IIR filter required for these cases
-        //     for (j = 0; j < length; j = j + 2)
-        //     {
-        //         if (settings_get_adc_channel_range(x))
-        //         {
-        //             // Bit == 1
-        //             channel_offset = 60*ADC_MULT_FACTOR_60V;
-        //             factor = ADC_16_BITS_60V_FACTOR;
-        //         } else {
-        //             channel_offset = 10*ADC_MULT_FACTOR_10V;
-        //             factor = ADC_16_BITS_10V_FACTOR;
-        //         }
+            // IIR filter required for these cases
+            for (j = 0; j < length; j = j + 2)
+            {
+                if (settings_get_adc_channel_range(x))
+                {
+                    // Bit == 1
+                    channel_offset = 60*ADC_MULT_FACTOR_60V;
+                    factor = ADC_16_BITS_60V_FACTOR;
+                } else {
+                    channel_offset = 10*ADC_MULT_FACTOR_10V;
+                    factor = ADC_16_BITS_10V_FACTOR;
+                }
 
-        //         // Detect type of sensor and conver accordingly
-        //         if (settings_get_adc_channel_type(x))
-        //         {
-        //             // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
-        //             filtered_value = NTC_ADC2Temperature(((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)) >> downshift)*100000;
-        //         } else {
-        //             // 4884 is 1000000*20/4095
-        //             filtered_value = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
-        //             iir_filter(filtered_value, &filtered_value, x);
-        //         }
+                // Detect type of sensor and conver accordingly
+                if (settings_get_adc_channel_type(x))
+                {
+                    // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
+                    filtered_value = NTC_ADC2Temperature(((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)) >> 4)*100000;
+                } else {
+                    // 4884 is 1000000*20/4095
+                    unfiltered_value = (factor*(int32_t)((int32_t)adcData[j] | ((int32_t)adcData[j+1]<<8))) - channel_offset;
+                    iir_filter(unfiltered_value, &filtered_value, x);
+                }
 
-        //         adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = filtered_value;
+                adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = filtered_value;
                 
-
-        //         x++;
-        //         x = x % 8;
-        //         writeptr++;
-        //     }
+                // if (x==0)
+                // {
+                //     ESP_LOGI(TAG_LOG, "ADC FP: %d %ld %ld %ld %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8)), unfiltered_value, filtered_value , channel_offset, factor);
+                // }
+                
+                x++;
+                x = x % 8;
+                writeptr++;
+                
+            }
             
-        // }
+        }
         
-
-        //ESP_LOGI(TAG_LOG, "ADC FP: %d %d %d %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1] , adc_buffer_fixed_point[2], adc_buffer_fixed_point[3]);
+        
+        
     
         return RET_OK;
 }
