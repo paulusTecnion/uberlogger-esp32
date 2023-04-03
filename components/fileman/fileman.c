@@ -159,11 +159,21 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             //     dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
             // }
 
+            // If temperature sensor and 16 bits we need to multiply input with 100 (or divide with factor 100 less which is ADC_MULT_FACTOR_16B_TEMP)
+            if ((settings_get()->adc_resolution == ADC_16_BITS) && (settings_get()->adc_channel_type & (1 << x)))
+            {
 
+                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%06d,",
+                    (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
+                    abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_16B_TEMP)), 
+                    abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_16B_TEMP));
+            } else {
                 writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%06d,",
                     (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
                     abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_10V)), 
                     abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_10V));
+            }
+         
             
         }
         // Finally the IOs

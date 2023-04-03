@@ -639,7 +639,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 if (settings_get_adc_channel_type(x))
                 {
                     // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
-                    filtered_value = NTC_ADC2Temperature(((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)) >> 4)*100000;
+                    filtered_value = (int32_t)NTC_ADC2Temperature(((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)) >> 4)*100000L;
                 } else {
                     // 4884 is 1000000*20/4095
                     unfiltered_value = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);   
@@ -655,10 +655,10 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
 
                 adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = filtered_value;
                 
-                // if (x==0)
-                // {
-                //     ESP_LOGI(TAG_LOG, "ADC FP: %d %ld %ld %ld %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8)), unfiltered_value, filtered_value , channel_offset, factor);
-                // }
+                if (x==0)
+                {
+                    ESP_LOGI(TAG_LOG, "ADC FP: %d %ld %ld %ld %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8)), unfiltered_value, filtered_value , channel_offset, factor);
+                }
                 
                 x++;
                 x = x % 8;
