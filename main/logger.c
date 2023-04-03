@@ -655,10 +655,10 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
 
                 adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = filtered_value;
                 
-                if (x==0)
-                {
-                    ESP_LOGI(TAG_LOG, "ADC FP: %d %ld %ld %ld %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8)), unfiltered_value, filtered_value , channel_offset, factor);
-                }
+                // if (x==0)
+                // {
+                //     ESP_LOGI(TAG_LOG, "ADC FP: %d %ld %ld %ld %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8)), unfiltered_value, filtered_value , channel_offset, factor);
+                // }
                 
                 x++;
                 x = x % 8;
