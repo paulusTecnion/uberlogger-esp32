@@ -655,10 +655,10 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
 
                 adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = filtered_value;
                 
-                if (x==0)
-                {
-                    ESP_LOGI(TAG_LOG, "ADC FP: %d %ld %ld %ld %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8)), unfiltered_value, filtered_value , channel_offset, factor);
-                }
+                // if (x==0)
+                // {
+                //     ESP_LOGI(TAG_LOG, "ADC FP: %d %ld %ld %ld %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8)), unfiltered_value, filtered_value , channel_offset, factor);
+                // }
                 
                 x++;
                 x = x % 8;
@@ -844,7 +844,28 @@ esp_err_t Logger_processData()
             // Or do everything in one shot :-)
             // memcpy(&sdcard_data+log_counter*spi_msg_2_ptr->dataLen, spi_msg_2_ptr, spi_msg_2_ptr->dataLen);
             // Or do it in one shot and with DMA :-D
+            
+            // date_time_ptr -= sizeof(s_date_time_t)*4;
+            // ESP_LOGI(TAG_LOG, "ss: %ld, %ld, %ld, %ld", 
+            //     (date_time_ptr+sizeof(s_date_time_t))->subseconds,
+            //     (date_time_ptr+sizeof(s_date_time_t)*1)->subseconds, 
+            //     (date_time_ptr+sizeof(s_date_time_t)*2)->subseconds, 
+            //     (date_time_ptr+sizeof(s_date_time_t)*3)->subseconds);
 
+            // ESP_LOGI(TAG_LOG, "ss: %ld, %ld, %ld, %ld", 
+            // (int32_t)((date_time_ptr+sizeof(s_date_time_t)*1)->subseconds - date_time_ptr->subseconds),
+            // (int32_t)((date_time_ptr+sizeof(s_date_time_t)*2)->subseconds - (date_time_ptr+sizeof(s_date_time_t)*1)->subseconds), 
+            // (int32_t)((date_time_ptr+sizeof(s_date_time_t)*3)->subseconds - (date_time_ptr+sizeof(s_date_time_t)*2)->subseconds), 
+            // (int32_t)((date_time_ptr+sizeof(s_date_time_t)*4)->subseconds - (date_time_ptr+sizeof(s_date_time_t)*3)->subseconds));
+            
+            // s_date_time_t date_time_ptr ;
+
+
+            // for (int i = 0; i <70; i++)
+            // {
+            //     date_time_ptr = spi_msg_2_ptr->timeData[i];
+            //     ESP_LOGI(TAG_LOG, "%lu", date_time_ptr.subseconds);   
+            // }
 
             sdcard_data.datarows += spi_msg_2_ptr->dataLen;
             #ifdef DEBUG_LOGGING
