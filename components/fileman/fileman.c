@@ -134,10 +134,12 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
     //     ESP_LOGI(TAG_FILE, "ADC fp: %d", *(dataAdc+i));
     // }
 
+    // ESP_LOGI(TAG_FILE, "Writing %d rows", datarows);
+
     for (int i = 0; i<datarows; i++)
     {
         // Print time stamp
-        writeptr = writeptr + sprintf(filestrbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03d,",
+        writeptr = writeptr + sprintf(filestrbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03lu,",
             date_time_ptr[j].year, 
             date_time_ptr[j].month,
             date_time_ptr[j].date,
@@ -146,6 +148,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             date_time_ptr[j].seconds,
             date_time_ptr[j].subseconds);
 
+      
         // Print ADC
         for (int x=0; x<NUM_ADC_CHANNELS; x++)
         {
