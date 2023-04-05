@@ -48,7 +48,14 @@ static int cmd_sample_rate(int argc, char **argv)
     {
         return settings_set_samplerate(settings_args.val->ival[0]);
     } else if (!strcmp(settings_args.arg0->sval[0], "res"))  {   
-        return settings_set_resolution(settings_args.val->ival[0]);
+
+        if (settings_set_resolution(settings_args.val->ival[0]) == ESP_OK)
+        {
+            Logger_syncSettings();
+            return 0;
+        } else {
+            return 1;
+        }
     } else if (!strcmp(settings_args.arg0->sval[0], "print")){
         return settings_print();
     } else {

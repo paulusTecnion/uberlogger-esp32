@@ -250,8 +250,8 @@ esp_err_t Logger_singleShot()
     cmd.command = STM32_CMD_SINGLE_SHOT_MEASUREMENT;
     cmd.data0 = 0;
 
-    if (Logger_getState() == LOGTASK_IDLE)
-    {
+    // if (Logger_getState() == LOGTASK_SINGLE_SHOT)
+    // {
         if (spi_ctrl_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, &cmd, sizeof(spi_cmd_t)) == ESP_OK)
         {
             
@@ -269,9 +269,9 @@ esp_err_t Logger_singleShot()
             return ESP_FAIL;
         }
         return ESP_OK;        
-    } 
+    // } 
     
-    return ESP_FAIL;
+    // return ESP_FAIL;
     // else if (Logger_getState() == LOGTASK_LOGGING)
     // {
     //     // Data should be already available, since normal logging is enabled
@@ -285,6 +285,17 @@ esp_err_t Logger_singleShot()
 
 esp_err_t Logger_syncSettings()
 {
+
+    uint8_t timeout = 0;
+    while (_currentLogTaskState != LOGTASK_IDLE)
+    {
+        vTaskDelay (50 / portTICK_PERIOD_MS);
+        timeout++;
+        if (timeout > (500/50))
+        {
+            return ESP_FAIL;
+        }
+    }
     settings_persist_settings();
 
     
@@ -579,6 +590,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
         // For 12 bits, we can directly convert the data. For 16-bits, only if the sample rate is > 50Hz we don't need filtering
         if  ( settings_get()->adc_resolution == ADC_12_BITS )
         {
+            // ESP_LOGI(TAG_LOG, "12 bits");
             for (j = 0; j < length; j = j + 2)
             {
                 // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
@@ -603,7 +615,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 {
                     // ESP_LOGI(TAG_LOG,"temp detected");
                     // calculateTemperatureLUT(&(adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]), ((uint16_t)adcData[j]) | ((uint16_t)adcData[j+1] << 8), (1 << settings_get_resolution()) - 1);
-                    int32_t temp = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+                    int32_t temp = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8))*100000L;
                     // ESP_LOGI(TAG_LOG,"temp %d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
                     adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = temp;
                 } else {
@@ -973,7 +985,7 @@ esp_err_t Logger_logging()
             state = spi_ctrl_rxstate();
 
             // To add: timeout function. This, however, depends on the logging rate used. 
-            // For now, the time out is set to 73 seconds, since at 1 Hz, the maximum fill time of the buffer is 70 seconds (it's size is 70)
+            // For now, the time out is set to 73 seconds, since at 1 Hz, the maximum fill time of the buffer is 70 seconds (its size is 70)
             if (currtime_us - stm32TimerTimeout > (DATA_LINES_PER_SPI_TRANSACTION+3)*1000000)
             {
                 ESP_LOGE(TAG_LOG, "STM32 timed out: %llu", currtime_us - stm32TimerTimeout);
@@ -1214,7 +1226,14 @@ void task_logging(void * pvParameters)
                     lastTick++;
                     if (lastTick > 1)
                     {
-                        if (Logger_singleShot() == ESP_OK)
+                        _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+                    }
+                }
+            
+            break;
+
+            case LOGTASK_SINGLE_SHOT:
+                if (Logger_singleShot() == ESP_OK)
                         {
                             // Wait for the STM32 to acquire data. Takes about 40 ms.
                             vTaskDelay(50 / portTICK_PERIOD_MS);
@@ -1234,13 +1253,11 @@ void task_logging(void * pvParameters)
                                 ESP_LOGE(TAG_LOG, "Error receiving last message");
                             }
                         } 
-                        // else {
-                        //     ESP_LOGE(TAG_LOG, "Singleshot error");
-                        // }
+                        else {
+                            // ESP_LOGE(TAG_LOG, "Singleshot error");
+                        }
                         lastTick = 0;
-                    }
-                }
-            
+                        _nextLogTaskState = LOGTASK_IDLE;
             break;
 
             case LOGTASK_LOGGING:     

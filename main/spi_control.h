@@ -15,7 +15,7 @@ typedef enum uint8_t {
 } rxdata_state_t;
 
 typedef enum stm32cmd {
-    STM32_CMD_NOP=0,
+    STM32_CMD_NOP=0x00,
     STM32_CMD_SETTINGS_MODE,
     STM32_CMD_SETTINGS_SYNC,
     STM32_CMD_MEASURE_MODE,
@@ -24,7 +24,9 @@ typedef enum stm32cmd {
     STM32_CMD_SET_ADC_CHANNELS_ENABLED,
     STM32_CMD_SET_DATETIME,
     STM32_CMD_SINGLE_SHOT_MEASUREMENT,
-    STM32_CMD_SEND_LAST_ADC_BYTES
+    STM32_CMD_SEND_LAST_ADC_BYTES,
+    STM32_CMD_SET_LOGMODE,
+	CMD_UNKNOWN
 } stm32cmd_t;
 
 typedef enum stm32resp {
