@@ -85,9 +85,9 @@ int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t
     t0 = ((int32_t)adcData0 | ((int32_t)adcData1 << 8));
             
     // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
-    t1 = t0 * (-1LL* range); // note the minus for inverted input!
+    t1 = t0 * (range); // note the minus for inverted input!
     t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
-    t3 = t2 + offset;
+    t3 = t2 - offset;
     return (int32_t) t3;
     
 }
