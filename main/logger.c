@@ -60,6 +60,7 @@ struct {
 
 // Same size as SPI buffer but then int32 size. 
 int32_t adc_buffer_fixed_point[(ADC_VALUES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH)];
+int32_t adc_calibration_values[NUM_ADC_CHANNELS];
 
 char strbuffer[16];
 
@@ -82,9 +83,10 @@ extern TaskHandle_t xHandle_stm32;
 
 static uint8_t log_counter = 0;
 
-int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t range, uint64_t offset)
+int32_t Logger_convertAdcFixedPoint(uint16_t adcVal, uint64_t range, uint64_t offset)
 {
-    t0 = ((int32_t)adcData0 | ((int32_t)adcData1 << 8));
+    // t0 = ((int32_t)adcData0 | ((int32_t)adcData1 << 8));
+    t0 = (int32_t)adcVal;
             
     // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
     t1 = t0 * (range); // note the minus for inverted input!
@@ -94,10 +96,11 @@ int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t
     
 }
 
-float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1)
+float Logger_convertAdcFloat(uint16_t adcVal)
 {
     float t0_f, t1_f, t2_f, t3_f;
-    t0_f = (adcData0 | (adcData1 << 8));
+    // t0_f = (adcData0 | (adcData1 << 8));
+    t0_f = (float)adcVal;
             
     // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
 
@@ -186,10 +189,22 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
         adc0 = live_data_buffer.adcData[i];
         adc1 = live_data_buffer.adcData[i+1];
-
-        dataOutput->analogData[j] = Logger_convertAdcFloat(adc0,  adc1);
-        calculateTemperatureFloat(&tfloat, (float)(adc0 | (adc1 << 8)) , (float)(0x01 << settings_get_resolution())-1);
+        uint16_t adcVal = adc0 | (adc1 << 8);
+        // compensate for offset
+        //  ESP_LOGI(TAG_LOG, "adcVal:%u", adcVal);
+        if (settings_get()->adc_resolution == ADC_12_BITS)
+        {
+            adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<11) - (int16_t)(settings_get()->adc_offsets_12b[j])));
+        } else {
+            adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<15) - (int16_t)(settings_get()->adc_offsets_16b[j])));
+        }
         
+        dataOutput->analogData[j] = Logger_convertAdcFloat(adcVal);
+
+        calculateTemperatureFloat(&tfloat, (float)(adcVal) , (float)(0x01 << settings_get_resolution())-1);
+        
+        // ESP_LOGI(TAG_LOG, "index:%d, %u, %f", j, adcVal, tfloat);
+
         dataOutput->temperatureData[j] = tfloat;
         j++;
     }
@@ -289,12 +304,17 @@ esp_err_t Logger_syncSettings()
 {
 
     uint8_t timeout = 0;
-    while (_currentLogTaskState != LOGTASK_IDLE)
+    while (1)
     {
+        if (_currentLogTaskState == LOGTASK_IDLE || 
+            _currentLogTaskState == LOGTASK_CALIBRATION)
+            break;
+
         vTaskDelay (50 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout > (500/50))
+        if (timeout > (10))
         {
+
             return ESP_FAIL;
         }
     }
@@ -570,6 +590,22 @@ size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uint
     
 }
 
+esp_err_t Logger_calibrate()
+{
+    // #ifdef DEBUG_LOGGING
+    ESP_LOGI(TAG_LOG, "Logger_calibrate() called");
+    // #endif
+    if (_currentLogTaskState == LOGTASK_IDLE)
+    {
+        _nextLogTaskState = LOGTASK_CALIBRATION;
+        return ESP_OK;
+    } 
+    else 
+    {
+        return ESP_FAIL;
+    }
+
+}
 
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
 uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t length)
@@ -580,6 +616,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
         int32_t channel_range=0, channel_offset=0;
         int32_t filtered_value=0, unfiltered_value=0;
         int32_t factor=0,  multfactor=0;
+        uint16_t adcVal = 0;
         // uint16_t adc0, adc1=0;
         #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
@@ -592,6 +629,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
         // For 12 bits, we can directly convert the data. For 16-bits, only if the sample rate is > 50Hz we don't need filtering
         if  ( settings_get()->adc_resolution == ADC_12_BITS )
         {
+            
             // ESP_LOGI(TAG_LOG, "12 bits");
             for (j = 0; j < length; j = j + 2)
             {
@@ -611,17 +649,22 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 // channel_offset = 10*multfactor;
                 factor = ADC_12_BITS_10V_FACTOR;
                 
-            
+                adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+                // Compenate offset
+                adcVal = (uint16_t)((int16_t)adcVal - ((int16_t)(1<<11) - (int16_t)settings_get()->adc_offsets_12b[x]) );
+
                 // Detect type of sensor and conver accordingly
                 if (settings_get_adc_channel_type(x))
                 {
                     // ESP_LOGI(TAG_LOG,"temp detected");
                     // calculateTemperatureLUT(&(adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]), ((uint16_t)adcData[j]) | ((uint16_t)adcData[j+1] << 8), (1 << settings_get_resolution()) - 1);
-                    int32_t temp = NTC_ADC2Temperature((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8))*100000L;
+                    
+                    int32_t temp = NTC_ADC2Temperature(adcVal)*100000L;
                     // ESP_LOGI(TAG_LOG,"temp %d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
                     adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = temp;
                 } else {
-                    adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);   
+                    // adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset) - settings_get()->adc_offsets_12b[x];;   
+                    adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);   
                     // adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
                     
                     // ESP_LOGI(TAG_LOG,"%d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]);
@@ -649,14 +692,18 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 channel_range = 2*channel_offset;
                 factor = ADC_16_BITS_60V_FACTOR;
 
+                adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+                // Compenate offset
+                adcVal = (uint16_t)((int16_t)adcVal - ((int16_t)(1<<15) - (int16_t)settings_get()->adc_offsets_16b[x]) );
+
                 // Detect type of sensor and conver accordingly
                 if (settings_get_adc_channel_type(x))
                 {
                     // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
-                    filtered_value = (int32_t)NTC_ADC2Temperature(((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)) >> 4)*100000L;
+                    filtered_value = (int32_t)NTC_ADC2Temperature(adcVal >> 4)*100000L;
                 } else {
                     // 4884 is 1000000*20/4095
-                    unfiltered_value = Logger_convertAdcFixedPoint(adcData[j], adcData[j+1], channel_range, channel_offset);   
+                    unfiltered_value = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);   
                     // unfiltered_value = (factor*(int32_t)((int32_t)adcData[j] | ((int32_t)adcData[j+1]<<8))) - channel_offset;
                     if (settings_get()->log_sample_rate > ADC_SAMPLE_RATE_50Hz)
                     {
@@ -664,9 +711,11 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                     } else {
                         iir_filter(unfiltered_value, &filtered_value, x);
                     }
-                    
+
+                    filtered_value = filtered_value;    
                 }
 
+                
                 adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = filtered_value;
                 
                 // if (x==0)
@@ -943,6 +992,8 @@ void Logging_restartSystem()
     _nextLogTaskState = LOGTASK_REBOOT_SYSTEM;
 }
 
+
+
 esp_err_t Logger_logging()
 {   
     
@@ -1101,6 +1152,9 @@ void task_logging(void * pvParameters)
    
     uint32_t lastTick = 0;
     uint32_t startTick = 0, stopTick = 0;
+    uint8_t calibration = 0, calibrationCounter = 0;
+    uint32_t calibrationValues[NUM_ADC_CHANNELS];
+    uint8_t x = 0;
     // Init STM32 ADC enable pin
     // gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
 
@@ -1227,40 +1281,159 @@ void task_logging(void * pvParameters)
                 } else {
                     vTaskDelay(500 / portTICK_PERIOD_MS);
                     lastTick++;
-                    if (lastTick > 1)
+                    if (lastTick > 1 && _nextLogTaskState == LOGTASK_IDLE)
                     {
                         _nextLogTaskState = LOGTASK_SINGLE_SHOT;
                     }
+                    
                 }
             
             break;
 
+            
+            case LOGTASK_CALIBRATION:
+
+                ESP_LOGI(TAG_LOG, "Calibration step %d", calibration);
+                switch (calibration)
+                {
+                    case 0:
+                        // Switch to 12 bits mode and do single shot. Then switch to 16 bits and the same.
+
+                        settings_set_resolution(ADC_12_BITS);
+                        Logger_syncSettings();
+                        settings_print();
+
+                        vTaskDelay(1000 / portTICK_PERIOD_MS);
+                        calibration = 1;
+                        _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+                        for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                        {
+                            calibrationValues[i] = 0;
+                        }
+
+                    break;
+
+                    case 1: 
+                        // Retrieve the calibration values
+                        
+                        // increase counter
+                        calibrationCounter++;
+                        x = 0;
+                        for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i + 2)
+                        {
+                            // (uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)
+                            calibrationValues[x] += ((uint16_t)spi_msg_1_ptr->adcData[i]) | ((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8); 
+                            // calibrationValues[x] += adc_buffer_fixed_point[x];
+                            ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
+                            x++;
+                        }
+
+                        if (calibrationCounter == 10)
+                        {
+                            // store calibration values
+                            for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                            {
+                                calibrationValues[i] = calibrationValues[i] / calibrationCounter;
+                                ESP_LOGI(TAG_LOG, "Average calib value %u: %lu", i, calibrationValues[i]);
+                            }
+                            
+                            settings_set_adc_offset(calibrationValues, ADC_12_BITS);
+
+                            calibrationCounter = 0;
+                            // go to next state
+                            
+                            settings_persist_settings();
+                            settings_set_resolution(ADC_16_BITS);
+                            Logger_syncSettings();
+
+                            for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                            {
+                                calibrationValues[i] = 0;
+                            }
+
+                            calibration = 2;
+                        } 
+
+                        _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+
+                    break;
+
+                    case 2:
+                        // Retrieve the calibration values
+
+                        // increase counter
+                        calibrationCounter++;
+                        x= 0;
+                        for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i+2)
+                        {
+                            calibrationValues[x] += (uint16_t)(((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8) | (uint16_t)spi_msg_1_ptr->adcData[i]); 
+                            // calibrationValues[i] += adc_buffer_fixed_point[i];
+                            ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
+                            x++;
+                        }
+
+                        if (calibrationCounter == 10)
+                        {
+                            // store calibration values
+                            for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                            {
+                                calibrationValues[i] = calibrationValues[i] / calibrationCounter;
+                                ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", i, calibrationValues[i]);
+                            }
+                            
+                            settings_set_adc_offset(calibrationValues, ADC_16_BITS);
+                            
+                            calibrationCounter = 0;
+                            // go to next state
+                            calibration = 0;
+                            settings_persist_settings();
+                            settings_set_resolution(ADC_12_BITS);
+                            Logger_syncSettings();
+                            
+                            _nextLogTaskState = LOGTASK_IDLE;
+                            settings_print();
+                            ESP_LOGI(TAG_LOG, "Calibration done");
+
+                        } else {
+                            _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+                        }
+                        
+
+                }
+            break;
+
             case LOGTASK_SINGLE_SHOT:
                 if (Logger_singleShot() == ESP_OK)
-                        {
-                            // Wait for the STM32 to acquire data. Takes about 40 ms.
-                            vTaskDelay(50 / portTICK_PERIOD_MS);
+                {
+                    // Wait for the STM32 to acquire data. Takes about 40 ms.
+                    vTaskDelay(100 / portTICK_PERIOD_MS);
 
-                            // Wait a bit before requesting the data
-                            spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+                    // Wait a bit before requesting the data
+                    spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
 
-                            LogTask_resetCounter();
-                            if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
-                            {
-                                #ifdef DEBUG_LOGTASK_RX
-                                // ESP_LOGI(TAG_LOG, "Last msg received");
-                                #endif
-                                Logger_processData();
-                                
-                            } else {
-                                ESP_LOGE(TAG_LOG, "Error receiving last message");
-                            }
-                        } 
-                        else {
-                            // ESP_LOGE(TAG_LOG, "Singleshot error");
-                        }
-                        lastTick = 0;
-                        _nextLogTaskState = LOGTASK_IDLE;
+                    LogTask_resetCounter();
+                    if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
+                    {
+                        #ifdef DEBUG_LOGTASK_RX
+                        // ESP_LOGI(TAG_LOG, "Last msg received");
+                        #endif
+                        Logger_processData();
+                        
+                    } else {
+                        ESP_LOGE(TAG_LOG, "Error receiving last message");
+                    }
+                } 
+                else {
+                    // ESP_LOGE(TAG_LOG, "Singleshot error");
+                }
+                lastTick = 0;
+                if (calibration)
+                {
+                    _nextLogTaskState = LOGTASK_CALIBRATION;
+                } else {
+                    _nextLogTaskState = LOGTASK_IDLE;
+                }
+                
             break;
 
             case LOGTASK_LOGGING:     
@@ -1375,7 +1548,7 @@ void task_logging(void * pvParameters)
         switch (Logger_mode_button_pushed())
         {
             case MODEBUTTON_IDLE:
-                ESP_LOGI(TAG_LOG, "Button idle");
+                // ESP_LOGI(TAG_LOG, "Button idle");
                 startTick = xTaskGetTickCount();
                 stopTick = 0;
             break;

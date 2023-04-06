@@ -42,11 +42,7 @@ typedef enum adc_resolution_e {
     ADC_16_BITS = 16
 } adc_resolution_t;
 
-typedef enum adc_resolution_0_t
-{
-	ADC_12_BITS0 = 0,
-	ADC_16_BITS0 
-};
+
 
 typedef enum adc_channel_enable_e {
 	ADC_CHANNEL_DISABLED = 0,
@@ -116,6 +112,12 @@ struct Settings_t {
 	uint8_t wifi_channel;
 	uint8_t wifi_mode;
 	uint32_t timestamp; // time in BCD format
+	// ADC 12 bit offset value in absolute value
+	uint16_t adc_offsets_12b[NUM_ADC_CHANNELS];
+	// ADC 16 bit offset value in absolute value
+	uint16_t adc_offsets_16b[NUM_ADC_CHANNELS];
+	// ADC temp offset value in absolute value
+	uint16_t temp_offsets[NUM_ADC_CHANNELS];
 };
 
 typedef struct Settings_t Settings_t;
@@ -124,6 +126,7 @@ static const char * settings_filename = "settings.json";
 
 void settings_init();
 Settings_t * settings_get();
+
 uint8_t settings_get_adc_channel_enabled(adc_channel_t channel);
 uint8_t settings_get_adc_channel_enabled_all();
 esp_err_t settings_set_enabled_adc_channels(adc_channel_t channel, adc_channel_enable_t value);
@@ -135,6 +138,12 @@ esp_err_t settings_set_adc_channel_type(adc_channel_t channel, adc_channel_type_
 uint8_t settings_get_adc_channel_range(adc_channel_t channel);
 uint8_t settings_get_adc_channel_range_all();
 esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value);
+
+int32_t * settings_get_temp_offsets();
+esp_err_t settings_set_temp_offset(int32_t * offsets);
+
+uint16_t * settings_get_adc_offsets();
+esp_err_t settings_set_adc_offset(uint32_t * offsets, adc_resolution_t resolution);
 
 esp_err_t settings_set_default();
 

@@ -91,6 +91,51 @@ esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_rang
     return ESP_OK;
 }
 
+int32_t * settings_get_temp_offsets()
+{
+    return _settings.temp_offsets;
+}
+
+esp_err_t settings_set_temp_offsets(int32_t * offsets)
+{
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+    {
+        _settings.temp_offsets[i] = offsets[i];
+    }
+    return ESP_OK;
+}
+
+int32_t * settings_get_adc_offsets_12b()
+{
+    return _settings.adc_offsets_12b;
+}
+
+int32_t * settings_get_adc_offsets_16b()
+{
+    return _settings.adc_offsets_16b;
+}
+
+esp_err_t settings_set_adc_offset(uint32_t * offsets, adc_resolution_t resolution)
+{
+    if (resolution == ADC_12_BITS)
+    {
+        for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+        {
+            _settings.adc_offsets_12b[i] = offsets[i];
+        }
+    } else if (resolution == ADC_16_BITS)
+    {
+        for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+        {
+            _settings.adc_offsets_16b[i] = offsets[i];
+        }
+    } else {
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
+
 esp_err_t settings_set_default()
 {
     #ifdef DEBUG_SETTINGS
@@ -107,6 +152,13 @@ esp_err_t settings_set_default()
     strcpy(_settings.wifi_password, "");
     _settings.wifi_mode = WIFI_MODE_AP;
     _settings.wifi_channel = 1;
+
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+    {
+        _settings.adc_offsets_12b[i] = (1<<11);
+        _settings.adc_offsets_16b[i] = (1<<15);
+        _settings.temp_offsets[i] = 0;
+    }
 
     return ESP_OK;
 }
@@ -276,6 +328,16 @@ esp_err_t settings_print()
     for (i=0; i<8; i++)
     {
         ESP_LOGI(TAG_SETTINGS, "ADC ch%d range:%s", i, (_settings.adc_channel_range & (1<<i)) ? "+/-60V" : "+/-10V");
+    }
+
+    for (i=0; i<8; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC 12 bit offset %d: %u", i, _settings.adc_offsets_12b[i]);
+    }
+
+    for (i=0; i<8; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC 16 bit offset %d: %u", i, _settings.adc_offsets_16b[i]);
     }
 
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");

@@ -75,6 +75,7 @@ enum LogTaskStates
     LOGTASK_REBOOT_SYSTEM,
     LOGTASK_FWUPDATE,
     LOGTASK_SINGLE_SHOT,
+    LOGTASK_CALIBRATION,
     LOGTASK_NUM_STATES
 };
 
@@ -110,7 +111,10 @@ typedef uint8_t LoggingState_t;
 /// @param offset Offset of the channel. If total range is 20V and minimum range value is -10V use 10000000
 /// @return 
 // int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t range, uint32_t offset);
-float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
+
+esp_err_t Logger_calibrate();
+
+float Logger_convertAdcFloat(uint16_t adcVal);
 
 /**
  * @brief Enable or disable the interrupt for the data ready pin.

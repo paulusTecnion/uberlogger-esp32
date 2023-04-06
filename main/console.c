@@ -96,6 +96,17 @@ static int cmd_logger(int argc, char **argv)
 }
 
 
+static void register_calibrate(void)
+{
+    const esp_console_cmd_t cmd = {
+        .command = "calibrate",
+        .help = "Calibrate ADC",
+        .hint = NULL,
+        .func = &Logger_calibrate
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
 static void register_settings_sample_rate(void)
 {
  int num_args = 2;
@@ -236,7 +247,7 @@ void init_console(){
 
     // register_log_start();
     // register_log_stop();
-    
+    register_calibrate();
     register_logger_cmd();
     register_restart();
     register_settings_sample_rate();
