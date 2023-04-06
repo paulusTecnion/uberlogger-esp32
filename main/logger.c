@@ -616,7 +616,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
         int32_t channel_range=0, channel_offset=0;
         int32_t filtered_value=0, unfiltered_value=0;
         int32_t factor=0,  multfactor=0;
-        uint16_t adcVal = 0;
+        int32_t adcVal = 0;
         // uint16_t adc0, adc1=0;
         #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
@@ -651,7 +651,11 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 
                 adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
                 // Compenate offset
-                adcVal = (uint16_t)((int16_t)adcVal - ((int16_t)(1<<11) - (int16_t)settings_get()->adc_offsets_12b[x]) );
+                // adcVal = (uint16_t)((int16_t)adcVal + (int16_t)((int16_t)(1<<11) - (int16_t)settings_get()->adc_offsets_12b[x]) );
+                adcVal = adcVal - settings_get()->adc_offsets_12b[x] + (1<<11);
+                // Clip values
+                if (adcVal < 0) adcVal = 0;
+                if (adcVal > (1<<12)-1) adcVal = (1<<12)-1;
 
                 // Detect type of sensor and conver accordingly
                 if (settings_get_adc_channel_type(x))
@@ -667,7 +671,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                     adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);   
                     // adc_buffer_fixed_point[writeptr+(log_counter*(length/2))] = (factor*(int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1]<<8))) - channel_offset;
                     
-                    // ESP_LOGI(TAG_LOG,"%d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]);
+                    // ESP_LOGI(TAG_LOG,"%u, %ld", adcVal, adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]);
                 }
             
 
@@ -694,7 +698,11 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
 
                 adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
                 // Compenate offset
-                adcVal = (uint16_t)((int16_t)adcVal - ((int16_t)(1<<15) - (int16_t)settings_get()->adc_offsets_16b[x]) );
+                // adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<15) - (int16_t)settings_get()->adc_offsets_16b[x]) );
+                adcVal = adcVal - settings_get()->adc_offsets_16b[x] + (1<<15);
+                // Clip values
+                if (adcVal < 0) adcVal = 0;
+                if (adcVal > (1<<16)-1) adcVal = (1<<16)-1;
 
                 // Detect type of sensor and conver accordingly
                 if (settings_get_adc_channel_type(x))

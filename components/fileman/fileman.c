@@ -167,8 +167,8 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             {
                 // if ((settings_get()->adc_resolution == ADC_16_BITS))
                 // {
-
-                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%06d,",
+                    // Only 2 digits after decimal point for temperature
+                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%02d,",
                         (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_16B_TEMP)), 
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_16B_TEMP));
@@ -182,13 +182,14 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
                 // if range is 60V...
                 if ((settings_get()->adc_channel_range & (1<<x)))
                 {
-
-                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%06d,",
+                    // We need 7 digits after comma for +/-60V
+                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%07d,",
                         (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_60V)), 
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_60V));
                 } else {
-                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%06d,",
+                    // We need 8 digits after comma for +/-10V
+                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%08d,",
                         (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_10V)), 
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_10V));
