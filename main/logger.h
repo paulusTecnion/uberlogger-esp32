@@ -90,6 +90,12 @@ enum LoggingStates{
     LOGGING_NUM_STATES
 };
 
+enum Logger_modeButtonStates{
+    MODEBUTTON_IDLE = 0,
+    MODEBUTTON_HOLD,
+    MODEBUTTON_RELEASED,
+    MODEBUTTON_NUM_STATES
+};
 
 
 

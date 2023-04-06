@@ -14,12 +14,14 @@
 #include "driver/spi_master.h"
 #include "esp_timer.h"
 #include "esp_sd_card.h"
+#include "esp_wifi_types.h"
 #include "iirfilter.h"
 #include "config.h"
 #include "settings.h"
 #include "spi_control.h"
 #include "tempsensor.h"
 #include "time.h"
+#include "wifi.h"
 
 
 
@@ -465,37 +467,37 @@ uint8_t Logger_mode_button_pushed()
     
     switch (state)
     {
-        case 0:
+        case MODEBUTTON_IDLE:
           if(!level) 
           {
             #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "MODE press hold");
             #endif
-            state = 1;
+            state = MODEBUTTON_HOLD;
           }
         break;
             
-        case 1:
+        case MODEBUTTON_HOLD:
             if(level)
             {
                 #ifdef DEBUG_LOGGING
                 ESP_LOGI(TAG_LOG, "MODE released");
                 #endif
-                state = 2;
-                return 1;
+                state = MODEBUTTON_RELEASED;
+                
             } 
         break;
 
-        case 2:
+        case MODEBUTTON_RELEASED:
             #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "MODE reset");
             #endif
-            state = 0;
+            state = MODEBUTTON_IDLE;
             
         break;    
     }
     
-    return 0;
+    return state;
 }
 
 esp_err_t LogTask_start()
@@ -1098,6 +1100,7 @@ void task_logging(void * pvParameters)
     CLEAR_ERRORS(_errorCode);
    
     uint32_t lastTick = 0;
+    uint32_t startTick = 0, stopTick = 0;
     // Init STM32 ADC enable pin
     // gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
 
@@ -1369,17 +1372,47 @@ void task_logging(void * pvParameters)
             // should not come here
         }
 
-         if (Logger_mode_button_pushed())
+        switch (Logger_mode_button_pushed())
         {
-            if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
-            {
-                LogTask_start();
-            }
-            
-            if (_currentLogTaskState == LOGTASK_LOGGING)
-            {
-                LogTask_stop();
-            }
+            case MODEBUTTON_IDLE:
+                ESP_LOGI(TAG_LOG, "Button idle");
+                startTick = xTaskGetTickCount();
+                stopTick = 0;
+            break;
+
+            case MODEBUTTON_HOLD:
+                // if held for longer than 10 seconds, we will put the system to SoftAP mode
+                // ESP_LOGI(TAG_LOG, "Button held for %ld ms", 10*(xTaskGetTickCount() - startTick));
+                if ((xTaskGetTickCount() - startTick) > 10*100 && 
+                    stopTick == 0 
+                    && _currentLogTaskState == LOGTASK_IDLE)
+                {
+                    if (settings_get_wifi_mode()==WIFI_MODE_STA)
+                    {
+                        settings_set_wifi_mode(WIFI_MODE_AP);
+                        ESP_LOGI(TAG_LOG, "Switching to AP mode");
+                        Logger_syncSettings();
+                        wifi_start();
+                    }
+                    
+                    stopTick = 1;
+                } 
+            break;
+
+            case MODEBUTTON_RELEASED:
+                if (stopTick == 0)
+                {
+                    if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
+                    {
+                        LogTask_start();
+                    }
+                    
+                    if (_currentLogTaskState == LOGTASK_LOGGING)
+                    {
+                        LogTask_stop();
+                    }
+                }
+            break;
         }
 
 
