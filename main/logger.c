@@ -91,25 +91,10 @@ int32_t Logger_convertAdcFixedPoint(uint16_t adcVal, uint64_t range, uint64_t of
     // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
     t1 = t0 * (-1LL*range); // note the minus for inverted input!
     t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
-    t3 = t2 - offset;
+    t3 = t2 + offset;
     return (int32_t) t3;
     
 }
-
-float Logger_convertAdcFloat(uint16_t adcVal)
-{
-    float t0_f, t1_f, t2_f, t3_f;
-    // t0_f = (adcData0 | (adcData1 << 8));
-    t0_f = (float)adcVal;
-            
-    // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
-
-    t1_f = t0_f * (-20.0); // note the minus for inverted input!
-    t2_f = t1_f / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
-    t3_f = t2_f + 10.0;
-    return t3_f;
-}
-
 
 
 LoggerState_t LogTaskGetState()
@@ -172,6 +157,8 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
     uint16_t adc0, adc1; 
 
+    uint64_t channel_offset, channel_range;
+
 
     for (int i =0; i < 16; i=i+2)
     {
@@ -199,12 +186,42 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
             adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<15) - (int16_t)(settings_get()->adc_offsets_16b[j])));
         }
         
-        dataOutput->analogData[j] = Logger_convertAdcFloat(adcVal);
+        if (settings_get_adc_channel_range(j))
+        {
+            // 60V range
+            channel_offset = 60*ADC_MULT_FACTOR_60V;
 
-        calculateTemperatureFloat(&tfloat, (float)(adcVal) , (float)(0x01 << settings_get_resolution())-1);
+        } else {
+            channel_offset = 10*ADC_MULT_FACTOR_10V;
+            
+        }
+
+        channel_range = 2*channel_offset;
+
+        // dataOutput->analogData[j] = Logger_convertAdcFloat(adcVal);
+        dataOutput->analogData[j] = (float)Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
+        if (settings_get_adc_channel_range(j))
+        {
+            // 60V range
+            dataOutput->analogData[j] = dataOutput->analogData[j] / (float)ADC_MULT_FACTOR_60V;
+
+        } else {
+            dataOutput->analogData[j] = dataOutput->analogData[j] / (float)ADC_MULT_FACTOR_10V;
+            
+        }
+
+
+        // calculateTemperatureFloat(&tfloat, (float)(adcVal) , (float)(0x01 << settings_get_resolution())-1);
         
         // ESP_LOGI(TAG_LOG, "index:%d, %u, %f", j, adcVal, tfloat);
-
+        if (settings_get_resolution() == ADC_16_BITS)
+        {
+            adcVal = adcVal >> 4;
+        } 
+            
+        tfloat = (int32_t)NTC_ADC2Temperature(adcVal)/10.0F;
+        
+        
         dataOutput->temperatureData[j] = tfloat;
         j++;
     }
@@ -1168,6 +1185,8 @@ void task_logging(void * pvParameters)
 
     spi_cmd_t spi_cmd;
 
+    adc_resolution_t last_resolution = ADC_12_BITS;
+
 
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
@@ -1306,7 +1325,7 @@ void task_logging(void * pvParameters)
                 {
                     case 0:
                         // Switch to 12 bits mode and do single shot. Then switch to 16 bits and the same.
-
+                        last_resolution = settings_get_resolution();
                         settings_set_resolution(ADC_12_BITS);
                         Logger_syncSettings();
                         settings_print();
@@ -1326,14 +1345,20 @@ void task_logging(void * pvParameters)
                         
                         // increase counter
                         calibrationCounter++;
+                        ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
                         x = 0;
                         for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i + 2)
                         {
                             // (uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)
                             calibrationValues[x] += ((uint16_t)spi_msg_1_ptr->adcData[i]) | ((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8); 
-                            // calibrationValues[x] += adc_buffer_fixed_point[x];
                             ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
                             x++;
+                        }
+                        
+                        // Sometimes we get zeros here. Quick fix for now.
+                        if (calibrationValues[--x] == 0)
+                        {
+                            calibrationCounter--;
                         }
 
                         if (calibrationCounter == 10)
@@ -1372,12 +1397,21 @@ void task_logging(void * pvParameters)
                         // increase counter
                         calibrationCounter++;
                         x= 0;
+                        ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
                         for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i+2)
                         {
                             calibrationValues[x] += (uint16_t)(((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8) | (uint16_t)spi_msg_1_ptr->adcData[i]); 
+                            // Sometimes we get zeros here. Quick fix for now.
+                            
                             // calibrationValues[i] += adc_buffer_fixed_point[i];
                             ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
                             x++;
+                        }
+
+                        // Sometimes we get zeros here. Quick fix for now.
+                        if (calibrationValues[--x] == 0)
+                        {
+                            calibrationCounter--;
                         }
 
                         if (calibrationCounter == 10)
@@ -1395,7 +1429,8 @@ void task_logging(void * pvParameters)
                             // go to next state
                             calibration = 0;
                             settings_persist_settings();
-                            settings_set_resolution(ADC_12_BITS);
+                            // go back to setting before calibriation
+                            settings_set_resolution(last_resolution);
                             Logger_syncSettings();
                             
                             _nextLogTaskState = LOGTASK_IDLE;
