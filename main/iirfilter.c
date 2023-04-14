@@ -16,7 +16,7 @@ const int64_t c_10v[NUM_COEFFICIENTS] = {8584925, 16432841, 32476809, 54406187, 
 const int64_t c_60v[NUM_COEFFICIENTS] = {858493, 1643284, 3247681, 5440619, 7921204, 9567861, 10000000};            // multiplied with 10000000
 
 int64_t * c[NUM_ADC_CHANNELS];
-int64_t x_state[NUM_ADC_CHANNELS];
+// int64_t x_state[NUM_ADC_CHANNELS];
 int64_t y_state[NUM_ADC_CHANNELS];
 uint8_t coeff_index;
 adc_mult_factor_t coeff_factor[NUM_ADC_CHANNELS];
