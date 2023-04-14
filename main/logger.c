@@ -89,7 +89,7 @@ int32_t Logger_convertAdcFixedPoint(uint16_t adcVal, uint64_t range, uint64_t of
     t0 = (int32_t)adcVal;
             
     // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
-    t1 = t0 * (range); // note the minus for inverted input!
+    t1 = t0 * (-1LL*range); // note the minus for inverted input!
     t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
     t3 = t2 - offset;
     return (int32_t) t3;
@@ -713,14 +713,14 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                     // 4884 is 1000000*20/4095
                     unfiltered_value = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);   
                     // unfiltered_value = (factor*(int32_t)((int32_t)adcData[j] | ((int32_t)adcData[j+1]<<8))) - channel_offset;
-                    if (settings_get()->log_sample_rate > ADC_SAMPLE_RATE_50Hz)
-                    {
-                        filtered_value = unfiltered_value;
-                    } else {
-                        iir_filter(unfiltered_value, &filtered_value, x);
-                    }
+                    // if (settings_get()->log_sample_rate > ADC_SAMPLE_RATE_50Hz)
+                    // {
+                    //     filtered_value = unfiltered_value;
+                    // } else {
+                    //     iir_filter(unfiltered_value, &filtered_value, x);
+                    // }
 
-                    filtered_value = filtered_value;    
+                    filtered_value = unfiltered_value;    
                 }
 
                 
