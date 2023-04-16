@@ -513,7 +513,13 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         wifi_start();
     }
 
-    Logger_syncSettings();
+    if (Logger_syncSettings() != ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings");
+        // return ESP_FAIL;
+        goto error;
+    }
+
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
     
 
