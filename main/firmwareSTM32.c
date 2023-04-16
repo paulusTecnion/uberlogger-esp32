@@ -302,13 +302,33 @@ esp_err_t flash_stm32()
     #ifdef DEBUG_FIRMWARE_STM32
     ESP_LOGI(TAG, "Starting STM32G030 bootloader");
     #endif
-    send_cmd(CMD_ACTIVATE);
-    if (recv_ack())
+
+    // send_cmd(CMD_ACTIVATE);
+    // if (recv_ack())
+    // {
+    //     #ifdef DEBUG_FIRMWARE_STM32
+    //     ESP_LOGI(TAG, "STM32G030 in bootloader mode");
+    //     #endif
+    // } else {
+    //     err = ESP_FAIL;
+    //     goto error;
+    // }
+      uint8_t error = 0;
+    for (uint8_t i=0; i<5; i++)
     {
-        #ifdef DEBUG_FIRMWARE_STM32
-        ESP_LOGI(TAG, "STM32G030 in bootloader mode");
-        #endif
-    } else {
+        send_cmd(CMD_ACTIVATE);
+        if (recv_ack())
+        {
+            ESP_LOGI(TAG, "STM32G030 in bootloader mode");
+            break;
+        }
+        error++;
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+
+    if (error == 5)
+    {
+        ESP_LOGE(TAG, "Failed to activate STM32G030 bootloader");
         err = ESP_FAIL;
         goto error;
     }
