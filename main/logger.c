@@ -540,7 +540,9 @@ uint8_t Logger_mode_button_pushed()
 esp_err_t LogTask_start()
 {
     CLEAR_ERRORS(_errorCode);
-    if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
+    if (_currentLogTaskState == LOGTASK_IDLE ||
+        _currentLogTaskState == LOGTASK_ERROR_OCCURED || 
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
     {
         // gpio_set_level(GPIO_ADC_EN, 1);
         // _nextLogTaskState = LOGTASK_LOGGING;
