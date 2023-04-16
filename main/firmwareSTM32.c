@@ -45,7 +45,7 @@ static void send_byte(uint8_t byte)
 static uint8_t recv_byte()
 {
     uint8_t data;
-    uart_read_bytes(UART_PORT, &data, 1, 2000 / portTICK_PERIOD_MS);
+    uart_read_bytes(UART_PORT, &data, 1, 1000 / portTICK_PERIOD_MS);
     return data;
 }
 
@@ -64,7 +64,9 @@ static void send_data(uint8_t* data, uint32_t len)
 
 static void send_cmd(uint8_t cmd)
 {
-    send_byte(cmd);
+    uint8_t data[2] = {cmd, cmd ^ 0xFF };
+    
+    send_data(data, 2);
     
 }
 
@@ -283,7 +285,7 @@ esp_err_t flash_stm32()
     uart_config_t uart_config = {
         .baud_rate = UART_BAUDRATE,
         .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
+        .parity = UART_PARITY_EVEN,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_DEFAULT,
