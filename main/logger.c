@@ -1610,7 +1610,9 @@ void task_logging(void * pvParameters)
                     if (settings_get_wifi_mode()==WIFI_MODE_STA)
                     {
                         settings_set_wifi_mode(WIFI_MODE_AP);
+                        #ifdef DEBUG_LOGTASK
                         ESP_LOGI(TAG_LOG, "Switching to AP mode");
+                        #endif
                         Logger_syncSettings();
                         wifi_start();
                     }

@@ -135,8 +135,9 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
             continue;
         }
         sprintf(entrysize, "%ld", entry_stat.st_size);
+        #ifdef DEBUG_FILESERVER
         ESP_LOGI(TAG_FILESERVER, "Found %s : %s (%s bytes)", entrytype, entry->d_name, entrysize);
-
+        #endif
         /* Send chunk of HTML file containing table entries with file name and size */
 
         // Add entry to cJSON
@@ -301,8 +302,9 @@ esp_err_t download_get_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
         return ESP_FAIL;
     }
-
+    #ifdef DEBUG_FILESERVER
     ESP_LOGI(TAG_FILESERVER, "Sending file : %s (%ld bytes)...", filename, file_stat.st_size);
+    #endif
     set_content_type_from_file(req, filename);
 
     /* Retrieve the pointer to scratch buffer for temporary storage */
@@ -332,8 +334,9 @@ esp_err_t download_get_handler(httpd_req_t *req)
     fclose(fd);
 
     esp_sd_card_unmount();
+    #ifdef DEBUG_FILESERVER
     ESP_LOGI(TAG_FILESERVER, "File sending complete");
-
+    #endif
     /* Respond with an empty chunk to signal HTTP response completion */
 #ifdef CONFIG_EXAMPLE_HTTPD_CONN_CLOSE_HEADER
     httpd_resp_set_hdr(req, "Connection", "close");
@@ -400,9 +403,9 @@ esp_err_t upload_post_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file");
         return ESP_FAIL;
     }
-
+    #ifdef DEBUG_FILESERVER
     ESP_LOGI(TAG_FILESERVER, "Receiving file : %s...", filename);
-
+    #endif
     /* Retrieve the pointer to scratch buffer for temporary storage */
     char *buf = ((struct file_server_data *)req->user_ctx)->scratch;
     int received;
@@ -453,8 +456,9 @@ esp_err_t upload_post_handler(httpd_req_t *req)
     /* Close file upon upload completion */
     fclose(fd);
     esp_sd_card_unmount();
+    #ifdef DEBUG_FILESERVER
     ESP_LOGI(TAG_FILESERVER, "File reception complete");
-
+    #endif
     // /* Redirect onto root to see the updated file list */
     // httpd_resp_set_status(req, "303 See Other");
     // httpd_resp_set_hdr(req, "Location", "/data/");
@@ -514,7 +518,10 @@ esp_err_t delete_post_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    #ifdef DEBUG_FILESERVER
     ESP_LOGI(TAG_FILESERVER, "Deleting file : %s", filename);
+    #endif
+
     if (esp_sd_card_mount() != ESP_OK) {
         ESP_LOGE(TAG_FILESERVER, "Failed to mount SD card");
         /* Respond with 500 Internal Server Error */
@@ -550,8 +557,9 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
             return ESP_FAIL;
         }
     
-
+        #ifdef DEBUG_FILESERVER
         ESP_LOGI(TAG_FILESERVER, "Starting firmware upgrade");
+        #endif
         /* Send HTML file header */
         httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
         
@@ -564,7 +572,9 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
             httpd_resp_sendstr_chunk(req, "<p>Support chip  failed!</p>");
             return ESP_FAIL;
         } else {
+            #ifdef DEBUG_FILESERVER
             ESP_LOGI(TAG_FILESERVER, "Support chip flashed (2 / 6)");
+            #endif
             httpd_resp_sendstr_chunk(req, "<p>Support chip flashed (2 / 6)</p>");
         }
 
@@ -574,7 +584,9 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
             httpd_resp_sendstr_chunk(req, "<p>File system flash failed!</p>");
             return ESP_FAIL;
         } else {
+            #ifdef DEBUG_FILESERVER
             ESP_LOGI(TAG_FILESERVER, "File system flashed (4 / 6)");
+            #endif
             httpd_resp_sendstr_chunk(req, "<p>File system flashed (4 / 6)</p>");
         }
         
@@ -588,7 +600,9 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
             httpd_resp_send_chunk(req, NULL, 0);
             return ESP_FAIL;
         } else {
+            #ifdef DEBUG_FILESERVER
             ESP_LOGI(TAG_FILESERVER, "Main flash chip flashed (6 / 6)");
+            #endif
             httpd_resp_sendstr_chunk(req, "<p>Main flash chip flashed (6 / 6)</p>");
         }
 

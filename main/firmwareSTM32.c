@@ -131,8 +131,9 @@ static esp_err_t flash_wipe()
     {
         return ESP_FAIL;
     }
-    
+    #ifdef DEBUG_FIRMWARE_STM32
     ESP_LOGI(TAG, "Erased flash memory");
+    #endif
 
     return ESP_OK;  
 }
@@ -206,7 +207,9 @@ static esp_err_t flash_write(uint32_t addr, uint8_t *data, uint32_t len)
     
     if (recv_ack())
     {
+        #ifdef DEBUG_FIRMWARE_STM32
         ESP_LOGI(TAG, "Wrote %ld bytes to address 0x%08lX", len, addr);
+        #endif
     } else {
         ESP_LOGE(TAG, "Got NACK for data");
         return ESP_FAIL;
@@ -243,18 +246,22 @@ static void flash_jump_to(uint32_t addr)
     send_data(cmd, 5);
     if (recv_ack())
     {
+        #ifdef DEBUG_FIRMWARE_STM32
         ESP_LOGI(TAG, "Jumped to address 0x%08lX", addr);
+        #endif
     }
 }
 
 esp_err_t flash_stm32()
 {
+    #ifdef DEBUG_FIRMWARE_STM32
     ESP_LOGI(TAG, "Booting STM32G030 into bootloader mode...");
+    #endif
     gpio_set_level(GPIO_STM32_BOOT0, 1);
     gpio_set_level(GPIO_STM32_NRESET, 0);
     vTaskDelay(500 / portTICK_PERIOD_MS);
     gpio_set_level(GPIO_STM32_NRESET, 1);
-    // vTaskDelay(500 / portTICK_PERIOD_MS);
+    // vTaskDelay(200 / portTICK_PERIOD_MS);
 
 
    
@@ -290,21 +297,29 @@ esp_err_t flash_stm32()
  
 
     // activating flash mode 
-     ESP_LOGI(TAG, "Starting STM32G030 bootloader");
+    #ifdef DEBUG_FIRMWARE_STM32
+    ESP_LOGI(TAG, "Starting STM32G030 bootloader");
+    #endif
     send_cmd(CMD_ACTIVATE);
     if (recv_ack())
     {
+        #ifdef DEBUG_FIRMWARE_STM32
         ESP_LOGI(TAG, "STM32G030 in bootloader mode");
+        #endif
     } else {
         err = ESP_FAIL;
         goto error;
     }
 
     // Erase flash pages
+    #ifdef DEBUG_FIRMWARE_STM32
     ESP_LOGI(TAG, "Mass erasing");
+    #endif
     if (flash_wipe() == ESP_OK)
     {
+        #ifdef DEBUG_FIRMWARE_STM32
         ESP_LOGI(TAG, "Flash erased");
+        #endif
     } else {
         ESP_LOGE(TAG, "Failed to erase pages");
         err = ESP_FAIL;
@@ -312,7 +327,9 @@ esp_err_t flash_stm32()
     }
 
         // Open firmware file on SD card
+    #ifdef DEBUG_FIRMWARE_STM32
     ESP_LOGI(TAG, "Opening firmware")  ;
+    #endif
     file = fopen(FILE_STM32, "rb");
     if (!file) {
         ESP_LOGE(TAG, "Error opening firmware file.\n");
@@ -320,7 +337,9 @@ esp_err_t flash_stm32()
         goto error;
     }
 
+    #ifdef DEBUG_FIRMWARE_STM32
     ESP_LOGI(TAG, "Flashing firmware...")  ;
+    #endif
     uint32_t write_address = FLASH_START_ADDR;
 
 
@@ -345,8 +364,9 @@ esp_err_t flash_stm32()
 
     // Jump to application code
     flash_jump_to(FLASH_START_ADDR);
-
+    #ifdef DEBUG_FIRMWARE_STM32
     ESP_LOGI(TAG, "Flashing complete.");
+    #endif
     fclose(file);
     esp_sd_card_unmount();
 
@@ -354,8 +374,9 @@ error:
     free(buffer);
 
     uart_driver_delete(UART_PORT);
-        
+        #ifdef DEBUG_FIRMWARE_STM32
         ESP_LOGI(TAG, "Booting STM32G030 into normal mode...");
+        #endif
         gpio_set_level(GPIO_STM32_BOOT0, 0);
         gpio_set_level(GPIO_STM32_NRESET, 0);
         vTaskDelay(250 / portTICK_PERIOD_MS);

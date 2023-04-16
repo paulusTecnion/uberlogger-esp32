@@ -20,18 +20,24 @@ esp_err_t update_www() {
 
 
     // Unmount the spiffs partition
+    #ifdef DEBUG_FIRMWARE_WWW
     ESP_LOGI(TAG_WWW, "Unmounting spiffs partition");
+    #endif
     esp_vfs_spiffs_unregister("www");
 
     // Mount the SD card
+    #ifdef DEBUG_FIRMWARE_WWW
     ESP_LOGI(TAG_WWW, "Mounting SD card...");
+    #endif
     if (esp_sd_card_mount() != ESP_OK) {
         ESP_LOGE(TAG_WWW, "Error mounting SD card.\n");
         return ESP_FAIL;
     }
 
     // Open the data bin file for reading
+    #ifdef DEBUG_FIRMWARE_WWW
     ESP_LOGI(TAG_WWW, "Opening data bin file");
+    #endif
 
     FILE* fp = fopen(BIN_PATH, "rb");
     if (fp == NULL) {
@@ -40,7 +46,9 @@ esp_err_t update_www() {
     }
 
     // Get the partition object for the specified label
+    #ifdef DEBUG_FIRMWARE_WWW
     ESP_LOGI( TAG_WWW, "Finding partition with label '%s'", PARTITION_LABEL);
+    #endif
     const esp_partition_t* partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, PARTITION_LABEL);
     if (partition == NULL) {
         ESP_LOGE(TAG_WWW,"Partition not found\n");
@@ -55,7 +63,9 @@ esp_err_t update_www() {
     uint32_t flash_address = partition->address;
 
     // Erase the entire partition
+    #ifdef DEBUG_FIRMWARE_WWW
     ESP_LOGI(TAG_WWW, "Erasing partition");
+    #endif
     esp_err_t err = esp_partition_erase_range(partition, 0, partition->size);
     if (err != ESP_OK) {
         ESP_LOGE(TAG_WWW,"Error erasing partition: %d\n", err);
@@ -66,7 +76,9 @@ esp_err_t update_www() {
     // Write the data bin file to flash memory
     size_t bytes_written = 0;
     uint8_t buf[1024];
+    #ifdef DEBUG_FIRMWARE_WWW
     ESP_LOGI(TAG_WWW, "Writing data bin to flash memory");
+    #endif
     while (true) {
         // Read a chunk of data from the file
         size_t bytes_read = fread(buf, 1, sizeof(buf), fp);
@@ -89,8 +101,9 @@ esp_err_t update_www() {
     // Close the file
     fclose(fp);
 
+    #ifdef DEBUG_FIRMWARE_WWW
     ESP_LOGI(TAG_WWW,"Data bin written to flash memory. Remounting parition\n");
-
+    #endif
 
     esp_vfs_spiffs_conf_t conf = {
         .base_path = CONFIG_EXAMPLE_WEB_MOUNT_POINT,
