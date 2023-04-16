@@ -167,7 +167,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
                 // if ((settings_get()->adc_resolution == ADC_16_BITS))
                 // {
                     // Only 2 digits after decimal point for temperature
-                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%02d,",
+                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%07d,",
                         (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_16B_TEMP)), 
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_16B_TEMP));
