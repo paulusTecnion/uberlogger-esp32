@@ -111,8 +111,9 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         ESP_LOGI(TAG,"connect to the AP fail");
         #endif
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        
         #ifdef DEBUG_WIFI
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         #endif
         s_retry_num = 0;
@@ -127,14 +128,15 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 
 
     if (event_id == WIFI_EVENT_AP_STACONNECTED) {
-        wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
+       
         #ifdef DEBUG_WIFI
+        wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
         ESP_LOGI(TAG, "station "MACSTR" join, AID=%d",
                  MAC2STR(event->mac), event->aid);
         #endif
     } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
-        wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
         #ifdef DEBUG_WIFI
+        wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
         ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d",
                  MAC2STR(event->mac), event->aid);
         #endif

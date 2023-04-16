@@ -42,13 +42,13 @@ static const char *TAG_FILESERVER = "file_server";
 
 /* Handler to redirect incoming GET request for /index.html to /
  * This can be overridden by uploading file with same name */
-static esp_err_t index_html_get_handler(httpd_req_t *req)
-{
-    httpd_resp_set_status(req, "307 Temporary Redirect");
-    httpd_resp_set_hdr(req, "Location", "/");
-    httpd_resp_send(req, NULL, 0);  // Response body can be empty
-    return ESP_OK;
-}
+// static esp_err_t index_html_get_handler(httpd_req_t *req)
+// {
+//     httpd_resp_set_status(req, "307 Temporary Redirect");
+//     httpd_resp_set_hdr(req, "Location", "/");
+//     httpd_resp_send(req, NULL, 0);  // Response body can be empty
+//     return ESP_OK;
+// }
 
 /* Handler to respond with an icon file embedded in flash.
  * Browsers expect to GET website icon at URI /favicon.ico.
@@ -347,7 +347,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
 {
     char filepath[FILE_PATH_MAX];
     FILE *fd = NULL;
-    struct stat file_stat;
+    // struct stat file_stat;
 
 
     /* Skip leading "/upload" from URI to get filename */

@@ -23,7 +23,7 @@
 #include "time.h"
 #include "wifi.h"
 
-
+static const char* TAG_LOG = "LOGGER";
 
 uint8_t * spi_buffer;
 spi_msg_1_t * spi_msg_1_ptr;
@@ -459,20 +459,20 @@ esp_err_t Logger_syncSettings()
         return ESP_FAIL;
     }
 
-    adc_channel_range_t ranges[NUM_ADC_CHANNELS];
-    for (int i=0; i<NUM_ADC_CHANNELS; i++)
-    {
-        if(!settings_get_adc_channel_range(i))
-        {
-            ranges[i] = ADC_RANGE_10V;
-        } else {
-            ranges[i] = ADC_RANGE_60V;
-        }
-    }
+    // adc_channel_range_t ranges[NUM_ADC_CHANNELS];
+    // for (int i=0; i<NUM_ADC_CHANNELS; i++)
+    // {
+    //     if(!settings_get_adc_channel_range(i))
+    //     {
+    //         ranges[i] = ADC_RANGE_10V;
+    //     } else {
+    //         ranges[i] = ADC_RANGE_60V;
+    //     }
+    // }
 
 
-    iir_set_settings(settings_get_samplerate(), ranges);
-    iir_reset();
+    // iir_set_settings(settings_get_samplerate(), ranges);
+    // iir_reset();
 
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Sync done");
@@ -634,7 +634,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
         uint32_t writeptr = 0;
         int32_t channel_range=0, channel_offset=0;
         int32_t filtered_value=0, unfiltered_value=0;
-        int32_t factor=0,  multfactor=0;
+        // int32_t factor;
         int32_t adcVal = 0;
         // uint16_t adc0, adc1=0;
         #ifdef DEBUG_SDCARD
@@ -664,9 +664,8 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 }
 
                 channel_range = 2*channel_offset;
-                // multfactor = ADC_MULT_FACTOR_10V;
-                // channel_offset = 10*multfactor;
-                factor = ADC_12_BITS_10V_FACTOR;
+                
+                // factor = ADC_12_BITS_10V_FACTOR;
                 
                 adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
                 // Compenate offset
@@ -713,7 +712,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                     channel_offset = 10*ADC_MULT_FACTOR_10V;
                 }
                 channel_range = 2*channel_offset;
-                factor = ADC_16_BITS_60V_FACTOR;
+                // factor = ADC_16_BITS_60V_FACTOR;
 
                 adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
                 // Compenate offset

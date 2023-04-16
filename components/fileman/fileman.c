@@ -1,5 +1,4 @@
 #include "fileman.h"
-#include "../../main/iirfilter.h"
 #include "../../main/settings.h"
 #include "../../main/config.h"
 

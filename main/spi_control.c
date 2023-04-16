@@ -352,13 +352,13 @@ esp_err_t spi_ctrl_receive_data()
     
     if (ret == ESP_ERR_TIMEOUT) 
     {
-        ESP_LOGE(TAG_LOG, "STM32 timeout; could not receive data");
+        ESP_LOGE(TAG_SPI_CTRL, "STM32 timeout; could not receive data");
         return ESP_ERR_TIMEOUT;
     }
 
     if (ret == ESP_ERR_INVALID_ARG )
     {
-        ESP_LOGE(TAG_LOG, "spi_device_get_trans_result arg error");
+        ESP_LOGE(TAG_SPI_CTRL, "spi_device_get_trans_result arg error");
         return ESP_ERR_INVALID_ARG;
     }
      return ESP_OK;

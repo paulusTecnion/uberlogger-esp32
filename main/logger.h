@@ -27,9 +27,6 @@
 #define DATA_TRANSACTIONS_PER_SD_FLUSH 4
 #define SD_BUFFERSIZE (DATA_TRANSACTIONS_PER_SD_FLUSH*STM_DATA_BUFFER_SIZE_PER_TRANSACTION) 
 
-
-static const char* TAG_LOG = "LOGGER";
-
 // It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
 
 typedef struct {

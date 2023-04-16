@@ -3,6 +3,7 @@
 #include "esp_wifi_types.h"
 
 static const char* TAG_SETTINGS = "SETTINGS";
+const char * settings_filename = "settings.json";
 Settings_t _settings;
 
 // Mult factor for the ADC channels.
@@ -93,26 +94,26 @@ esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_rang
 
 int32_t * settings_get_temp_offsets()
 {
-    return _settings.temp_offsets;
+    return (int32_t*)_settings.temp_offsets;
 }
 
 esp_err_t settings_set_temp_offsets(int32_t * offsets)
 {
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
-        _settings.temp_offsets[i] = offsets[i];
+        _settings.temp_offsets[i] = (uint16_t*)offsets[i];
     }
     return ESP_OK;
 }
 
 int32_t * settings_get_adc_offsets_12b()
 {
-    return _settings.adc_offsets_12b;
+    return (int32_t*)_settings.adc_offsets_12b;
 }
 
 int32_t * settings_get_adc_offsets_16b()
 {
-    return _settings.adc_offsets_16b;
+    return (int32_t*)_settings.adc_offsets_16b;
 }
 
 esp_err_t settings_set_adc_offset(uint32_t * offsets, adc_resolution_t resolution)
