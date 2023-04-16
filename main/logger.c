@@ -1212,6 +1212,9 @@ void task_logging(void * pvParameters)
 
     gpio_config(&nreset_conf);
     // gpio_set_direction(GPIO_STM32_NRESET, GPIO_MODE_OUTPUT);
+    // Reset STM32
+    gpio_set_level(GPIO_STM32_NRESET, 0);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
     gpio_set_level(GPIO_STM32_NRESET, 1);
 
 
