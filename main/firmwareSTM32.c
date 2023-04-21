@@ -20,13 +20,15 @@
 #define FLASH_PAGE_SIZE 1024
 
 // Flash command definitions
-#define CMD_GET_ID       0x02
+#define CMD_GET             0x00
+#define CMD_GET_ID          0x02
 #define CMD_WRITE_MEMORY_1_2 0x31
 #define CMD_WRITE_MEMORY_2_2 0xCE
 #define CMD_GO_1_2           0x21
 #define CMD_GO_2_2           0xDE
 #define CMD_EXTENDED_ERASE_1_2  0x44
 #define CMD_EXTENDED_ERASE_2_2  0xBB
+#define CMD_WRITE_PROTECT       0x63
 #define CMD_WRITE_UNPROTECT_1_2 0x73
 #define CMD_WRITE_UNPROTECT_2_2 0x8C
 #define CMD_ACTIVATE     0x7F
@@ -39,10 +41,10 @@ static void send_byte(uint8_t byte)
 {
     // uart_write_bytes(UART_PORT, (const char*)&byte, 1);
     uart_write_bytes(UART_PORT, (const char*)&byte, 1);
-    ESP_ERROR_CHECK(uart_wait_tx_done(UART_PORT, 100)); 
+    ESP_ERROR_CHECK(uart_wait_tx_done(UART_PORT, 100 / portTICK_PERIOD_MS)); 
 }
 
-static uint8_t recv_byte()
+static int8_t recv_byte()
 {
     uint8_t data;
     uart_read_bytes(UART_PORT, &data, 1, 1000 / portTICK_PERIOD_MS);
@@ -56,10 +58,13 @@ static void recv_bytes(uint8_t* data, uint32_t len)
 
 static void send_data(uint8_t* data, uint32_t len)
 {
-    for (uint32_t i = 0; i < len; i++)
-    {
-        send_byte(data[i]);
-    }
+    // for (uint32_t i = 0; i < len; i++)
+    // {
+        // send_byte(data[i]);
+        // vTaskDelay(10 / portTICK_PERIOD_MS);
+    // }
+    uart_write_bytes(UART_PORT, (const char*)data, len);
+    ESP_ERROR_CHECK(uart_wait_tx_done(UART_PORT, 100 / portTICK_PERIOD_MS)); 
 }
 
 static void send_cmd(uint8_t cmd)
@@ -103,34 +108,27 @@ static uint8_t recv_resp(uint8_t resp)
 static esp_err_t flash_wipe()
 {
     
-    // uint8_t cmd[5] = {CMD_ERASE_PAGE_1_2, CMD_ERASE_PAGE_2_2, 0x00, 0x00, 0x00};
-    uint8_t cmd[2];
-    uint8_t rxBuf[15];
-    memset(rxBuf, 0, sizeof(rxBuf));
-        
+    uint8_t cmd[4];
+    uint8_t error = 0;
 
-    cmd[0] = CMD_EXTENDED_ERASE_1_2;
-    cmd[1] = CMD_EXTENDED_ERASE_2_2;
-
-    send_data(cmd, 2);
+    send_cmd(CMD_EXTENDED_ERASE_1_2);
     if (!recv_ack())
     {
+        ESP_LOGE(TAG, "Failed to send erase command");
         return ESP_FAIL;
     }
 
     // Send mass erase code
     cmd[0] = 0xFF;
     cmd[1] = 0xFF;
+    cmd[2] = 0x00;
 
-    send_data(cmd, 2);
-
-    // Send checksum
-    cmd[0] = 0x00;
-    send_data(cmd, 1);  
+    send_data(cmd, 3);
 
     // Wait for ack
     if (!recv_ack())
     {
+        ESP_LOGE(TAG, "Failed to mass erase command");
         return ESP_FAIL;
     }
     #ifdef DEBUG_FIRMWARE_STM32
@@ -228,7 +226,8 @@ static void flash_jump_to(uint32_t addr)
     cmd[0] = CMD_GO_1_2;
     cmd[1] = CMD_GO_2_2;
 
-    send_data(cmd, 2);
+    // send_data(cmd, 2);
+    send_cmd(CMD_GO_1_2);
 
     if (!recv_ack())
     {
@@ -254,6 +253,94 @@ static void flash_jump_to(uint32_t addr)
     }
 }
 
+esp_err_t bootload_stm()
+{
+    uint8_t error = 0;
+    for (uint8_t i=0; i<5; i++)
+    {
+        // Send the activate command (doesn't need CRC!)
+        send_byte(CMD_ACTIVATE);
+
+        if (recv_ack())
+        {
+            ESP_LOGI(TAG, "STM32G030 in bootloader mode");
+            break;
+        }
+        error++;
+        #ifdef DEBUG_FIRMWARE_STM32
+        ESP_LOGI("STM32G030", "Failed to activate bootloader, retrying... (%d/5)", i+1);
+        #endif
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+
+    if (error == 5)
+    {
+        ESP_LOGE(TAG, "Failed to activate STM32G030 bootloader");
+        return ESP_FAIL;    
+    } 
+
+    return ESP_OK;
+
+}
+
+esp_err_t flash_protect(uint8_t protect)
+{
+    uint8_t data[3];
+    if (!protect)
+    {
+        // send flash unprotect command
+        send_cmd(CMD_WRITE_UNPROTECT_1_2);
+        if (!recv_ack())
+        {
+            #ifdef DEBUG_FIRMWARE_STM32
+            ESP_LOGI(TAG, "Got NACK 1/2 for Write Unprotect command");
+            #endif
+            return ESP_FAIL;
+        }
+
+        if (!recv_ack())
+        {
+            #ifdef DEBUG_FIRMWARE_STM32
+            ESP_LOGI(TAG, "Got NACK 2/2 for Write Unprotect command");
+            #endif
+            return ESP_FAIL;
+        }
+
+        
+        // Needs a second ack after it's complete
+    } else {
+        send_cmd(CMD_WRITE_PROTECT);
+        
+        
+        if (!recv_ack())
+        {
+            #ifdef DEBUG_FIRMWARE_STM32
+            ESP_LOGI(TAG, "Got NACK for Write Protect command");
+            #endif
+            return ESP_FAIL;
+        }
+
+        data[0] = 255;
+        data[1] = 0;
+        data[2] = data[0] ^ data[1];
+        // send the number of sectors, sector code(s?) and the checksum
+        send_data(data, 3);
+
+        if (!recv_ack())
+        {
+            #ifdef DEBUG_FIRMWARE_STM32
+            ESP_LOGI(TAG, "Got ");
+            #endif
+            return ESP_FAIL;
+        }
+
+
+    }
+
+    return ESP_OK;
+
+}
+
 esp_err_t flash_stm32()
 {
     #ifdef DEBUG_FIRMWARE_STM32
@@ -263,9 +350,6 @@ esp_err_t flash_stm32()
     gpio_set_level(GPIO_STM32_NRESET, 0);
     vTaskDelay(500 / portTICK_PERIOD_MS);
     gpio_set_level(GPIO_STM32_NRESET, 1);
-    // vTaskDelay(200 / portTICK_PERIOD_MS);
-
-
    
     esp_err_t err = ESP_OK;
     FILE *file = NULL;
@@ -303,35 +387,26 @@ esp_err_t flash_stm32()
     ESP_LOGI(TAG, "Starting STM32G030 bootloader");
     #endif
 
-    // send_cmd(CMD_ACTIVATE);
-    // if (recv_ack())
-    // {
-    //     #ifdef DEBUG_FIRMWARE_STM32
-    //     ESP_LOGI(TAG, "STM32G030 in bootloader mode");
-    //     #endif
-    // } else {
-    //     err = ESP_FAIL;
-    //     goto error;
-    // }
-      uint8_t error = 0;
-    for (uint8_t i=0; i<5; i++)
+
+    if (bootload_stm() == ESP_FAIL)
     {
-        send_cmd(CMD_ACTIVATE);
-        if (recv_ack())
-        {
-            ESP_LOGI(TAG, "STM32G030 in bootloader mode");
-            break;
-        }
-        error++;
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        ESP_LOGI(TAG, "Failed to activate STM32G030 bootloader");
+        return ESP_FAIL;
     }
 
-    if (error == 5)
-    {
-        ESP_LOGE(TAG, "Failed to activate STM32G030 bootloader");
-        err = ESP_FAIL;
-        goto error;
-    }
+    // Write unprotect flash
+    // if (flash_protect(false) == ESP_FAIL)
+    // {
+    //     ESP_LOGI(TAG, "Write unprotect failed");
+    //     return ESP_FAIL;
+    // }
+
+    // Again bootload the stm, since after disabling the flash write protect, the stm will reboot.
+    // if (bootload_stm() == ESP_FAIL)
+    // {
+    //     ESP_LOGI(TAG, "Failed to activate STM32G030 bootloader 2nd time");
+    //     return ESP_FAIL;
+    // }
 
     // Erase flash pages
     #ifdef DEBUG_FIRMWARE_STM32
@@ -346,7 +421,7 @@ esp_err_t flash_stm32()
         ESP_LOGE(TAG, "Failed to erase pages");
         err = ESP_FAIL;
         goto error;
-    }
+    } 
 
         // Open firmware file on SD card
     #ifdef DEBUG_FIRMWARE_STM32
@@ -382,7 +457,8 @@ esp_err_t flash_stm32()
         } 
     }
     
-
+    // flash write protect
+    // flash_protect(true);
 
     // Jump to application code
     flash_jump_to(FLASH_START_ADDR);
