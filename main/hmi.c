@@ -49,6 +49,10 @@ void task_hmi(void* ignore) {
 // //   ESP_LOGI(TAG, "u8g2_SendBuffer");
 //   u8g2_SendBuffer(&u8g2);
 //   int i=0;
+
+  // Required for red LED. Disable JTAG functionality.
+  gpio_reset_pin(GPIO_HMI_LED_RED);
+
   gpio_set_direction(GPIO_HMI_LED_GREEN, GPIO_MODE_OUTPUT);
   gpio_set_direction(GPIO_HMI_LED_RED, GPIO_MODE_OUTPUT);
   while(1)
