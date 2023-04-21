@@ -507,11 +507,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
 
-    // Restart wifi if mode has changed
-    if (old_wifi_mode != settings_get_wifi_mode())
-    {
-        wifi_start();
-    }
+ 
 
     if (Logger_syncSettings() != ESP_OK)
     {
@@ -520,7 +516,17 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         goto error;
     }
 
+
+    // only send ack in case wifi mode has not changed. Else the next will get stuck
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+    
+
+    // Restart wifi if mode has changed
+    if (old_wifi_mode != settings_get_wifi_mode())
+    {
+        wifi_start();
+    }
+    
     
 
 error:
@@ -567,21 +573,21 @@ static esp_err_t Logger_stop_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-static esp_err_t logger_wifi_status_handler(httpd_req_t *req)
-{
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
+// static esp_err_t logger_wifi_status_handler(httpd_req_t *req)
+// {
+//     httpd_resp_set_type(req, "application/json");
+//     cJSON *root = cJSON_CreateObject();
 
-    cJSON_AddBoolToObject(root, (const char*)"connected", wifi_is_connected());
-    cJSON_AddStringToObject(root, (const char*)"ssid", wifi_get_ssid());
-    cJSON_AddStringToObject(root, (const char*)"ip", wifi_get_ip());
+//     cJSON_AddBoolToObject(root, (const char*)"connected", wifi_is_connected());
+//     cJSON_AddStringToObject(root, (const char*)"ssid", wifi_get_ssid());
+//     cJSON_AddStringToObject(root, (const char*)"ip", "dummy"());
 
-    const char *sys_info = cJSON_Print(root);
-    httpd_resp_sendstr(req, sys_info);
-    free((void*)sys_info);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
+//     const char *sys_info = cJSON_Print(root);
+//     httpd_resp_sendstr(req, sys_info);
+//     free((void*)sys_info);
+//     cJSON_Delete(root);
+//     return ESP_OK;
+// }
 
 esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reason)
 {
@@ -640,13 +646,12 @@ esp_err_t start_rest_server(const char *base_path)
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
 
-    httpd_uri_t logger_wifi_status_uri = {
-        .uri = "/ajax/wifiStatus",
-        .method = HTTP_GET,
-        .handler = logger_wifi_status_handler,
-        .user_ctx = rest_context
-    };
-    }
+    // httpd_uri_t logger_wifi_status_uri = {
+    //     .uri = "/ajax/wifiStatus",
+    //     .method = HTTP_GET,
+    //     .handler = logger_wifi_status_handler,
+    //     .user_ctx = rest_context
+    // };
 
     httpd_uri_t logger_getConfig_uri = {
         .uri = "/ajax/getConfig",
