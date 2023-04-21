@@ -23,6 +23,7 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
+
 #include "nvs_flash.h"
 #include "nvs.h"
 
@@ -110,7 +111,13 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         #ifdef DEBUG_WIFI
         ESP_LOGI(TAG,"connect to the AP fail");
         #endif
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        wifi_event_sta_disconnected_t* disconnected =
+            (wifi_event_sta_disconnected_t*)event_data;
+
+
+        if (disconnected->reason == WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT) {
+            ESP_LOGI(TAG, "WiFi Authentication failed");
+        } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         
         #ifdef DEBUG_WIFI
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
@@ -118,15 +125,12 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         #endif
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-    }
+    }     
 }
 
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                     int32_t event_id, void* event_data)
 {
-
-
-
     if (event_id == WIFI_EVENT_AP_STACONNECTED) {
        
         #ifdef DEBUG_WIFI
@@ -292,12 +296,30 @@ esp_err_t wifi_init()
     
 }
 
+int8_t wifi_get_rssi()
+{
+    wifi_ap_record_t ap_info;
+    esp_wifi_sta_get_ap_info(&ap_info);
+    return ap_info.rssi;
+}
+
+esp_err_t wifi_print_ip()
+{
+    esp_netif_ip_info_t ip_info;
+    esp_netif_get_ip_info(wifi_netif, &ip_info);
+    ESP_LOGI(TAG, "IP Address: " IPSTR, IP2STR(&ip_info.ip));
+    ESP_LOGI(TAG, "Netmask: " IPSTR, IP2STR(&ip_info.netmask));
+    ESP_LOGI(TAG, "Gateway: " IPSTR, IP2STR(&ip_info.gw));
+    return ESP_OK;
+}
+
 esp_err_t wifi_start(void)
 {
     if (wifi_enabled) {
         // check if we need stop, deinit and init again
         wifi_mode_t current_wifi_mode;
         esp_wifi_get_mode(&current_wifi_mode);
+        
         if (current_wifi_mode != settings_get_wifi_mode()) {
             #ifdef DEBUG_WIFI
             ESP_LOGI(TAG, "Stopping wifi");
