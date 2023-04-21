@@ -186,13 +186,13 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
             adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<15) - (int16_t)(settings_get()->adc_offsets_16b[j])));
         }
         
+        // The next values are calibrated values
         if (settings_get_adc_channel_range(j))
         {
-            // 60V range
-            channel_offset = 60*ADC_MULT_FACTOR_60V;
+            channel_offset = 126811146; // 60*ADC_MULT_FACTOR_60V;
 
         } else {
-            channel_offset = 10*ADC_MULT_FACTOR_10V;
+            channel_offset = 151703704; //10*ADC_MULT_FACTOR_10V;
             
         }
 
