@@ -101,10 +101,11 @@ esp_err_t init_fs(void)
 void app_main(void)
 {
 
-
-    init_console();
     // Register console commands
+    init_console();
+
     vTaskDelay (200/portTICK_PERIOD_MS);
+    
     // esp_log_level_set("wifi", ESP_LOG_ERROR);
     // esp_log_level_set("httpd_txrx", ESP_LOG_ERROR);
 
