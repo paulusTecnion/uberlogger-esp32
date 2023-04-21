@@ -19,6 +19,7 @@
 #include "firmwareSTM32.h"
 #include "firmwareESP32.h"
 #include "firmware-www.h"
+#include "wifi.h"
 
 
 static const char* TAG_CONSOLE = "CONSOLE";
@@ -103,6 +104,17 @@ static void register_calibrate(void)
         .help = "Calibrate ADC",
         .hint = NULL,
         .func = &Logger_calibrate
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_print_ip(void)
+{
+    const esp_console_cmd_t cmd = {
+        .command = "get_ip",
+        .help = "Print IP address",
+        .hint = NULL,
+        .func = &wifi_print_ip
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
@@ -224,6 +236,8 @@ static void register_update_www(){
 }
 
 
+
+
 void init_console(){
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
@@ -249,6 +263,7 @@ void init_console(){
     // register_log_stop();
     register_calibrate();
     register_logger_cmd();
+    register_print_ip();
     register_restart();
     register_settings_sample_rate();
     register_singleshot();
