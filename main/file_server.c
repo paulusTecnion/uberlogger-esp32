@@ -473,31 +473,36 @@ esp_err_t upload_post_handler(httpd_req_t *req)
 esp_err_t delete_post_handler(httpd_req_t *req)
 {
     char filepath[FILE_PATH_MAX];
+    
     struct stat file_stat;
 
-      // Strip out the /data part
-    const char *data_substr = "/data";
-    const char *data_pos = strstr(req->uri, data_substr);
+    //   // Strip out the /data part
+    // const char *data_substr = "/data";
+    // const char *data_pos = strstr(req->uri, data_substr);
     
-    // create new buffer
-    char *new_uri = malloc(strlen(req->uri) - strlen(data_substr) + 1);
-    if (new_uri == NULL) {
-        ESP_LOGE(TAG_FILESERVER, "Failed to allocate memory for new_uri");
-        return ESP_FAIL;
-    }
+    // // create new buffer
+    // char *new_uri = malloc(strlen(req->uri) - strlen(data_substr) + 1);
+    // if (new_uri == NULL) {
+    //     ESP_LOGE(TAG_FILESERVER, "Failed to allocate memory for new_uri");
+    //     return ESP_FAIL;
+    // }
 
-    // copy the string up to the /data part
-    strncpy(new_uri, req->uri, data_pos - req->uri);
+    // // copy the string up to the /data part
+    // strncpy(new_uri, req->uri, data_pos - req->uri);
 
-    // copy the string after the /data part
-    strncpy(new_uri + (data_pos - req->uri), data_pos + strlen(data_substr), strlen(req->uri) - strlen(data_substr) - (data_pos - req->uri) + 1);
+    // // copy the string after the /data part
+    // strncpy(new_uri + (data_pos - req->uri), data_pos + strlen(data_substr), strlen(req->uri) - strlen(data_substr) - (data_pos - req->uri) + 1);
 
-
+    // ESP_LOGI(TAG_FILESERVER, "%s", new_uri);
 
     /* Skip leading "/delete" from URI to get filename */
     /* Note sizeof() counts NULL termination hence the -1 */
     const char *filename = get_path_from_uri(filepath, "/sdcard",
-                                             new_uri  + sizeof("/delete") - 1, sizeof(filepath));
+                                             req->uri + sizeof("/delete") - 1, sizeof(filepath));
+
+
+    ESP_LOGI(TAG_FILESERVER, "filename: %s,  filepath: %s", filename, filepath);
+
     if (!filename) {
         /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
@@ -528,17 +533,20 @@ esp_err_t delete_post_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to mount SD card");
         return ESP_FAIL;
     }
+
+    ESP_LOGI(TAG_FILESERVER, "%s", filepath);
+
     /* Delete file */
     unlink(filepath);
 
     esp_sd_card_unmount();
     /* Redirect onto root to see the updated file list */
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/data");
+    // httpd_resp_set_status(req, "303 See Other");
+    // httpd_resp_set_hdr(req, "Location", "/data");
 #ifdef CONFIG_EXAMPLE_HTTPD_CONN_CLOSE_HEADER
     httpd_resp_set_hdr(req, "Connection", "close");
 #endif
-    httpd_resp_sendstr(req, "File deleted successfully");
+    httpd_resp_sendstr(req, "ack");
     return ESP_OK;
 }
 
