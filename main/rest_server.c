@@ -23,6 +23,7 @@ char * endpoint_response_char[] =
 };
 
 
+converted_reading_t live_data;
 
 static const char *REST_TAG = "esp-rest";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
@@ -168,12 +169,12 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     {
         return ESP_FAIL;
     }
-    converted_reading_t data;
     
     
-    Logger_GetSingleConversion(&data);
     
-    cJSON_AddNumberToObject(root, "TIMESTAMP", data.timestamp);
+   
+    
+    cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
     
     cJSON *readings = cJSON_AddObjectToObject(root, "READINGS");
 
@@ -191,10 +192,10 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
         if (settings_get_adc_channel_type(i))
         {
             sprintf(buf,"T%d", i);
-             cJSON_AddNumberToObject(tValues, buf, data.temperatureData[i]);
+             cJSON_AddNumberToObject(tValues, buf, live_data.temperatureData[i]);
         } else {
             sprintf(buf,"AIN%d", i);
-            cJSON_AddNumberToObject(aValues, buf, data.analogData[i]);
+            cJSON_AddNumberToObject(aValues, buf, live_data.analogData[i]);
         }
         
     }
@@ -207,13 +208,20 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
    cJSON_AddStringToObject(digital, "UNITS", "Level");
 //    cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
     
-    cJSON_AddNumberToObject(digital, "DI0", data.gpioData[0]);
-    cJSON_AddNumberToObject(digital, "DI1", data.gpioData[1]);
-    cJSON_AddNumberToObject(digital, "DI2", data.gpioData[2]);
-    cJSON_AddNumberToObject(digital, "DI3", data.gpioData[3]);
-    cJSON_AddNumberToObject(digital, "DI4", data.gpioData[4]);
-    cJSON_AddNumberToObject(digital, "DI5", data.gpioData[5]);
+    cJSON_AddNumberToObject(digital, "DI0", live_data.gpioData[0]);
+    cJSON_AddNumberToObject(digital, "DI1", live_data.gpioData[1]);
+    cJSON_AddNumberToObject(digital, "DI2", live_data.gpioData[2]);
+    cJSON_AddNumberToObject(digital, "DI3", live_data.gpioData[3]);
+    cJSON_AddNumberToObject(digital, "DI4", live_data.gpioData[4]);
+    cJSON_AddNumberToObject(digital, "DI5", live_data.gpioData[5]);
 
+    // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
+    cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
+    cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
+    cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
+    cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
+    cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", esp_sd_card_get_free_space());
+    cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 
 
     

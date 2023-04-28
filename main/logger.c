@@ -36,6 +36,8 @@ uint8_t _stopLogTask = 0;
 uint8_t _dataReceived = 0;
 uint64_t stm32TimerTimeout, currtime_us =0;
 
+extern converted_reading_t live_data;
+
 typedef struct {
     uint8_t startByte[START_STOP_NUM_BYTES]; // 2
     uint16_t dataLen;
@@ -1465,6 +1467,7 @@ void task_logging(void * pvParameters)
                         // ESP_LOGI(TAG_LOG, "Last msg received");
                         #endif
                         Logger_processData();
+                        Logger_GetSingleConversion(&live_data);
                         
                     } else {
                         ESP_LOGE(TAG_LOG, "Error receiving last message");
