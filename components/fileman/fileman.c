@@ -212,7 +212,8 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
         j++;
         // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
         // replace by put function. Much faster
-        if (fprintf(f, filestrbuffer) < 0)
+        // if (fprintf(f, filestrbuffer) < 0)
+        if (fputs(filestrbuffer, f) < 0)
         {
             return 0;
         }
