@@ -16,6 +16,10 @@
 #include "config.h"
 #include "settings.h"
 #include "fileman.h"
+#include "firmwareSTM32.h"
+#include "firmwareESP32.h"
+#include "firmware-www.h"
+#include "wifi.h"
 
 
 static const char* TAG_CONSOLE = "CONSOLE";
@@ -45,7 +49,14 @@ static int cmd_sample_rate(int argc, char **argv)
     {
         return settings_set_samplerate(settings_args.val->ival[0]);
     } else if (!strcmp(settings_args.arg0->sval[0], "res"))  {   
-        return settings_set_resolution(settings_args.val->ival[0]);
+
+        if (settings_set_resolution(settings_args.val->ival[0]) == ESP_OK)
+        {
+            Logger_syncSettings();
+            return 0;
+        } else {
+            return 1;
+        }
     } else if (!strcmp(settings_args.arg0->sval[0], "print")){
         return settings_print();
     } else {
@@ -85,6 +96,28 @@ static int cmd_logger(int argc, char **argv)
     
 }
 
+
+static void register_calibrate(void)
+{
+    const esp_console_cmd_t cmd = {
+        .command = "calibrate",
+        .help = "Calibrate ADC",
+        .hint = NULL,
+        .func = &Logger_calibrate
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_print_ip(void)
+{
+    const esp_console_cmd_t cmd = {
+        .command = "get_ip",
+        .help = "Print IP address",
+        .hint = NULL,
+        .func = &wifi_print_ip
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
 
 static void register_settings_sample_rate(void)
 {
@@ -172,6 +205,37 @@ static void register_singleshot(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
+static void register_update_stm32(){
+    const esp_console_cmd_t cmd = {
+        .command = "update-stm32",
+        .help = "Update STM32 firmware",
+        .hint = NULL,
+        .func = &flash_stm32
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_update_esp32(){
+    const esp_console_cmd_t cmd = {
+        .command = "update-esp32",
+        .help = "Update ESP32 firmware",
+        .hint = NULL,
+        .func = &updateESP32
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_update_www(){
+    const esp_console_cmd_t cmd = {
+        .command = "update-www",
+        .help = "Update www files",
+        .hint = NULL,
+        .func = &update_www
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+
 
 
 void init_console(){
@@ -197,12 +261,16 @@ void init_console(){
 
     // register_log_start();
     // register_log_stop();
+    register_calibrate();
     register_logger_cmd();
+    register_print_ip();
     register_restart();
     register_settings_sample_rate();
     register_singleshot();
     register_stm32_sync();
-
+    register_update_esp32();
+    register_update_stm32();
+    register_update_www();
     esp_console_register_help_command();
 
     // esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();

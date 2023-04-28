@@ -68,7 +68,7 @@ esp_err_t init_fs(void)
 {
     esp_vfs_spiffs_conf_t conf = {
         .base_path = CONFIG_EXAMPLE_WEB_MOUNT_POINT,
-        .partition_label = NULL,
+        .partition_label = "www",
         .max_files = 5,
         .format_if_mount_failed = false
     };
@@ -86,7 +86,7 @@ esp_err_t init_fs(void)
     }
 
     size_t total = 0, used = 0;
-    ret = esp_spiffs_info(NULL, &total, &used);
+    ret = esp_spiffs_info("www", &total, &used);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
     } else {
@@ -101,10 +101,11 @@ esp_err_t init_fs(void)
 void app_main(void)
 {
 
-
-    init_console();
     // Register console commands
+    init_console();
+
     vTaskDelay (200/portTICK_PERIOD_MS);
+    
     // esp_log_level_set("wifi", ESP_LOG_ERROR);
     // esp_log_level_set("httpd_txrx", ESP_LOG_ERROR);
 
@@ -124,11 +125,13 @@ void app_main(void)
     xTaskCreate(task_logging, "task_logging", 3500, NULL, 8, &xHandle_stm32);
     xTaskCreate(task_hmi, "task_hmi", 2000, NULL, tskIDLE_PRIORITY, &xHandle_oled);
     
-    // wifi_init_sta();
-    wifi_init_softap();
-    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
-    // esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
     
+    // wifi_init_sta();
+    // wifi_init_softap();
+    // esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+    // esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
+    wifi_init();
+    wifi_start();
     // The wifi seems to be either crashing the ESP sometimes due to this: https://github.com/espressif/esp-idf/issues/7404
     // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...
     vTaskDelay (1000/portTICK_PERIOD_MS);

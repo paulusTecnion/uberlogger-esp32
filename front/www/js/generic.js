@@ -1,26 +1,29 @@
-// load correct page after document is ready
+// load correct page after document is ready and highlight correct item in menu
 function loadPage(){
   const urlParams = new URLSearchParams(window.location.search);
   const page = urlParams.get('page');
   
   if((page=="")||(page == undefined)){
-    renderPage("overview");
+    renderPage("liveview", page_version);
   }else{
-    renderPage(page);
+    renderPage(page, page_version);
   }
+  
+  $('#menu_' + page).addClass("selected");
 }
 
-function renderPage(page){
+function renderPage(page, page_version){
   // get HTML of page
-  $.get("html/" + page + ".html", (data) => {
+  $.get("html/" + page + ".html?version=" + page_version, (data) => {
     $("#render").html(data);
+
+    // load JS of page
+    $.getScript("js/" + page + ".js?version=" + page_version);
   });
 
-  // load JS of page
-  $.getScript("js/" + page + ".js");
 }
 
-function gotoPage(page){
+function gotoPage(page, version){
   location.href="index.html?page=" + page;
 }
 
@@ -56,7 +59,7 @@ function populateFields(parent, data) {
 
     if($ctrl.is('select')){
       $("option",$ctrl).each(function(){
-        if (this.value==value){
+        if(this.value==value){
           this.selected=true;
         }else{
           this.selected=false;
@@ -73,18 +76,12 @@ function populateFields(parent, data) {
           }
           break;
         
-        case "select":
-          $ctrl.each(function(){
-            $(this).attr('value') == value;
-          });
-          break;
-
         case "radio":
           $ctrl.each(function(){
             if($(this).attr('value') == value){
-              $(this).prop("checked",true);
+              $(this).prop("checked", true);
             }else{
-              $(this).prop("checked",false);
+              $(this).prop("checked", false);
             }
           });
           break;
@@ -107,5 +104,31 @@ function populateFields(parent, data) {
       $ctrl.html(Number(value).toFixed(2));   
     }
   }
-  });  
+  });
+}
+
+
+function fixInputFieldNumbers(input_all, input_numbers, input_bools){ 
+  // input = all fields to save as object
+  // input_numbers = all fields in input to save as number in object
+  // input_bools = all fields in input to save as boolean in object
+
+  let input_new=input_all;
+
+  $.each(input_numbers, function(key, value){
+    input_new[key] = Number(value);
+  });
+
+  $.each(input_bools, function(key, value){
+    if(value==0){
+      value = false;
+    }else{
+      value = true;
+    }
+    
+    input_new[key] = Boolean(value);
+  });
+
+
+  return(input_new);
 }

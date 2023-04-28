@@ -1,8 +1,15 @@
 #include "settings.h"
 #include "spiffs_settings.h"
+#include "esp_wifi_types.h"
 
 static const char* TAG_SETTINGS = "SETTINGS";
+const char * settings_filename = "settings.json";
 Settings_t _settings;
+
+// Mult factor for the ADC channels.
+// Use as follows: mult_factor[resolution][range]
+// int32_t adc_factor[2][2];
+// int64_t adc_mult_factor[2];
 
 void settings_init()
 {
@@ -11,7 +18,14 @@ void settings_init()
         settings_set_default();
         settings_persist_settings();
     }
-    
+
+    // Set mult_factor 
+    // adc_factor[ADC_12_BITS0][ADC_RANGE_10V] = ADC_12_BITS_10V_FACTOR;
+    // adc_factor[ADC_12_BITS0][ADC_RANGE_60V] = ADC_12_BITS_60V_FACTOR;
+    // adc_factor[ADC_16_BITS0][ADC_RANGE_10V] = ADC_16_BITS_10V_FACTOR;
+    // adc_factor[ADC_16_BITS0][ADC_RANGE_60V] = ADC_16_BITS_60V_FACTOR;
+    // adc_mult_factor[ADC_RANGE_10V] = ADC_MULT_FACTOR_10V;
+    // adc_mult_factor[ADC_RANGE_60V] = ADC_MULT_FACTOR_60V;
 }
 
 uint8_t settings_get_adc_channel_enabled(adc_channel_t channel)
@@ -78,12 +92,58 @@ esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_rang
     return ESP_OK;
 }
 
+int32_t * settings_get_temp_offsets()
+{
+    return (int32_t*)_settings.temp_offsets;
+}
+
+esp_err_t settings_set_temp_offsets(int32_t * offsets)
+{
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+    {
+        _settings.temp_offsets[i] = (uint16_t*)offsets[i];
+    }
+    return ESP_OK;
+}
+
+int32_t * settings_get_adc_offsets_12b()
+{
+    return (int32_t*)_settings.adc_offsets_12b;
+}
+
+int32_t * settings_get_adc_offsets_16b()
+{
+    return (int32_t*)_settings.adc_offsets_16b;
+}
+
+esp_err_t settings_set_adc_offset(uint32_t * offsets, adc_resolution_t resolution)
+{
+    if (resolution == ADC_12_BITS)
+    {
+        for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+        {
+            _settings.adc_offsets_12b[i] = offsets[i];
+        }
+    } else if (resolution == ADC_16_BITS)
+    {
+        for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+        {
+            _settings.adc_offsets_16b[i] = offsets[i];
+        }
+    } else {
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
+
 esp_err_t settings_set_default()
 {
     #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Setting default settings");
     #endif
     _settings.adc_resolution = ADC_12_BITS;
+
     _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
@@ -91,7 +151,15 @@ esp_err_t settings_set_default()
     _settings.logMode = LOGMODE_CSV;
     strcpy(_settings.wifi_ssid, "Uberlogger");
     strcpy(_settings.wifi_password, "");
+    _settings.wifi_mode = WIFI_MODE_AP;
     _settings.wifi_channel = 1;
+
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+    {
+        _settings.adc_offsets_12b[i] = (1<<11);
+        _settings.adc_offsets_16b[i] = (1<<15);
+        _settings.temp_offsets[i] = 0;
+    }
 
     return ESP_OK;
 }
@@ -203,7 +271,7 @@ adc_resolution_t settings_get_resolution()
 
 esp_err_t settings_set_samplerate(adc_sample_rate_t rate)
 {
-    if (rate > 0 && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
+    if (rate >= ADC_SAMPLE_RATE_1Hz && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
     {
         #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "ADC SAMPLE RATE= %d", rate);
@@ -235,7 +303,9 @@ esp_err_t settings_load_persisted_settings()
             #endif
             return ESP_OK;     
         } else {
-            ESP_LOGE(TAG_SETTINGS, "Error reading settings file");
+            ESP_LOGE(TAG_SETTINGS, "Error reading settings file, setting and persisting defaults");
+            settings_set_default();
+            settings_persist_settings();
         }
     }
     ESP_LOGE(TAG_SETTINGS, "Loading persisted settings FAILED");
@@ -261,6 +331,16 @@ esp_err_t settings_print()
         ESP_LOGI(TAG_SETTINGS, "ADC ch%d range:%s", i, (_settings.adc_channel_range & (1<<i)) ? "+/-60V" : "+/-10V");
     }
 
+    for (i=0; i<8; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC 12 bit offset %d: %u", i, _settings.adc_offsets_12b[i]);
+    }
+
+    for (i=0; i<8; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC 16 bit offset %d: %u", i, _settings.adc_offsets_16b[i]);
+    }
+
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
     
     ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);
@@ -282,17 +362,36 @@ esp_err_t settings_persist_settings()
     return ESP_FAIL;
 }
 
-esp_err_t settings_set_timestamp(uint32_t timestamp)
+esp_err_t settings_set_timestamp(uint64_t timestamp)
 {
     // take timestamp and convert to day, month, year and time
     #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Timstamp: %d", timestamp);
     #endif
-    _settings.timestamp = timestamp;
+    // Expecting this in ms, but convert it to seconds
+    ESP_LOGI(TAG_SETTINGS, "Incoming timestamp: %lld, outgoing %ld", timestamp, (uint32_t)(timestamp/1000));
+
+    _settings.timestamp = (uint32_t)(timestamp/1000);
     return ESP_OK;
 }
 
 uint32_t settings_get_timestamp()
 {
     return _settings.timestamp;
+}
+
+uint8_t settings_get_wifi_mode()
+{
+    return _settings.wifi_mode;
+}
+
+esp_err_t settings_set_wifi_mode(uint8_t mode)
+{
+    if (mode == WIFI_MODE_AP || mode == WIFI_MODE_STA)
+    {
+        _settings.wifi_mode = mode;
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
 }

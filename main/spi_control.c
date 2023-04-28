@@ -148,7 +148,7 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
         .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
         .flags = 0,
-        .input_delay_ns=50
+        .input_delay_ns=60
     };  
 
     //GPIO config for the handshake line. Only trigger on positive edge
@@ -352,13 +352,13 @@ esp_err_t spi_ctrl_receive_data()
     
     if (ret == ESP_ERR_TIMEOUT) 
     {
-        ESP_LOGE(TAG_LOG, "STM32 timeout; could not receive data");
+        ESP_LOGE(TAG_SPI_CTRL, "STM32 timeout; could not receive data");
         return ESP_ERR_TIMEOUT;
     }
 
     if (ret == ESP_ERR_INVALID_ARG )
     {
-        ESP_LOGE(TAG_LOG, "spi_device_get_trans_result arg error");
+        ESP_LOGE(TAG_SPI_CTRL, "spi_device_get_trans_result arg error");
         return ESP_ERR_INVALID_ARG;
     }
      return ESP_OK;

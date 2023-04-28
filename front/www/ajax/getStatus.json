@@ -1,0 +1,11 @@
+{
+    "LOGGER_STATE": 0,
+    "SD_CARD_STATUS": 1,
+    "SD_CARD_FREE_SPACE": "100MB",
+    "TIMESTAMP": 1678207362000,
+    "FW_VERSION": "0.0.1",
+    "T_CHIP": 39.1,
+    "WIFI_TEST_STATUS": 0,
+    "WIFI_TEST_IP": "0.0.0.0",
+    "WIFI_TEST_RSSI": "-"
+}

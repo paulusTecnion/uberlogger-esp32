@@ -1,10 +1,11 @@
-$.getScript("js/plotly-2.16.1-basic.min.js");
+$.getScript("js/plotly-basic-2.18.2.min.js");
 
-setInterval(renderValueList, 1000);
+setInterval(renderValueList, 250);
 
 var dataPoints={};
 var dataPointsArray=[];
 var plot_drawn_state=0;
+const divPlot="plotly";
 
 function sanitizeCategoryName(category){
   switch(category){
@@ -30,26 +31,33 @@ function renderValueList(){
 
     $.getJSON('./ajax/' + query, (data) => {
       // parse JSON data to input list
-      let datetimestr = new Date(1000*Number(data["TIMESTAMP"]));
+      let datetimestr = new Date(Number(data["TIMESTAMP"]));
 
       let htmlstring=[];
       htmlstring+="<p>Timestamp of data: " + datetimestr + "</p>";
 
       $.each(data["READINGS"], function(category, category_values){
 
-        htmlstring+="<div class='block'><h3 class='first'>" + sanitizeCategoryName(category) + "</h3>";
-        htmlstring+="<table>";
+        htmlstring+="<div class='block greybox'><h2 class='first'>" + sanitizeCategoryName(category) + "</h2>";
+        htmlstring+="<table width='100%'>";
         htmlstring+="<tr><th>Input</th><th align='right'>" + category_values["UNITS"] + "</th></tr>";
 
-        let n=0;  
+        let n=0;
         $.each(category_values["VALUES"], function(channel, channel_value){
           n++;
-          htmlstring+="<tr><td>" + channel + "</td><td align='right'>" + channel_value + "</td></tr>";
-          storeDataPoint(category, channel, 1000*data["TIMESTAMP"], channel_value, category_values["UNITS"]);
+          htmlstring+="<tr><td>" + channel + "</td>";
+
+          if(typeof(channel_value) === "number"){
+            htmlstring+="<td align='right'>" + parseFloat(channel_value).toFixed(3) + "</td></tr>";
+          }else{
+            htmlstring+="<td align='right'>" + channel_value + "</td></tr>";
+          }
+
+          storeDataPoint(category, channel, data["TIMESTAMP"], channel_value, category_values["UNITS"]);
         });
 
         if(n==0){
-          htmlstring+="<tr><td>-<td><td align='right'>-</td></tr>";
+          htmlstring+="<tr><td>-</td><td align='right'>-</td></tr>";
         }
 
         htmlstring+="</table></div>";
@@ -84,19 +92,46 @@ function storeDataPoint(category, channel, timestamp, value, unit){
 
 
 function plotDataPoints(){
-  const divPlot="plotly";
-  
-  // convert JSON to array
   const dataPointsArray=Object.values(dataPoints);
-  let layout={
-    datarevision: Number(new Date())
-  };
+
+  let config={
+	  responsive: true
+  }
 
   if(plot_drawn_state==0){
-    Plotly.newPlot(divPlot, dataPointsArray, layout);
-    plot_drawn_state=1;
+	let layout={
+		datarevision: Number(new Date()),
+		margin: {
+			  l: 75,
+			  r: 15,
+			  t: 45,
+			  pad: 0
+		},
+		title: {
+			text:'Measured data',
+			xref: 'paper',
+			font: {
+				size: 16
+			},
+			x: 0.5,
+		},
+		xaxis: {
+			title: {
+				text: 'Time',
+				font: {
+					size: 14
+				}
+			},
+		}	
+	};
+	Plotly.newPlot(divPlot, dataPointsArray, layout, config);
+	plot_drawn_state=1;
+	
   }else{
     // we have a plot, do update of data only
-    Plotly.update(divPlot, dataPointsArray, layout);
+	let layout={
+		datarevision: Number(new Date())
+	}
+    Plotly.update(divPlot, dataPointsArray, layout, config);
   }
 }

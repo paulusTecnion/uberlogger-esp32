@@ -2,3 +2,5 @@
 /front/archive
 /front/sample/build
 /front/sample/node_modules
+ota_main.bin
+ota_filesystem.bin

@@ -133,10 +133,12 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
     //     ESP_LOGI(TAG_FILE, "ADC fp: %d", *(dataAdc+i));
     // }
 
+    // ESP_LOGI(TAG_FILE, "Writing %d rows", datarows);
+
     for (int i = 0; i<datarows; i++)
     {
         // Print time stamp
-        writeptr = writeptr + sprintf(filestrbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03d,",
+        writeptr = writeptr + sprintf(filestrbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03lu,",
             date_time_ptr[j].year, 
             date_time_ptr[j].month,
             date_time_ptr[j].date,
@@ -145,20 +147,56 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             date_time_ptr[j].seconds,
             date_time_ptr[j].subseconds);
 
+      
         // Print ADC
         for (int x=0; x<NUM_ADC_CHANNELS; x++)
         {
             
-            if (dataAdc[i*NUM_ADC_CHANNELS+x] > -1000000 && dataAdc[i*NUM_ADC_CHANNELS+x]<0)
+            // if (dataAdc[i*NUM_ADC_CHANNELS+x] > -1000000 && dataAdc[i*NUM_ADC_CHANNELS+x]<0)
+            // {
+            //     writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "-%d.%06d,",
+            //     dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
+            // } else {
+            //     writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%d.%06d,", 
+            //     dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
+            // }
+
+            // If temperature sensor and 16 bits we need to multiply input with 100 (or divide with factor 100 less which is ADC_MULT_FACTOR_16B_TEMP)
+            if ((settings_get()->adc_channel_type & (1 << x)))
             {
-                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "-%d.%06d,",
-                dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
+                // if ((settings_get()->adc_resolution == ADC_16_BITS))
+                // {
+                    // Only 2 digits after decimal point for temperature
+                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%07d,",
+                        (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
+                        abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_16B_TEMP)), 
+                        abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_16B_TEMP));
+                // } else {
+                //     writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%06d,",
+                //         (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
+                //         abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_12B_TEMP)), 
+                //         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_12B_TEMP));
+                // }
             } else {
-                writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%d.%06d,", 
-                dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
+                // if range is 60V...
+                if ((settings_get()->adc_channel_range & (1<<x)))
+                {
+                    // We need 7 digits after comma for +/-60V
+                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%07d,",
+                        (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
+                        abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_60V)), 
+                        abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_60V));
+                } else {
+                    // We need 8 digits after comma for +/-10V
+                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%08d,",
+                        (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
+                        abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_10V)), 
+                        abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_10V));
+                }
             }
-
-
+            
+         
+            
         }
         // Finally the IOs
         snprintf(filestrbuffer+writeptr, (2*6+5), "%d,%d,%d,%d,%d,%d\r\n",
@@ -173,6 +211,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
  
         j++;
         // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
+        // replace by put function. Much faster
         if (fprintf(f, filestrbuffer) < 0)
         {
             return 0;

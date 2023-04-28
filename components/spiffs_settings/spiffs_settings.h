@@ -9,7 +9,6 @@
 #include "esp_err.h"
 #include "esp_log.h"
 
-#define SPIFFS_LABEL "data"
 
 typedef enum  {
     SPIFFS_READ = 0,

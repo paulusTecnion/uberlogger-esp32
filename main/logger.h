@@ -27,9 +27,6 @@
 #define DATA_TRANSACTIONS_PER_SD_FLUSH 4
 #define SD_BUFFERSIZE (DATA_TRANSACTIONS_PER_SD_FLUSH*STM_DATA_BUFFER_SIZE_PER_TRANSACTION) 
 
-
-static const char* TAG_LOG = "LOGGER";
-
 // It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
 
 typedef struct {
@@ -61,7 +58,7 @@ typedef struct {
     uint8_t gpioData[6];
     float   temperatureData[8];
     float   analogData[8];
-    uint32_t timestamp;
+    uint64_t timestamp;
 } converted_reading_t;
 
 enum LogTaskStates
@@ -72,6 +69,10 @@ enum LogTaskStates
     LOGTASK_SETTINGS,
     LOGTASK_STOPPING,
     LOGTASK_ERROR_OCCURED,
+    LOGTASK_REBOOT_SYSTEM,
+    LOGTASK_FWUPDATE,
+    LOGTASK_SINGLE_SHOT,
+    LOGTASK_CALIBRATION,
     LOGTASK_NUM_STATES
 };
 
@@ -87,6 +88,12 @@ enum LoggingStates{
     LOGGING_NUM_STATES
 };
 
+enum Logger_modeButtonStates{
+    MODEBUTTON_IDLE = 0,
+    MODEBUTTON_HOLD,
+    MODEBUTTON_RELEASED,
+    MODEBUTTON_NUM_STATES
+};
 
 
 
@@ -100,8 +107,11 @@ typedef uint8_t LoggingState_t;
 /// @param range Range of channel. I.e. if total range is 20V, use 20000000
 /// @param offset Offset of the channel. If total range is 20V and minimum range value is -10V use 10000000
 /// @return 
-int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t range, uint64_t offset);
-float Logger_convertAdcFloat(uint16_t adcData0, uint16_t adcData1);
+// int32_t Logger_convertAdcFixedPoint(uint8_t adcData0, uint8_t adcData1, uint64_t range, uint32_t offset);
+
+esp_err_t Logger_calibrate();
+
+float Logger_convertAdcFloat(uint16_t adcVal);
 
 /**
  * @brief Enable or disable the interrupt for the data ready pin.
@@ -142,6 +152,10 @@ uint8_t Logger_getCsvLog();
 
 uint8_t Logger_mode_button();
 esp_err_t Logger_syncSettings();
+
+esp_err_t Logger_startFWupdate();
+
+void Logging_restartSystem();
 
 
 void Logger_GetSingleConversion(converted_reading_t* data);

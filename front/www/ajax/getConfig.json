@@ -1,0 +1,29 @@
+{
+  "TIMESTAMP": 1673607089000,
+  "WIFI_MODE": 1,
+  "WIFI_SSID": "test wifi",
+  "WIFI_PASSWORD": "lol+lol=hihi",
+  "LOG_MODE": 1,
+  "LOG_SAMPLE_RATE": 3,
+  "ADC_RESOLUTION": 16,
+  "NTC_SELECT": {
+    "NTC0": false,
+    "NTC1": false,
+    "NTC2": false,
+    "NTC3": false,
+    "NTC4": true,
+    "NTC5": false,
+    "NTC6": false,
+    "NTC7": true
+  },
+  "AIN_RANGE_SELECT": {
+    "AIN0": false,
+    "AIN1": false,
+    "AIN2": false,
+    "AIN3": true,
+    "AIN4": true,
+    "AIN5": false,
+    "AIN6": false,
+    "AIN7": true
+  }
+}

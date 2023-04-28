@@ -49,7 +49,18 @@ void task_hmi(void* ignore) {
 // //   ESP_LOGI(TAG, "u8g2_SendBuffer");
 //   u8g2_SendBuffer(&u8g2);
 //   int i=0;
-  gpio_set_direction(GPIO_HMI_LED, GPIO_MODE_OUTPUT);
+
+  // Required for red LED. Disable JTAG functionality.
+  gpio_reset_pin(GPIO_HMI_LED_RED);
+
+  gpio_set_direction(GPIO_HMI_LED_GREEN, GPIO_MODE_OUTPUT);
+  gpio_set_direction(GPIO_HMI_LED_RED, GPIO_MODE_OUTPUT);
+
+  static uint8_t timerCounter = 0;
+  static uint8_t toggle_green = 1;
+  static uint8_t toggle_red = 0;
+  static uint8_t startLogging = 1;
+
   while(1)
   {
     // if (i > 100)
@@ -67,35 +78,55 @@ void task_hmi(void* ignore) {
     //     i = 0;
     // }
     // i = i + 20;
-    static uint8_t toggle = 1;
+    
+
 
 
     if (Logger_getError() > 0)
     {
-          toggle = !toggle;
-          vTaskDelay(200 / portTICK_PERIOD_MS);
+        if (timerCounter % 2 == 0)
+        {
+            toggle_red = !toggle_red;
+        }
+          // ESP_LOGI(TAG, "Toggle red");
     } else {
-      switch (Logger_getState())
-      {
-          case LOGTASK_IDLE:
-            toggle = 1;
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-          break;
-
-          case LOGTASK_LOGGING:
-            toggle = !toggle;  
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-          break;
-
-      
-      }
+      toggle_red = 0;
     }
+
+    switch (Logger_getState())
+    {
+        case LOGTASK_IDLE:
+          toggle_green = 1;
+          // This variable is used to indicate that logging just started when the button is pressed.
+          startLogging = 1;
+        break;
+
+        case LOGTASK_LOGGING:
+          if (startLogging)
+          {
+            // If we just started logging, we want to immediately turn off the LED to give immediate feedback to the user.
+            startLogging = 0;
+            toggle_green = 0;
+          }
+
+          if (timerCounter % 10 == 0)
+          {
+            toggle_green = !toggle_green;
+          }
+          
+          
+        break;
+    }
+
     
-    gpio_set_level(GPIO_HMI_LED, toggle);
     
+    gpio_set_level(GPIO_HMI_LED_GREEN, toggle_green);
+    gpio_set_level(GPIO_HMI_LED_RED, toggle_red);
+    timerCounter++;
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
   }
-  ESP_LOGI(TAG, "All done!");
+  // ESP_LOGI(TAG, "All done!");
 
-  vTaskDelete(NULL);
+  // vTaskDelete(NULL);
 }
