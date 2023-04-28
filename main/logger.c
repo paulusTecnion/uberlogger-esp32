@@ -273,7 +273,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
     dataOutput->timestamp  = (uint64_t)mktime(&t) * 1000LL;    
     dataOutput->timestamp = dataOutput->timestamp + live_data_buffer.timeData.subseconds;
-    // ESP_LOGI(TAG_LOG, "%d %d, %d-%d-%d %d:%d:%d", msg_part, dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+    // ESP_LOGI(TAG_LOG, "%lld, %d-%d-%d %d:%d:%d",  dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 }
 
 esp_err_t Logger_singleShot()
@@ -1312,7 +1312,7 @@ void task_logging(void * pvParameters)
                         _nextLogTaskState = LOGTASK_IDLE;
                     }
                 } else {
-                    vTaskDelay(500 / portTICK_PERIOD_MS);
+                    vTaskDelay(200 / portTICK_PERIOD_MS);
                     lastTick++;
                     if (lastTick > 1 && _nextLogTaskState == LOGTASK_IDLE)
                     {
@@ -1509,13 +1509,20 @@ void task_logging(void * pvParameters)
                 if(log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH)
                 {
                     // No need to check for error, is done at _errorcode >0 check
-                    Logger_flush_to_sdcard();
+                    // Logger_flush_to_sdcard();
+                    if (Logger_flush_to_sdcard() != ESP_OK)
+                    {
+                        fileman_close_file();
+                        ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
+                        LogTask_stop();
+                    } 
                     
                     log_counter = 0;
               
                     sdcard_data.datarows = 0;
                 }
 
+                // Keep in mind we are talking about _currentLoggingState here, not _CurrentLogTaskState!
                 if ((_currentLoggingState == LOGGING_ERROR ||
                     _errorCode > 0) &&
                     _currentLoggingState != LOGGING_DONE) 
