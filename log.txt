@@ -1,0 +1,229 @@
+[0;32mI (2847453) LOGGER: Changing LOGTASK state from 1 to 8[0m[0;32mI (2847983) LOGGER: Changing LOGTASK state from 8 to 1I (2856573) wifi:state: run -> init (0)
+I (2856583) wifi:pm stop, total sleep time: 2311413054 us / 2851548757 us
+
+I (2856593) wifi:<ba-del>idx
+I (2856593) wifi:new:<1,0>, old:<1,0>, ap:<255,255>, sta:<1,0>, prof:1
+I (2856663) wifi:flush txq
+I (2856663) wifi:stop sw txq
+I (2856663) wifi:lmac stop hw txq
+[0;32mI (34) boot: ESP-IDF v5.0.1-dirty 2nd stage bootloader[0m
+[0;32mI (35) boot: compile time 13:31:58[0m
+[0;32mI (35) boot: chip revision: v0.0[0m
+[0;32mI (35) boot.esp32s2: SPI Speed      : 80MHz[0m
+[0;32mI (35) boot.esp32s2: SPI Mode       : DIO[0m
+[0;32mI (35) boot.esp32s2: SPI Flash Size : 4MB[0m
+[0;32mI (35) boot: Enabling RNG early entropy source...[0m
+[0;32mI (36) boot: Partition Table:[0m
+[0;32mI (36) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (37) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (38) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (39) boot:  2 ota_0            OTA app          00 10 00020000 0012c000[0m
+[0;32mI (40) boot:  3 ota_1            OTA app          00 11 00150000 0012c000[0m
+[0;32mI (42) boot:  4 www              Unknown data     01 82 0027c000 000bc000[0m
+[0;32mI (43) boot:  5 settings         Unknown data     01 82 00338000 0000c800[0m
+[0;32mI (44) boot: End of partition table[0m
+[0;32mI (44) esp_image: segment 0: paddr=00020020 vaddr=3f000020 size=2c9d8h (182744) map[0m
+[0;32mI (81) esp_image: segment 1: paddr=0004ca00 vaddr=3ffc94d0 size=03618h ( 13848) load[0m
+[0;32mI (86) esp_image: segment 2: paddr=00050020 vaddr=40080020 size=a4b18h (674584) map[0m
+[0;32mI (220) esp_image: segment 3: paddr=000f4b40 vaddr=3ffccae8 size=010a0h (  4256) load[0m
+[0;32mI (222) esp_image: segment 4: paddr=000f5be8 vaddr=40022000 size=174cch ( 95436) load[0m
+[0;32mI (257) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (259) boot: Disabling RNG early entropy source...[0m
+[0;32mI (278) spi_flash: detected chip: generic[0m
+[0;32mI (278) spi_flash: flash io: dio[0m
+[0;32mI (282) cpu_start: Starting scheduler on PRO CPU.[0m
+[5n
+Type 'help' to get the list of commands.
+Use UP/DOWN arrows to navigate through command history.
+Press TAB when typing command name to auto-complete.
+
+Your terminal application does not support escape sequences.
+
+Line editing and history features are disabled.
+
+On Windows, try using Putty instead.
+uberlogger> [0;32mI (1283) MAIN: 
+#################################
+#           UberLogger          #
+#################################[0m
+[0;32mI (1303) SPIFFS: Initializing SPIFFS using settings.json[0m
+[0;32mI (1313) SPIFFS: Partition size: total: 37901, used: 502[0m
+[0;32mI (1323) temperature_sensor: Range [-10°C ~ 80°C], error < 1°C[0m
+[0;32mI (1333) gpio: GPIO[5]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1343) gpio: GPIO[26]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+I (1343) wifi:wifi driver task: 3ffe2618, prio:23, stack:6656, core=0
+[0;32mI (1363) system_api: Base MAC address is not set[0m
+[0;32mI (1363) system_api: read default base MAC address from EFUSE[0m
+I (1373) wifi:wifi firmware version: 17afb16
+I (1373) wifi:wifi certification version: v7.0
+I (1373) wifi:config NVS flash: enabled
+I (1373) wifi:config nano formating: disabled
+I (1373) wifi:Init data frame dynamic rx buffer num: 32
+I (1373) wifi:Init management frame dynamic rx buffer num: 32
+I (1373) wifi:Init management short buffer num: 32
+I (1373) wifi:Init dynamic tx buffer num: 32
+I (1373) wifi:Init static rx buffer size: 1600
+I (1373) wifi:Init static rx buffer num: 10
+I (1373) wifi:Init dynamic rx buffer num: 32
+[0;32mI (1373) wifi_init: rx ba win: 6[0m
+[0;32mI (1373) wifi_init: tcpip mbox: 32[0m
+[0;32mI (1373) wifi_init: udp mbox: 6[0m
+[0;32mI (1373) wifi_init: tcp mbox: 6[0m
+[0;32mI (1373) wifi_init: tcp tx win: 5744[0m
+[0;32mI (1373) wifi_init: tcp rx win: 5744[0m
+[0;32mI (1373) wifi_init: tcp mss: 1440[0m
+[0;32mI (1373) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (1373) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (1373) wifi_init: WiFi SLP IRAM OP enabled[0m
+[0;32mI (1333) gpio: GPIO[39]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1433) phy_init: phy_version 2300,d67cf06,Feb 10 2022,10:03:07[0m
+I (1473) wifi:mode : sta (d4:f9:8d:6d:13:de)
+I (1473) wifi:enable tsf
+[0;31mE (1553) SDCARD: SD card not inserted!
+[0m
+[0;32mI (1563) LOGGER: Logger task started[0m
+[0;32mI (1563) gpio: GPIO[6]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:1 [0m
+[0;32mI (1753) LOGGER: STM32 settings synced[0m
+[0;32mI (2853) LOGGER: Changing LOGTASK state from 1 to 8[0m
+[0;32mI (3273) LOGGER: Changing LOGTASK state from 8 to 1[0m
+I (3913) wifi:new:<1,0>, old:<1,0>, ap:<255,255>, sta:<1,0>, prof:1
+Type 'help' to get the list of commands.Use UP/DOWN arrows [0;32mI (1272) MAIN: 
+#################################
+#           UberLogger          #
+#################################[0m
+[0;32mI (1382) SPIFFS: Initializing SPIFFS using settings.json[0m
+[0;32mI (1392) SPIFFS: Partition size: total: 37901, used: 502[0m
+[0;32mI (1402) temperature_sensor: Range [-10°C ~ 80°C], error < 1°C[0m
+[0;32mI (1412) gpio: GPIO[5]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1422) gpio: GPIO[26]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+I (1422) wifi:wifi driver task: 3ffe2618, prio:23, stack:6656, core=0
+[0;32mI (1442) system_api: Base MAC address is not set[0m
+[0;32mI (1442) system_api: read default base MAC address from EFUSE[0m
+I (1452) wifi:wifi firmware version: 17afb16
+I (1452) wifi:wifi certification version: v7.0
+I (1452) wifi:config NVS flash: enabled
+I (1452) wifi:config nano formating: disabled
+I (1452) wifi:Init data frame dynamic rx buffer num: 32
+I (1452) wifi:Init management frame dynamic rx buffer num: 32
+I (1452) wifi:Init management short buffer num: 32
+I (1452) wifi:Init dynamic tx buffer num: 32
+I (1452) wifi:Init static rx buffer size: 1600
+I (1452) wifi:Init static rx buffer num: 10
+I (1452) wifi:Init dynamic rx buffer num: 32
+[0;32mI (1452) wifi_init: rx ba win: 6[0m
+[0;32mI (1452) wifi_init: tcpip mbox: 32[0m
+[0;32mI (1452) wifi_init: udp mbox: 6[0m
+[0;32mI (1452) wifi_init: tcp mbox: 6[0m
+[0;32mI (1452) wifi_init: tcp tx win: 5744[0m
+[0;32mI (1452) wifi_init: tcp rx win: 5744[0m
+[0;32mI (1452) wifi_init: tcp mss: 1440[0m
+[0;32mI (1452) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (1452) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (1452) wifi_init: WiFi SLP IRAM OP enabled[0m
+[0;32mI (1462) phy_init: phy_version 2300,d67cf06,Feb 10 2022,10:03:07[0m
+I (1512) wifi:mode : sta (d4:f9:8d:6d:13:de)
+I (1512) wifi:enable tsf
+[0;32mI (1412) gpio: GPIO[39]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+I (1572) wifi:flush txq
+I (1572) wifi:stop sw txq
+I (1572) wifi:lmac stop hw txq
+[0;32mI (34) boot: ESP-IDF v5.0.1-dirty 2nd stage bootloader[0m
+[0;32mI (35) boot: compile time 13:31:58[0m
+[0;32mI (35) boot: chip revision: v0.0[0m
+[0;32mI (35) boot.esp32s2: SPI Speed      : 80MHz[0m
+[0;32mI (35) boot.esp32s2: SPI Mode       : DIO[0m
+[0;32mI (36) boot.esp32s2: SPI Flash Size : 4MB[0m
+[0;32mI (36) boot: Enabling RNG early entropy source...[0m
+[0;32mI (37) boot: Partition Table:[0m
+[0;32mI (37) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (38) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (39) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (40) boot:  2 ota_0            OTA app          00 10 00020000 0012c000[0m
+[0;32mI (41) boot:  3 ota_1            OTA app          00 11 00150000 0012c000[0m
+[0;32mI (43) boot:  4 www              Unknown data     01 82 0027c000 000bc000[0m
+[0;32mI (44) boot:  5 settings         Unknown data     01 82 00338000 0000c800[0m
+[0;32mI (45) boot: End of partition table[0m
+[0;32mI (45) esp_image: segment 0: paddr=00020020 vaddr=3f000020 size=2c9d8h (182744) map[0m
+[0;32mI (82) esp_image: segment 1: paddr=0004ca00 vaddr=3ffc94d0 size=03618h ( 13848) load[0m
+[0;32mI (87) esp_image: segment 2: paddr=00050020 vaddr=40080020 size=a4b18h (674584) map[0m
+[0;32mI (221) esp_image: segment 3: paddr=000f4b40 vaddr=3ffccae8 size=010a0h (  4256) load[0m
+[0;32mI (223) esp_image: segment 4: paddr=000f5be8 vaddr=40022000 size=174cch ( 95436) load[0m
+[0;32mI (258) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (260) boot: Disabling RNG early entropy source...[0m
+[0;32mI (279) spi_flash: detected chip: generic[0m
+[0;32mI (279) spi_flash: flash io: dio[0m
+[0;32mI (283) cpu_start: Starting scheduler on PRO CPU.[0m
+[5n
+Type 'help' to get the list of commands.
+Use UP/DOWN arrows to navigate through command history.
+Press TAB when typing command name to auto-complete.
+
+Your terminal application does not support escape sequences.
+
+Line editing and history features are disabled.
+
+On Windows, try using Putty instead.
+uberlogger> [0;32mI (1284) MAIN: 
+#################################
+#           UberLogger          #
+#################################[0m
+[0;32mI (1314) SPIFFS: Initializing SPIFFS using settings.json[0m
+[0;32mI (1324) SPIFFS: Partition size: total: 37901, used: 502[0m
+[0;32mI (1334) temperature_sensor: Range [-10°C ~ 80°C], error < 1°C[0m
+[0;32mI (1344) gpio: GPIO[5]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1354) gpio: GPIO[26]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+I (1354) wifi:wifi driver task: 3ffe2618, prio:23, stack:6656, core=0
+[0;32mI (1374) system_api: Base MAC address is not set[0m
+[0;32mI (1374) system_api: read default base MAC address from EFUSE[0m
+I (1384) wifi:wifi firmware version: 17afb16
+I (1384) wifi:wifi certification version: v7.0
+I (1384) wifi:config NVS flash: enabled
+I (1384) wifi:config nano formating: disabled
+I (1384) wifi:Init data frame dynamic rx buffer num: 32
+I (1384) wifi:Init management frame dynamic rx buffer num: 32
+I (1384) wifi:Init management short buffer num: 32
+I (1384) wifi:Init dynamic tx buffer num: 32
+I (1384) wifi:Init static rx buffer size: 1600
+I (1384) wifi:Init static rx buffer num: 10
+I (1384) wifi:Init dynamic rx buffer num: 32
+[0;32mI (1384) wifi_init: rx ba win: 6[0m
+[0;32mI (1384) wifi_init: tcpip mbox: 32[0m
+[0;32mI (1384) wifi_init: udp mbox: 6[0m
+[0;32mI (1384) wifi_init: tcp mbox: 6[0m
+[0;32mI (1384) wifi_init: tcp tx win: 5744[0m
+[0;32mI (1384) wifi_init: tcp rx win: 5744[0m
+[0;32mI (1384) wifi_init: tcp mss: 1440[0m
+[0;32mI (1384) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (1384) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (1384) wifi_init: WiFi SLP IRAM OP enabled[0m
+[0;32mI (1394) phy_init: phy_version 2300,d67cf06,Feb 10 2022,10:03:07[0m
+I (1434) wifi:mode : sta (d4:f9:8d:6d:13:de)
+I (1434) wifi:enable tsf
+[0;32mI (1344) gpio: GPIO[39]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;31mE (1564) SDCARD: SD card not inserted!
+[0m
+[0;32mI (1574) LOGGER: Logger task started[0m
+[0;32mI (1574) gpio: GPIO[6]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:1 [0m
+[0;32mI (1694) LOGGER: STM32 settings synced[0m
+[0;32mI (2794) LOGGER: Changing LOGTASK state from 1 to 8[0m
+[0;32mI (3214) LOGGER: Changing LOGTASK state from 8 to 1[0m
+I (3854) wifi:new:<1,0>, old:<1,0>, ap:<255,255>, sta:<1,0>, prof:1
+I (5114) wifi:state: init -> auth (b0)
+I (5114) wifi:state: auth -> assoc (0)
+I (5124) wifi:state: assoc -> run (10)
+I (5534) wifi:connected with Ziggo2403426, aid = 1, channel 1, BW20, bssid = 68:02:b8:8d:c0:5a
+I (5544) wifi:security: WPA2-PSK, phy: bgn, rssi: -66
+I (5554) wifi:pm start, type: 1
+
+I (5554) wifi:AP's beacon interval = 102400 us, DTIM period = 1
+[0;32mI (5604) LOGGER: Changing LOGTASK state from 1 to 8[0m
+I (5614) wifi:<ba-add>idx:0 (ifx:0, 68:02:b8:8d:c0:5a), tid:0, ssn:2, winSize:64
+[0;32mI (6024) LOGGER: Changing LOGTASK state from 8 to 1[0m
+[0;32mI (7064) esp_netif_handlers: sta ip: 192.168.178.206, mask: 255.255.255.0, gw: 192.168.178.1[0m
+[0;32mI (7224) LOGGER: Changing LOGTASK state from 1 to 8[0m
+[0;32mI (7644) LOGGER: Changing LOGTASK state from 8 to 1[0m
+[0;32mI (8844) LOGGER: Changing LOGTASK state from 1 to 8[0m
+[0;32mI (9264) LOGGER: Changing LOGTASK state from 8 to 1[0m
+Executing action: monitor
+Running idf_monitor in directory /home/paulus/dev/uberlogger/uberlogger-esp32
+Executing "/home/paulus/.espressif/python_env/idf5.0_py3.10_env/bin/python /home/paulus/esp/esp-idf/tools/idf_monitor.py -p /dev/ttyACM0 -b 115200 --toolchain-prefix xtensa-esp32s2-elf- --target esp32s2 /home/paulus/dev/uberlogger/uberlogger-esp32/build/uberlogger-esp32.elf -m '/home/paulus/.espressif/python_env/idf5.0_py3.10_env/bin/python' '/home/paulus/esp/esp-idf/tools/idf.py'"...

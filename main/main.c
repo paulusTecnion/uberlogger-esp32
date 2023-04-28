@@ -31,7 +31,7 @@
 
 #include "wifi.h"
 
-esp_err_t start_rest_server(const char *base_path);
+
 
 TaskHandle_t xHandle_stm32 = NULL;
 TaskHandle_t xHandle_oled = NULL;

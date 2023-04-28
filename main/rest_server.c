@@ -43,6 +43,8 @@ typedef struct rest_server_context {
     char scratch[SCRATCH_BUFSIZE];
 } rest_server_context_t;
 
+httpd_handle_t server = NULL;
+
 static const char *UPLOAD_FORM = "<html><body>\
 <form method='POST' enctype='multipart/form-data' action='/upload'>\
 <input type='file' name='file'><br>\
@@ -524,7 +526,10 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     // Restart wifi if mode has changed
     if (old_wifi_mode != settings_get_wifi_mode())
     {
+        // stop_rest_server();
         wifi_start();
+        // start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT);
+        
     }
     
     
@@ -632,12 +637,20 @@ esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reas
 
 esp_err_t start_rest_server(const char *base_path)
 {
+    if (server != NULL)
+    {
+        ESP_LOGE(REST_TAG, "Server already started");
+        return ESP_FAIL;
+    }
+
     REST_CHECK(base_path, "wrong base path", err);
     rest_server_context_t *rest_context = calloc(1, sizeof(rest_server_context_t));
     REST_CHECK(rest_context, "No memory for rest context", err);
     strlcpy(rest_context->base_path, base_path, sizeof(rest_context->base_path));
 
-    httpd_handle_t server = NULL;
+    
+
+    server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 13;
     config.task_priority = tskIDLE_PRIORITY+1;
@@ -757,4 +770,20 @@ err_start:
     free(rest_context);
 err:
     return ESP_FAIL;
+}
+
+
+esp_err_t stop_rest_server(void)
+{
+    httpd_handle_t server = NULL;
+    
+    if (server == NULL)
+    {
+        ESP_LOGE(REST_TAG, "Server not started");
+        return ESP_FAIL;
+    }
+    httpd_stop(server);
+    
+    server = NULL;
+    return ESP_OK;
 }
