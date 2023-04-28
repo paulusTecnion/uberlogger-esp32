@@ -8,16 +8,32 @@
 </head>
 
 <script>
-	var page_version="10";
+	var page_version="12";
 </script>
 
 <body onload="loadPage();">
 
 <div id="content">
-	<div id="shadow_top"></div>
 	<div id="window">
 		<div id="top">
-			<div id="toptitle"><h1>UberLogger One</h1><p>High-performance data logging</p></div>
+			<div id="toptitle">
+                <div class="left"><img src="logo.png"/></div>
+                <div class="status" id="topstatus">
+                	<table>
+	                    <tr>
+                        	<td>Logger time:</td><td><span name="TIMESTAMPSTR">-</span></td>
+	                    		<td>SD-card status:</td><td><span id="WIFI_TEST_RSSI" name="SD_CARD_STATUS">-</span></td>
+            	        </tr>
+	                    <tr>
+                        	<td>Logger status:</td><td><span name="LOGGER_STATE">-</span></td>
+	                    		<td>SD-card free space:</td><td><span name="SD_CARD_FREE_SPACE">-</span></td>
+            	        </tr>
+	                    <tr>
+                        	<td>Logger error:</td><td><span name="ERRORCODE">-</span></td>
+            	        </tr>
+                	</table>
+                </div>
+            </div>
 			<div id="topmenubar">
 				<button id="menu_home" onclick="gotoPage('home');">Home</button>
 				<button id="menu_liveview" onclick="gotoPage('liveview');">View live data</button>
@@ -32,7 +48,6 @@
 			<b>UberLogger</b> by Tecnion
 		</div>
 	</div>
-	<div id="shadow_bottom"></div>
 </div>
 
 <!--- JavaScript includes --->

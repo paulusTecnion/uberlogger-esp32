@@ -1,6 +1,12 @@
-$.getScript("js/plotly-basic-2.18.2.min.js");
-
-setInterval(renderValueList, 250);
+$( document ).ready(function() {
+	$.ajax({
+		url: "js/plotly-basic-2.22.0.min.js",
+		dataType: "script",
+		success: function(){
+			setInterval(renderValueList, 1000);
+		}
+	});
+});
 
 var dataPoints={};
 var dataPointsArray=[];
@@ -8,104 +14,92 @@ var plot_drawn_state=0;
 const divPlot="plotly";
 
 function sanitizeCategoryName(category){
-  switch(category){
-    case "ANALOG":
-      return("Analog");
-      break;
+	switch(category){
+	case "ANALOG":
+		return("Analog");
+		break;
 
-    case "DIGITAL":
-      return("Digital");
-      break;
+	case "DIGITAL":
+		return("Digital");
+		break;
 
-    case "TEMPERATURE":
-      return("Temperature");
-      break;
-    
-    default:
-      return(category);
-  }
+	case "TEMPERATURE":
+		return("Temperature");
+		break;
+	
+	default:
+		return(category);
+	}
 }
 
 function renderValueList(){
-    const query='getValues';
+	// parse JSON data to input list
+	htmlstring=[];
+	htmlstring+="<p>Timestamp of data: " + valuesData["TIMESTAMPSTR"] + "</p>";
 
-    $.getJSON('./ajax/' + query, (data) => {
-      // parse JSON data to input list
-      let datetimestr = new Date(Number(data["TIMESTAMP"]));
+	$.each(valuesData["READINGS"], function(category, category_values){
+		htmlstring+="<div class='block greybox' style='font-size: smaller;'><h2 class='first'>" + sanitizeCategoryName(category) + "</h2>";
+		htmlstring+="<table width='100%'>";
+		htmlstring+="<tr><th>Input</th><th align='right'>" + category_values["UNITS"] + "</th></tr>";
 
-      let htmlstring=[];
-      htmlstring+="<p>Timestamp of data: " + datetimestr + "</p>";
+		let n=0;
+		$.each(category_values["VALUES"], function(channel, channel_value){
+			n++;
+			htmlstring+="<tr><td>" + channel + "</td>";
 
-      $.each(data["READINGS"], function(category, category_values){
+			if(typeof(channel_value) === "number"){
+			htmlstring+="<td align='right'>" + parseFloat(channel_value).toFixed(3) + "</td></tr>";
+			}else{
+			htmlstring+="<td align='right'>" + channel_value + "</td></tr>";
+			}
 
-        htmlstring+="<div class='block greybox'><h2 class='first'>" + sanitizeCategoryName(category) + "</h2>";
-        htmlstring+="<table width='100%'>";
-        htmlstring+="<tr><th>Input</th><th align='right'>" + category_values["UNITS"] + "</th></tr>";
+			storeDataPoint(category, channel, valuesData["TIMESTAMP"], channel_value, category_values["UNITS"]);
+		});
 
-        let n=0;
-        $.each(category_values["VALUES"], function(channel, channel_value){
-          n++;
-          htmlstring+="<tr><td>" + channel + "</td>";
+		if(n==0){
+			htmlstring+="<tr><td>-</td><td align='right'>-</td></tr>";
+		}
 
-          if(typeof(channel_value) === "number"){
-            htmlstring+="<td align='right'>" + parseFloat(channel_value).toFixed(3) + "</td></tr>";
-          }else{
-            htmlstring+="<td align='right'>" + channel_value + "</td></tr>";
-          }
+		htmlstring+="</table></div>";
+	});
 
-          storeDataPoint(category, channel, data["TIMESTAMP"], channel_value, category_values["UNITS"]);
-        });
+	$("#values>#valuelist").html(htmlstring);
 
-        if(n==0){
-          htmlstring+="<tr><td>-</td><td align='right'>-</td></tr>";
-        }
-
-        htmlstring+="</table></div>";
-      });
-
-      $("#values>#valuelist").html(htmlstring);
-
-      plotDataPoints();
-
-    })
-    .fail(function() {
-      console.log("Data query failed.");
-    });		
-  
+	plotDataPoints();
 }
 
 
 function storeDataPoint(category, channel, timestamp, value, unit){
-  if(typeof(dataPoints[category + "." + channel])=="undefined"){
-    // add channel
-    dataPoints[category + "." + channel]={
-      x:[],
-      y:[],
-      type:'scatter',
-      name: category + "." + channel
-    };
-  }
+	if(typeof(dataPoints[category + "." + channel])=="undefined"){
+	// add channel
+	dataPoints[category + "." + channel]={
+		x:[],
+		y:[],
+		type:'scatter',
+		name: category + "." + channel
+	};
+	}
 
-  dataPoints[category + "." + channel]["x"].push(new Date(timestamp));
-  dataPoints[category + "." + channel]["y"].push(value);
+	dataPoints[category + "." + channel]["x"].push(new Date(timestamp));
+	dataPoints[category + "." + channel]["y"].push(value);
 }
 
 
 function plotDataPoints(){
-  const dataPointsArray=Object.values(dataPoints);
+	const dataPointsArray=Object.values(dataPoints);
 
-  let config={
-	  responsive: true
-  }
+	let config={
+		responsive: true
+	}
 
-  if(plot_drawn_state==0){
+	if(plot_drawn_state==0){
 	let layout={
 		datarevision: Number(new Date()),
 		margin: {
-			  l: 75,
-			  r: 15,
-			  t: 45,
-			  pad: 0
+				l: 75,
+				r: 15,
+				t: 45,
+				pad: 0
 		},
 		title: {
 			text:'Measured data',
@@ -127,11 +121,11 @@ function plotDataPoints(){
 	Plotly.newPlot(divPlot, dataPointsArray, layout, config);
 	plot_drawn_state=1;
 	
-  }else{
-    // we have a plot, do update of data only
+	}else{
+	// we have a plot, do update of data only
 	let layout={
 		datarevision: Number(new Date())
 	}
-    Plotly.update(divPlot, dataPointsArray, layout, config);
-  }
+	Plotly.update(divPlot, dataPointsArray, layout, config);
+	}
 }

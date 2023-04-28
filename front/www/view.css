@@ -1,7 +1,8 @@
 /* generic styling */
 body
 {
-	background:#336699;
+	background:hsl(215, 30%, 40%);
+	/*background:#ddd;*/
 
 	font-family: Helvetica, Arial, sans-serif;
 	font-size:16px;
@@ -41,7 +42,7 @@ body
 #content
 {
 	text-align:left;
-	padding:0 2px 10px 2px;
+	padding:30px 2px 40px 2px;
 }
 
 #window
@@ -49,6 +50,7 @@ body
 	border-radius: 10px;
 	background:#fff;
 	width:auto;
+	box-shadow: 0 20px 10px -10px rgba(0, 0, 0, 0.4), 0 -20px 10px -10px rgba(0, 0, 0, 0.4);
 }
 
 #top
@@ -61,13 +63,23 @@ body
 /* title bar and logo */
 #toptitle
 {
-	padding:25px 0 15px 20px;
+	padding:15px 20px 15px 20px;
 	text-align: left;
 	border-radius: 10px;
 	background-color: hsl(215, 50%, 100%);
+
+    display: flex;
+	flex-flow: row wrap;
+    justify-content: space-between;
+	gap: 10px 10px;
 }
 
-#toptitle h1
+#toptitle .left
+{
+    align-self: left;
+}
+
+#toptitle .left h1
 {
 	font-size:180%;
 	font-weight:800;
@@ -77,7 +89,7 @@ body
 	margin: 0px;
 }
 
-#toptitle p
+#toptitle .left p
 {
 	font-size:120%;
 	font-weight:400;
@@ -89,6 +101,27 @@ body
 }
 
 
+#toptitle .status
+{
+	width: 480px;
+
+  align-self: right;
+
+	text-align:left;
+	font-size: 12px;
+	padding: 2px;
+}
+
+#toptitle .status tr,
+#toptitle .status td
+{
+	border: none;
+	margin: 0;
+	padding: 0 10px 0 5px;
+}
+
+
+
 /* menubar */
 #topmenubar
 {
@@ -96,7 +129,9 @@ body
 	border-radius: 10px;
 	background-color:hsl(215, 30%, 85%);
 	padding:10px 10px;
-	margin:10px 10px 30px 10px;
+
+	margin:0 10px 30px 10px;
+	box-shadow: 0px 0px 5px 0px hsl(215, 30%, 50%, 0.2);
 
 }
 
@@ -117,13 +152,13 @@ body
 }
 
 #topmenubar button.selected {
-	background-color: hsl(215, 30%, 95%);
+	background-color: #fff;
 	color: black;
 }
 
 #topmenubar button:hover {
-	background-color: #fff;
-	color: black;
+	background-color: hsl(215, 30%, 45%);
+	color: white;
 }
 
 
@@ -363,8 +398,6 @@ input[type=radio]
 
 /* liveview layout */
 #values {
-	font-size: small;
-
 	flex-basis: 480px;
 }
 
