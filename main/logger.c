@@ -1555,8 +1555,9 @@ void task_logging(void * pvParameters)
                         #ifdef DEBUG_LOGTASK
                         ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
                         #endif
-       
+                        taskENTER_CRITICAL(&processDataSpinLock);
                         Logger_processData();
+                        taskEXIT_CRITICAL(&processDataSpinLock);
                         
                         #ifdef DEBUG_LOGTASK_RX
                         ESP_LOGI(TAG_LOG,"_dataReceived = 0");
@@ -1575,16 +1576,20 @@ void task_logging(void * pvParameters)
                             #endif
     
                             // Add check if last number bytes equals number of data lines. If so, we should discard that
+                            taskENTER_CRITICAL(&processDataSpinLock);
                             Logger_processData();
-                            
+                            taskEXIT_CRITICAL(&processDataSpinLock);
+
                         } else {
                             ESP_LOGE(TAG_LOG, "Error receiving last message");
                             SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
                         }
-                        
+                         
                         Logger_flush_to_sdcard();
                         fileman_close_file();
                         esp_sd_card_unmount();
+   
+                        
                         
                         vTaskDelay(500 / portTICK_PERIOD_MS);
                         _nextLogTaskState = LOGTASK_IDLE;
