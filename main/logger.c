@@ -85,6 +85,9 @@ extern TaskHandle_t xHandle_stm32;
 
 static uint8_t log_counter = 0;
 
+static portMUX_TYPE processDataSpinLock = portMUX_INITIALIZER_UNLOCKED;
+
+
 int32_t Logger_convertAdcFixedPoint(uint16_t adcVal, uint64_t range, uint64_t offset)
 {
     // t0 = ((int32_t)adcData0 | ((int32_t)adcData1 << 8));
@@ -1183,6 +1186,8 @@ void task_logging(void * pvParameters)
     uint8_t calibration = 0, calibrationCounter = 0;
     uint32_t calibrationValues[NUM_ADC_CHANNELS];
     uint8_t x = 0;
+
+    esp_err_t ret;
     // Init STM32 ADC enable pin
     // gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
 
@@ -1491,14 +1496,19 @@ void task_logging(void * pvParameters)
                 if (_dataReceived)           
                 {
                     #ifdef DEBUG_LOGTASK_RX
-                    ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
+                    // ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
                     #endif
-                    if (Logger_processData() != ESP_OK)
+                    taskENTER_CRITICAL(&processDataSpinLock);
+                    ret = Logger_processData();
+                     taskEXIT_CRITICAL(&processDataSpinLock);
+                    if (ret != ESP_OK)
                     {
                         LogTask_stop();
                         SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
                         _nextLogTaskState = LOGTASK_IDLE;
                     }
+                     
+                   
                     #ifdef DEBUG_LOGTASK_RX
                     ESP_LOGI(TAG_LOG, "_dataReceived = 0");
                     #endif
@@ -1510,6 +1520,7 @@ void task_logging(void * pvParameters)
                 {
                     // No need to check for error, is done at _errorcode >0 check
                     // Logger_flush_to_sdcard();
+                    ESP_LOGI(TAG_LOG, "Flush!");
                     if (Logger_flush_to_sdcard() != ESP_OK)
                     {
                         fileman_close_file();
