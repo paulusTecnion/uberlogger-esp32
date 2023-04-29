@@ -241,6 +241,12 @@ static const char* get_path_from_uri(char *dest, const char *base_path, const ch
 /* Handler to download a file kept on the server */
 esp_err_t download_get_handler(httpd_req_t *req)
 {
+   
+      if (Logger_getState() == LOGTASK_LOGGING){
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot upload files while logging");
+        return ESP_FAIL;
+    }
+
     char filepath[FILE_PATH_MAX];
     FILE *fd = NULL;
     struct stat file_stat;
@@ -348,6 +354,10 @@ esp_err_t download_get_handler(httpd_req_t *req)
 /* Handler to upload a file onto the server */
 esp_err_t upload_post_handler(httpd_req_t *req)
 {
+      if (Logger_getState() == LOGTASK_LOGGING){
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot upload files while logging");
+        return ESP_FAIL;
+    }
     char filepath[FILE_PATH_MAX];
     FILE *fd = NULL;
     // struct stat file_stat;
@@ -472,6 +482,12 @@ esp_err_t upload_post_handler(httpd_req_t *req)
 /* Handler to delete a file from the server */
 esp_err_t delete_post_handler(httpd_req_t *req)
 {
+  
+      if (Logger_getState() == LOGTASK_LOGGING){
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot upload files while logging");
+        return ESP_FAIL;
+    }
+
     char filepath[FILE_PATH_MAX];
     
     struct stat file_stat;
