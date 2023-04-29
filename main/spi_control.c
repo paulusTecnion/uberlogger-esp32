@@ -161,7 +161,8 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
 
     gpio_config(&io_conf);
 
-
+    gpio_set_drive_capability(STM32_SPI_MOSI, GPIO_DRIVE_CAP_3);
+    gpio_set_drive_capability(STM32_SPI_SCLK, GPIO_DRIVE_CAP_3);
 
     memset(&_spi_transaction_rx0, 0, sizeof(_spi_transaction_rx0));
     memset(&_spi_transaction_rx1, 0, sizeof(_spi_transaction_rx1));
