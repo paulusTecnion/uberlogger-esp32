@@ -119,7 +119,7 @@ void app_main(void)
 
  
     settings_init();
-    sysinfo_init();
+    // sysinfo_init();
 
   // Start tasks
     xTaskCreate(task_logging, "task_logging", 3500, NULL, 8, &xHandle_stm32);
