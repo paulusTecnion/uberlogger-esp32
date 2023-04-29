@@ -4,3 +4,12 @@
 /front/sample/node_modules
 ota_main.bin
 ota_filesystem.bin
+front/www/ajax/getFileList/.htaccess
+front/www/ajax/getFileList/dir_1/.htaccess
+.gitignore
+front/www/ajax/getFileList/index.json
+.gitignore
+front/www/ajax/getFileList/dir_1/dir_1_dir_1/index.json
+.gitignore
+front/www/ajax/getFileList/dir_1/dir_1_dir_1/.htaccess
+front/www/ajax/getFileList/dir_1/index.json
