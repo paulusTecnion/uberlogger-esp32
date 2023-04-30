@@ -1580,14 +1580,13 @@ void task_logging(void * pvParameters)
 
                 if (_dataReceived)           
                 {
-
                     #ifdef DEBUG_LOGTASK_RX
                     // ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
                     #endif
                     // taskENTER_CRITICAL(&processDataSpinLock);
-                    uint64_t first_tick = esp_timer_get_time();
+                    // uint64_t first_tick = esp_timer_get_time();
                     ret = Logger_processData();
-                    ESP_LOGI(TAG_LOG, "Time to process data: %lld", esp_timer_get_time() - first_tick);
+                    // ESP_LOGI(TAG_LOG, "Time to process data: %lld", esp_timer_get_time() - first_tick);
                     //  taskEXIT_CRITICAL(&processDataSpinLock);
                     if (ret != ESP_OK)
                     {
@@ -1609,14 +1608,14 @@ void task_logging(void * pvParameters)
                     // No need to check for error, is done at _errorcode >0 check
                     // Logger_flush_to_sdcard();
                     // ESP_LOGI(TAG_LOG, "Flush!");
-                    uint64_t first_tick = esp_timer_get_time();
+                    // uint64_t first_tick = esp_timer_get_time();
                     if (Logger_flush_to_sdcard() != ESP_OK)
                     {
                         fileman_close_file();
                         ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
                         LogTask_stop();
                     } 
-                    ESP_LOGI(TAG_LOG,"Time to write SD: %lld", esp_timer_get_time() - first_tick);
+                    // ESP_LOGI(TAG_LOG,"Time to write SD: %lld", esp_timer_get_time() - first_tick);
                     
                     log_counter = 0;
               
