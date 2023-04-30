@@ -289,7 +289,7 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
     cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
-    if (settings->wifi_mode == WIFI_MODE_AP)
+    if (settings->wifi_mode == WIFI_MODE_APSTA)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 0);
     } else if (settings->wifi_mode == WIFI_MODE_STA)
@@ -434,7 +434,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (item->valueint == 0)
         {
             // Wifi ap mode
-            settings_set_wifi_mode(WIFI_MODE_AP);
+            settings_set_wifi_mode(WIFI_MODE_APSTA);
         } 
         else if (item->valueint == 1)
         {

@@ -151,7 +151,7 @@ esp_err_t settings_set_default()
     _settings.logMode = LOGMODE_CSV;
     strcpy(_settings.wifi_ssid, "Uberlogger");
     strcpy(_settings.wifi_password, "");
-    _settings.wifi_mode = WIFI_MODE_AP;
+    _settings.wifi_mode = WIFI_MODE_APSTA;
     _settings.wifi_channel = 1;
 
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
@@ -387,7 +387,7 @@ uint8_t settings_get_wifi_mode()
 
 esp_err_t settings_set_wifi_mode(uint8_t mode)
 {
-    if (mode == WIFI_MODE_AP || mode == WIFI_MODE_STA)
+    if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_STA)
     {
         _settings.wifi_mode = mode;
         return ESP_OK;
