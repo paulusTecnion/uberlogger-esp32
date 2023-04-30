@@ -122,7 +122,7 @@ void app_main(void)
     // sysinfo_init();
 
   // Start tasks
-    xTaskCreate(task_logging, "task_logging", 3500, NULL, 8, &xHandle_stm32);
+    xTaskCreate(task_logging, "task_logging", 4000, NULL, 8, &xHandle_stm32);
     xTaskCreate(task_hmi, "task_hmi", 2000, NULL, tskIDLE_PRIORITY, &xHandle_oled);
     
     
