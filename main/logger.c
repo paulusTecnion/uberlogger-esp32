@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "esp_log.h"
-
+#include "esp_async_memcpy.h"
 #include "errorcodes.h"
 #include "fileman.h"
 #include "freertos/FreeRTOS.h"
@@ -35,6 +35,9 @@ uint8_t _stopLogTask = 0;
 
 uint8_t _dataReceived = 0;
 uint64_t stm32TimerTimeout, currtime_us =0;
+
+async_memcpy_t driver = NULL;
+SemaphoreHandle_t copy_done_sem;
 
 extern converted_reading_t live_data;
 
@@ -86,6 +89,14 @@ extern TaskHandle_t xHandle_stm32;
 static uint8_t log_counter = 0;
 
 static portMUX_TYPE processDataSpinLock = portMUX_INITIALIZER_UNLOCKED;
+
+static IRAM_ATTR bool async_memcpy_cb(async_memcpy_t mcp_hdl, async_memcpy_event_t *event, void *cb_args)
+{
+    // SemaphoreHandle_t sem = (SemaphoreHandle_t)cb_args;
+    BaseType_t high_task_wakeup = pdFALSE;
+    xSemaphoreGiveFromISR(copy_done_sem, &high_task_wakeup); // high_task_wakeup set to pdTRUE if some high priority task unblocked
+    return high_task_wakeup == pdTRUE;
+}
 
 
 int32_t Logger_convertAdcFixedPoint(uint16_t adcVal, uint64_t range, uint64_t offset)
@@ -909,18 +920,50 @@ esp_err_t Logger_processData()
             // ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
             // In this case we have Time bytes first...
             
-
-            memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_1_ptr->timeData), 
+            ESP_ERROR_CHECK(esp_async_memcpy(driver, 
+                sdcard_data.timeData+log_counter*sizeof(spi_msg_1_ptr->timeData),
                 spi_msg_1_ptr->timeData, 
-                sizeof(spi_msg_1_ptr->timeData));
+                sizeof(spi_msg_1_ptr->timeData), 
+                async_memcpy_cb, 
+                NULL));
+            // Do something else here
+            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
+            
+            // memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_1_ptr->timeData), 
+            //     spi_msg_1_ptr->timeData, 
+            //     sizeof(spi_msg_1_ptr->timeData));
+
+
             // Then GPIO...
-            memcpy(sdcard_data.gpioData+log_counter*sizeof(spi_msg_1_ptr->gpioData), 
+            // memcpy(sdcard_data.gpioData+log_counter*sizeof(spi_msg_1_ptr->gpioData), 
+            //     spi_msg_1_ptr->gpioData, 
+            //     sizeof(spi_msg_1_ptr->gpioData)); 
+
+
+             ESP_ERROR_CHECK(esp_async_memcpy(driver, 
+                sdcard_data.gpioData+log_counter*sizeof(spi_msg_1_ptr->gpioData),
                 spi_msg_1_ptr->gpioData, 
-                sizeof(spi_msg_1_ptr->gpioData)); 
+                sizeof(spi_msg_1_ptr->gpioData), 
+                async_memcpy_cb, 
+                NULL));
+            // Do something else here
+            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
+
             // And finally ADC bytes
-            memcpy(sdcard_data.adcData+log_counter*sizeof(spi_msg_1_ptr->adcData), 
-                spi_msg_1_ptr->adcData,
-                sizeof(spi_msg_1_ptr->adcData));
+            // memcpy(sdcard_data.adcData+log_counter*sizeof(spi_msg_1_ptr->adcData), 
+            //     spi_msg_1_ptr->adcData,
+            //     sizeof(spi_msg_1_ptr->adcData));
+
+             ESP_ERROR_CHECK(esp_async_memcpy(driver, 
+                sdcard_data.adcData+log_counter*sizeof(spi_msg_1_ptr->adcData),
+                spi_msg_1_ptr->adcData, 
+                sizeof(spi_msg_1_ptr->adcData), 
+                async_memcpy_cb, 
+                NULL));
+            // Do something else here
+            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
+
+            // ESP_LOGI(TAG_LOG, "Done");
 
             sdcard_data.datarows += spi_msg_1_ptr->dataLen;
             #ifdef DEBUG_LOGGING
@@ -939,45 +982,48 @@ esp_err_t Logger_processData()
             // Now the order is reversed.
             // ESP_LOGI(TAG_LOG, "Start bytes found 2/2");
             // First ADC bytes..
-            memcpy(sdcard_data.adcData+log_counter*sizeof(spi_msg_2_ptr->adcData), 
-                spi_msg_2_ptr->adcData,
-                sizeof(spi_msg_2_ptr->adcData));
+            // memcpy(sdcard_data.adcData+log_counter*sizeof(spi_msg_2_ptr->adcData), 
+            //     spi_msg_2_ptr->adcData,
+            //     sizeof(spi_msg_2_ptr->adcData));
             
-            // Then GPIO bytes    
-            memcpy(sdcard_data.gpioData+log_counter*sizeof(spi_msg_2_ptr->gpioData), 
-                spi_msg_2_ptr->gpioData, 
-                sizeof(spi_msg_2_ptr->gpioData)); 
+            // // Then GPIO bytes    
+            // memcpy(sdcard_data.gpioData+log_counter*sizeof(spi_msg_2_ptr->gpioData), 
+            //     spi_msg_2_ptr->gpioData, 
+            //     sizeof(spi_msg_2_ptr->gpioData)); 
             
-            // Finally Time bytes
-            memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_2_ptr->timeData), 
+            // // Finally Time bytes
+            // memcpy(sdcard_data.timeData+log_counter*sizeof(spi_msg_2_ptr->timeData), 
+            //     spi_msg_2_ptr->timeData, 
+            //     sizeof(spi_msg_2_ptr->timeData));
+
+              ESP_ERROR_CHECK(esp_async_memcpy(driver, 
+                sdcard_data.timeData+log_counter*sizeof(spi_msg_2_ptr->timeData),
                 spi_msg_2_ptr->timeData, 
-                sizeof(spi_msg_2_ptr->timeData));
-
-            // Or do everything in one shot :-)
-            // memcpy(&sdcard_data+log_counter*spi_msg_2_ptr->dataLen, spi_msg_2_ptr, spi_msg_2_ptr->dataLen);
-            // Or do it in one shot and with DMA :-D
+                sizeof(spi_msg_2_ptr->timeData), 
+                async_memcpy_cb, 
+                NULL));
+            // Do something else here
+            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
             
-            // date_time_ptr -= sizeof(s_date_time_t)*4;
-            // ESP_LOGI(TAG_LOG, "ss: %ld, %ld, %ld, %ld", 
-            //     (date_time_ptr+sizeof(s_date_time_t))->subseconds,
-            //     (date_time_ptr+sizeof(s_date_time_t)*1)->subseconds, 
-            //     (date_time_ptr+sizeof(s_date_time_t)*2)->subseconds, 
-            //     (date_time_ptr+sizeof(s_date_time_t)*3)->subseconds);
 
-            // ESP_LOGI(TAG_LOG, "ss: %ld, %ld, %ld, %ld", 
-            // (int32_t)((date_time_ptr+sizeof(s_date_time_t)*1)->subseconds - date_time_ptr->subseconds),
-            // (int32_t)((date_time_ptr+sizeof(s_date_time_t)*2)->subseconds - (date_time_ptr+sizeof(s_date_time_t)*1)->subseconds), 
-            // (int32_t)((date_time_ptr+sizeof(s_date_time_t)*3)->subseconds - (date_time_ptr+sizeof(s_date_time_t)*2)->subseconds), 
-            // (int32_t)((date_time_ptr+sizeof(s_date_time_t)*4)->subseconds - (date_time_ptr+sizeof(s_date_time_t)*3)->subseconds));
-            
-            // s_date_time_t date_time_ptr ;
+             ESP_ERROR_CHECK(esp_async_memcpy(driver, 
+                sdcard_data.gpioData+log_counter*sizeof(spi_msg_2_ptr->gpioData),
+                spi_msg_2_ptr->gpioData, 
+                sizeof(spi_msg_2_ptr->gpioData), 
+                async_memcpy_cb, 
+                NULL));
+            // Do something else here
+            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
 
+             ESP_ERROR_CHECK(esp_async_memcpy(driver, 
+                sdcard_data.adcData+log_counter*sizeof(spi_msg_2_ptr->adcData),
+                spi_msg_2_ptr->adcData, 
+                sizeof(spi_msg_2_ptr->adcData), 
+                async_memcpy_cb, 
+                NULL));
+            // Do something else here
+            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
 
-            // for (int i = 0; i <70; i++)
-            // {
-            //     date_time_ptr = spi_msg_2_ptr->timeData[i];
-            //     ESP_LOGI(TAG_LOG, "%lu", date_time_ptr.subseconds);   
-            // }
 
             sdcard_data.datarows += spi_msg_2_ptr->dataLen;
             #ifdef DEBUG_LOGGING
@@ -1213,6 +1259,15 @@ void task_logging(void * pvParameters)
 
     adc_resolution_t last_resolution = ADC_12_BITS;
 
+    // ****************************
+    // Async mem copy settings
+    async_memcpy_config_t config = ASYNC_MEMCPY_DEFAULT_CONFIG();
+    copy_done_sem =  xSemaphoreCreateBinary();
+    // update the maximum data stream supported by underlying DMA engine
+    config.backlog = 16;
+    ESP_ERROR_CHECK(esp_async_memcpy_install(&config, &driver)); // install driver, return driver handle
+    // End of async mem copy settings
+    // ****************************
 
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
@@ -1520,9 +1575,9 @@ void task_logging(void * pvParameters)
                     #ifdef DEBUG_LOGTASK_RX
                     // ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
                     #endif
-                    taskENTER_CRITICAL(&processDataSpinLock);
+                    // taskENTER_CRITICAL(&processDataSpinLock);
                     ret = Logger_processData();
-                     taskEXIT_CRITICAL(&processDataSpinLock);
+                    //  taskEXIT_CRITICAL(&processDataSpinLock);
                     if (ret != ESP_OK)
                     {
                         LogTask_stop();
@@ -1532,7 +1587,7 @@ void task_logging(void * pvParameters)
                      
                    
                     #ifdef DEBUG_LOGTASK_RX
-                    ESP_LOGI(TAG_LOG, "_dataReceived = 0");
+                    // ESP_LOGI(TAG_LOG, "_dataReceived = 0");
                     #endif
                     _dataReceived = 0;
                 }
@@ -1542,7 +1597,7 @@ void task_logging(void * pvParameters)
                 {
                     // No need to check for error, is done at _errorcode >0 check
                     // Logger_flush_to_sdcard();
-                    ESP_LOGI(TAG_LOG, "Flush!");
+                    // ESP_LOGI(TAG_LOG, "Flush!");
                     if (Logger_flush_to_sdcard() != ESP_OK)
                     {
                         //fileman_close_file();
@@ -1577,12 +1632,12 @@ void task_logging(void * pvParameters)
                         #ifdef DEBUG_LOGTASK
                         ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
                         #endif
-                        taskENTER_CRITICAL(&processDataSpinLock);
+                        // taskENTER_CRITICAL(&processDataSpinLock);
                         Logger_processData();
-                        taskEXIT_CRITICAL(&processDataSpinLock);
+                        // taskEXIT_CRITICAL(&processDataSpinLock);
                         
                         #ifdef DEBUG_LOGTASK_RX
-                        ESP_LOGI(TAG_LOG,"_dataReceived = 0");
+                        // ESP_LOGI(TAG_LOG,"_dataReceived = 0");
                         #endif
                         _dataReceived = 0;
                     } else {
@@ -1598,9 +1653,9 @@ void task_logging(void * pvParameters)
                             #endif
     
                             // Add check if last number bytes equals number of data lines. If so, we should discard that
-                            taskENTER_CRITICAL(&processDataSpinLock);
+                            // taskENTER_CRITICAL(&processDataSpinLock);
                             Logger_processData();
-                            taskEXIT_CRITICAL(&processDataSpinLock);
+                            // taskEXIT_CRITICAL(&processDataSpinLock);
 
                         } else {
                             ESP_LOGE(TAG_LOG, "Error receiving last message");
