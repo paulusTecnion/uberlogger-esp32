@@ -238,16 +238,7 @@ esp_err_t wifi_init()
     ESP_ERROR_CHECK(ret);
 
     initialise_wifi();
-    // ESP_ERROR_CHECK(esp_netif_init());
-    // ESP_ERROR_CHECK(esp_event_loop_create_default());
-    
 
-    // // Only or station mode
-    // ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
-    //                                                     IP_EVENT_STA_GOT_IP,
-    //                                                     &event_handler,
-    //                                                     NULL,
-    //                                                     &instance_got_ip));
                                                             
     return ESP_OK;
     
