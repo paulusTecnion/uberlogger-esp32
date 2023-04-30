@@ -274,39 +274,37 @@ esp_err_t wifi_start(void)
 {
     if (wifi_enabled) {
         // check if we need stop, deinit and init again
+        // Note: we are assuming that somewhere else a check has been performed
+        // that we are switching to STA or APSTA mode and this function can be safely called.
         wifi_mode_t current_wifi_mode;
-        esp_wifi_get_mode(&current_wifi_mode);
-        
 
-        
-        if (current_wifi_mode != settings_get_wifi_mode()) {
-
-            // Are we going from AP to STA or vice versa?
-            if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
-            {
-                esp_err_t ret = esp_wifi_disconnect();
-                ESP_LOGI(TAG, "Disconnecting from AP: %s", esp_err_to_name(ret));
-            } else {
-                // reinit wifi STA mode
-                wifi_init_sta();
-            }
-
-            // #ifdef DEBUG_WIFI
-            // ESP_LOGI(TAG, "Stopping wifi");
-            // #endif
-            
-            // if (esp_wifi_stop() != ESP_OK) {
-            //     return ESP_FAIL;
-            // }
-
-            // esp_netif_destroy_default_wifi(wifi_netif);
-            // esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler);
-            
-            // if (current_wifi_mode == WIFI_MODE_STA) {
-            //     esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip);
-            // }
-            return ESP_OK;
+        // Are we going from AP to STA or vice versa?
+        if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
+        {
+            esp_err_t ret = esp_wifi_disconnect();
+            ESP_LOGI(TAG, "Disconnecting from AP: %s", esp_err_to_name(ret));
+        } else {
+            // reinit wifi STA mode
+            ESP_LOGI(TAG, "Sta mode");
+            wifi_init_sta();
         }
+
+        // #ifdef DEBUG_WIFI
+        // ESP_LOGI(TAG, "Stopping wifi");
+        // #endif
+        
+        // if (esp_wifi_stop() != ESP_OK) {
+        //     return ESP_FAIL;
+        // }
+
+        // esp_netif_destroy_default_wifi(wifi_netif);
+        // esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler);
+        
+        // if (current_wifi_mode == WIFI_MODE_STA) {
+        //     esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip);
+        // }
+        return ESP_OK;
+        
     } else {
         wifi_init_softap(); 
         if (settings_get_wifi_mode() == WIFI_MODE_STA) {
