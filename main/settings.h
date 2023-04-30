@@ -8,7 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "common.h"
 
-#define MAX_WIFI_SSID_LEN 50
+#define MAX_WIFI_SSID_LEN 32
 #define MAX_WIFI_PASSW_LEN 20
 
 #define NUM_ADC_CHANNELS 8
@@ -108,6 +108,7 @@ struct Settings_t {
 	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
 	uint8_t logMode;
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
+	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
 	char wifi_password[MAX_WIFI_PASSW_LEN];
 	uint8_t wifi_channel;
 	uint8_t wifi_mode;
@@ -156,6 +157,8 @@ esp_err_t settings_set_wifi_password(char *password);
 
 char * settings_get_wifi_ssid();
 esp_err_t settings_set_wifi_ssid(char * ssid);
+
+char * settings_get_wifi_ssid_ap();
 
 adc_sample_rate_t settings_get_samplerate(void);
 esp_err_t settings_set_samplerate(adc_sample_rate_t rate);
