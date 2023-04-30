@@ -796,10 +796,20 @@ esp_err_t Logger_check_sdcard_free_space()
 esp_err_t Logger_flush_to_sdcard()
 {
 
+
+
     if (Logger_check_sdcard_free_space() != ESP_OK)
     {
         return ESP_FAIL;
     }
+
+    if (fileman_open_file() == ESP_FAIL)
+    {
+        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_OPEN_FILE);
+        return ESP_FAIL;
+    }
+
+
 
     if (settings_get_logmode() == LOGMODE_CSV)
     {
@@ -829,6 +839,14 @@ esp_err_t Logger_flush_to_sdcard()
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
             return ESP_FAIL;
         }
+    }
+
+
+    // Close file
+    if (fileman_close_file() == ESP_FAIL)
+    {
+        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_CLOSE_FILE);
+        return ESP_FAIL;
     }
 
     return ESP_OK;
@@ -1287,6 +1305,8 @@ void task_logging(void * pvParameters)
                         #ifdef DEBUG_LOGTASK
                         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
                         #endif
+
+
                         if (fileman_open_file() != ESP_OK)
                         { 
                             if (esp_sd_card_unmount() == ESP_OK)
@@ -1303,6 +1323,8 @@ void task_logging(void * pvParameters)
                         {
                             fileman_csv_write_header();
                         }
+
+                        fileman_close_file();
                             
                         // All good, put statemachines in correct state
                         _nextLogTaskState = LOGTASK_LOGGING;                        
@@ -1523,7 +1545,7 @@ void task_logging(void * pvParameters)
                     ESP_LOGI(TAG_LOG, "Flush!");
                     if (Logger_flush_to_sdcard() != ESP_OK)
                     {
-                        fileman_close_file();
+                        //fileman_close_file();
                         ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
                         LogTask_stop();
                     } 
@@ -1586,7 +1608,7 @@ void task_logging(void * pvParameters)
                         }
                          
                         Logger_flush_to_sdcard();
-                        fileman_close_file();
+                        //fileman_close_file();
                         esp_sd_card_unmount();
    
                         

@@ -41,7 +41,7 @@ esp_err_t fileman_open_file(void)
     #endif
     
     // Open file
-    f = fopen(file_name, "w");
+    f = fopen(file_name, "a");
     if (f == NULL) {
         ESP_LOGE(TAG_FILE, "Failed to open file for writing");
         return ESP_FAIL;
@@ -66,7 +66,7 @@ esp_err_t fileman_close_file(void)
         #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "Closing file");
         #endif
-        file_seq_num++;
+        // file_seq_num++;
         return ESP_OK;
     } else {
         ESP_LOGE(TAG_FILE, "Cannot close file! f == NULL");
