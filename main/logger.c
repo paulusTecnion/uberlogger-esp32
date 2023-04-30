@@ -852,6 +852,8 @@ esp_err_t Logger_flush_to_sdcard()
         }
     }
 
+    // Check for file size and increase subfile counter if needed
+    fileman_check_current_file_size(MAX_FILE_SIZE); // 100 MB
 
     // Close file
     if (fileman_close_file() == ESP_FAIL)
@@ -1361,7 +1363,7 @@ void task_logging(void * pvParameters)
                         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
                         #endif
 
-
+                        fileman_reset_subnum();
                         if (fileman_open_file() != ESP_OK)
                         { 
                             if (esp_sd_card_unmount() == ESP_OK)

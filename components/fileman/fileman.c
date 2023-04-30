@@ -5,9 +5,12 @@
 #define MOUNT_POINT "/sdcard"
 static const char *TAG_FILE = "FILEMAN";
 static uint32_t file_seq_num=0;
+static uint32_t file_seq_subnum=0;
 static FILE* f = NULL;
-char file_name[16];
-char filestrbuffer[200];
+char file_name[50];
+char filestrbuffer[4900];
+
+uint32_t file_bytes_written = 0;
 
 void fileman_create_filename()
 {
@@ -19,8 +22,27 @@ void fileman_create_filename()
         sprintf(filext, "%s", ".dat");
     }
 
-    sprintf(file_name, MOUNT_POINT"/log%d%s", file_seq_num, filext);
+    sprintf(file_name, MOUNT_POINT"/log%d_%d%s", file_seq_num, file_seq_subnum, filext);
     // ESP_LOGI(TAG_FILE, "%s", file_name);
+}
+
+
+uint8_t fileman_check_current_file_size(size_t sizeInBytes)
+{
+    if (file_bytes_written > sizeInBytes)
+    {
+        ESP_LOGI(TAG_FILE, "File size exceeded %d bytes", sizeInBytes);
+        file_bytes_written = 0;
+        file_seq_subnum++;
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+void fileman_reset_subnum(void)
+{
+    file_seq_subnum = 0;
 }
 
 // fileman_search_last_sequence_file must be called before callign this function!
@@ -138,7 +160,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
     for (int i = 0; i<datarows; i++)
     {
         // Print time stamp
-        writeptr = writeptr + sprintf(filestrbuffer, "20%d-%02d-%02d %02d:%02d:%02d.%03lu,",
+        writeptr = writeptr + sprintf(filestrbuffer+writeptr, "20%d-%02d-%02d %02d:%02d:%02d.%03lu,",
             date_time_ptr[j].year, 
             date_time_ptr[j].month,
             date_time_ptr[j].date,
@@ -146,7 +168,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             date_time_ptr[j].minutes,
             date_time_ptr[j].seconds,
             date_time_ptr[j].subseconds);
-
+        
       
         // Print ADC
         for (int x=0; x<NUM_ADC_CHANNELS; x++)
@@ -198,27 +220,62 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
          
             
         }
+
+        
+
         // Finally the IOs
-        snprintf(filestrbuffer+writeptr, (2*6+5), "%d,%d,%d,%d,%d,%d\r\n",
+        writeptr = writeptr + snprintf(filestrbuffer+writeptr, (2*6+5), "%d,%d,%d,%d,%d,%d\r\n",
             (dataGpio[j] & 0x04) && 1,
             (dataGpio[j] & 0x08) && 1,
             (dataGpio[j] & 0x10) && 1,
             (dataGpio[j] & 0x20) && 1,
             (dataGpio[j] & 0x40) && 1,
             (dataGpio[j] & 0x80) && 1);
+        // ESP_LOGI(TAG_FILE, "%d %ld", j, writeptr);
         
-        writeptr = 0;
+        // writeptr = 0;
  
         j++;
-        // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
+       
+       if (j % 35 == 0)
+       {
         // replace by put function. Much faster
-        // if (fprintf(f, filestrbuffer) < 0)
-        if (fputs(filestrbuffer, f) < 0)
-        {
+        // int len = strlen((const char*)filestrbuffer);
+        filestrbuffer[writeptr] = '\0';
+        
+
+        // int len = fprintf(f, (const char*)filestrbuffer);
+        int len = fputs((const char*)filestrbuffer, f);
+        // if (fputs((const char*)filestrbuffer, f) < 0)
+        if (len < 0)
+        {    
             return 0;
         }
-        
+        file_bytes_written += writeptr;
+        writeptr = 0;
+       }
+
     }
+
+    // Write any remaining data
+    if (j % 35 != 0)
+    {
+        // replace by put function. Much faster
+        // int len = strlen((const char*)filestrbuffer);
+        filestrbuffer[writeptr] = '\0';
+        // int len = fprintf(f, (const char*)filestrbuffer);
+        int len = fputs((const char*)filestrbuffer, f);
+        // if (fputs((const char*)filestrbuffer, f) < 0)
+        if (len < 0)
+        {    
+            return 0;
+        }
+        file_bytes_written += writeptr;
+        writeptr = 0;
+    }
+    // ESP_LOGI(TAG_FILE, "%d %s %ld", datarows, filestrbuffer, writeptr);
+
+    
 
    return lenAdc;
 }
