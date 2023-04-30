@@ -68,7 +68,7 @@ esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
 #endif // EXAMPLE_FORMAT_IF_MOUNT_FAILED
         .max_files = 1,
-        .allocation_unit_size = 16 * 1024
+        .allocation_unit_size = 4 * 1024
     };
 
 static bool esp_sd_spi_is_initialized = false;
@@ -99,7 +99,7 @@ esp_err_t esp_sd_card_mount()
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SDCARD_SPI_HOST;
-    // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+    host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
     
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_NUM_MOSI,
@@ -107,7 +107,7 @@ esp_err_t esp_sd_card_mount()
         .sclk_io_num = PIN_NUM_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 8*1024,
+        .max_transfer_sz = 0, // defaults to 4092 for DMA mode
     };
 
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
@@ -188,7 +188,7 @@ esp_err_t esp_sd_card_init(void)
         .sclk_io_num = PIN_NUM_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = 8*1024,
+        .max_transfer_sz = 0, // defaults to 4092 for DMA mode
         //.flags = SPI_TRANS_MODE_DIO | SPI_TRANS_MULTILINE_ADDR 
          
     };
