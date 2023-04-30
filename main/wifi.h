@@ -15,6 +15,8 @@ void wifi_init_sta(void);
 
 void wifi_init_softap(void);
 
+// Returns the first 4 bytes of the mac address in HEX form as string.
+esp_err_t wifi_get_trimmed_mac(char * str);
 esp_err_t wifi_init();
 int8_t wifi_get_rssi();
 esp_err_t wifi_print_ip();

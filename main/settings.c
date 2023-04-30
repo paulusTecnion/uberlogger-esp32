@@ -1,7 +1,7 @@
 #include "settings.h"
 #include "spiffs_settings.h"
 #include "esp_wifi_types.h"
-
+#include "wifi.h"
 static const char* TAG_SETTINGS = "SETTINGS";
 const char * settings_filename = "settings.json";
 Settings_t _settings;
@@ -149,7 +149,16 @@ esp_err_t settings_set_default()
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     _settings.adc_channel_range = 0x00; // 10V by default
     _settings.logMode = LOGMODE_CSV;
-    strcpy(_settings.wifi_ssid, "Uberlogger");
+
+
+    // Get mac address
+    char buffer[8];
+    wifi_get_trimmed_mac(buffer);
+    
+    sprintf(_settings.wifi_ssid_ap, "Uberlogger-%s", buffer);
+    
+    
+    strcpy(_settings.wifi_ssid, _settings.wifi_ssid_ap);
     strcpy(_settings.wifi_password, "");
     _settings.wifi_mode = WIFI_MODE_APSTA;
     _settings.wifi_channel = 1;
@@ -226,6 +235,11 @@ esp_err_t settings_set_wifi_password(char *password)
 char * settings_get_wifi_ssid()
 {
     return _settings.wifi_ssid;
+}
+
+char * settings_get_wifi_ssid_ap()
+{
+    return _settings.wifi_ssid_ap;
 }
 
 esp_err_t settings_set_wifi_ssid(char * ssid)
@@ -344,6 +358,7 @@ esp_err_t settings_print()
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
     
     ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);
+    ESP_LOGI(TAG_SETTINGS, "Wifi AP SSID %s", _settings.wifi_ssid_ap);
     ESP_LOGI(TAG_SETTINGS, "Wifi channel %d", _settings.wifi_channel);
     
     return ESP_OK;

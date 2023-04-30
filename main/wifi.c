@@ -206,7 +206,7 @@ void wifi_init_softap(void)
     };
 
     // always default to Uberlogger
-    strcpy((char*)wifi_config.ap.ssid, "Uberlogger");
+    strcpy((char*)wifi_config.ap.ssid, settings_get_wifi_ssid_ap());
     wifi_config.ap.ssid_len = strlen((const char*)(wifi_config.ap.ssid));
     strcpy((char*)wifi_config.ap.password, "");
 
@@ -224,6 +224,21 @@ void wifi_init_softap(void)
     #endif
 
    
+
+    
+}
+
+esp_err_t wifi_get_trimmed_mac(char * str)
+{
+    uint8_t mac[6];
+    
+    if (esp_wifi_get_mac(WIFI_IF_AP, mac) == ESP_OK)
+    {
+        sprintf(str, "%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3]);
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
 
     
 }
