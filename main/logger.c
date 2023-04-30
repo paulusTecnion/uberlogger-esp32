@@ -814,11 +814,11 @@ esp_err_t Logger_flush_to_sdcard()
         return ESP_FAIL;
     }
 
-    if (fileman_open_file() == ESP_FAIL)
-    {
-        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_OPEN_FILE);
-        return ESP_FAIL;
-    }
+    // if (fileman_open_file() == ESP_FAIL)
+    // {
+    //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_OPEN_FILE);
+    //     return ESP_FAIL;
+    // }
 
 
 
@@ -852,15 +852,21 @@ esp_err_t Logger_flush_to_sdcard()
         }
     }
 
-    // Check for file size and increase subfile counter if needed
-    fileman_check_current_file_size(MAX_FILE_SIZE); // 100 MB
+    // Check for file size and stop if we reached the limit
+
+    if (fileman_check_current_file_size(MAX_FILE_SIZE))
+    {
+        ESP_LOGW(TAG_LOG, "Reached max file size");
+        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
+        return ESP_FAIL;
+    } 
 
     // Close file
-    if (fileman_close_file() == ESP_FAIL)
-    {
-        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_CLOSE_FILE);
-        return ESP_FAIL;
-    }
+    // if (fileman_close_file() == ESP_FAIL)
+    // {
+    //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_CLOSE_FILE);
+    //     return ESP_FAIL;
+    // }
 
     return ESP_OK;
    
@@ -1381,7 +1387,7 @@ void task_logging(void * pvParameters)
                             fileman_csv_write_header();
                         }
 
-                        fileman_close_file();
+                        // fileman_close_file();
                             
                         // All good, put statemachines in correct state
                         _nextLogTaskState = LOGTASK_LOGGING;                        
@@ -1574,11 +1580,14 @@ void task_logging(void * pvParameters)
 
                 if (_dataReceived)           
                 {
+
                     #ifdef DEBUG_LOGTASK_RX
                     // ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
                     #endif
                     // taskENTER_CRITICAL(&processDataSpinLock);
+                    uint64_t first_tick = esp_timer_get_time();
                     ret = Logger_processData();
+                    ESP_LOGI(TAG_LOG, "Time to process data: %lld", esp_timer_get_time() - first_tick);
                     //  taskEXIT_CRITICAL(&processDataSpinLock);
                     if (ret != ESP_OK)
                     {
@@ -1600,12 +1609,14 @@ void task_logging(void * pvParameters)
                     // No need to check for error, is done at _errorcode >0 check
                     // Logger_flush_to_sdcard();
                     // ESP_LOGI(TAG_LOG, "Flush!");
+                    uint64_t first_tick = esp_timer_get_time();
                     if (Logger_flush_to_sdcard() != ESP_OK)
                     {
-                        //fileman_close_file();
+                        fileman_close_file();
                         ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
                         LogTask_stop();
                     } 
+                    ESP_LOGI(TAG_LOG,"Time to write SD: %lld", esp_timer_get_time() - first_tick);
                     
                     log_counter = 0;
               
@@ -1665,7 +1676,7 @@ void task_logging(void * pvParameters)
                         }
                          
                         Logger_flush_to_sdcard();
-                        //fileman_close_file();
+                        fileman_close_file();
                         esp_sd_card_unmount();
    
                         
