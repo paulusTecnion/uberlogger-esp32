@@ -234,7 +234,7 @@ esp_err_t wifi_get_trimmed_mac(char * str)
     
     if (esp_wifi_get_mac(WIFI_IF_AP, mac) == ESP_OK)
     {
-        sprintf(str, "%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3]);
+        sprintf(str, "%02X%02X%02X%02X", mac[2], mac[3], mac[4], mac[5]);
         return ESP_OK;
     } else {
         return ESP_FAIL;
