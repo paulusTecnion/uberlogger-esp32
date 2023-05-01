@@ -68,7 +68,8 @@ esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
 #endif // EXAMPLE_FORMAT_IF_MOUNT_FAILED
         .max_files = 1,
-        .allocation_unit_size = 16 * 1024
+        .allocation_unit_size = 16 * 1024,
+        .disk_status_check_enable = true
     };
 
 static bool esp_sd_spi_is_initialized = false;
