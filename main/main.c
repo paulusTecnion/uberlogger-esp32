@@ -101,6 +101,9 @@ esp_err_t init_fs(void)
 void app_main(void)
 {
 
+    // Create default loop for event handler for Wifi, REST etc.
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
     // Register console commands
     init_console();
 
@@ -118,17 +121,21 @@ void app_main(void)
     // Init wifi required before settings init
     wifi_init();
     settings_init();
+
+
     // sysinfo_init();
 
-  // Start tasks
+  
+
+    // Tasks to spin up logging and HMI
     xTaskCreate(task_logging, "task_logging", 4000, NULL, 8, &xHandle_stm32);
     xTaskCreate(task_hmi, "task_hmi", 2000, NULL, tskIDLE_PRIORITY, &xHandle_oled);
     
     
     // wifi_init_sta();
     // wifi_init_softap();
-    // esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
-    // esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+    esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
  
     wifi_start();
 
