@@ -7,10 +7,12 @@
 #include "esp_vfs_fat.h"
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
+
 #include "sdmmc_cmd.h"
 #include "sdkconfig.h"
 #include "esp_sd_card.h"
 #include "../../main/config.h"
+#include "../../main/logger.h"
 
 #ifdef CONFIG_IDF_TARGET_ESP32
 #include "driver/sdmmc_host.h"
@@ -190,8 +192,7 @@ esp_err_t esp_sd_card_init(void)
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = 8192, // defaults to 4092 for DMA mode
-        //.flags = SPI_TRANS_MODE_DIO | SPI_TRANS_MULTILINE_ADDR 
-         
+        //.flags = SPI_TRANS_MODE_DIO | SPI_TRANS_MULTILINE_ADDR          
     };
 
     gpio_set_drive_capability(PIN_NUM_MOSI, GPIO_DRIVE_CAP_3);

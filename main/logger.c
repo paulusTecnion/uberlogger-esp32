@@ -36,8 +36,11 @@ uint8_t _stopLogTask = 0;
 uint8_t _dataReceived = 0;
 uint64_t stm32TimerTimeout, currtime_us =0;
 
+uint32_t free_space = 0;
+
 async_memcpy_t driver = NULL;
 SemaphoreHandle_t copy_done_sem;
+SemaphoreHandle_t sdcard_semaphore;
 
 extern converted_reading_t live_data;
 
@@ -784,10 +787,15 @@ LoggerState_t Logger_getState()
     return _currentLogTaskState;
 }
 
+uint32_t Logger_getLastFreeSpace()
+{
+    return free_space;
+}
+
 esp_err_t Logger_check_sdcard_free_space()
 {
      // Flush buffer to sd card
-    uint32_t free_space = esp_sd_card_get_free_space();
+    free_space = esp_sd_card_get_free_space();
     if ( free_space < SDCARD_FREE_SPACE_MINIMUM_KB)
     {
         SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
@@ -807,12 +815,13 @@ esp_err_t Logger_check_sdcard_free_space()
 esp_err_t Logger_flush_to_sdcard()
 {
 
-
-
-    if (Logger_check_sdcard_free_space() != ESP_OK)
+    if (xSemaphoreTake(sdcard_semaphore, 600 / portTICK_PERIOD_MS) != pdTRUE) 
     {
-        return ESP_FAIL;
+        // did not get the sdcard write semaphore. Something really wrong!
+        ESP_LOGE(TAG_LOG, "Error getting sdcard semaphore");
+        goto error;
     }
+    
 
     // if (fileman_open_file() == ESP_FAIL)
     // {
@@ -838,7 +847,7 @@ esp_err_t Logger_flush_to_sdcard()
             sdcard_data.datarows) ) // lenght of data
         {
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
-            return ESP_FAIL;
+            goto error;
         }
 
     } else {
@@ -848,7 +857,7 @@ esp_err_t Logger_flush_to_sdcard()
         {
             ESP_LOGE(TAG_LOG, "Raw write error. Returned: %d", len);
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
-            return ESP_FAIL;
+            goto error;
         }
     }
 
@@ -858,7 +867,7 @@ esp_err_t Logger_flush_to_sdcard()
     {
         ESP_LOGW(TAG_LOG, "Reached max file size");
         SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
-        return ESP_FAIL;
+        goto error;
     } 
 
     // Close file
@@ -868,7 +877,21 @@ esp_err_t Logger_flush_to_sdcard()
     //     return ESP_FAIL;
     // }
 
+    // check if there's still space left (instead of doing this before every write)
+
+    if (Logger_check_sdcard_free_space() != ESP_OK)
+    {
+        goto error;
+    }
+
+
+    xSemaphoreGive(sdcard_semaphore);
+
     return ESP_OK;
+
+    error:
+        xSemaphoreGive(sdcard_semaphore);
+        return ESP_FAIL;
    
 }
 
@@ -1276,6 +1299,10 @@ void task_logging(void * pvParameters)
     ESP_ERROR_CHECK(esp_async_memcpy_install(&config, &driver)); // install driver, return driver handle
     // End of async mem copy settings
     // ****************************
+    
+    sdcard_semaphore = xSemaphoreCreateBinary();
+    // immediately give semaphore
+    xSemaphoreGive(sdcard_semaphore);
 
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
@@ -1406,6 +1433,15 @@ void task_logging(void * pvParameters)
                     lastTick++;
                     if (lastTick > 1 && _nextLogTaskState == LOGTASK_IDLE)
                     {
+                         if (esp_sd_card_mount() == ESP_OK)
+                            {
+
+                                if (Logger_check_sdcard_free_space() != ESP_OK)
+                                {
+                                        esp_sd_card_unmount();
+                                    break;
+                                }
+                            }
                         _nextLogTaskState = LOGTASK_SINGLE_SHOT;
                     }
                     
