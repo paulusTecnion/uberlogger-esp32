@@ -46,6 +46,8 @@ typedef struct rest_server_context {
 
 httpd_handle_t server = NULL;
 
+extern SemaphoreHandle_t sdcard_semaphore;
+
 static const char *UPLOAD_FORM = "<html><body>\
 <form method='POST' enctype='multipart/form-data' action='/upload'>\
 <input type='file' name='file'><br>\
@@ -218,16 +220,29 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
     cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
-    cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
+    // cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
     cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
-    cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", esp_sd_card_get_free_space());
+    cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", Logger_getLastFreeSpace());
+
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 
 
     
     const char *settings_json= cJSON_Print(root);
-    httpd_resp_sendstr(req, settings_json);
-     free((void *)settings_json);
+
+    if (xSemaphoreTake(sdcard_semaphore, portMAX_DELAY) != pdTRUE)
+    {
+        ESP_LOGE(REST_TAG, "Failed to take semaphore");
+        return ESP_FAIL;
+    } else {
+        httpd_resp_sendstr(req, settings_json);
+        xSemaphoreGive(sdcard_semaphore);
+    }
+
+    
+    
+    
+    free((void *)settings_json);
     cJSON_Delete(root);
     
     return ESP_OK;
@@ -247,12 +262,15 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
     // cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
     cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
-    cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", esp_sd_card_get_free_space());
+    
+    cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", Logger_getLastFreeSpace());
+    
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
-     free((void *)settings_json);
+    free((void *)settings_json);
+    
     cJSON_Delete(root);
     return ESP_OK;
 }
