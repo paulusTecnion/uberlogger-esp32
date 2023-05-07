@@ -134,7 +134,7 @@ void app_main(void)
     
     // wifi_init_sta();
     // wifi_init_softap();
-    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+    // esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
     esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
  
     wifi_start();
