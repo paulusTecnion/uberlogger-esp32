@@ -263,6 +263,10 @@ uint32_t esp_sd_card_get_free_space()
             uint64_t fre_clust, fre_sect, tot_sect;
             /* Get volume information and free clusters of drive 0 */
             int res = f_getfree("/sdcard/", &fre_clust, &fs);
+            if (res) {
+                ESP_LOGE(TAG, "f_getfree failed (%d)", res);
+                return 0;
+            }
             /* Get total sectors and free sectors */
             tot_sect = (fs->n_fatent - 2) * fs->csize;
             fre_sect = fre_clust * fs->csize;
