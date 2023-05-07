@@ -292,7 +292,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
     
 
     dataOutput->timestamp  = (uint64_t)mktime(&t) * 1000LL;    
-    dataOutput->timestamp = dataOutput->timestamp + live_data_buffer.timeData.subseconds;
+    dataOutput->timestamp = dataOutput->timestamp + (uint64_t)(live_data_buffer.timeData.subseconds);
     // ESP_LOGI(TAG_LOG, "%lld, %d-%d-%d %d:%d:%d",  dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 }
 
@@ -1628,7 +1628,7 @@ void task_logging(void * pvParameters)
                     // ESP_LOGI(TAG_LOG, "Time to process data: %lld", esp_timer_get_time() - first_tick2);
                     // first_tick2 = esp_timer_get_time();
                     ret = Logger_processData();
-                    
+                  
                     //  taskEXIT_CRITICAL(&processDataSpinLock);
                     if (ret != ESP_OK)
                     {
@@ -1636,7 +1636,7 @@ void task_logging(void * pvParameters)
                         SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
                         _nextLogTaskState = LOGTASK_IDLE;
                     }
-                     
+                    Logger_GetSingleConversion(&live_data);
                    
                     #ifdef DEBUG_LOGTASK_RX
                     // ESP_LOGI(TAG_LOG, "_dataReceived = 0");
