@@ -1304,9 +1304,9 @@ void task_logging(void * pvParameters)
     // End of async mem copy settings
     // ****************************
     
-    // sdcard_semaphore = xSemaphoreCreateBinary();
+    sdcard_semaphore = xSemaphoreCreateBinary();
     // immediately give semaphore
-    // xSemaphoreGive(sdcard_semaphore);
+    xSemaphoreGive(sdcard_semaphore);
 
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
