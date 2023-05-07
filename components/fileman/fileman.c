@@ -237,42 +237,42 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
  
         j++;
        
-       if (j % 35 == 0)
-       {
+    //    if (j % 35 == 0)
+    //    {
         // replace by put function. Much faster
-        // int len = strlen((const char*)filestrbuffer);
-        filestrbuffer[writeptr] = '\0';
+
+        // filestrbuffer[writeptr] = '\0';
         
 
-        // int len = fprintf(f, (const char*)filestrbuffer);
-        int len = fputs((const char*)filestrbuffer, f);
+        int len = fprintf(f, (const char*)filestrbuffer);
+        // int len = fputs((const char*)filestrbuffer, f);
         // if (fputs((const char*)filestrbuffer, f) < 0)
         if (len < 0)
         {    
             return 0;
         }
-        file_bytes_written += writeptr;
+        file_bytes_written += len;
         writeptr = 0;
-       }
+    //    }
 
     }
 
     // Write any remaining data
-    if (j % 35 != 0)
-    {
-        // replace by put function. Much faster
-        // int len = strlen((const char*)filestrbuffer);
-        filestrbuffer[writeptr] = '\0';
-        // int len = fprintf(f, (const char*)filestrbuffer);
-        int len = fputs((const char*)filestrbuffer, f);
-        // if (fputs((const char*)filestrbuffer, f) < 0)
-        if (len < 0)
-        {    
-            return 0;
-        }
-        file_bytes_written += writeptr;
-        writeptr = 0;
-    }
+    // if (j % 35 != 0)
+    // {
+    //     // replace by put function. Much faster
+    //     // int len = strlen((const char*)filestrbuffer);
+    //     filestrbuffer[writeptr] = '\0';
+    //     int len = fprintf(f, (const char*)filestrbuffer);
+    //     // int len = fputs((const char*)filestrbuffer, f);
+    //     // if (fputs((const char*)filestrbuffer, f) < 0)
+    //     if (len < 0)
+    //     {    
+    //         return 0;
+    //     }
+    //     file_bytes_written += writeptr;
+    //     writeptr = 0;
+    // }
     // ESP_LOGI(TAG_FILE, "%d %s %ld", datarows, filestrbuffer, writeptr);
 
     

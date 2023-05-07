@@ -124,7 +124,7 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
     }
 
     cJSON * root = cJSON_AddObjectToObject(main, "root");
-    char int2str[5];
+    char int2str[11];
 
     while ((entry = readdir(dir)) != NULL) {
         entrytype = (entry->d_type == DT_DIR ? "DIRECTORY" : "FILE");
