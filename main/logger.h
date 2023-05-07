@@ -10,7 +10,7 @@
 // **********************************************************************************************
 // DON'T TOUCH NEXT LINES PLEASE UNTIL NEXT ASTERIX LINES
 //
-#define DATA_LINES_PER_SPI_TRANSACTION  80
+#define DATA_LINES_PER_SPI_TRANSACTION  70
 #define ADC_VALUES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*8 // Number of ADC uint16_t per transaction.
 #define ADC_BYTES_PER_SPI_TRANSACTION ADC_VALUES_PER_SPI_TRANSACTION*2
 #define GPIO_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION
@@ -50,8 +50,6 @@ typedef struct {
 } spi_msg_2_t;
 // END OF NO TOUCH
 // *********************************************************************************************************************
-
-
 
 
 typedef struct {

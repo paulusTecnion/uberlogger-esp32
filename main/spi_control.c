@@ -143,14 +143,15 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
         .dummy_bits=0,
         .clock_speed_hz=SPI_STM32_BUS_FREQUENCY, //400000,
         .duty_cycle_pos=128,        //50% duty cycle
-        .mode=0,
+        .mode=0,                    // SPI mode 0 
         .spics_io_num=-1,//GPIO_CS,
         .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
         .flags = 0,
-        .input_delay_ns=60
+        .input_delay_ns=11      // 50 ns GPIO matrix ESP32 + 10 ns STM32
     };  
 
+    
     //GPIO config for the handshake line. Only trigger on positive edge
     gpio_config_t io_conf={
         .intr_type=GPIO_INTR_POSEDGE,
