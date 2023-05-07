@@ -678,10 +678,10 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 if (settings_get_adc_channel_range(x))
                 {
                     // 60V range
-                    channel_offset = 60*ADC_MULT_FACTOR_60V;
+                    channel_offset = 126811146; //60*ADC_MULT_FACTOR_60V;
 
                 } else {
-                    channel_offset = 10*ADC_MULT_FACTOR_10V;
+                    channel_offset = 151703704; // 10*ADC_MULT_FACTOR_10V;
                     
                 }
 
@@ -729,9 +729,9 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 if (settings_get_adc_channel_range(x))
                 {
                     // Bit == 1
-                    channel_offset = 60*ADC_MULT_FACTOR_60V;
+                    channel_offset = 126811146; //60*ADC_MULT_FACTOR_60V;
                 } else {
-                    channel_offset = 10*ADC_MULT_FACTOR_10V;
+                    channel_offset = 151703704; //10*ADC_MULT_FACTOR_10V;
                 }
                 channel_range = 2*channel_offset;
                 // factor = ADC_16_BITS_60V_FACTOR;
