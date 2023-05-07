@@ -43,7 +43,7 @@ uint32_t free_space = 0;
 
 async_memcpy_t driver = NULL;
 SemaphoreHandle_t copy_done_sem;
-// SemaphoreHandle_t sdcard_semaphore;
+SemaphoreHandle_t sdcard_semaphore;
 
 extern converted_reading_t live_data;
 
@@ -825,12 +825,12 @@ esp_err_t Logger_flush_to_sdcard()
 
 
 
-    // if (xSemaphoreTake(sdcard_semaphore, 600 / portTICK_PERIOD_MS) != pdTRUE) 
-    // {
-    //     // did not get the sdcard write semaphore. Something really wrong!
-    //     ESP_LOGE(TAG_LOG, "Error getting sdcard semaphore");
-    //     goto error;
-    // }
+    if (xSemaphoreTake(sdcard_semaphore, 600 / portTICK_PERIOD_MS) != pdTRUE) 
+    {
+        // did not get the sdcard write semaphore. Something really wrong!
+        ESP_LOGE(TAG_LOG, "Error getting sdcard semaphore");
+        goto error;
+    }
     
 
 
@@ -889,12 +889,12 @@ esp_err_t Logger_flush_to_sdcard()
     }
 
 
-    // xSemaphoreGive(sdcard_semaphore);
+    xSemaphoreGive(sdcard_semaphore);
 
     return ESP_OK;
 
     error:
-        // xSemaphoreGive(sdcard_semaphore);
+        xSemaphoreGive(sdcard_semaphore);
         return ESP_FAIL;
    
 }

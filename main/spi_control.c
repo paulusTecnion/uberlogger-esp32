@@ -148,7 +148,7 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
         .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
         .flags = 0,
-        .input_delay_ns=60
+        .input_delay_ns=60      // 50 ns GPIO matrix ESP32 + 10 ns STM32
     };  
 
     
