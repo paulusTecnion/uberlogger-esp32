@@ -672,18 +672,17 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             for (j = 0; j < length; j = j + 2)
             {
                 // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
+                // The next values are calibrated values
                 if (settings_get_adc_channel_range(x))
                 {
-                    // 60V range
-                    channel_offset = 60*ADC_MULT_FACTOR_60V;
+                    channel_offset = 126811146; // 60*ADC_MULT_FACTOR_60V;
 
                 } else {
-                    channel_offset = 10*ADC_MULT_FACTOR_10V;
+                    channel_offset = 151703704; //10*ADC_MULT_FACTOR_10V;
                     
                 }
 
                 channel_range = 2*channel_offset;
-                
                 // factor = ADC_12_BITS_10V_FACTOR;
                 
                 adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
@@ -723,12 +722,14 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             // IIR filter required for these cases
             for (j = 0; j < length; j = j + 2)
             {
+                       // The next values are calibrated values
                 if (settings_get_adc_channel_range(x))
                 {
-                    // Bit == 1
-                    channel_offset = 60*ADC_MULT_FACTOR_60V;
+                    channel_offset = 126811146; // 60*ADC_MULT_FACTOR_60V;
+
                 } else {
-                    channel_offset = 10*ADC_MULT_FACTOR_10V;
+                    channel_offset = 151703704; //10*ADC_MULT_FACTOR_10V;
+                    
                 }
                 channel_range = 2*channel_offset;
                 // factor = ADC_16_BITS_60V_FACTOR;
