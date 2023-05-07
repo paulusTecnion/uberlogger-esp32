@@ -46,7 +46,7 @@ typedef struct rest_server_context {
 
 httpd_handle_t server = NULL;
 
-extern SemaphoreHandle_t sdcard_semaphore;
+// extern SemaphoreHandle_t sdcard_semaphore;
 
 static const char *UPLOAD_FORM = "<html><body>\
 <form method='POST' enctype='multipart/form-data' action='/upload'>\
@@ -230,14 +230,14 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     
     const char *settings_json= cJSON_Print(root);
 
-    if (xSemaphoreTake(sdcard_semaphore, portMAX_DELAY) != pdTRUE)
-    {
-        ESP_LOGE(REST_TAG, "Failed to take semaphore");
-        return ESP_FAIL;
-    } else {
+    // if (xSemaphoreTake(sdcard_semaphore, portMAX_DELAY) != pdTRUE)
+    // {
+    //     ESP_LOGE(REST_TAG, "Failed to take semaphore");
+    //     return ESP_FAIL;
+    // } else {
         httpd_resp_sendstr(req, settings_json);
-        xSemaphoreGive(sdcard_semaphore);
-    }
+        // xSemaphoreGive(sdcard_semaphore);
+    // }
 
     
     
