@@ -171,11 +171,7 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     {
         return ESP_FAIL;
     }
-    
-    
-    
-   
-    
+     
     cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
     
     cJSON *readings = cJSON_AddObjectToObject(root, "READINGS");
@@ -209,13 +205,14 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
    cJSON *digital = cJSON_AddObjectToObject(readings, "DIGITAL");
    cJSON_AddStringToObject(digital, "UNITS", "Level");
 //    cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
-    
-    cJSON_AddNumberToObject(digital, "DI0", live_data.gpioData[0]);
-    cJSON_AddNumberToObject(digital, "DI1", live_data.gpioData[1]);
-    cJSON_AddNumberToObject(digital, "DI2", live_data.gpioData[2]);
-    cJSON_AddNumberToObject(digital, "DI3", live_data.gpioData[3]);
-    cJSON_AddNumberToObject(digital, "DI4", live_data.gpioData[4]);
-    cJSON_AddNumberToObject(digital, "DI5", live_data.gpioData[5]);
+    cJSON * aDigital = cJSON_AddObjectToObject(digital, "VALUES");
+
+    cJSON_AddNumberToObject(aDigital, "DI0", live_data.gpioData[0]);
+    cJSON_AddNumberToObject(aDigital, "DI1", live_data.gpioData[1]);
+    cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[2]);
+    cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[3]);
+    cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[4]);
+    cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[5]);
 
     // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
