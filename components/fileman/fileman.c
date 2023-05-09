@@ -85,6 +85,7 @@ esp_err_t fileman_close_file(void)
     if (f!=NULL)
     {
         fclose(f);
+        f = NULL;
         #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "Closing file");
         #endif
@@ -243,6 +244,10 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
 
         // filestrbuffer[writeptr] = '\0';
         
+        if (f == NULL)
+        {
+            return 0;
+        }
 
         int len = fprintf(f, (const char*)filestrbuffer);
         // int len = fputs((const char*)filestrbuffer, f);
