@@ -903,20 +903,22 @@ esp_err_t Logger_flush_to_sdcard()
 
 esp_err_t Logger_startFWupdate()
 {
-    // if (_currentLogTaskState != LOGTASK_IDLE && 
-    //     _currentLogTaskState != LOGTASK_FWUPDATE)
-    if (xSemaphoreTake(idle_state, 1000 / portTICK_PERIOD_MS) != pdTRUE)
+    if (((_currentLogTaskState == LOGTASK_IDLE) ||
+        (_currentLogTaskState == LOGTASK_SINGLE_SHOT)) &&
+        (_currentLogTaskState != LOGTASK_FWUPDATE))
+    // if (xSemaphoreTake(idle_state, 1000 / portTICK_PERIOD_MS) != pdTRUE)
     {
-        // #ifdef DEBUG_LOGGING
-        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: Logger is not idle. Curent state: %d", _currentLogTaskState);
-        // #endif
-        return ESP_FAIL;
-    } else {
-        // #ifdef DEBUG_LOGGING
+       // #ifdef DEBUG_LOGGING
         ESP_LOGW(TAG_LOG, "Logger_startFWupdate: putting logger into LOGTASK_FWUPDATEs");
         // #endif
         _nextLogTaskState = LOGTASK_FWUPDATE;
         return ESP_OK;
+    } else {
+         // #ifdef DEBUG_LOGGING
+        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: Logger is not idle. Curent state: %d", _currentLogTaskState);
+        // #endif
+        return ESP_FAIL;
+        
     }
 }
 
