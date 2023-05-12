@@ -41,7 +41,7 @@ static void send_byte(uint8_t byte)
 {
     // uart_write_bytes(UART_PORT, (const char*)&byte, 1);
     uart_write_bytes(UART_PORT, (const char*)&byte, 1);
-    ESP_ERROR_CHECK(uart_wait_tx_done(UART_PORT, 100 / portTICK_PERIOD_MS)); 
+    ESP_ERROR_CHECK(uart_wait_tx_done(UART_PORT, 500 / portTICK_PERIOD_MS)); 
 }
 
 static int8_t recv_byte()
@@ -270,7 +270,7 @@ esp_err_t bootload_stm()
         #ifdef DEBUG_FIRMWARE_STM32
         ESP_LOGI("STM32G030", "Failed to activate bootloader, retrying... (%d/5)", i+1);
         #endif
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
 
     if (error == 5)
@@ -391,7 +391,8 @@ esp_err_t flash_stm32()
     if (bootload_stm() == ESP_FAIL)
     {
         ESP_LOGI(TAG, "Failed to activate STM32G030 bootloader");
-        return ESP_FAIL;
+        err = ESP_FAIL;
+        goto error;
     }
 
     // Write unprotect flash
