@@ -75,8 +75,8 @@ typedef enum int32 {
 } adc_factors_t;
 
 typedef enum int64 {
-	ADC_MULT_FACTOR_10V =	  	100000000LL,
-	ADC_MULT_FACTOR_60V = 		10000000LL,
+	ADC_MULT_FACTOR_10V =	  	10000000LL,
+	ADC_MULT_FACTOR_60V = 		1000000LL,
 	ADC_MULT_FACTOR_16B_TEMP = 	1000000LL, // Only used for temperature values in 16 bit 
 	ADC_MULT_FACTOR_12B_TEMP = 	1000000LL // Only used for temperature values in 12 bit
 } adc_mult_factor_t;

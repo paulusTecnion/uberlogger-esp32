@@ -818,7 +818,7 @@ esp_err_t Logger_check_sdcard_free_space()
 
 esp_err_t Logger_flush_to_sdcard()
 {
-        // if (fileman_open_file() == ESP_FAIL)
+    //     if (fileman_open_file() == ESP_FAIL)
     // {
     //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_OPEN_FILE);
     //     return ESP_FAIL;

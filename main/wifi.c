@@ -78,7 +78,7 @@ static const char * TAG = "WIFI";
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t wifi_event_group;
 
-esp_netif_t * wifi_netif;
+esp_netif_t *sta_netif;
 
 /* The event group allows multiple bits for each event, but we only care about two events:
  * - we are connected to the AP with an IP
@@ -115,7 +115,7 @@ static void initialise_wifi(void)
 	// ESP_ERROR_CHECK(esp_event_loop_create_default());
 	esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
 	assert(ap_netif);
-	esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
+	sta_netif = esp_netif_create_default_wifi_sta();
 	assert(sta_netif);
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
@@ -269,7 +269,7 @@ int8_t wifi_get_rssi()
 esp_err_t wifi_print_ip()
 {
     esp_netif_ip_info_t ip_info;
-    esp_netif_get_ip_info(wifi_netif, &ip_info);
+    esp_netif_get_ip_info(sta_netif, &ip_info);
     ESP_LOGI(TAG, "IP Address: " IPSTR, IP2STR(&ip_info.ip));
     ESP_LOGI(TAG, "Netmask: " IPSTR, IP2STR(&ip_info.netmask));
     ESP_LOGI(TAG, "Gateway: " IPSTR, IP2STR(&ip_info.gw));
