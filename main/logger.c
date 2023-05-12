@@ -817,11 +817,11 @@ esp_err_t Logger_check_sdcard_free_space()
 
 esp_err_t Logger_flush_to_sdcard()
 {
-        if (fileman_open_file() == ESP_FAIL)
-    {
-        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_OPEN_FILE);
-        return ESP_FAIL;
-    }
+    //     if (fileman_open_file() == ESP_FAIL)
+    // {
+    //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_OPEN_FILE);
+    //     return ESP_FAIL;
+    // }
 
 
 
@@ -875,11 +875,11 @@ esp_err_t Logger_flush_to_sdcard()
     } 
 
     // Close file
-    if (fileman_close_file() == ESP_FAIL)
-    {
-        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_CLOSE_FILE);
-        return ESP_FAIL;
-    }
+    // if (fileman_close_file() == ESP_FAIL)
+    // {
+    //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_CLOSE_FILE);
+    //     return ESP_FAIL;
+    // }
 
     // check if there's still space left (instead of doing this before every write)
 
@@ -1418,7 +1418,7 @@ void task_logging(void * pvParameters)
                             fileman_csv_write_header();
                         }
 
-                        fileman_close_file();
+                        // fileman_close_file();
                             
                         // All good, put statemachines in correct state
                         _nextLogTaskState = LOGTASK_LOGGING;                        
