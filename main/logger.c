@@ -44,6 +44,7 @@ uint32_t free_space = 0;
 async_memcpy_t driver = NULL;
 SemaphoreHandle_t copy_done_sem;
 SemaphoreHandle_t sdcard_semaphore;
+SemaphoreHandle_t idle_state;
 
 extern converted_reading_t live_data;
 
@@ -902,8 +903,9 @@ esp_err_t Logger_flush_to_sdcard()
 
 esp_err_t Logger_startFWupdate()
 {
-    if (_currentLogTaskState != LOGTASK_IDLE && 
-        _currentLogTaskState != LOGTASK_FWUPDATE)
+    // if (_currentLogTaskState != LOGTASK_IDLE && 
+    //     _currentLogTaskState != LOGTASK_FWUPDATE)
+    if (xSemaphoreTake(idle_state, 1000 / portTICK_PERIOD_MS) != pdTRUE)
     {
         // #ifdef DEBUG_LOGGING
         ESP_LOGW(TAG_LOG, "Logger_startFWupdate: Logger is not idle. Curent state: %d", _currentLogTaskState);
@@ -1306,8 +1308,10 @@ void task_logging(void * pvParameters)
     // ****************************
     
     sdcard_semaphore = xSemaphoreCreateBinary();
+    idle_state = xSemaphoreCreateBinary();
     // immediately give semaphore
     xSemaphoreGive(sdcard_semaphore);
+    xSemaphoreGive(idle_state);
 
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     
@@ -1384,73 +1388,77 @@ void task_logging(void * pvParameters)
         switch (_currentLogTaskState)
         {
             case LOGTASK_IDLE:
-                // Give starting of logging priority over getting a single shot value.
-                if (_startLogTask)
+                if (xSemaphoreTake(idle_state, portMAX_DELAY) == pdTRUE)
                 {
-                    _startLogTask = 0;
-                    lastTick = 0;
-                    if (esp_sd_card_mount() == ESP_OK)
+                    // Give starting of logging priority over getting a single shot value.
+                    if (_startLogTask)
                     {
-
-                        if (Logger_check_sdcard_free_space() != ESP_OK)
+                        _startLogTask = 0;
+                        lastTick = 0;
+                        if (esp_sd_card_mount() == ESP_OK)
                         {
-                                esp_sd_card_unmount();
-                            break;
-                        }
-                        #ifdef DEBUG_LOGTASK
-                        ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
-                        #endif
 
-                        fileman_reset_subnum();
-                        if (fileman_open_file() != ESP_OK)
-                        { 
-                            if (esp_sd_card_unmount() == ESP_OK)
+                            if (Logger_check_sdcard_free_space() != ESP_OK)
                             {
-                                SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
-                                _nextLogTaskState = LOGTASK_IDLE;
+                                    esp_sd_card_unmount();
+                                break;
                             }
+                            #ifdef DEBUG_LOGTASK
+                            ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+                            #endif
 
-                            break;
-                        } 
-
-                        
-                        if (settings_get_logmode() == LOGMODE_CSV)
-                        {
-                            fileman_csv_write_header();
-                        }
-
-                        // fileman_close_file();
-                            
-                        // All good, put statemachines in correct state
-                        _nextLogTaskState = LOGTASK_LOGGING;                        
-                        // Reset and start the logging statemachine
-                        
-                        LogTask_reset();
-                        Logging_reset();
-                        Logging_start();
-                        
-                    } else {
-                        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
-                        _nextLogTaskState = LOGTASK_IDLE;
-                    }
-                } else {
-                    vTaskDelay(200 / portTICK_PERIOD_MS);
-                    lastTick++;
-                    if (lastTick > 1 && _nextLogTaskState == LOGTASK_IDLE)
-                    {
-                         if (esp_sd_card_mount() == ESP_OK)
-                            {
-
-                                if (Logger_check_sdcard_free_space() != ESP_OK)
+                            fileman_reset_subnum();
+                            if (fileman_open_file() != ESP_OK)
+                            { 
+                                if (esp_sd_card_unmount() == ESP_OK)
                                 {
-                                        esp_sd_card_unmount();
-                                    break;
+                                    SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
+                                    _nextLogTaskState = LOGTASK_IDLE;
                                 }
+
+                                break;
+                            } 
+
+                            
+                            if (settings_get_logmode() == LOGMODE_CSV)
+                            {
+                                fileman_csv_write_header();
                             }
-                        _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+
+                            // fileman_close_file();
+                                
+                            // All good, put statemachines in correct state
+                            _nextLogTaskState = LOGTASK_LOGGING;                        
+                            // Reset and start the logging statemachine
+                            
+                            LogTask_reset();
+                            Logging_reset();
+                            Logging_start();
+                            
+                        } else {
+                            SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
+                            _nextLogTaskState = LOGTASK_IDLE;
+                        }
+                    } else {
+                        vTaskDelay(200 / portTICK_PERIOD_MS);
+                        lastTick++;
+                        if (lastTick > 1 && _nextLogTaskState == LOGTASK_IDLE)
+                        {
+                            if (esp_sd_card_mount() == ESP_OK)
+                                {
+
+                                    if (Logger_check_sdcard_free_space() != ESP_OK)
+                                    {
+                                            esp_sd_card_unmount();
+                                        break;
+                                    }
+                                }
+                            _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+                        }
+                        
                     }
-                    
-                }
+                } // semaphoretake
+                xSemaphoreGive(idle_state);
             
             break;
 

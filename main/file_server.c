@@ -38,6 +38,7 @@ struct file_server_data {
     char scratch[SCRATCH_BUFSIZE];
 };
 
+extern SemaphoreHandle_t idle_state;
 static const char *TAG_FILESERVER = "file_server";
 
 /* Handler to redirect incoming GET request for /index.html to /
@@ -594,7 +595,7 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         if (flash_stm32() != ESP_OK) {
             ESP_LOGE(TAG_FILESERVER, "Support chip  failed!");
             httpd_resp_sendstr_chunk(req, "<p>Support chip  failed!</p>");
-            return ESP_FAIL;
+            goto error;
         } else {
             #ifdef DEBUG_FILESERVER
             ESP_LOGI(TAG_FILESERVER, "Support chip flashed (2 / 6)");
@@ -606,7 +607,7 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         if (update_www() != ESP_OK) {
             ESP_LOGE(TAG_FILESERVER, "File system flash failed");
             httpd_resp_sendstr_chunk(req, "<p>File system flash failed!</p>");
-            return ESP_FAIL;
+            goto error;
         } else {
             #ifdef DEBUG_FILESERVER
             ESP_LOGI(TAG_FILESERVER, "File system flashed (4 / 6)");
@@ -622,7 +623,7 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
             ESP_LOGE(TAG_FILESERVER, "Main chip flash failed");
             httpd_resp_sendstr_chunk(req, "<p>Main chip flash failed! Please don't reset your Uberlogger and try again</p>");
             httpd_resp_send_chunk(req, NULL, 0);
-            return ESP_FAIL;
+            goto error;
         } else {
             #ifdef DEBUG_FILESERVER
             ESP_LOGI(TAG_FILESERVER, "Main flash chip flashed (6 / 6)");
@@ -638,9 +639,12 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         
         // Reboot to apply firmware update
         Logging_restartSystem();
-        
-
+        xSemaphoreGive(idle_state);
         return ESP_OK;
+
+        error:
+        xSemaphoreGive(idle_state);
+        return ESP_FAIL;
     }
 
 
