@@ -75,29 +75,33 @@ esp_err_t update_www() {
 
     // Write the data bin file to flash memory
     size_t bytes_written = 0;
-    uint8_t buf[1024];
+    const int buff_size = 2048;
+  
+     char *buffer = malloc(buff_size);
     #ifdef DEBUG_FIRMWARE_WWW
     ESP_LOGI(TAG_WWW, "Writing data bin to flash memory");
     #endif
     while (true) {
         // Read a chunk of data from the file
-        size_t bytes_read = fread(buf, 1, sizeof(buf), fp);
+        size_t bytes_read = fread(buffer, 1, sizeof(buffer), fp);
         if (bytes_read == 0) {
             break; // End of file
         }
 
         // Write the data to flash memory
-        err = esp_flash_write(NULL, (const void*)buf, flash_address + bytes_written,  bytes_read);
+        err = esp_flash_write(NULL, (const void*)buffer, flash_address + bytes_written,  bytes_read);
         if (err != ESP_OK) {
             ESP_LOGE(TAG_WWW,"Error writing to flash memory: %d, %s\n", err, esp_err_to_name(err));
             
             fclose(fp);
+            free(buffer);
             return ESP_FAIL;
         }
 
         bytes_written += bytes_read;
     }
-
+    
+    free(buffer);
     // Close the file
     fclose(fp);
 
