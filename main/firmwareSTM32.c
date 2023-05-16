@@ -358,12 +358,7 @@ esp_err_t flash_stm32()
     const int buff_size = 256;
     uint8_t *buffer = (uint8_t*)malloc(buff_size);
 
-    if (esp_sd_card_mount() != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Failed to mount SD card");
-        err = ESP_FAIL;
-        goto error;
-    }
+ 
 
     // Initialize UART driver
     uart_config_t uart_config = {
@@ -467,7 +462,7 @@ esp_err_t flash_stm32()
     ESP_LOGI(TAG, "Flashing complete.");
     #endif
     fclose(file);
-    esp_sd_card_unmount();
+    // esp_sd_card_unmount();
 
 error:    
     free(buffer);

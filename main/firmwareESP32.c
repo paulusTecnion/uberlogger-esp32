@@ -22,10 +22,10 @@ esp_err_t updateESP32() {
 
   // Mount SD card
   ESP_LOGI(TAG, "Mounting SD card...");
-  if (esp_sd_card_mount() != ESP_OK) {
-    ESP_LOGE(TAG, "Error mounting SD card.\n");
-    return ESP_FAIL;
-  }
+  // if (esp_sd_card_mount() != ESP_OK) {
+  //   ESP_LOGE(TAG, "Error mounting SD card.\n");
+  //   return ESP_FAIL;
+  // }
 
   // Open firmware file on SD card
   ESP_LOGI(TAG, "Opening firmware");
@@ -59,7 +59,7 @@ esp_err_t updateESP32() {
   err = esp_ota_end(ota_handle);
 
   // Unmount SD card
-  esp_sd_card_unmount();
+  // esp_sd_card_unmount();
   
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Error ending OTA update: %d\n", err);

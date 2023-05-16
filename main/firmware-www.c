@@ -1,3 +1,4 @@
+#include "config.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_flash.h"
@@ -27,12 +28,12 @@ esp_err_t update_www() {
 
     // Mount the SD card
     #ifdef DEBUG_FIRMWARE_WWW
-    ESP_LOGI(TAG_WWW, "Mounting SD card...");
+    // ESP_LOGI(TAG_WWW, "Mounting SD card...");
     #endif
-    if (esp_sd_card_mount() != ESP_OK) {
-        ESP_LOGE(TAG_WWW, "Error mounting SD card.\n");
-        return ESP_FAIL;
-    }
+    // if (esp_sd_card_mount() != ESP_OK) {
+    //     ESP_LOGE(TAG_WWW, "Error mounting SD card.\n");
+    //     return ESP_FAIL;
+    // }
 
     // Open the data bin file for reading
     #ifdef DEBUG_FIRMWARE_WWW
@@ -118,7 +119,7 @@ esp_err_t update_www() {
     esp_err_t ret = esp_vfs_spiffs_register(&conf);
 
     //unmount sd card
-    esp_sd_card_unmount();
+    // esp_sd_card_unmount();
 
     if (ret!= ESP_FAIL)
     {

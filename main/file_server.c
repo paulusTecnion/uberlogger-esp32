@@ -570,18 +570,27 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 
 esp_err_t fwupdate_get_handler(httpd_req_t *req)
 {
+    esp_err_t err;
 
-   
-   // Detect if request is pointing to /fwupdate/startupgrade
-    if (strstr(req->uri, "/fwupdate/startupgrade") != NULL) {
-
-         if (Logger_startFWupdate() != ESP_OK)
+    if (strstr(req->uri, "/fwupdate/enable") != NULL)
+    {
+        if (Logger_startFWupdate() != ESP_OK)
         {
             ESP_LOGE(TAG_FILESERVER, "Failed to start firmware update");
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Logger not idle, cannot update firwmare");
             return ESP_FAIL;
+        } else {
+              httpd_resp_set_status(req, HTTPD_200);
+            httpd_resp_set_type(req, HTTPD_TYPE_TEXT);
+            httpd_resp_send_chunk(req, NULL, 0);
+
+            return ESP_OK;
         }
-    
+    }
+   
+   // Detect if request is pointing to /fwupdate/startupgrade
+    if (strstr(req->uri, "/fwupdate/startupgrade") != NULL) {
+
         #ifdef DEBUG_FILESERVER
         ESP_LOGI(TAG_FILESERVER, "Starting firmware upgrade");
         #endif
@@ -591,6 +600,15 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         httpd_resp_sendstr_chunk(req, "<p>Starting firmware upgrade...</p>");
         
         httpd_resp_sendstr_chunk(req, "<p>Flashing support chip ...(1/6)</p>");
+
+        if (esp_sd_card_mount() != ESP_OK)
+        {
+            ESP_LOGE(TAG_FILESERVER, "Failed to mount SD card");
+            err = ESP_FAIL;
+            goto error;
+        }
+
+
         /* Start firmware upgrade */
         if (flash_stm32() != ESP_OK) {
             ESP_LOGE(TAG_FILESERVER, "Support chip  failed!");
@@ -638,16 +656,21 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
 
         
         // Reboot to apply firmware update
-        Logging_restartSystem();
-        xSemaphoreGive(idle_state);
+        // Logging_restartSystem();
+        // xSemaphoreGive(idle_state);
+        esp_sd_card_unmount();
         return ESP_OK;
 
         error:
-        xSemaphoreGive(idle_state);
+        // xSemaphoreGive(idle_state);
+        esp_sd_card_unmount();
+        
         return ESP_FAIL;
+
+      
     }
 
-
+   
    // /* Send HTML file header */
     httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
 
@@ -661,4 +684,6 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
     httpd_resp_send_chunk(req, NULL, 0);
 
     return ESP_OK;
+
+
 }

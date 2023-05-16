@@ -143,6 +143,21 @@
     });
   }
 
+  async function enableFWupdate() {
+    try {
+      const response = await fetch("/fwupdate/enable");
+
+      if (response.status === 200) {
+        return 0;
+      } else {
+        return 1;
+      }
+    } catch (error) {
+      console.error("An error occurred:", error);
+      return 1;
+    }
+  }
+
   async function uploadFiles(files, upload_path, myDiv) {
     try {
       for (let i = 0; i < 3; i++) {
@@ -231,6 +246,11 @@
     let upload_path = [];
     var filePath = [];
     var fileInput = [];
+
+    const result = await enableFWupdate();
+    if (result) {
+      return;
+    }
 
     for (i = 0; i < 3; i++) {
       switch (i) {
