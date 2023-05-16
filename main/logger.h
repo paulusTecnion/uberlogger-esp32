@@ -94,9 +94,18 @@ enum Logger_modeButtonStates{
 };
 
 
+enum LoggerMainState 
+{
+    LOGGER_MAIN_STATE_NORMAL = 0,
+    LOGGER_MAIN_STATE_FW_UPDATE,
+    LOGGER_MAIN_STATE_ERROR,
+    LOGGER_MAIN_STATE_NUM_STATES
+};
 
 typedef uint8_t LoggerState_t;
 typedef uint8_t LoggingState_t;
+typedef uint8_t LoggerMainState_t;
+
 
 
 /// @brief Returns fixed point int32_t of ADC value

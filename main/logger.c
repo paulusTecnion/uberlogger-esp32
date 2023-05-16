@@ -76,6 +76,9 @@ int32_t adc_calibration_values[NUM_ADC_CHANNELS];
 
 char strbuffer[16];
 
+LoggerMainState_t _currentLoggerMainState = LOGGER_MAIN_STATE_NORMAL;
+LoggerMainState_t _nextLoggerMainState = LOGGER_MAIN_STATE_NORMAL;
+// Really need to change all these variable names to something more sensible
 LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
 LoggerState_t _nextLogTaskState = LOGTASK_IDLE;
 LoggingState_t _currentLoggingState = LOGGING_IDLE;
@@ -904,14 +907,13 @@ esp_err_t Logger_flush_to_sdcard()
 esp_err_t Logger_startFWupdate()
 {
     if (((_currentLogTaskState == LOGTASK_IDLE) ||
-        (_currentLogTaskState == LOGTASK_SINGLE_SHOT)) &&
-        (_currentLogTaskState != LOGTASK_FWUPDATE))
+        (_currentLogTaskState == LOGTASK_SINGLE_SHOT)))
     // if (xSemaphoreTake(idle_state, 1000 / portTICK_PERIOD_MS) != pdTRUE)
     {
        // #ifdef DEBUG_LOGGING
         ESP_LOGW(TAG_LOG, "Logger_startFWupdate: putting logger into LOGTASK_FWUPDATEs");
         // #endif
-        _nextLogTaskState = LOGTASK_FWUPDATE;
+        _nextLoggerMainState = LOGGER_MAIN_STATE_FW_UPDATE;
         return ESP_OK;
     } else {
          // #ifdef DEBUG_LOGGING
@@ -1387,66 +1389,22 @@ void task_logging(void * pvParameters)
         spi_ctrl_loop();
         Logger_logging();
 
-        switch (_currentLogTaskState)
+        // This is truely ugly, but it works
+        switch(_currentLoggerMainState)
         {
-            case LOGTASK_IDLE:
-                if (xSemaphoreTake(idle_state, portMAX_DELAY) == pdTRUE)
+            case LOGGER_MAIN_STATE_NORMAL:
+
+                switch (_currentLogTaskState)
                 {
-                    // Give starting of logging priority over getting a single shot value.
-                    if (_startLogTask)
-                    {
-                        _startLogTask = 0;
-                        lastTick = 0;
-                        if (esp_sd_card_mount() == ESP_OK)
+                    case LOGTASK_IDLE:
+                        if (xSemaphoreTake(idle_state, portMAX_DELAY) == pdTRUE)
                         {
-
-                            if (Logger_check_sdcard_free_space() != ESP_OK)
+                            // Give starting of logging priority over getting a single shot value.
+                            if (_startLogTask)
                             {
-                                    esp_sd_card_unmount();
-                                break;
-                            }
-                            #ifdef DEBUG_LOGTASK
-                            ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
-                            #endif
-
-                            fileman_reset_subnum();
-                            if (fileman_open_file() != ESP_OK)
-                            { 
-                                if (esp_sd_card_unmount() == ESP_OK)
-                                {
-                                    SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
-                                    _nextLogTaskState = LOGTASK_IDLE;
-                                }
-
-                                break;
-                            } 
-
-                            
-                            if (settings_get_logmode() == LOGMODE_CSV)
-                            {
-                                fileman_csv_write_header();
-                            }
-
-                            // fileman_close_file();
-                                
-                            // All good, put statemachines in correct state
-                            _nextLogTaskState = LOGTASK_LOGGING;                        
-                            // Reset and start the logging statemachine
-                            
-                            LogTask_reset();
-                            Logging_reset();
-                            Logging_start();
-                            
-                        } else {
-                            SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
-                            _nextLogTaskState = LOGTASK_IDLE;
-                        }
-                    } else {
-                        vTaskDelay(200 / portTICK_PERIOD_MS);
-                        lastTick++;
-                        if (lastTick > 1 && _nextLogTaskState == LOGTASK_IDLE)
-                        {
-                            if (esp_sd_card_mount() == ESP_OK)
+                                _startLogTask = 0;
+                                lastTick = 0;
+                                if (esp_sd_card_mount() == ESP_OK)
                                 {
 
                                     if (Logger_check_sdcard_free_space() != ESP_OK)
@@ -1454,314 +1412,375 @@ void task_logging(void * pvParameters)
                                             esp_sd_card_unmount();
                                         break;
                                     }
+                                    #ifdef DEBUG_LOGTASK
+                                    ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+                                    #endif
+
+                                    fileman_reset_subnum();
+                                    if (fileman_open_file() != ESP_OK)
+                                    { 
+                                        if (esp_sd_card_unmount() == ESP_OK)
+                                        {
+                                            SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
+                                            _nextLogTaskState = LOGTASK_IDLE;
+                                        }
+
+                                        break;
+                                    } 
+
+                                    
+                                    if (settings_get_logmode() == LOGMODE_CSV)
+                                    {
+                                        fileman_csv_write_header();
+                                    }
+
+                                    // fileman_close_file();
+                                        
+                                    // All good, put statemachines in correct state
+                                    _nextLogTaskState = LOGTASK_LOGGING;                        
+                                    // Reset and start the logging statemachine
+                                    
+                                    LogTask_reset();
+                                    Logging_reset();
+                                    Logging_start();
+                                    
+                                } else {
+                                    SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
+                                    _nextLogTaskState = LOGTASK_IDLE;
                                 }
-                            _nextLogTaskState = LOGTASK_SINGLE_SHOT;
-                        }
-                        
-                    }
-                } // semaphoretake
-                xSemaphoreGive(idle_state);
-            
-            break;
+                            } else {
+                                vTaskDelay(200 / portTICK_PERIOD_MS);
+                                lastTick++;
+                                if (lastTick > 1 && _nextLogTaskState == LOGTASK_IDLE)
+                                {
+                                    if (esp_sd_card_mount() == ESP_OK)
+                                        {
 
-            
-            case LOGTASK_CALIBRATION:
-
-                ESP_LOGI(TAG_LOG, "Calibration step %d", calibration);
-                switch (calibration)
-                {
-                    case 0:
-                        // Switch to 12 bits mode and do single shot. Then switch to 16 bits and the same.
-                        last_resolution = settings_get_resolution();
-                        settings_set_resolution(ADC_12_BITS);
-                        Logger_syncSettings();
-                        settings_print();
-
-                        vTaskDelay(1000 / portTICK_PERIOD_MS);
-                        calibration = 1;
-                        _nextLogTaskState = LOGTASK_SINGLE_SHOT;
-                        for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
-                        {
-                            calibrationValues[i] = 0;
-                        }
-
+                                            if (Logger_check_sdcard_free_space() != ESP_OK)
+                                            {
+                                                    esp_sd_card_unmount();
+                                                break;
+                                            }
+                                        }
+                                    _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+                                }
+                                
+                            }
+                        } // semaphoretake
+                        xSemaphoreGive(idle_state);
+                    
                     break;
 
-                    case 1: 
-                        // Retrieve the calibration values
-                        
-                        // increase counter
-                        calibrationCounter++;
-                        ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
-                        x = 0;
-                        for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i + 2)
+                    
+                    case LOGTASK_CALIBRATION:
+
+                        ESP_LOGI(TAG_LOG, "Calibration step %d", calibration);
+                        switch (calibration)
                         {
-                            // (uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)
-                            calibrationValues[x] += ((uint16_t)spi_msg_1_ptr->adcData[i]) | ((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8); 
-                            ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
-                            x++;
+                            case 0:
+                                // Switch to 12 bits mode and do single shot. Then switch to 16 bits and the same.
+                                last_resolution = settings_get_resolution();
+                                settings_set_resolution(ADC_12_BITS);
+                                Logger_syncSettings();
+                                settings_print();
+
+                                vTaskDelay(1000 / portTICK_PERIOD_MS);
+                                calibration = 1;
+                                _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+                                for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                                {
+                                    calibrationValues[i] = 0;
+                                }
+
+                            break;
+
+                            case 1: 
+                                // Retrieve the calibration values
+                                
+                                // increase counter
+                                calibrationCounter++;
+                                ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
+                                x = 0;
+                                for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i + 2)
+                                {
+                                    // (uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)
+                                    calibrationValues[x] += ((uint16_t)spi_msg_1_ptr->adcData[i]) | ((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8); 
+                                    ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
+                                    x++;
+                                }
+                                
+                                // Sometimes we get zeros here. Quick fix for now.
+                                if (calibrationValues[--x] == 0)
+                                {
+                                    calibrationCounter--;
+                                }
+
+                                if (calibrationCounter == 10)
+                                {
+                                    // store calibration values
+                                    for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                                    {
+                                        calibrationValues[i] = calibrationValues[i] / calibrationCounter;
+                                        ESP_LOGI(TAG_LOG, "Average calib value %u: %lu", i, calibrationValues[i]);
+                                    }
+                                    
+                                    settings_set_adc_offset(calibrationValues, ADC_12_BITS);
+
+                                    calibrationCounter = 0;
+                                    // go to next state
+                                    
+                                    settings_persist_settings();
+                                    settings_set_resolution(ADC_16_BITS);
+                                    Logger_syncSettings();
+
+                                    for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                                    {
+                                        calibrationValues[i] = 0;
+                                    }
+
+                                    calibration = 2;
+                                } 
+
+                                _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+
+                            break;
+
+                            case 2:
+                                // Retrieve the calibration values
+
+                                // increase counter
+                                calibrationCounter++;
+                                x= 0;
+                                ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
+                                for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i+2)
+                                {
+                                    calibrationValues[x] += (uint16_t)(((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8) | (uint16_t)spi_msg_1_ptr->adcData[i]); 
+                                    // Sometimes we get zeros here. Quick fix for now.
+                                    
+                                    // calibrationValues[i] += adc_buffer_fixed_point[i];
+                                    ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
+                                    x++;
+                                }
+
+                                // Sometimes we get zeros here. Quick fix for now.
+                                if (calibrationValues[--x] == 0)
+                                {
+                                    calibrationCounter--;
+                                }
+
+                                if (calibrationCounter == 10)
+                                {
+                                    // store calibration values
+                                    for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                                    {
+                                        calibrationValues[i] = calibrationValues[i] / calibrationCounter;
+                                        ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", i, calibrationValues[i]);
+                                    }
+                                    
+                                    settings_set_adc_offset(calibrationValues, ADC_16_BITS);
+                                    
+                                    calibrationCounter = 0;
+                                    // go to next state
+                                    calibration = 0;
+                                    settings_persist_settings();
+                                    // go back to setting before calibriation
+                                    settings_set_resolution(last_resolution);
+                                    Logger_syncSettings();
+                                    
+                                    _nextLogTaskState = LOGTASK_IDLE;
+                                    settings_print();
+                                    ESP_LOGI(TAG_LOG, "Calibration done");
+
+                                } else {
+                                    _nextLogTaskState = LOGTASK_SINGLE_SHOT;
+                                }
+                                
+
                         }
-                        
-                        // Sometimes we get zeros here. Quick fix for now.
-                        if (calibrationValues[--x] == 0)
+                    break;
+
+                    case LOGTASK_SINGLE_SHOT:
+                        if (Logger_singleShot() == ESP_OK)
                         {
-                            calibrationCounter--;
-                        }
+                            // Wait for the STM32 to acquire data. Takes about 40 ms.
+                            vTaskDelay(100 / portTICK_PERIOD_MS);
 
-                        if (calibrationCounter == 10)
-                        {
-                            // store calibration values
-                            for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                            // Wait a bit before requesting the data
+                            spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+
+                            LogTask_resetCounter();
+                            if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
                             {
-                                calibrationValues[i] = calibrationValues[i] / calibrationCounter;
-                                ESP_LOGI(TAG_LOG, "Average calib value %u: %lu", i, calibrationValues[i]);
+                                #ifdef DEBUG_LOGTASK_RX
+                                // ESP_LOGI(TAG_LOG, "Last msg received");
+                                #endif
+                                Logger_processData();
+                                Logger_GetSingleConversion(&live_data);
+                                
+                            } else {
+                                ESP_LOGE(TAG_LOG, "Error receiving last message");
                             }
-                            
-                            settings_set_adc_offset(calibrationValues, ADC_12_BITS);
-
-                            calibrationCounter = 0;
-                            // go to next state
-                            
-                            settings_persist_settings();
-                            settings_set_resolution(ADC_16_BITS);
-                            Logger_syncSettings();
-
-                            for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
-                            {
-                                calibrationValues[i] = 0;
-                            }
-
-                            calibration = 2;
                         } 
-
-                        _nextLogTaskState = LOGTASK_SINGLE_SHOT;
-
+                        else {
+                            // ESP_LOGE(TAG_LOG, "Singleshot error");
+                        }
+                        lastTick = 0;
+                        if (calibration)
+                        {
+                            _nextLogTaskState = LOGTASK_CALIBRATION;
+                        } else {
+                            _nextLogTaskState = LOGTASK_IDLE;
+                        }
+                        
                     break;
 
-                    case 2:
-                        // Retrieve the calibration values
-
-                        // increase counter
-                        calibrationCounter++;
-                        x= 0;
-                        ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
-                        for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i+2)
-                        {
-                            calibrationValues[x] += (uint16_t)(((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8) | (uint16_t)spi_msg_1_ptr->adcData[i]); 
-                            // Sometimes we get zeros here. Quick fix for now.
-                            
-                            // calibrationValues[i] += adc_buffer_fixed_point[i];
-                            ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
-                            x++;
-                        }
-
-                        // Sometimes we get zeros here. Quick fix for now.
-                        if (calibrationValues[--x] == 0)
-                        {
-                            calibrationCounter--;
-                        }
-
-                        if (calibrationCounter == 10)
-                        {
-                            // store calibration values
-                            for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
-                            {
-                                calibrationValues[i] = calibrationValues[i] / calibrationCounter;
-                                ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", i, calibrationValues[i]);
-                            }
-                            
-                            settings_set_adc_offset(calibrationValues, ADC_16_BITS);
-                            
-                            calibrationCounter = 0;
-                            // go to next state
-                            calibration = 0;
-                            settings_persist_settings();
-                            // go back to setting before calibriation
-                            settings_set_resolution(last_resolution);
-                            Logger_syncSettings();
-                            
-                            _nextLogTaskState = LOGTASK_IDLE;
-                            settings_print();
-                            ESP_LOGI(TAG_LOG, "Calibration done");
-
-                        } else {
-                            _nextLogTaskState = LOGTASK_SINGLE_SHOT;
-                        }
+                    case LOGTASK_LOGGING:     
+                        first_tick = esp_timer_get_time();
                         
-
-                }
-            break;
-
-            case LOGTASK_SINGLE_SHOT:
-                if (Logger_singleShot() == ESP_OK)
-                {
-                    // Wait for the STM32 to acquire data. Takes about 40 ms.
-                    vTaskDelay(100 / portTICK_PERIOD_MS);
-
-                    // Wait a bit before requesting the data
-                    spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
-
-                    LogTask_resetCounter();
-                    if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
-                    {
-                        #ifdef DEBUG_LOGTASK_RX
-                        // ESP_LOGI(TAG_LOG, "Last msg received");
-                        #endif
-                        Logger_processData();
-                        Logger_GetSingleConversion(&live_data);
-                        
-                    } else {
-                        ESP_LOGE(TAG_LOG, "Error receiving last message");
-                    }
-                } 
-                else {
-                    // ESP_LOGE(TAG_LOG, "Singleshot error");
-                }
-                lastTick = 0;
-                if (calibration)
-                {
-                    _nextLogTaskState = LOGTASK_CALIBRATION;
-                } else {
-                    _nextLogTaskState = LOGTASK_IDLE;
-                }
-                
-            break;
-
-            case LOGTASK_LOGGING:     
-                first_tick = esp_timer_get_time();
-                
-                if (_dataReceived)           
-                {
-                    #ifdef DEBUG_LOGTASK_RX
-                    // ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
-                    #endif
-                    // taskENTER_CRITICAL(&processDataSpinLock);
-                    // ESP_LOGI(TAG_LOG, "Time to process data: %lld", esp_timer_get_time() - first_tick2);
-                    // first_tick2 = esp_timer_get_time();
-                    ret = Logger_processData();
-                  
-                    //  taskEXIT_CRITICAL(&processDataSpinLock);
-                    if (ret != ESP_OK)
-                    {
-                        LogTask_stop();
-                        SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
-                        _nextLogTaskState = LOGTASK_IDLE;
-                    }
-                    Logger_GetSingleConversion(&live_data);
-                   
-                    #ifdef DEBUG_LOGTASK_RX
-                    // ESP_LOGI(TAG_LOG, "_dataReceived = 0");
-                    #endif
-                    _dataReceived = 0;
-                }
-                
-                // do we need to flush the data? 
-                if(log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH)
-                {
-                    // No need to check for error, is done at _errorcode >0 check
-                    // Logger_flush_to_sdcard();
-                    // ESP_LOGI(TAG_LOG, "Flush!");
-                   
-           
-                    if (Logger_flush_to_sdcard() != ESP_OK)
-                    {
-                        fileman_close_file();
-                        ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
-                        LogTask_stop();
-                    } 
-                    // ESP_LOGI(TAG_LOG,"SD write time: %lld", esp_timer_get_time() - first_tick);
-
-                    
-                    
-                    log_counter = 0;
-              
-                    sdcard_data.datarows = 0;
-                }
-
-                // Keep in mind we are talking about _currentLoggingState here, not _CurrentLogTaskState!
-                if ((_currentLoggingState == LOGGING_ERROR ||
-                    _errorCode > 0) &&
-                    _currentLoggingState != LOGGING_DONE) 
-                {
-                    if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
-                    {
-                        ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
-                        LogTask_stop();
-                    } 
-                    
-                }
-
-                if ( _currentLoggingState == LOGGING_DONE)
-                {
-                    // Now either we already received the last message, which is indicated by _dataReceived
-                    // or we will have to retrieve it. 
-                    if ( _dataReceived )
-                    {
-                        #ifdef DEBUG_LOGTASK
-                        ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
-                        #endif
-                        // taskENTER_CRITICAL(&processDataSpinLock);
-                        Logger_processData();
-                        // taskEXIT_CRITICAL(&processDataSpinLock);
-                        
-                        #ifdef DEBUG_LOGTASK_RX
-                        // ESP_LOGI(TAG_LOG,"_dataReceived = 0");
-                        #endif
-                        _dataReceived = 0;
-                    } else {
-                        // Wait for STM to stop ADC and go to idle mode
-                        vTaskDelay(200 / portTICK_PERIOD_MS);
-                        spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
-                        // Retrieve any remaining ADC bytes
-                        
-                        if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
+                        if (_dataReceived)           
                         {
                             #ifdef DEBUG_LOGTASK_RX
-                            ESP_LOGI(TAG_LOG, "Last ADC data received");
+                            // ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
                             #endif
-    
-                            // Add check if last number bytes equals number of data lines. If so, we should discard that
                             // taskENTER_CRITICAL(&processDataSpinLock);
-                            Logger_processData();
-                            // taskEXIT_CRITICAL(&processDataSpinLock);
-
-                        } else {
-                            ESP_LOGE(TAG_LOG, "Error receiving last message");
-                            SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+                            // ESP_LOGI(TAG_LOG, "Time to process data: %lld", esp_timer_get_time() - first_tick2);
+                            // first_tick2 = esp_timer_get_time();
+                            ret = Logger_processData();
+                        
+                            //  taskEXIT_CRITICAL(&processDataSpinLock);
+                            if (ret != ESP_OK)
+                            {
+                                LogTask_stop();
+                                SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+                                _nextLogTaskState = LOGTASK_IDLE;
+                            }
+                            Logger_GetSingleConversion(&live_data);
+                        
+                            #ifdef DEBUG_LOGTASK_RX
+                            // ESP_LOGI(TAG_LOG, "_dataReceived = 0");
+                            #endif
+                            _dataReceived = 0;
                         }
-                         
-                        Logger_flush_to_sdcard();
-                        fileman_close_file();
-                        esp_sd_card_unmount();
-   
                         
+                        // do we need to flush the data? 
+                        if(log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH)
+                        {
+                            // No need to check for error, is done at _errorcode >0 check
+                            // Logger_flush_to_sdcard();
+                            // ESP_LOGI(TAG_LOG, "Flush!");
                         
-                        vTaskDelay(500 / portTICK_PERIOD_MS);
-                        _nextLogTaskState = LOGTASK_IDLE;
-                    }
+                
+                            if (Logger_flush_to_sdcard() != ESP_OK)
+                            {
+                                fileman_close_file();
+                                ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
+                                LogTask_stop();
+                            } 
+                            // ESP_LOGI(TAG_LOG,"SD write time: %lld", esp_timer_get_time() - first_tick);
+
+                            
+                            
+                            log_counter = 0;
                     
-                   
+                            sdcard_data.datarows = 0;
+                        }
+
+                        // Keep in mind we are talking about _currentLoggingState here, not _CurrentLogTaskState!
+                        if ((_currentLoggingState == LOGGING_ERROR ||
+                            _errorCode > 0) &&
+                            _currentLoggingState != LOGGING_DONE) 
+                        {
+                            if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
+                            {
+                                ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
+                                LogTask_stop();
+                            } 
+                            
+                        }
+
+                        if ( _currentLoggingState == LOGGING_DONE)
+                        {
+                            // Now either we already received the last message, which is indicated by _dataReceived
+                            // or we will have to retrieve it. 
+                            if ( _dataReceived )
+                            {
+                                #ifdef DEBUG_LOGTASK
+                                ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
+                                #endif
+                                // taskENTER_CRITICAL(&processDataSpinLock);
+                                Logger_processData();
+                                // taskEXIT_CRITICAL(&processDataSpinLock);
+                                
+                                #ifdef DEBUG_LOGTASK_RX
+                                // ESP_LOGI(TAG_LOG,"_dataReceived = 0");
+                                #endif
+                                _dataReceived = 0;
+                            } else {
+                                // Wait for STM to stop ADC and go to idle mode
+                                vTaskDelay(200 / portTICK_PERIOD_MS);
+                                spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+                                // Retrieve any remaining ADC bytes
+                                
+                                if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
+                                {
+                                    #ifdef DEBUG_LOGTASK_RX
+                                    ESP_LOGI(TAG_LOG, "Last ADC data received");
+                                    #endif
+            
+                                    // Add check if last number bytes equals number of data lines. If so, we should discard that
+                                    // taskENTER_CRITICAL(&processDataSpinLock);
+                                    Logger_processData();
+                                    // taskEXIT_CRITICAL(&processDataSpinLock);
+
+                                } else {
+                                    ESP_LOGE(TAG_LOG, "Error receiving last message");
+                                    SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+                                }
+                                
+                                Logger_flush_to_sdcard();
+                                fileman_close_file();
+                                esp_sd_card_unmount();
+        
+                                
+                                
+                                vTaskDelay(500 / portTICK_PERIOD_MS);
+                                _nextLogTaskState = LOGTASK_IDLE;
+                            }
+                            
+                        
+                            break;
+                        }
+
+                        ESP_LOGI(TAG_LOG,"LOGTASK LOGGING: %lld", esp_timer_get_time() - first_tick);
+
                     break;
-                }
 
-                 ESP_LOGI(TAG_LOG,"LOGTASK LOGGING: %lld", esp_timer_get_time() - first_tick);
+                    case LOGTASK_REBOOT_SYSTEM:
+                        vTaskDelay(3000 / portTICK_PERIOD_MS);
+                        esp_restart();
+                    break;
 
-            break;
+                    default:
 
-            case LOGTASK_FWUPDATE:
-                // do nothing
-            break;
+                    break;
+                    // should not come here
+                } // end of loggingstate switch
+            break; // end of case LOGGER_MAIN_STATE_NORMAL
 
-            case LOGTASK_REBOOT_SYSTEM:
-                vTaskDelay(3000 / portTICK_PERIOD_MS);
-                esp_restart();
-            break;
-
-            default:
+            case LOGGER_MAIN_STATE_FW_UPDATE:
 
             break;
-            // should not come here
+
         }
+
+        // Check if we need to switch to another state
+        if (_nextLoggerMainState != _currentLoggerMainState)
+        {
+            ESP_LOGI(TAG_LOG, "Switching MAIN STATE from %d to %d", _currentLoggerMainState, _nextLoggerMainState);
+            _currentLoggerMainState = _nextLoggerMainState;
+        }
+
+        
 
         switch (Logger_mode_button_pushed())
         {
@@ -1818,7 +1837,7 @@ void task_logging(void * pvParameters)
         }
 
 
-    }
+    } // end of while(1)
      
     
 }
