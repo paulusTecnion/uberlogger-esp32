@@ -659,6 +659,9 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         // Logging_restartSystem();
         // xSemaphoreGive(idle_state);
         esp_sd_card_unmount();
+
+        vTaskDelay(3000 / portTICK_PERIOD_MS);
+        esp_restart();
         return ESP_OK;
 
         error:
@@ -682,6 +685,7 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
     /* Add file upload form and script which on execution sends a POST request to /upload */
     httpd_resp_send_chunk(req, (const char *)upload_script_start, upload_script_size);
     httpd_resp_send_chunk(req, NULL, 0);
+
 
     return ESP_OK;
 
