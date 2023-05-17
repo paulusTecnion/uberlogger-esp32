@@ -1,4 +1,5 @@
 #include "settings.h"
+#include "rest_server.h"
 #include "spiffs_settings.h"
 #include "esp_wifi_types.h"
 #include "wifi.h"
@@ -366,6 +367,17 @@ esp_err_t settings_print()
 
 esp_err_t settings_persist_settings()
 {
+    const char * json = logger_settings_to_json(&_settings);
+    FILE * f = fopen("/www/settings.json", "w");
+    if (f == NULL)
+    {
+        ESP_LOGE(TAG_SETTINGS, "Failed to open file for writing");
+        return ESP_FAIL;
+    }
+    fprintf(f, "%s", json);
+    fclose(f);
+
+
     if ( spiffs_write((const char*)&_settings, sizeof(_settings)) == ESP_OK)
     {
         #ifdef DEBUG_SETTINGS
@@ -373,6 +385,9 @@ esp_err_t settings_persist_settings()
         #endif
         return ESP_OK;     
     }
+
+
+
     ESP_LOGE(TAG_SETTINGS, "Persisting settings FAILED");
     return ESP_FAIL;
 }

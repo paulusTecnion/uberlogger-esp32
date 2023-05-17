@@ -98,11 +98,12 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     ESP_LOGI(REST_TAG, "Query length %d, filepath %d", buf_len, strlen(filepath));
     #endif
 
+    
     if (buf_len > 0)
     {
         strlcpy(filepath, filepath, strlen(filepath)-buf_len);
     }
-    
+    ESP_LOGI("REST", "URI: %s", filepath);
     if (strncmp(filepath, rest_context->base_path, strlen(filepath) - 1) == 0)
     {
         strlcat(filepath, "index.html", sizeof(filepath));
@@ -273,19 +274,16 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
 }
 
 
-static esp_err_t logger_getConfig_handler(httpd_req_t *req)
+const char * logger_settings_to_json(Settings_t *settings)
 {
-    httpd_resp_set_type(req, "application/json");
     cJSON * root = cJSON_CreateObject();
+    const char * strptr = NULL;
     if (root == NULL)
     {
-
-        return ESP_FAIL;
+        return strptr;
     }
   
     
-    Settings_t *settings = settings_get();
-
     cJSON *range_select = cJSON_AddObjectToObject(root, "AIN_RANGE_SELECT");
     cJSON *ntc_select = cJSON_AddObjectToObject(root, "NTC_SELECT");
     char buf[5];
@@ -319,10 +317,28 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 
 
     
-    const char *settings_json= cJSON_Print(root);
-    httpd_resp_sendstr(req, settings_json);
-     free((void *)settings_json);
+    strptr = cJSON_Print(root);
     cJSON_Delete(root);
+
+    return strptr;
+}
+
+static esp_err_t logger_getConfig_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+ 
+    Settings_t *settings = settings_get();
+    const char * settings_json = NULL;
+    settings_json = logger_settings_to_json(settings);
+    if (settings_json == NULL)
+    {
+        return ESP_FAIL;
+    }
+
+    httpd_resp_sendstr(req, settings_json);
+    httpd_resp_sendstr_chunk(req, NULL);
+    free((void *)settings_json);
+    
     
     return ESP_OK;
 }

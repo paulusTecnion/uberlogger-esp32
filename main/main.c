@@ -120,6 +120,7 @@ void app_main(void)
     #endif
     // Init wifi required before settings init
     wifi_init();
+    ESP_ERROR_CHECK(init_fs());
     settings_init();
 
 
@@ -143,7 +144,7 @@ void app_main(void)
     // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...
     vTaskDelay (1000/portTICK_PERIOD_MS);
 
-    ESP_ERROR_CHECK(init_fs());
+  
     ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
 
   
