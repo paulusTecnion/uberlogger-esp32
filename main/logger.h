@@ -6,6 +6,9 @@
 #include <stddef.h>
 #include <string.h>
 #include "settings.h"
+#include "firmware-www.h"
+#include "firmwareESP32.h"
+#include "firmwareSTM32.h"
 
 // **********************************************************************************************
 // DON'T TOUCH NEXT LINES PLEASE UNTIL NEXT ASTERIX LINES
@@ -102,10 +105,20 @@ enum LoggerMainState
     LOGGER_MAIN_STATE_NUM_STATES
 };
 
+enum LoggerFWState 
+{
+    LOGGER_FW_IDLE,
+    LOGGER_FW_FLASHING_STM,
+    LOGGER_FW_FLASHING_WWW,
+    LOGGER_FW_FLASHING_ESP,
+    LOGGER_FW_DONE,
+    LOGGER_FW_ERROR
+};
+
 typedef uint8_t LoggerState_t;
 typedef uint8_t LoggingState_t;
 typedef uint8_t LoggerMainState_t;
-
+typedef uint8_t LoggerFWState_t;
 
 
 /// @brief Returns fixed point int32_t of ADC value
@@ -162,6 +175,9 @@ uint8_t Logger_mode_button();
 esp_err_t Logger_syncSettings();
 
 esp_err_t Logger_startFWupdate();
+esp_err_t Logger_startFWflash();
+
+uint8_t Logger_getFWState();
 
 void Logging_restartSystem();
 

@@ -78,6 +78,10 @@ char strbuffer[16];
 
 LoggerMainState_t _currentLoggerMainState = LOGGER_MAIN_STATE_NORMAL;
 LoggerMainState_t _nextLoggerMainState = LOGGER_MAIN_STATE_NORMAL;
+
+LoggerFWState_t _currentFWState = LOGGER_FW_IDLE;
+LoggerFWState_t _nextFWState = LOGGER_FW_IDLE;
+
 // Really need to change all these variable names to something more sensible
 LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
 LoggerState_t _nextLogTaskState = LOGTASK_IDLE;
@@ -924,6 +928,17 @@ esp_err_t Logger_startFWupdate()
     }
 }
 
+esp_err_t Logger_startFWflash()
+{
+    _nextFWState = LOGGER_FW_FLASHING_STM;
+    return ESP_OK;
+}
+
+uint8_t Logger_getFWState ()
+{
+    return _currentFWState;
+}
+
 uint32_t Logger_getError()
 {
     return _errorCode;
@@ -1768,7 +1783,81 @@ void task_logging(void * pvParameters)
             break; // end of case LOGGER_MAIN_STATE_NORMAL
 
             case LOGGER_MAIN_STATE_FW_UPDATE:
+                {
 
+                    switch (_currentFWState)
+                    {
+
+                    
+                        case LOGGER_FW_IDLE:
+
+                        break;
+
+                        case LOGGER_FW_FLASHING_STM:
+                        if (esp_sd_card_mount() != ESP_OK)
+                        {
+                            ESP_LOGE(TAG_LOG, "Failed to mount SD card");
+                            _nextFWState = LOGGER_FW_ERROR;
+                            break;
+                        } 
+
+
+                        /* Start firmware upgrade */
+                        if (flash_stm32() != ESP_OK) {
+                            ESP_LOGE(TAG_LOG, "Support chip  failed!");
+                            _nextFWState = LOGGER_FW_ERROR;
+                        } else {
+                            ESP_LOGI(TAG_LOG, "Support chip flashed (2 / 6)");
+                            _nextFWState = LOGGER_FW_FLASHING_WWW;
+                        }
+
+                        break;
+        
+                        case LOGGER_FW_FLASHING_WWW:
+
+                            if (update_www() != ESP_OK) {
+                                ESP_LOGE(TAG_LOG, "File system flash failed");
+                                _nextFWState = LOGGER_FW_ERROR;
+                            } else {
+                                ESP_LOGI(TAG_LOG, "File system flashed (4 / 6)");
+                                
+                                _nextFWState = LOGGER_FW_FLASHING_ESP;
+                            }
+                        break;
+
+                    
+                        
+                        case LOGGER_FW_FLASHING_ESP:
+                            if (updateESP32() != ESP_OK) {
+                                ESP_LOGE(TAG_LOG, "Main chip flash failed");
+                                _nextFWState = LOGGER_FW_ERROR;
+                            } else {
+                                ESP_LOGI(TAG_LOG, "Main flash chip flashed (6 / 6)");
+                                _nextFWState = LOGGER_FW_DONE;
+                            }
+                        break;
+
+                        case LOGGER_FW_DONE:
+                            esp_sd_card_unmount();
+
+                            vTaskDelay(3000 / portTICK_PERIOD_MS);
+                            esp_restart();
+                        break;
+                        // return ESP_OK;
+
+                        case LOGGER_FW_ERROR:
+         
+                        esp_sd_card_unmount();
+                        _nextLoggerMainState = LOGGER_MAIN_STATE_NORMAL;
+
+                    } // end of switch _currentFWState
+
+                    if (_nextFWState != _currentFWState)
+                    {
+                        _currentFWState = _nextFWState;
+                    }
+
+                } // end of switch _currentMainsState
             break;
 
         }

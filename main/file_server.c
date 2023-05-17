@@ -580,7 +580,7 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Logger not idle, cannot update firwmare");
             return ESP_FAIL;
         } else {
-              httpd_resp_set_status(req, HTTPD_200);
+            httpd_resp_set_status(req, HTTPD_200);
             httpd_resp_set_type(req, HTTPD_TYPE_TEXT);
             httpd_resp_send_chunk(req, NULL, 0);
 
@@ -599,80 +599,77 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         
         httpd_resp_sendstr_chunk(req, "<p>Starting firmware upgrade...</p>");
         
-        httpd_resp_sendstr_chunk(req, "<p>Flashing support chip ...(1/6)</p>");
-
-        if (esp_sd_card_mount() != ESP_OK)
-        {
-            ESP_LOGE(TAG_FILESERVER, "Failed to mount SD card");
-            err = ESP_FAIL;
-            goto error;
-        }
+        Logger_startFWflash();
+        // httpd_resp_sendstr_chunk(req, "<p>Flashing support chip ...(1/6)</p>");
 
 
+       
         /* Start firmware upgrade */
-        if (flash_stm32() != ESP_OK) {
-            ESP_LOGE(TAG_FILESERVER, "Support chip  failed!");
-            httpd_resp_sendstr_chunk(req, "<p>Support chip  failed!</p>");
-            goto error;
-        } else {
-            #ifdef DEBUG_FILESERVER
-            ESP_LOGI(TAG_FILESERVER, "Support chip flashed (2 / 6)");
-            #endif
-            httpd_resp_sendstr_chunk(req, "<p>Support chip flashed (2 / 6)</p>");
-        }
+        // if (flash_stm32() != ESP_OK) {
+        //     ESP_LOGE(TAG_FILESERVER, "Support chip  failed!");
+        //     httpd_resp_sendstr_chunk(req, "<p>Support chip  failed!</p>");
+        //     goto error;
+        // } else {
+        //     #ifdef DEBUG_FILESERVER
+        //     ESP_LOGI(TAG_FILESERVER, "Support chip flashed (2 / 6)");
+        //     #endif
+        //     httpd_resp_sendstr_chunk(req, "<p>Support chip flashed (2 / 6)</p>");
+        // }
 
-        httpd_resp_sendstr_chunk(req, "<p>Flashing file system ...(3 / 6)</p>");
-        if (update_www() != ESP_OK) {
-            ESP_LOGE(TAG_FILESERVER, "File system flash failed");
-            httpd_resp_sendstr_chunk(req, "<p>File system flash failed!</p>");
-            goto error;
-        } else {
-            #ifdef DEBUG_FILESERVER
-            ESP_LOGI(TAG_FILESERVER, "File system flashed (4 / 6)");
-            #endif
-            httpd_resp_sendstr_chunk(req, "<p>File system flashed (4 / 6)</p>");
-        }
+        // httpd_resp_sendstr_chunk(req, "<p>Flashing file system ...(3 / 6)</p>");
+        // if (update_www() != ESP_OK) {
+        //     ESP_LOGE(TAG_FILESERVER, "File system flash failed");
+        //     httpd_resp_sendstr_chunk(req, "<p>File system flash failed!</p>");
+        //     goto error;
+        // } else {
+        //     #ifdef DEBUG_FILESERVER
+        //     ESP_LOGI(TAG_FILESERVER, "File system flashed (4 / 6)");
+        //     #endif
+        //     httpd_resp_sendstr_chunk(req, "<p>File system flashed (4 / 6)</p>");
+        // }
         
-        httpd_resp_sendstr_chunk(req, "<p>Flashing main chip ...(5 / 6)</p>");
+        // httpd_resp_sendstr_chunk(req, "<p>Flashing main chip ...(5 / 6)</p>");
         // httpd_resp_sendstr_chunk(req, "<p>WiFi will be disabled and should re-enable again. If upgrade failed it will be shown here.</p>");
         
         
-        if (updateESP32() != ESP_OK) {
-            ESP_LOGE(TAG_FILESERVER, "Main chip flash failed");
-            httpd_resp_sendstr_chunk(req, "<p>Main chip flash failed! Please don't reset your Uberlogger and try again</p>");
-            httpd_resp_send_chunk(req, NULL, 0);
-            goto error;
-        } else {
-            #ifdef DEBUG_FILESERVER
-            ESP_LOGI(TAG_FILESERVER, "Main flash chip flashed (6 / 6)");
-            #endif
-            httpd_resp_sendstr_chunk(req, "<p>Main flash chip flashed (6 / 6)</p>");
-        }
+        // if (updateESP32() != ESP_OK) {
+        //     ESP_LOGE(TAG_FILESERVER, "Main chip flash failed");
+        //     httpd_resp_sendstr_chunk(req, "<p>Main chip flash failed! Please don't reset your Uberlogger and try again</p>");
+        //     httpd_resp_send_chunk(req, NULL, 0);
+        //     goto error;
+        // } else {
+        //     #ifdef DEBUG_FILESERVER
+        //     ESP_LOGI(TAG_FILESERVER, "Main flash chip flashed (6 / 6)");
+        //     #endif
+        //     httpd_resp_sendstr_chunk(req, "<p>Main flash chip flashed (6 / 6)</p>");
+        // }
 
-        httpd_resp_sendstr_chunk(req, "succesfull");
+        // httpd_resp_sendstr_chunk(req, "succesfull");
         // httpd_resp_send_chunk(req, NULL, 0);
 
+        // error:
         httpd_resp_send_chunk(req, NULL, 0);
 
         
         // Reboot to apply firmware update
         // Logging_restartSystem();
         // xSemaphoreGive(idle_state);
-        esp_sd_card_unmount();
 
-        vTaskDelay(3000 / portTICK_PERIOD_MS);
-        esp_restart();
+
+     
         return ESP_OK;
-
-        error:
-        // xSemaphoreGive(idle_state);
-        esp_sd_card_unmount();
-        
-        return ESP_FAIL;
-
-      
+    
     }
 
+    if (strstr(req->uri, "/fwupdate/state") != NULL) 
+    {
+        uint8_t state = Logger_getFWState();
+        char buf[5];
+        sprintf(buf, "%u", state);
+        httpd_resp_sendstr_chunk(req, buf);
+        httpd_resp_send_chunk(req, NULL, 0);
+        return ESP_OK;   
+    }
    
    // /* Send HTML file header */
     httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
