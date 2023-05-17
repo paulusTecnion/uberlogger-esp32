@@ -95,7 +95,10 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 {
 	if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
 		ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
-		esp_wifi_connect();
+		if (settings_get_wifi_mode() == WIFI_MODE_STA) 
+        {
+            esp_wifi_connect();
+        }
 		xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
 	} else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
 		ESP_LOGI(TAG, "IP_EVENT_STA_GOT_IP");
