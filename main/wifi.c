@@ -95,6 +95,9 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 {
 	if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
 		ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
+        // Only when in station mode, we try to reconnect
+        // Else when changing from STA to APSTA mode,
+        // we keep connecting after a disconnect.
 		if (settings_get_wifi_mode() == WIFI_MODE_STA) 
         {
             esp_wifi_connect();
