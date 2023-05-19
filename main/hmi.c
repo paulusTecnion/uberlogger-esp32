@@ -16,6 +16,47 @@
 
 #define TAG "HMI"
 
+
+uint8_t hmi_check_mode_button()
+{
+    static uint8_t state = 0;
+    uint8_t level = gpio_get_level(GPIO_START_STOP_BUTTON);
+    
+    switch (state)
+    {
+        case MODEBUTTON_IDLE:
+          if(!level) 
+          {
+            #ifdef DEBUG_LOGGING
+            ESP_LOGI(TAG_LOG, "MODE press hold");
+            #endif
+            state = MODEBUTTON_HOLD;
+          }
+        break;
+            
+        case MODEBUTTON_HOLD:
+            if(level)
+            {
+                #ifdef DEBUG_LOGGING
+                ESP_LOGI(TAG_LOG, "MODE released");
+                #endif
+                state = MODEBUTTON_RELEASED;
+                
+            } 
+        break;
+
+        case MODEBUTTON_RELEASED:
+            #ifdef DEBUG_LOGGING
+            ESP_LOGI(TAG_LOG, "MODE reset");
+            #endif
+            state = MODEBUTTON_IDLE;
+            
+        break;    
+    }
+    
+    return state;
+}
+
 void task_hmi(void* ignore) {
 //   u8g2_esp32_hal_t u8g2_esp32_hal = U8G2_ESP32_HAL_DEFAULT;
 //   u8g2_esp32_hal.sda = GPIO_OLED_SDA;
@@ -61,27 +102,41 @@ void task_hmi(void* ignore) {
   static uint8_t toggle_red = 0;
   static uint8_t startLogging = 1;
 
+  static TickType_t startTick = 0;
+  static uint8_t longPush = 0;
+
   while(1)
   {
-    // if (i > 100)
-    // {
-    //     u8g2_SetDrawColor(&u8g2,0);
-    // } else {
-    //     u8g2_SetDrawColor(&u8g2,1);
-    // }
-    // u8g2_DrawBox(&u8g2, 0, 26, i, 6);
-    // // u8g2_SendBuffer(&u8g2);
-    
-    // u8g2_SendBuffer(&u8g2);
-    // if (i > 100)
-    // {
-    //     i = 0;
-    // }
-    // i = i + 20;
-    
+
+    switch (hmi_check_mode_button())
+        {
+            case MODEBUTTON_IDLE:
+                // ESP_LOGI(TAG_LOG, "Button idle");
+                startTick = xTaskGetTickCount();
+                longPush = 0;
+            break;
+
+            case MODEBUTTON_HOLD:
+                // if held for longer than 10 seconds, we will put the system to SoftAP mode
+                // ESP_LOGI(TAG, "Button held for %ld ms", 10*(xTaskGetTickCount() - startTick));
+                if ((xTaskGetTickCount() - startTick) > 500 && 
+                    longPush == 0 )
+                {
+                    Logger_mode_button_long_pushed();  
+                    longPush = 1;
+                } 
+            break;
+
+            case MODEBUTTON_RELEASED:
+                if (longPush == 0)
+                {
+                  Logger_mode_button_pushed();
+                }
+            break;
+        }
 
 
-
+    // Do stuff with the LED
     if (Logger_getError() > 0)
     {
         if (timerCounter % 2 == 0)

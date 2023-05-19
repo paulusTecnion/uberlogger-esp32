@@ -67,13 +67,14 @@ enum LogTaskStates
     LOGTASK_INIT = 0,
     LOGTASK_IDLE,
     LOGTASK_LOGGING,
-    LOGTASK_SETTINGS,
-    LOGTASK_STOPPING,
+    LOGTASK_PERSIST_SETTINGS,
+    LOGTASK_SYNC_SETTINGS,
     LOGTASK_ERROR_OCCURED,
     LOGTASK_REBOOT_SYSTEM,
     LOGTASK_FWUPDATE,
     LOGTASK_SINGLE_SHOT,
     LOGTASK_CALIBRATION,
+    LOGGER_FW_UPDATE,
     LOGTASK_NUM_STATES
 };
 
@@ -97,14 +98,6 @@ enum Logger_modeButtonStates{
 };
 
 
-enum LoggerMainState 
-{
-    LOGGER_MAIN_STATE_NORMAL = 0,
-    LOGGER_MAIN_STATE_FW_UPDATE,
-    LOGGER_MAIN_STATE_ERROR,
-    LOGGER_MAIN_STATE_NUM_STATES
-};
-
 enum LoggerFWState 
 {
     LOGGER_FW_IDLE,
@@ -112,12 +105,11 @@ enum LoggerFWState
     LOGGER_FW_FLASHING_WWW,
     LOGGER_FW_FLASHING_ESP,
     LOGGER_FW_DONE,
-    LOGGER_FW_ERROR
+    LOGGER_FW_ERROR,
 };
 
 typedef uint8_t LoggerState_t;
 typedef uint8_t LoggingState_t;
-typedef uint8_t LoggerMainState_t;
 typedef uint8_t LoggerFWState_t;
 
 
@@ -158,6 +150,7 @@ esp_err_t LogTask_stop();
 esp_err_t Logging_stop();
 esp_err_t Logging_start();
 
+void Logtask_singleShot();
 esp_err_t Logger_singleShot();
 uint32_t Logger_getError();
 
@@ -172,7 +165,11 @@ uint8_t Logger_setCsvLog(log_mode_t value);
 uint8_t Logger_getCsvLog();
 
 uint8_t Logger_mode_button();
+void Logger_mode_button_long_pushed();
+void Logger_mode_button_pushed();
 esp_err_t Logger_syncSettings();
+// External function to be called outside logger task
+esp_err_t Logtask_sync_settings();
 
 esp_err_t Logger_startFWupdate();
 esp_err_t Logger_startFWflash();

@@ -52,7 +52,7 @@ static int cmd_sample_rate(int argc, char **argv)
 
         if (settings_set_resolution(settings_args.val->ival[0]) == ESP_OK)
         {
-            Logger_syncSettings();
+            Logtask_sync_settings();
             return 0;
         } else {
             return 1;
@@ -188,7 +188,7 @@ static void register_stm32_sync(void)
         .command = "sync",
         .help = "STM32 sync settings",
         .hint = NULL,
-        .func = &Logger_syncSettings
+        .func = &Logtask_sync_settings
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
@@ -259,18 +259,17 @@ void init_console(){
     #endif
 
 
-    // register_log_start();
-    // register_log_stop();
+    
     register_calibrate();
     register_logger_cmd();
     register_print_ip();
     register_restart();
     register_settings_sample_rate();
-    register_singleshot();
+    // register_singleshot();
     register_stm32_sync();
-    register_update_esp32();
-    register_update_stm32();
-    register_update_www();
+    // register_update_esp32();
+    // register_update_stm32();
+    // register_update_www();
     esp_console_register_help_command();
 
     // esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
