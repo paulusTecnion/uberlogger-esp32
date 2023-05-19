@@ -103,7 +103,7 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
     {
         strlcpy(filepath, filepath, strlen(filepath)-buf_len);
     }
-    ESP_LOGI("REST", "URI: %s", filepath);
+    // ESP_LOGI("REST", "URI: %s", filepath);
     if (strncmp(filepath, rest_context->base_path, strlen(filepath) - 1) == 0)
     {
         strlcat(filepath, "index.html", sizeof(filepath));
