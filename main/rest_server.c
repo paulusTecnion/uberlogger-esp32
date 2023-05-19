@@ -111,12 +111,12 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
 
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
-        ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
+        // ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
         if (CHECK_FILE_EXTENSION(filepath, ".js"))
         {
             strlcat(filepath, ".gz", sizeof(filepath));
         }
-        ESP_LOGE(REST_TAG, "Trying %s", filepath);
+        // ESP_LOGE(REST_TAG, "Trying %s", filepath);
         fd = open(filepath, O_RDONLY, 0);
 
         if (fd == -1)
@@ -140,7 +140,7 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
         /* Read file in chunks into the scratch buffer */
         read_bytes = read(fd, chunk, SCRATCH_BUFSIZE);
         if (read_bytes == -1) {
-            ESP_LOGE(REST_TAG, "Failed to read file : %s", filepath);
+            // ESP_LOGE(REST_TAG, "Failed to read file : %s", filepath);
         } else if (read_bytes > 0) {
             /* Send the buffer contents as HTTP response chunk */
             if (httpd_resp_send_chunk(req, chunk, read_bytes) != ESP_OK) {
