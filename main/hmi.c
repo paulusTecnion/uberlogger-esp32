@@ -28,7 +28,7 @@ uint8_t hmi_check_mode_button()
           if(!level) 
           {
             #ifdef DEBUG_LOGGING
-            ESP_LOGI(TAG_LOG, "MODE press hold");
+            ESP_LOGI(TAG, "MODE press hold");
             #endif
             state = MODEBUTTON_HOLD;
           }
@@ -38,7 +38,7 @@ uint8_t hmi_check_mode_button()
             if(level)
             {
                 #ifdef DEBUG_LOGGING
-                ESP_LOGI(TAG_LOG, "MODE released");
+                ESP_LOGI(TAG, "MODE released");
                 #endif
                 state = MODEBUTTON_RELEASED;
                 
@@ -47,7 +47,7 @@ uint8_t hmi_check_mode_button()
 
         case MODEBUTTON_RELEASED:
             #ifdef DEBUG_LOGGING
-            ESP_LOGI(TAG_LOG, "MODE reset");
+            ESP_LOGI(TAG, "MODE reset");
             #endif
             state = MODEBUTTON_IDLE;
             
