@@ -77,7 +77,7 @@ char strbuffer[16];
 
 
 LoggerFWState_t _currentFWState = LOGGER_FW_IDLE;
-LoggerFWState_t _nextFWState = LOGGER_FW_IDLE;
+LoggerFWState_t _nextFWState = NULL;
 
 // Really need to change all these variable names to something more sensible
 LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
@@ -85,7 +85,10 @@ LoggerState_t _nextLogTaskState = LOGTASK_IDLE;
 LoggingState_t _currentLoggingState = LOGGING_IDLE;
 LoggingState_t _nextLoggingState = LOGGING_IDLE;
 
+// Queue for logging
 QueueHandle_t xQueue = NULL;
+// Queue for firmware update 
+QueueHandle_t xQueueFW = NULL;
 
 // temporary variables to calculate fixed point numbers
 int64_t t0, t1,t2,t3;
@@ -937,7 +940,9 @@ esp_err_t Logger_startFWupdate()
 
 esp_err_t Logger_startFWflash()
 {
-    _nextFWState = LOGGER_FW_FLASHING_STM;
+    LoggingState_t t;
+    t = LOGGER_FW_FLASHING_STM;
+    xQueueSend(xQueueFW, &t, 1000 / portTICK_PERIOD_MS);
     return ESP_OK;
 }
 
@@ -1657,13 +1662,19 @@ void Logtask_logging()
 
 void Logtask_fw_update()
 {
+    // create queue
+
+
     while(1)
     {
+        if (xQueueReceive(xQueueFW, &_currentFWState, 200 / portTICK_PERIOD_MS) != pdTRUE)
+        {
+            _currentFWState = LOGGER_FW_IDLE;
+        } 
+
         switch (_currentFWState)
         {    
-            case LOGGER_FW_IDLE:
-
-            break;
+            case LOGGER_FW_IDLE:            break;
 
             case LOGGER_FW_FLASHING_STM:
             if (esp_sd_card_mount() != ESP_OK)
@@ -1723,10 +1734,9 @@ void Logtask_fw_update()
 
         } // end of case 
 
-        if (_nextFWState != _currentFWState)
-        {
-            _currentFWState = _nextFWState;
-        }
+        if (_nextFWState != NULL) xQueueSend(xQueueFW, &_nextFWState, 0);
+        _nextFWState = NULL;
+        
     }
 
 }
@@ -1846,26 +1856,20 @@ void task_logging(void * pvParameters)
             
         switch (_currentLogTaskState)
         {
-            case LOGTASK_IDLE:   /* not-a-thing, noppa, nada */ break;
-            case LOGTASK_CALIBRATION: Logtask_calibration();            break;
-            case LOGTASK_SINGLE_SHOT: Logtask_singleShot();             break;
-            case LOGTASK_PERSIST_SETTINGS: settings_persist_settings(); break;
-            case LOGTASK_SYNC_SETTINGS: Logger_syncSettings();          break;
-            case LOGTASK_LOGGING:     
-                first_tick = esp_timer_get_time();
-                Logtask_logging();
-                ESP_LOGI(TAG_LOG,"LOGTASK LOGGING: %lld", esp_timer_get_time() - first_tick);
-            break;
-
+            case LOGTASK_IDLE:   /* not-a-thing, noppa, nada */                 break;
+            case LOGTASK_CALIBRATION:       Logtask_calibration();              break;
+            case LOGTASK_SINGLE_SHOT:       Logtask_singleShot();               break;
+            case LOGTASK_PERSIST_SETTINGS:  settings_persist_settings();        break;
+            case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings();              break;
+            case LOGTASK_LOGGING:           Logtask_logging();                  break;
             case LOGTASK_REBOOT_SYSTEM:
                 vTaskDelay(3000 / portTICK_PERIOD_MS);
                 esp_restart();
             break;
-
-            case LOGTASK_FWUPDATE:  Logtask_fw_update();                break;
+            case LOGTASK_FWUPDATE:          Logtask_fw_update();                break;
 
             default:                                                    
-            ESP_LOGE(TAG_LOG, "Unknown task: %d", _currentLogTaskState);break;
+            ESP_LOGE(TAG_LOG, "Unknown task: %d", _currentLogTaskState);        break;
         }// end of switch
         
       
