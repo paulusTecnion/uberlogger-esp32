@@ -1829,7 +1829,7 @@ void task_logging(void * pvParameters)
     
     spi_msg_1_ptr = (spi_msg_1_t*)spi_buffer;
     spi_msg_2_ptr = (spi_msg_2_t*)spi_buffer;
-   spi_ctrl_datardy_int(0);
+   
 
    // Create queue for tasks
     xQueue = xQueueCreate( 10, sizeof( LoggerState_t ) );

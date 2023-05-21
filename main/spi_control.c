@@ -179,7 +179,7 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
     ret = spi_device_acquire_bus(stm_spi_handle, portMAX_DELAY);
     assert(ret==ESP_OK);
     
-    return spi_ctrl_datardy_int (1) ;
+    return ESP_OK;
     
 }
 
@@ -390,19 +390,11 @@ void spi_ctrl_loop()
         if (gpio_get_level(GPIO_DATA_OVERRUN))
         {
             rxdata_state = RXDATA_STATE_DATA_OVERRUN;
-        }
-        
-        if (ulNotificationValue)
-        {
-            #ifdef DEBUG_SPI_CONTROL
+        } else if (ulNotificationValue) {
+            // #ifdef DEBUG_SPI_CONTROL
             ESP_LOGI(TAG_SPI_CTRL, "HIGH TRIGGER");
-            #endif
-
-            if (rxdata_state != RXDATA_STATE_DATA_OVERRUN)
-            {
-                rxdata_state = RXDATA_STATE_DATA_READY;
-            } 
-
+            // #endif
+            rxdata_state = RXDATA_STATE_DATA_READY;
         }  
 
        
