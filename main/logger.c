@@ -1484,6 +1484,7 @@ void Logtask_logging()
 {
     esp_err_t ret;
     spi_cmd_t spi_cmd;
+    uint8_t finalwrite = 0;
 
     if (esp_sd_card_mount() == ESP_OK)
     {
@@ -1492,7 +1493,7 @@ void Logtask_logging()
         {
             esp_sd_card_unmount();
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
-            // push error to queue
+            // push error to queue?
             // ...
             return;
         }
@@ -1503,12 +1504,10 @@ void Logtask_logging()
         fileman_reset_subnum();
         if (fileman_open_file() != ESP_OK)
         { 
-            if (esp_sd_card_unmount() == ESP_OK)
-            {
-                SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
-            }
+            esp_sd_card_unmount();
+            SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
             return;
-            // push error to queue
+            // push error to queue?
             // ...
         } 
 
@@ -1526,33 +1525,33 @@ void Logtask_logging()
         
     } else {
         SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
-        // push error to queue
+        // push error to queue?
         // ...
         return;
     }
     
     while (1)
     {
-        // Put this in separate task
+        // Put this in separate task?
         spi_ctrl_loop();
         Logger_logging();
         
         if (_dataReceived)           
         {
             #ifdef DEBUG_LOGTASK_RX
-            // ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
+            ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
             #endif
-            // taskENTER_CRITICAL(&processDataSpinLock);
+            
             // ESP_LOGI(TAG_LOG, "Time to process data: %lld", esp_timer_get_time() - first_tick2);
             // first_tick2 = esp_timer_get_time();
             ret = Logger_processData();
         
-            //  taskEXIT_CRITICAL(&processDataSpinLock);
+            
             if (ret != ESP_OK)
             {
                 LogTask_stop();
                 SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
-                return;
+                finalwrite = 1;
             }
             Logger_GetSingleConversion(&live_data);
         
@@ -1572,10 +1571,9 @@ void Logtask_logging()
 
             if (Logger_flush_to_sdcard() != ESP_OK)
             {
-                fileman_close_file();
                 ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
                 LogTask_stop();
-                return;
+                finalwrite = 1;
             } 
             // ESP_LOGI(TAG_LOG,"SD write time: %lld", esp_timer_get_time() - first_tick);
 
@@ -1594,7 +1592,7 @@ void Logtask_logging()
             if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
             {
                 ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
-                return;
+                finalwrite = 1;
             } 
             
         }
@@ -1629,29 +1627,30 @@ void Logtask_logging()
                     #endif
 
                     // Add check if last number bytes equals number of data lines. If so, we should discard that
-                    // taskENTER_CRITICAL(&processDataSpinLock);
                     Logger_processData();
-                    // taskEXIT_CRITICAL(&processDataSpinLock);
-
                 } else {
                     ESP_LOGE(TAG_LOG, "Error receiving last message");
                     SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
                 }
-                
-                Logger_flush_to_sdcard();
-                fileman_close_file();
-                esp_sd_card_unmount();
-
-                
-                
-                vTaskDelay(500 / portTICK_PERIOD_MS);
-                // Exit the logging
-                return;
             }
+            // Flush the data to SD card
+            finalwrite = 1;
             
-        
-            break;
         }
+
+        if (finalwrite)
+        {
+            Logger_flush_to_sdcard();
+            fileman_close_file();
+            esp_sd_card_unmount();
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+            // Exit the logging function
+            return;
+        }
+
+
+
+
 
     }
 }
