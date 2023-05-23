@@ -109,7 +109,6 @@ static esp_err_t flash_wipe()
 {
     
     uint8_t cmd[4];
-    uint8_t error = 0;
 
     send_cmd(CMD_EXTENDED_ERASE_1_2);
     if (!recv_ack())

@@ -1566,21 +1566,13 @@ void Logtask_logging()
         // do we need to flush the data? 
         if(log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH)
         {
-            // No need to check for error, is done at _errorcode >0 check
-            // Logger_flush_to_sdcard();
-            // ESP_LOGI(TAG_LOG, "Flush!");
-        
-
             if (Logger_flush_to_sdcard() != ESP_OK)
             {
                 ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
                 LogTask_stop();
                 finalwrite = 1;
             } 
-            // ESP_LOGI(TAG_LOG,"SD write time: %lld", esp_timer_get_time() - first_tick);
-
-            
-            
+ 
             log_counter = 0;
     
             sdcard_data.datarows = 0;
@@ -1608,12 +1600,9 @@ void Logtask_logging()
                 #ifdef DEBUG_LOGTASK
                 ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
                 #endif
-                // taskENTER_CRITICAL(&processDataSpinLock);
                 Logger_processData();
-                // taskEXIT_CRITICAL(&processDataSpinLock);
-                
                 #ifdef DEBUG_LOGTASK_RX
-                // ESP_LOGI(TAG_LOG,"_dataReceived = 0");
+
                 #endif
                 _dataReceived = 0;
             } else {
@@ -1659,9 +1648,6 @@ void Logtask_logging()
 
 void Logtask_fw_update()
 {
-    // create queue
-
-
     while(1)
     {
         if (xQueueReceive(xQueueFW, &_currentFWState, 200 / portTICK_PERIOD_MS) != pdTRUE)
@@ -1865,11 +1851,7 @@ void task_logging(void * pvParameters)
             case LOGTASK_IDLE:   /* not-a-thing, noppa, nada */                 break;
             case LOGTASK_CALIBRATION:       Logtask_calibration();              break;
             case LOGTASK_SINGLE_SHOT:       Logtask_singleShot();               break;
-            case LOGTASK_PERSIST_SETTINGS:  
-                
-                settings_persist_settings();        
-            
-            break;
+            case LOGTASK_PERSIST_SETTINGS:  settings_persist_settings();        break;
             case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings();              break;
             case LOGTASK_LOGGING:           Logtask_logging();                  break;
             case LOGTASK_REBOOT_SYSTEM:
