@@ -456,9 +456,6 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
     
-    
-    uint8_t  old_wifi_mode = settings_get_wifi_mode();
-
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_MODE");
     if (item != NULL)
     {
@@ -550,26 +547,25 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 
  
 
-    if (Logger_syncSettings() != ESP_OK)
+    if (Logtask_sync_settings() == ESP_FAIL)
     {
         json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings");
         // return ESP_FAIL;
         goto error;
     }
 
+    if (settings_get_wifi_mode() == WIFI_MODE_STA)
+    {
+        wifi_connect_to_ap();
+        // only send ack in case wifi mode has not changed. Else the next will get stuck
+    } else {
+        wifi_disconnect_ap();
+    }
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
     
 
-    // Restart wifi if mode has changed
-    if (old_wifi_mode != settings_get_wifi_mode())
-    {
-        // stop_rest_server();
-        wifi_start();
-        // start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT);
-        
-    }
     
     
 

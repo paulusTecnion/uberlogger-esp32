@@ -341,9 +341,6 @@ esp_err_t Logger_singleShot()
 
 esp_err_t Logger_syncSettings()
 {
-    // settings_persist_settings();
-
-    
     // Send command to STM32 to go into settings mode
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
@@ -559,7 +556,7 @@ void Logger_mode_button_long_pushed()
             LoggerState_t t = LOGTASK_PERSIST_SETTINGS;
             xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
 
-            wifi_start();
+            wifi_disconnect_ap();
         }
     }
    
@@ -1849,7 +1846,16 @@ void task_logging(void * pvParameters)
         // Wait for infinite time to do something
         if (xQueueReceive(xQueue, &_currentLogTaskState, 200 / portTICK_PERIOD_MS) != pdTRUE)
         {
+            x++;
+            if (x == 2)
+            {
+                LoggerState_t t = LOGTASK_SINGLE_SHOT;
+                xQueueSend(xQueue, &t, 0);
+                x = 0;
+            }
+            
             _currentLogTaskState = LOGTASK_IDLE;
+            
         } else {
             ESP_LOGI(TAG_LOG, "Received task: %d", _currentLogTaskState);
         }
@@ -1859,7 +1865,11 @@ void task_logging(void * pvParameters)
             case LOGTASK_IDLE:   /* not-a-thing, noppa, nada */                 break;
             case LOGTASK_CALIBRATION:       Logtask_calibration();              break;
             case LOGTASK_SINGLE_SHOT:       Logtask_singleShot();               break;
-            case LOGTASK_PERSIST_SETTINGS:  settings_persist_settings();        break;
+            case LOGTASK_PERSIST_SETTINGS:  
+                
+                settings_persist_settings();        
+            
+            break;
             case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings();              break;
             case LOGTASK_LOGGING:           Logtask_logging();                  break;
             case LOGTASK_REBOOT_SYSTEM:

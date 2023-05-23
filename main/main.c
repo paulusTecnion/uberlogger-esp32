@@ -118,10 +118,10 @@ void app_main(void)
     "#           UberLogger          #\r\n"
     "#################################");
     #endif
-    // Init wifi required before settings init
-    wifi_init();
+
     ESP_ERROR_CHECK(init_fs());
     settings_init();
+    wifi_init();
 
 
     // sysinfo_init();
@@ -129,16 +129,15 @@ void app_main(void)
   
 
     // Tasks to spin up logging and HMI
-    xTaskCreate(task_logging, "task_logging", 4000, NULL, 8, &xHandle_stm32);
+    xTaskCreate(task_logging, "task_logging", 4500, NULL, 8, &xHandle_stm32);
     xTaskCreate(task_hmi, "task_hmi", 2000, NULL, tskIDLE_PRIORITY, &xHandle_oled);
     
     
     // wifi_init_sta();
     // wifi_init_softap();
     // esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
-    esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
+    
  
-    wifi_start();
 
     // The wifi seems to be either crashing the ESP sometimes due to this: https://github.com/espressif/esp-idf/issues/7404
     // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...
