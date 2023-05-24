@@ -391,9 +391,9 @@ void spi_ctrl_loop()
         {
             rxdata_state = RXDATA_STATE_DATA_OVERRUN;
         } else if (ulNotificationValue) {
-            // #ifdef DEBUG_SPI_CONTROL
+            #ifdef DEBUG_SPI_CONTROL
             ESP_LOGI(TAG_SPI_CTRL, "HIGH TRIGGER");
-            // #endif
+            #endif
             rxdata_state = RXDATA_STATE_DATA_READY;
         }  
 
