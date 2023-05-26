@@ -111,7 +111,7 @@ static IRAM_ATTR bool async_memcpy_cb(async_memcpy_t mcp_hdl, async_memcpy_event
     // SemaphoreHandle_t sem = (SemaphoreHandle_t)cb_args;
     BaseType_t high_task_wakeup = pdFALSE;
     xSemaphoreGiveFromISR(copy_done_sem, &high_task_wakeup); // high_task_wakeup set to pdTRUE if some high priority task unblocked
-    return high_task_wakeup == pdTRUE;
+    return (high_task_wakeup == pdTRUE);
 }
 
 
@@ -979,7 +979,8 @@ esp_err_t Logger_processData()
     // there is data
     if (spi_msg_1_ptr->startByte[0] == 0xFA &&
         spi_msg_1_ptr->startByte[1] == 0xFB &&
-        expected_msg_part == 0)
+        expected_msg_part == 0
+        )
         {
             msg_part = 0;
             expected_msg_part = 1;
@@ -1041,7 +1042,8 @@ esp_err_t Logger_processData()
         } 
         else if (spi_msg_2_ptr->stopByte[0] == 0xFB &&
                 spi_msg_2_ptr->stopByte[1] == 0xFA &&
-                expected_msg_part == 1)
+                expected_msg_part == 1
+                )
         {
             msg_part = 1;
             expected_msg_part = 0;
@@ -1586,7 +1588,8 @@ void Logtask_logging()
             if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
             {
                 ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
-                finalwrite = 1;
+                LogTask_stop();
+                // finalwrite = 1;
             } 
             
         }
@@ -1636,6 +1639,7 @@ void Logtask_logging()
             esp_sd_card_unmount();
             vTaskDelay(500 / portTICK_PERIOD_MS);
             // Exit the logging function
+            ESP_LOGI(TAG_LOG, "Logtask_logging() exiting..");
             return;
         }
 
