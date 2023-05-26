@@ -321,7 +321,7 @@ esp_err_t spi_ctrl_queue_msg(uint8_t * txData, size_t length)
 
     // Queue transaction
     #ifdef DEBUG_SPI_CONTROL
-    ESP_LOGI(TAG_LOG, "Queuing message %d, %d", _spi_transaction_rx0.length, _spi_transaction_rx0.rxlength);
+    ESP_LOGI(TAG_SPI_CTRL, "Queuing message %d, %d", _spi_transaction_rx0.length, _spi_transaction_rx0.rxlength);
     #endif
     if(spi_device_queue_trans(stm_spi_handle, &_spi_transaction_rx0, 10 / portTICK_PERIOD_MS) != ESP_OK)
     {
