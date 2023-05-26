@@ -1135,9 +1135,15 @@ esp_err_t Logger_processData()
 
 void Logger_disableADCen_and_Interrupt()
 {
+
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Disabling ADC enable and data rdy interrupt");
     #endif
+    if (gpio_get_level(GPIO_ADC_EN) == 0)
+    {
+        // Already disabled
+        return;
+    }
     gpio_set_level(GPIO_ADC_EN, 0);
     spi_ctrl_datardy_int(0);
 }
