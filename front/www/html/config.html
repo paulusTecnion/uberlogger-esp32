@@ -11,7 +11,7 @@
 		<h2 class="first">Firmware</h2>
 		<p>
 			Current firmware version: <span name="FW_VERSION">-</span><br/>
-			<a href="/fwupdate/">Update firmware</a>
+			<a href="/fwupdate">Update firmware</a>
 		</p>
 
 		<h2>Backup or restore configuration</h2>
@@ -26,7 +26,7 @@
 			<label class="description" style="padding-bottom: 10px;">You can download the current configuration and import it at a later time. When importing, the settings will be saved only after clicking the save button at the bottom of this page.</label>
 			<input id="btn_import_config" name="btn_import_config" class="button" type="button" value="Import settings from file..." onclick="importConfigfile()"/>
 			<input id="file_import_config" name="file_import_config" class="button" type="file" onchange="importConfigFileSelected()" accept=".json" style="visibility: hidden; display: none;">
-			<a href="ajax/downloadConfig"><button class="button" type="button">Download current settings</button></a>
+			<a href="settings.json" target="_blank"><button class="button" type="button">Download current settings</button></a>
 		</div>
 
 		<h2>WiFi configuration</h2>
@@ -85,6 +85,9 @@
 					<option value="5">50 Samples/s</option>
 					<option value="6">100 Samples/s</option>
 					<option value="7">250 Samples/s</option>
+					<option value="8">500 Samples/s</option>
+					<option value="9">1 kS/s</option>
+					<option value="10">2.5 kS/s</option>
 				</select>
 			</p>
 

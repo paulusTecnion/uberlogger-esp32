@@ -1,4 +1,6 @@
 var valuesData=[];
+var alert_active_valueserr=false;
+
 const BYTES_PER_MB=1024*1024;
 
 
@@ -121,7 +123,11 @@ function getValues(){
 
 	})
 	.fail(function() {
-		alert("Error: could not update values.");
+        if(alert_active_valueserr == false){
+            alert_active_valueserr = true;
+    		alert("Error: could not update values.");
+            alert_active_valueserr = false;
+        }
 		console.log("Data query failed.");
 	});
 }
