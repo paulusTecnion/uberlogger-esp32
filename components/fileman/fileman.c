@@ -211,7 +211,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_60V));
                 } else {
                     // We need 8 digits after comma for +/-10V
-                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%08d,",
+                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%07d,",
                         (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_10V)), 
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_10V));
