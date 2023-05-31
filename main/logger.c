@@ -310,7 +310,12 @@ esp_err_t Logger_singleShot()
     // {
         if (spi_ctrl_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, &cmd, sizeof(spi_cmd_t)) == ESP_OK)
         {
-            
+            if (settings_get_samplerate() == ADC_SAMPLE_RATE_1Hz || 
+                settings_get_samplerate() == ADC_SAMPLE_RATE_2Hz)
+            {
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
+            } 
+
             if (!((spi_buffer[0] == STM32_CMD_SINGLE_SHOT_MEASUREMENT) && (spi_buffer[1] == STM32_RESP_OK)))
             {
                 spi_ctrl_print_rx_buffer(spi_buffer);
@@ -339,8 +344,22 @@ esp_err_t Logger_singleShot()
     
 }
 
+void  Logger_resetSTM32()
+{
+    gpio_set_level(GPIO_STM32_NRESET, 0);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
+    gpio_set_level(GPIO_STM32_NRESET, 1);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
+}
+
 esp_err_t Logger_syncSettings()
 {
+
+    // Reset STM32
+
+    Logger_resetSTM32();
+
+
     // Send command to STM32 to go into settings mode
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Setting SETTINGS mode");
@@ -376,6 +395,8 @@ esp_err_t Logger_syncSettings()
     } else {
         return ESP_FAIL;
     }
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     // Settings_t * settings = settings_get();
 
@@ -428,26 +449,26 @@ esp_err_t Logger_syncSettings()
     ESP_LOGI(TAG_LOG, "Sample rate set");
     #endif
 
-    cmd.command = STM32_CMD_SET_DATETIME;
-    // cmd.data0 = (uint8_t)settings_get_timestamp();
-    uint32_t timestamp = settings_get_timestamp();
-    memcpy(&cmd.data0, &timestamp, sizeof(timestamp));
+    // cmd.command = STM32_CMD_SET_DATETIME;
+    // // cmd.data0 = (uint8_t)settings_get_timestamp();
+    // uint32_t timestamp = settings_get_timestamp();
+    // memcpy(&cmd.data0, &timestamp, sizeof(timestamp));
 
-    // Send settings one by one and confirm
-    spi_ctrl_cmd(STM32_CMD_SET_DATETIME, &cmd, sizeof(spi_cmd_t));
-    // spi_ctrl_print_rx_buffer();
-    if (spi_buffer[0] != STM32_CMD_SET_DATETIME || spi_buffer[1] != STM32_RESP_OK )
-    {
+    // // Send settings one by one and confirm
+    // spi_ctrl_cmd(STM32_CMD_SET_DATETIME, &cmd, sizeof(spi_cmd_t));
+    // // spi_ctrl_print_rx_buffer();
+    // if (spi_buffer[0] != STM32_CMD_SET_DATETIME || spi_buffer[1] != STM32_RESP_OK )
+    // {
      
-        ESP_LOGE(TAG_LOG, "Unable to set timestamp");
+    //     ESP_LOGE(TAG_LOG, "Unable to set timestamp");
   
-        spi_ctrl_print_rx_buffer(spi_buffer);
-        SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
-        return ESP_FAIL;
-    }
-    #ifdef DEBUG_LOGGING
-    ESP_LOGI(TAG_LOG, "Timestamp set");
-    #endif
+    //     spi_ctrl_print_rx_buffer(spi_buffer);
+    //     SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
+    //     return ESP_FAIL;
+    // }
+    // #ifdef DEBUG_LOGGING
+    // ESP_LOGI(TAG_LOG, "Timestamp set");
+    // #endif
     cmd.command = STM32_CMD_MEASURE_MODE;
     cmd.data0 = 0;
 
@@ -1136,14 +1157,15 @@ esp_err_t Logger_processData()
 void Logger_disableADCen_and_Interrupt()
 {
 
+
+    // if (gpio_get_level(GPIO_ADC_EN) == 0)
+    // {
+    //     // Already disabled
+    //     return;
+    // }
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Disabling ADC enable and data rdy interrupt");
     #endif
-    if (gpio_get_level(GPIO_ADC_EN) == 0)
-    {
-        // Already disabled
-        return;
-    }
     gpio_set_level(GPIO_ADC_EN, 0);
     spi_ctrl_datardy_int(0);
 }
@@ -1168,6 +1190,15 @@ esp_err_t Logger_logging()
     
     currtime_us = esp_timer_get_time();
     esp_err_t ret;
+
+
+    if (_nextLoggingState != _currentLoggingState)
+    {
+        #ifdef DEBUG_LOGGING
+        ESP_LOGI(TAG_LOG, "LOGGING state changing from %d to %d", _currentLoggingState, _nextLoggingState);
+        #endif
+        _currentLoggingState = _nextLoggingState;
+    }
 
     if (_stopLogging)
     {
@@ -1213,7 +1244,7 @@ esp_err_t Logger_logging()
                 ESP_LOGE(TAG_LOG, "STM32 timed out: %llu", currtime_us - stm32TimerTimeout);
                 SET_ERROR(_errorCode, ERR_LOGGER_STM32_TIMEOUT);
                 Logger_disableADCen_and_Interrupt();
-                _nextLoggingState = LOGGING_ERROR;
+                _nextLoggingState = LOGGING_DONE;
                 break;
             }
 
@@ -1232,7 +1263,7 @@ esp_err_t Logger_logging()
                 #endif
                 SET_ERROR(_errorCode, ERR_LOGGER_DATA_OVERRUN);
                 Logger_disableADCen_and_Interrupt();
-                _nextLoggingState = LOGGING_ERROR;
+                _nextLoggingState = LOGGING_DONE;
             } 
             else if (_stopLogging)
             // state cannot be RXDATA_STATE_DATA_READY, because else we will queue another message for receiving the last ADC leading to a 
@@ -1283,7 +1314,7 @@ esp_err_t Logger_logging()
                 }
                 SET_ERROR(_errorCode, ERR_LOGGER_STM32_NO_RESPONSE);
                 Logger_disableADCen_and_Interrupt();
-               _nextLoggingState = LOGGING_ERROR;
+               _nextLoggingState = LOGGING_DONE;
             }
                                            
         }
@@ -1291,19 +1322,13 @@ esp_err_t Logger_logging()
 
         case LOGGING_DONE:
         case LOGGING_ERROR:
-           
+          
 
         break;
 
     }
 
-    if (_nextLoggingState != _currentLoggingState)
-    {
-        #ifdef DEBUG_LOGGING
-        ESP_LOGI(TAG_LOG, "LOGGING state changing from %d to %d", _currentLoggingState, _nextLoggingState);
-        #endif
-        _currentLoggingState = _nextLoggingState;
-    }
+   
                 
     return ESP_OK;
     
@@ -1791,9 +1816,7 @@ void task_logging(void * pvParameters)
     gpio_config(&nreset_conf);
     // gpio_set_direction(GPIO_STM32_NRESET, GPIO_MODE_OUTPUT);
     // Reset STM32
-    gpio_set_level(GPIO_STM32_NRESET, 0);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
-    gpio_set_level(GPIO_STM32_NRESET, 1);
+    Logger_resetSTM32();
 
 
     // gpio_set_direction(STM32_SPI_CS, GPIO_MODE_OUTPUT);
