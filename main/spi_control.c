@@ -144,11 +144,11 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
         .clock_speed_hz=SPI_STM32_BUS_FREQUENCY, //400000,
         .duty_cycle_pos=128,        //50% duty cycle
         .mode=0,                    // SPI mode 0 
-        .spics_io_num=-1,//GPIO_CS,
+        .spics_io_num= -1, //STM32_SPI_CS,//GPIO_CS,
         .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
         .flags = 0,
-        .input_delay_ns=11      // 50 ns GPIO matrix ESP32 + 10 ns STM32
+        .input_delay_ns=11      // (50 ns GPIO matrix ESP32) + 11 ns STM32
     };  
 
     
@@ -188,7 +188,7 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
 esp_err_t spi_ctrl_single_transaction(spi_transaction_t * transaction)
 {
     
-    if (spi_device_queue_trans(stm_spi_handle, transaction, 10/ portTICK_PERIOD_MS) == ESP_OK)
+    if (spi_device_queue_trans(stm_spi_handle, transaction, 50/ portTICK_PERIOD_MS) == ESP_OK)
     {
         if (spi_device_get_trans_result(stm_spi_handle, &transaction, 1000 / portTICK_PERIOD_MS) == ESP_OK)
         {
@@ -387,10 +387,11 @@ void spi_ctrl_loop()
                                             xMaxBlockTime );
     
 
-        if (gpio_get_level(GPIO_DATA_OVERRUN))
-        {
-            rxdata_state = RXDATA_STATE_DATA_OVERRUN;
-        } else if (ulNotificationValue) {
+        // if (gpio_get_level(GPIO_DATA_OVERRUN))
+        // {
+            // rxdata_state = RXDATA_STATE_DATA_OVERRUN;
+        // } else
+         if (ulNotificationValue) {
             #ifdef DEBUG_SPI_CONTROL
             ESP_LOGI(TAG_SPI_CTRL, "HIGH TRIGGER");
             #endif
