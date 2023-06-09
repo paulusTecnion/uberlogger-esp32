@@ -664,8 +664,7 @@ esp_err_t Logger_calibrate()
     // #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Logger_calibrate() called");
     // #endif
-    if (_currentLogTaskState == LOGTASK_IDLE)
-    {
+
         LoggingState_t t = LOGTASK_CALIBRATION;
         if (xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS) != pdTRUE)
         {
@@ -673,12 +672,7 @@ esp_err_t Logger_calibrate()
             return ESP_FAIL;
         }
         return ESP_OK;
-    } 
-    else 
-    {
-        return ESP_FAIL;
-    }
-
+  
 }
 
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
