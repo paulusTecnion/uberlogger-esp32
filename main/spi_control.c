@@ -49,8 +49,6 @@ extern TaskHandle_t xHandle_stm32;
 
 volatile rxdata_state_t rxdata_state = RXDATA_STATE_NODATA;
 
-
-
 /*
 This ISR is called when the handshake line goes high OR low
 */
@@ -231,7 +229,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_SPI_CTRL, "STM32 has data rdy still high, expected low 1/3");
+            ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 has data rdy still high, expected low 1/3", cmd);
             
             return ESP_FAIL;
         }
@@ -256,7 +254,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_SPI_CTRL, "STM32 was LOW, expected HIGH 2/3");
+            ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 was LOW, expected HIGH 2/3", cmd);
             return ESP_FAIL;
         }
     }
@@ -281,7 +279,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
         timeout++;
         if (timeout >= 100)
         {
-            ESP_LOGE(TAG_SPI_CTRL, "STM32 was HIGH, expected LOW 3/3");
+            ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 was HIGH, expected LOW 3/3", cmd);
             return ESP_FAIL;
         }
     }

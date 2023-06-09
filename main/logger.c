@@ -203,6 +203,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         //  ESP_LOGI(TAG_LOG, "adcVal:%u", adcVal);
         if (settings_get()->adc_resolution == ADC_12_BITS)
         {
+
             adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<11) - (int16_t)(settings_get()->adc_offsets_12b[j])));
         } else {
             adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<15) - (int16_t)(settings_get()->adc_offsets_16b[j])));
@@ -222,6 +223,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
         // dataOutput->analogData[j] = Logger_convertAdcFloat(adcVal);
         dataOutput->analogData[j] = (float)Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
+        // ESP_LOGI(TAG_LOG, "%u, %f", adcVal, dataOutput->analogData[j]);
         if (settings_get_adc_channel_range(j))
         {
             // 60V range
@@ -232,10 +234,11 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
             
         }
 
+        // ESP_LOGI(TAG_LOG, "%f", dataOutput->analogData[j]);
 
         // calculateTemperatureFloat(&tfloat, (float)(adcVal) , (float)(0x01 << settings_get_resolution())-1);
         
-        // ESP_LOGI(TAG_LOG, "index:%d, %u, %f", j, adcVal, tfloat);
+        
         if (settings_get_resolution() == ADC_16_BITS)
         {
             adcVal = adcVal >> 4;
