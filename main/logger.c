@@ -313,7 +313,7 @@ esp_err_t Logger_singleShot()
             if (settings_get_samplerate() == ADC_SAMPLE_RATE_1Hz || 
                 settings_get_samplerate() == ADC_SAMPLE_RATE_2Hz)
             {
-                vTaskDelay(1000 / portTICK_PERIOD_MS);
+                vTaskDelay(1500 / portTICK_PERIOD_MS);
             } 
 
             if (!((spi_buffer[0] == STM32_CMD_SINGLE_SHOT_MEASUREMENT) && (spi_buffer[1] == STM32_RESP_OK)))
