@@ -1341,6 +1341,7 @@ void Logtask_calibration()
     uint8_t calibration = 0, calibrationCounter = 0;
     uint32_t calibrationValues[NUM_ADC_CHANNELS];
     adc_resolution_t last_resolution;
+    adc_sample_rate_t last_sample_rate;
     uint8_t x = 0;
 
     ESP_LOGI(TAG_LOG, "Calibration step %d", calibration);
@@ -1352,11 +1353,13 @@ void Logtask_calibration()
             case 0:
                 // Switch to 12 bits mode and do single shot. Then switch to 16 bits and the same.
                 last_resolution = settings_get_resolution();
+                last_sample_rate = settings_get_samplerate();
                 settings_set_resolution(ADC_12_BITS);
+                settings_set_samplerate(ADC_SAMPLE_RATE_100Hz);
+                settings_persist_settings();
                 Logger_syncSettings();
                 settings_print();
 
-                vTaskDelay(1000 / portTICK_PERIOD_MS);
                 calibration = 1;
                 _nextLogTaskState = LOGTASK_SINGLE_SHOT;
                 for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
@@ -1367,17 +1370,20 @@ void Logtask_calibration()
             break;
 
             case 1: 
+            case 2:
                 // Retrieve the calibration values
                 
                 // increase counter
-                calibrationCounter++;
-                ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
+                // calibrationCounter++;
+              
                 
 
-                for (calibrationCounter = 0; calibrationCounter < NUM_CALIBRATION_VALUES; calibrationCounter++)
-                {
+                for (calibrationCounter = 1; calibrationCounter <= NUM_CALIBRATION_VALUES; calibrationCounter++)
+                {  
+                    ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
                     x = 0;
-                    Logger_singleShot();
+                    Logtask_singleShot();
+                    
                     for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i + 2)
                     {
                         // (uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)
@@ -1386,7 +1392,7 @@ void Logtask_calibration()
                         x++;
                     }
 
-                     // Sometimes we get only zeros here. Quick fix for now.
+                     // Sometimes we get only zeros here due to ADC being a bit slow with starting up (especially for 16-bits). Quick fix for now.
                     if (calibrationValues[--x] == 0)
                     {
                         calibrationCounter--;
@@ -1394,11 +1400,11 @@ void Logtask_calibration()
 
                 
                     // store calibration values
-                    for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
-                    {
-                        calibrationValues[i] = calibrationValues[i] / calibrationCounter;
-                        ESP_LOGI(TAG_LOG, "Average calib value %u: %lu", i, calibrationValues[i]);
-                    }
+                    // for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+                    // {
+                    //     calibrationValues[i] = calibrationValues[i] / calibrationCounter;
+                    //     ESP_LOGI(TAG_LOG, "Average calib value %u: %lu", i, calibrationValues[i]);
+                    // }
                     
                     if (calibrationCounter == 10)
                     {
@@ -1409,76 +1415,101 @@ void Logtask_calibration()
                             ESP_LOGI(TAG_LOG, "Average calib value %u: %lu", i, calibrationValues[i]);
                         }
                         
-                        settings_set_adc_offset(calibrationValues, ADC_12_BITS);
-
-                        calibrationCounter = 0;
-                        // go to next state
+                        if (calibration == 1)
+                        {
+                            settings_set_adc_offset(calibrationValues, ADC_12_BITS);
+                        } else if (calibration == 2) {
+                            settings_set_adc_offset(calibrationValues, ADC_16_BITS);
+                        }
                         
                         settings_persist_settings();
-                        settings_set_resolution(ADC_16_BITS);
-                        Logger_syncSettings();
+
+                        // go to next state
+                        
+                        
 
                         for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
                         {
                             calibrationValues[i] = 0;
                         }
 
-                        calibration = 2;
+                       if (calibration == 1)
+                        {
+                            settings_set_resolution(ADC_16_BITS);
+                            // settings_persist_settings();
+                            Logger_syncSettings();
+                            // Wait for stm32 to make configuration run
+                            vTaskDelay(500 / portTICK_PERIOD_MS);
+                            Logtask_singleShot();
+                            // Make calibrationCounter 0, so that at next iteration it becomes 1 again.
+                            calibrationCounter = 0;
+                            calibration = 2;
+                            ESP_LOGI(TAG_LOG, "Calibration step %d", calibration);
+                        } else {
+                            settings_set_resolution(last_resolution);
+                            settings_set_samplerate(last_sample_rate);
+                            settings_persist_settings();
+                            Logger_syncSettings();
+                            ESP_LOGI(TAG_LOG, "Calibration done");
+                            calibration = 0;
+                            return;
+                        }
+                        
                     } 
                 }                
 
             break;
 
-            case 2:
-                // Retrieve the calibration values
-                for (calibrationCounter = 0; calibrationCounter < NUM_CALIBRATION_VALUES; calibrationCounter++)
-                {
-                    Logtask_singleShot();
-                    x= 0;
-                    ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
-                    for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i+2)
-                    {
-                        calibrationValues[x] += (uint16_t)(((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8) | (uint16_t)spi_msg_1_ptr->adcData[i]); 
-                        // Sometimes we get zeros here. Quick fix for now.
+            // case 2:
+            //     // Retrieve the calibration values
+            //     for (calibrationCounter = 0; calibrationCounter < NUM_CALIBRATION_VALUES; calibrationCounter++)
+            //     {
+            //         Logtask_singleShot();
+            //         x= 0;
+            //         ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
+            //         for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i+2)
+            //         {
+            //             calibrationValues[x] += (uint16_t)(((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8) | (uint16_t)spi_msg_1_ptr->adcData[i]); 
+            //             // Sometimes we get zeros here. Quick fix for now.
                         
-                        // calibrationValues[i] += adc_buffer_fixed_point[i];
-                        ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
-                        x++;
-                    }
+            //             // calibrationValues[i] += adc_buffer_fixed_point[i];
+            //             ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
+            //             x++;
+            //         }
 
-                    // Sometimes we get zeros here. Quick fix for now.
-                    if (calibrationValues[--x] == 0)
-                    {
-                        calibrationCounter--;
-                    }
+            //         // Sometimes we get zeros here. Quick fix for now.
+            //         if (calibrationValues[--x] == 0)
+            //         {
+            //             calibrationCounter--;
+            //         }
 
-                    if (calibrationCounter == 10)
-                    {
-                        // store calibration values
-                        for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
-                        {
-                            calibrationValues[i] = calibrationValues[i] / calibrationCounter;
-                            ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", i, calibrationValues[i]);
-                        }
+            //         if (calibrationCounter == 10)
+            //         {
+            //             // store calibration values
+            //             for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+            //             {
+            //                 calibrationValues[i] = calibrationValues[i] / calibrationCounter;
+            //                 ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", i, calibrationValues[i]);
+            //             }
                         
-                        settings_set_adc_offset(calibrationValues, ADC_16_BITS);
+            //             settings_set_adc_offset(calibrationValues, ADC_16_BITS);
                         
-                        calibrationCounter = 0;
-                        // go to next state
-                        calibration = 0;
-                        settings_persist_settings();
-                        // go back to setting before calibriation
-                        settings_set_resolution(last_resolution);
-                        Logger_syncSettings();
+            //             calibrationCounter = 0;
+            //             // go to next state
+            //             calibration = 0;
+            //             settings_persist_settings();
+            //             // go back to setting before calibriation
+            //             settings_set_resolution(last_resolution);
+            //             Logger_syncSettings();
                         
-                        settings_print();
-                        ESP_LOGI(TAG_LOG, "Calibration done");
-                        // Exit calibration
-                        return;
+            //             settings_print();
+            //             ESP_LOGI(TAG_LOG, "Calibration done");
+            //             // Exit calibration
+            //             return;
 
-                    } 
-                }
-            break;
+            //         } 
+            //     }
+            // break;
         }
     }
 }
