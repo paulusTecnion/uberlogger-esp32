@@ -504,6 +504,9 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
     // iir_set_settings(settings_get_samplerate(), ranges);
     // iir_reset();
 
+    // Let STM load settings
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Sync done");
     #endif
@@ -1381,8 +1384,9 @@ void Logtask_calibration()
                 settings_set_resolution(ADC_12_BITS);
                 settings_set_samplerate(ADC_SAMPLE_RATE_100Hz);
                 settings_persist_settings();
-                Logger_syncSettings();
-                settings_print();
+                Logger_syncSettings(0);
+                // Wait to let the stm32 make the configuration run
+                vTaskDelay(500 / portTICK_PERIOD_MS);
 
                 calibration = 1;
                 _nextLogTaskState = LOGTASK_SINGLE_SHOT;
@@ -1461,9 +1465,10 @@ void Logtask_calibration()
                         {
                             settings_set_resolution(ADC_16_BITS);
                             // settings_persist_settings();
-                            Logger_syncSettings();
-                            // Wait for stm32 to make configuration run
-                            vTaskDelay(500 / portTICK_PERIOD_MS);
+                            Logger_syncSettings(0);
+                            // Wait for stm32 to make configuration run and 
+                            // let the IIR filter settle
+                            vTaskDelay(2000 / portTICK_PERIOD_MS);
                             Logtask_singleShot();
                             // Make calibrationCounter 0, so that at next iteration it becomes 1 again.
                             calibrationCounter = 0;
