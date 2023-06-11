@@ -203,7 +203,6 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         //  ESP_LOGI(TAG_LOG, "adcVal:%u", adcVal);
         if (settings_get()->adc_resolution == ADC_12_BITS)
         {
-
             adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<11) - (int16_t)(settings_get()->adc_offsets_12b[j])));
         } else {
             adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<15) - (int16_t)(settings_get()->adc_offsets_16b[j])));
@@ -237,7 +236,6 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         // ESP_LOGI(TAG_LOG, "%f", dataOutput->analogData[j]);
 
         // calculateTemperatureFloat(&tfloat, (float)(adcVal) , (float)(0x01 << settings_get_resolution())-1);
-        
         
         if (settings_get_resolution() == ADC_16_BITS)
         {
@@ -355,7 +353,7 @@ void  Logger_resetSTM32()
     vTaskDelay(200 / portTICK_PERIOD_MS);
 }
 
-esp_err_t Logger_syncSettings()
+esp_err_t Logger_syncSettings(uint8_t syncTime)
 {
 
     // Reset STM32
@@ -452,26 +450,31 @@ esp_err_t Logger_syncSettings()
     ESP_LOGI(TAG_LOG, "Sample rate set");
     #endif
 
-    // cmd.command = STM32_CMD_SET_DATETIME;
-    // // cmd.data0 = (uint8_t)settings_get_timestamp();
-    // uint32_t timestamp = settings_get_timestamp();
-    // memcpy(&cmd.data0, &timestamp, sizeof(timestamp));
+    if (syncTime)
+    {
+        cmd.command = STM32_CMD_SET_DATETIME;
+        // cmd.data0 = (uint8_t)settings_get_timestamp();
+        uint32_t timestamp = settings_get_timestamp();
+        memcpy(&cmd.data0, &timestamp, sizeof(timestamp));
 
-    // // Send settings one by one and confirm
-    // spi_ctrl_cmd(STM32_CMD_SET_DATETIME, &cmd, sizeof(spi_cmd_t));
-    // // spi_ctrl_print_rx_buffer();
-    // if (spi_buffer[0] != STM32_CMD_SET_DATETIME || spi_buffer[1] != STM32_RESP_OK )
-    // {
-     
-    //     ESP_LOGE(TAG_LOG, "Unable to set timestamp");
-  
-    //     spi_ctrl_print_rx_buffer(spi_buffer);
-    //     SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
-    //     return ESP_FAIL;
-    // }
-    // #ifdef DEBUG_LOGGING
-    // ESP_LOGI(TAG_LOG, "Timestamp set");
-    // #endif
+        // Send settings one by one and confirm
+        spi_ctrl_cmd(STM32_CMD_SET_DATETIME, &cmd, sizeof(spi_cmd_t));
+        // spi_ctrl_print_rx_buffer();
+        if (spi_buffer[0] != STM32_CMD_SET_DATETIME || spi_buffer[1] != STM32_RESP_OK )
+        {
+        
+            ESP_LOGE(TAG_LOG, "Unable to set timestamp");
+    
+            spi_ctrl_print_rx_buffer(spi_buffer);
+            SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
+            return ESP_FAIL;
+        }
+        #ifdef DEBUG_LOGGING
+        ESP_LOGI(TAG_LOG, "Timestamp set");
+        #endif
+    }
+
+
     cmd.command = STM32_CMD_MEASURE_MODE;
     cmd.data0 = 0;
 
@@ -530,6 +533,30 @@ esp_err_t Logtask_sync_settings()
     }
 
     return ESP_OK;
+}
+
+esp_err_t Logtask_sync_time()
+{
+    if (_currentLogTaskState == LOGTASK_LOGGING)
+    {
+        ESP_LOGE(TAG_LOG, "Cannot sync settings while logging");
+        return ESP_FAIL;
+    }
+    LoggingState_t t = LOGTASK_PERSIST_SETTINGS;
+    if (xQueueSend(xQueue, &t, 0) != pdTRUE)
+    {
+        ESP_LOGE(TAG_LOG, "Unable to send sync settings command to queue");
+        return ESP_FAIL;
+    }
+
+    t = LOGTASK_SYNC_TIME;
+    if (xQueueSend(xQueue, &t, 0) != pdTRUE)
+    {
+        ESP_LOGE(TAG_LOG, "Unable to send sync time command to queue");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;  
 }
 
 uint8_t Logger_setCsvLog(log_mode_t value)
@@ -1446,7 +1473,7 @@ void Logtask_calibration()
                             settings_set_resolution(last_resolution);
                             settings_set_samplerate(last_sample_rate);
                             settings_persist_settings();
-                            Logger_syncSettings();
+                            Logger_syncSettings(0);
                             ESP_LOGI(TAG_LOG, "Calibration done");
                             calibration = 0;
                             return;
@@ -1871,7 +1898,7 @@ void task_logging(void * pvParameters)
         while(1);
     }
 
-    if (Logger_syncSettings() != ESP_OK)
+    if (Logger_syncSettings(1) != ESP_OK)
     {
         ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
     } else {
@@ -1913,7 +1940,8 @@ void task_logging(void * pvParameters)
             case LOGTASK_CALIBRATION:       Logtask_calibration();              break;
             case LOGTASK_SINGLE_SHOT:       Logtask_singleShot();               break;
             case LOGTASK_PERSIST_SETTINGS:  settings_persist_settings();        break;
-            case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings();              break;
+            case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings(0);             break;
+            case LOGTASK_SYNC_TIME:         Logger_syncSettings(1);             break;
             case LOGTASK_LOGGING:           Logtask_logging();                  break;
             case LOGTASK_REBOOT_SYSTEM:
                 vTaskDelay(3000 / portTICK_PERIOD_MS);

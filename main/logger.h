@@ -69,6 +69,7 @@ enum LogTaskStates
     LOGTASK_LOGGING,
     LOGTASK_PERSIST_SETTINGS,
     LOGTASK_SYNC_SETTINGS,
+    LOGTASK_SYNC_TIME,
     LOGTASK_ERROR_OCCURED,
     LOGTASK_REBOOT_SYSTEM,
     LOGTASK_FWUPDATE,
@@ -167,9 +168,10 @@ uint8_t Logger_getCsvLog();
 uint8_t Logger_mode_button();
 void Logger_mode_button_long_pushed();
 void Logger_mode_button_pushed();
-esp_err_t Logger_syncSettings();
+esp_err_t Logger_syncSettings(uint8_t syncTime);
 // External function to be called outside logger task
 esp_err_t Logtask_sync_settings();
+esp_err_t Logtask_sync_time();
 
 esp_err_t Logger_startFWupdate();
 esp_err_t Logger_startFWflash();

@@ -343,7 +343,96 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t logger_setTime_handler(httpd_req_t *req)
+{
+     httpd_resp_set_type(req, "application/json");
+    cJSON *settings_in = NULL;
+    if (Logger_getState() == LOGTASK_LOGGING)
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging");
+        
+        return ESP_OK;
+    }
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL)
+    {
+        return ESP_FAIL;
+    }
 
+
+
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        /* Respond with 500 Internal Server Error */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        // return ESP_FAIL;
+        goto error2;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            /* Respond with 500 Internal Server Error */
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+            // return ESP_FAIL;
+            goto error2;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+
+    settings_in = cJSON_Parse(buf);
+    cJSON * item;
+
+ 
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
+    
+    if (item != NULL)
+    {
+        if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+ 
+
+    if (Logtask_sync_time() == ESP_FAIL)
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings");
+        // return ESP_FAIL;
+        goto error;
+    }
+
+    if (settings_get_wifi_mode() == WIFI_MODE_STA)
+    {
+        wifi_connect_to_ap();
+        // only send ack in case wifi mode has not changed. Else the next will get stuck
+    } else {
+        wifi_disconnect_ap();
+    }
+
+    // only send ack in case wifi mode has not changed. Else the next will get stuck
+    json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+    
+
+    
+    
+
+error:
+    free((void*)settings_in);
+error2:
+    cJSON_Delete(root);
+    
+
+    return ESP_OK;
+}
 
 
 static esp_err_t logger_setConfig_handler(httpd_req_t *req)
@@ -532,18 +621,18 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
 
-    item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
+    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
     
-    if (item != NULL)
-    {
-        if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
-        {
+    // if (item != NULL)
+    // {
+    //     if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
+    //     {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
-            // return ESP_FAIL;
-            goto error;
-        }
-    }
+    //         json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
+    //         // return ESP_FAIL;
+    //         goto error;
+    //     }
+    // }
 
  
 
@@ -727,6 +816,15 @@ esp_err_t start_rest_server(const char *base_path)
     };
 
     httpd_register_uri_handler(server, &logger_getStatus_uri);
+
+    httpd_uri_t logger_setTime_uri = {
+        .uri = "/ajax/setTime",
+        .method = HTTP_POST,
+        .handler = logger_setTime_handler,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_setTime_uri);
 
     httpd_uri_t logger_setConfig_uri = {
         .uri = "/ajax/setConfig",
