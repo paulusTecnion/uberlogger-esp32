@@ -587,9 +587,12 @@ uint8_t Logger_getCsvLog()
 void Logger_mode_button_pushed()
 {
 
-    if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
+    if (_currentLogTaskState == LOGTASK_IDLE || 
+        _currentLogTaskState == LOGTASK_ERROR_OCCURED || 
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
     {
         LogTask_start();
+        return;
     }
     
     if (_currentLogTaskState == LOGTASK_LOGGING)
@@ -1816,6 +1819,7 @@ void Logtask_fw_update()
             case LOGGER_FW_ERROR:
 
             esp_sd_card_unmount();
+            return;
 
         } // end of case 
 
@@ -1883,7 +1887,7 @@ void task_logging(void * pvParameters)
     gpio_config(&nreset_conf);
     // gpio_set_direction(GPIO_STM32_NRESET, GPIO_MODE_OUTPUT);
     // Reset STM32
-    Logger_resetSTM32();
+    // Logger_resetSTM32();
 
 
     // gpio_set_direction(STM32_SPI_CS, GPIO_MODE_OUTPUT);
@@ -1926,6 +1930,7 @@ void task_logging(void * pvParameters)
 
    // Create queue for tasks
     xQueue = xQueueCreate( 10, sizeof( LoggerState_t ) );
+    xQueueFW = xQueueCreate( 10, sizeof( LoggerFWState_t ) );
 
     while(1) {
 
