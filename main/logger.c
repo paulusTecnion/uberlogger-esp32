@@ -122,7 +122,13 @@ int32_t Logger_convertAdcFixedPoint(uint16_t adcVal, uint64_t range, uint64_t of
             
     // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
     t1 = t0 * (-1LL*range); // note the minus for inverted input!
-    t2 = t1 / ((1 << settings_get_resolution()) - 1); // -1 for 4095 steps
+    if (settings_get_resolution() == ADC_12_BITS)
+    {
+        t2 = t1 / ((1 << 12) - 1); // -1 for 4095 steps
+    } else {
+        // For 16 bits, take this value (from datasheet STM32G030, page 305).
+        t2 = t1 / ((0xFFF0) - 1); // -1 for 4095 steps
+    }
     t3 = t2 + offset;
     return (int32_t) t3;
     
@@ -800,7 +806,8 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 adcVal = adcVal - settings_get()->adc_offsets_16b[x] + (1<<15);
                 // Clip values
                 if (adcVal < 0) adcVal = 0;
-                if (adcVal > (1<<16)-1) adcVal = (1<<16)-1;
+                // if (adcVal > (1<<16)-1) adcVal = (1<<16)-1;
+                if (adcVal > (0xFFF0)-1) adcVal = (0xFFF0)-1;
 
                 // Detect type of sensor and conver accordingly
                 if (settings_get_adc_channel_type(x))
