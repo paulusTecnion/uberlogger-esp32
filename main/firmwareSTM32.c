@@ -345,10 +345,7 @@ esp_err_t flash_stm32()
     #ifdef DEBUG_FIRMWARE_STM32
     ESP_LOGI(TAG, "Booting STM32G030 into bootloader mode...");
     #endif
-    gpio_set_level(GPIO_STM32_BOOT0, 1);
-    gpio_set_level(GPIO_STM32_NRESET, 0);
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-    gpio_set_level(GPIO_STM32_NRESET, 1);
+
    
     esp_err_t err = ESP_OK;
     FILE *file = NULL;
@@ -382,6 +379,12 @@ esp_err_t flash_stm32()
     #endif
 
 
+    gpio_set_level(GPIO_STM32_BOOT0, 1);
+    gpio_set_level(GPIO_STM32_NRESET, 0);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    gpio_set_level(GPIO_STM32_NRESET, 1);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    
     if (bootload_stm() == ESP_FAIL)
     {
         ESP_LOGI(TAG, "Failed to activate STM32G030 bootloader");
