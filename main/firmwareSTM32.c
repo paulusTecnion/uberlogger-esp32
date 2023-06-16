@@ -457,7 +457,7 @@ esp_err_t flash_stm32()
     
     // flash write protect
     // flash_protect(true);
-
+    gpio_set_level(GPIO_STM32_BOOT0, 0);
     // Jump to application code
     flash_jump_to(FLASH_START_ADDR);
     #ifdef DEBUG_FIRMWARE_STM32
@@ -473,13 +473,15 @@ error:
         #ifdef DEBUG_FIRMWARE_STM32
         ESP_LOGI(TAG, "Booting STM32G030 into normal mode...");
         #endif
-        gpio_set_level(GPIO_STM32_BOOT0, 0);
-        gpio_set_level(GPIO_STM32_NRESET, 0);
-        vTaskDelay(250 / portTICK_PERIOD_MS);
-        gpio_set_level(GPIO_STM32_NRESET, 1);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        
+    
     if (err!=ESP_OK)
     {
+        gpio_set_level(GPIO_STM32_BOOT0, 0);
+        gpio_set_level(GPIO_STM32_NRESET, 0);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+        gpio_set_level(GPIO_STM32_NRESET, 1);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
         ESP_LOGE(TAG, "Firmware flashing failed!");
         return ESP_FAIL;
     } else {
