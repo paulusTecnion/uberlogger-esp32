@@ -173,6 +173,7 @@ esp_err_t Logger_syncSettings(uint8_t syncTime);
 esp_err_t Logtask_sync_settings();
 esp_err_t Logtask_sync_time();
 
+void Logtask_fw_update_exit();
 esp_err_t Logger_startFWupdate();
 esp_err_t Logger_startFWflash();
 

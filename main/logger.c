@@ -1744,12 +1744,15 @@ void Logtask_logging()
             return;
         }
 
-
-
-
-
     }
 }
+
+void Logtask_fw_update_exit()
+{
+    _nextFWState = LOGGER_FW_ERROR;  
+    xQueueSend(xQueueFW, &_nextFWState, 0);
+}
+
 
 void Logtask_fw_update()
 {

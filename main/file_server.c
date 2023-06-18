@@ -355,7 +355,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
 /* Handler to upload a file onto the server */
 esp_err_t upload_post_handler(httpd_req_t *req)
 {
-      if (Logger_getState() == LOGTASK_LOGGING){
+      if (Logger_getState() == LOGTASK_LOGGING ){
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot upload files while logging");
         return ESP_FAIL;
     }
@@ -371,14 +371,14 @@ esp_err_t upload_post_handler(httpd_req_t *req)
     if (!filename) {
         /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
-        return ESP_FAIL;
+        goto error;
     }
 
     /* Filename cannot have a trailing '/' */
     if (filename[strlen(filename) - 1] == '/') {
         ESP_LOGE(TAG_FILESERVER, "Invalid filename : %s", filename);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
-        return ESP_FAIL;
+        goto error;
     }
 
     // if (stat(filepath, &file_stat) == 0) {
@@ -397,14 +397,14 @@ esp_err_t upload_post_handler(httpd_req_t *req)
                             MAX_FILE_SIZE_STR "!");
         /* Return failure to close underlying connection else the
          * incoming file content will keep the socket busy */
-        return ESP_FAIL;
+        goto error;
     }
 
     if (esp_sd_card_mount() != ESP_OK) {
         ESP_LOGE(TAG_FILESERVER, "Failed to mount SD card");
         /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to mount SD card");
-        return ESP_FAIL;
+        goto error;
     }
 
     fd = fopen(filepath, "w");
@@ -412,7 +412,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
         ESP_LOGE(TAG_FILESERVER, "Failed to create file : %s", filepath);
         /* Respond with 500 Internal Server Error */
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file");
-        return ESP_FAIL;
+        goto error;
     }
     #ifdef DEBUG_FILESERVER
     ESP_LOGI(TAG_FILESERVER, "Receiving file : %s...", filename);
@@ -443,7 +443,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
             ESP_LOGE(TAG_FILESERVER, "File reception failed!");
             /* Respond with 500 Internal Server Error */
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive file");
-            return ESP_FAIL;
+            goto error;
         }
 
         /* Write buffer content to file on storage */
@@ -456,7 +456,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
             ESP_LOGE(TAG_FILESERVER, "File write failed!");
             /* Respond with 500 Internal Server Error */
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to write file to storage");
-            return ESP_FAIL;
+            goto error;
         }
 
         /* Keep track of remaining size of
@@ -478,6 +478,22 @@ esp_err_t upload_post_handler(httpd_req_t *req)
 #endif
     httpd_resp_sendstr(req, "File uploaded successfully");
     return ESP_OK;
+
+    error:
+    if (fd != NULL) {
+        fclose(fd);
+    }
+
+    esp_sd_card_unmount();
+
+    // If we are in LOGTASK FWUPDATE state, we need to exit it else we will be stuck in it
+    if (Logger_getState() == LOGTASK_FWUPDATE)
+    {
+       Logtask_fw_update_exit();
+    }
+
+    return ESP_FAIL;
+
 }
 
 /* Handler to delete a file from the server */
