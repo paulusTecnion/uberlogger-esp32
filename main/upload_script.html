@@ -143,21 +143,6 @@
     });
   }
 
-  async function enableFWupdate() {
-    try {
-      const response = await fetch("/fwupdate/enable");
-
-      if (response.status === 200) {
-        return 0;
-      } else {
-        return 1;
-      }
-    } catch (error) {
-      console.error("An error occurred:", error);
-      return 1;
-    }
-  }
-
   async function uploadFiles(files, upload_path, myDiv) {
     try {
       for (let i = 0; i < 3; i++) {
@@ -171,6 +156,21 @@
     } catch (err) {
       alert("Upload failed: " + err);
       return false;
+    }
+  }
+
+  async function enableFWupdate() {
+    try {
+      const response = await fetch("/fwupdate/enable");
+
+      if (response.status === 200) {
+        return 0;
+      } else {
+        return 1;
+      }
+    } catch (error) {
+      console.error("An error occurred:", error);
+      return 1;
     }
   }
 
@@ -213,7 +213,7 @@
       if (!result) {
         document.getElementById("fw-update-state").innerHTML =
           "<p>Failed to upload files!</p>";
-        return;
+        return false;
       }
 
       // Start the FW update process
@@ -222,6 +222,7 @@
       } catch (result2) {
         document.getElementById("fw-update-state").innerHTML =
           "<p>Can't start update process</p>";
+        return false;
       }
 
       // Keep polling for state of FW updater
@@ -243,7 +244,7 @@
       console.log("done");
     } catch (err) {
       alert("Upload failed: " + err);
-      return;
+      return false;
     }
   }
 
