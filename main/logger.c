@@ -1823,6 +1823,7 @@ void Logtask_fw_update()
 
         } // end of case 
 
+        // If nextFWState is not NULL, then we have to send it to the queue
         if (_nextFWState != NULL) xQueueSend(xQueueFW, &_nextFWState, 0);
         _nextFWState = NULL;
         
@@ -1907,6 +1908,7 @@ void task_logging(void * pvParameters)
     ESP_LOGI(TAG_LOG, "Logger task started");
     #endif
 
+    
     if (spi_ctrl_init(STM32_SPI_HOST, GPIO_DATA_RDY_PIN) != ESP_OK)
     {
         // throw error

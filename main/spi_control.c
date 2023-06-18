@@ -131,7 +131,6 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
         .quadhd_io_num=-1,
         .max_transfer_sz = 8192,
         .flags = SPICOMMON_BUSFLAG_MASTER,
-        .intr_flags = ESP_INTR_FLAG_IRAM
     };
 
     //Configuration for the SPI device on the other side of the bus
@@ -141,12 +140,17 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
         .dummy_bits=0,
         .clock_speed_hz=SPI_STM32_BUS_FREQUENCY, //400000,
         .duty_cycle_pos=128,        //50% duty cycle
-        .mode=0,                    // SPI mode 0 
-        .spics_io_num= -1, //STM32_SPI_CS,//GPIO_CS,
-        .cs_ena_posttrans=0,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
+        // On the scope, we see that the MISO is lagging 1 complete SCLK behind with CS enabled leading to reading of incorrect data at the ESP32. 
+        // This only occurs with CS pin enabled. Trying to increase the input delay to 61 ns (50 ns = 1 complete cycle extra), however, does not fix
+        //  the issue. Setting the SPI mode to 2 (CPOL = 1, CPHA = 0, sample on SCK 2nd edge and phase crossing of MISO/MOSI ) on the ESP32 while leaving it on SPI mode 0 on the
+        //  STM32 makes the ESP32 sample the MISO line on the falling edge of the SCLK, effectively  sampling it half a cycle later. This does fix
+        //  the issue. This is very odd, but it works. Setting both SPI modes to 2 does not work. Need to investigate what goes wrong here later. 
+        .mode=2,                    // SPI mode 2,
+        .spics_io_num= STM32_SPI_CS, //STM32_SPI_CS,//GPIO_CS,
+        .cs_ena_posttrans=1,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
         .flags = 0,
-        .input_delay_ns=11      // (50 ns GPIO matrix ESP32) + 11 ns STM32
+        .input_delay_ns=11    // (50 ns GPIO matrix ESP32) + 11 ns STM32
     };  
 
     
@@ -169,7 +173,7 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
 
     
     // //Initialize the SPI bus and add the device we want to send stuff to.
-    ret=spi_bus_initialize(spicontroller, &buscfg, spicontroller);
+    ret=spi_bus_initialize(spicontroller, &buscfg, SPI_DMA_CH_AUTO);
     assert(ret==ESP_OK);
     ret=spi_bus_add_device(spicontroller, &devcfg, &stm_spi_handle);
     assert(ret==ESP_OK);
