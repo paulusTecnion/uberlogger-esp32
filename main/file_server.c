@@ -82,6 +82,14 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot mount SD card");
         return ESP_FAIL;
     }
+
+    // Replace %20 inside dirpath with space
+    char *pos;
+    while ((pos = strstr(dirpath, "%%20")) != NULL)
+    {
+        *pos = ' ';
+    }
+
     DIR *dir = opendir(dirpath);
     const size_t dirpath_len = strlen(dirpath);
 
@@ -129,6 +137,11 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
 
     while ((entry = readdir(dir)) != NULL) {
         entrytype = (entry->d_type == DT_DIR ? "DIRECTORY" : "FILE");
+        // Filter out directory with .Trash in it
+        if (entry->d_type == DT_DIR && strstr(entry->d_name, ".Trash") != NULL)
+        {
+            continue;
+        }
 
         strlcpy(entrypath + dirpath_len, entry->d_name, sizeof(entrypath) - dirpath_len);
         if (stat(entrypath, &entry_stat) == -1) {
@@ -204,7 +217,9 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filena
         return httpd_resp_set_type(req, "image/jpeg");
     } else if (IS_FILE_EXT(filename, ".ico")) {
         return httpd_resp_set_type(req, "image/x-icon");
-    }
+    } else if (IS_FILE_EXT(filename, ".csv")) {
+        return httpd_resp_set_type(req, "text/csv");
+    } 
     /* This is a limited set only */
     /* For any other type always set as plain text */
     return httpd_resp_set_type(req, "text/plain");
@@ -244,7 +259,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
 {
    
       if (Logger_getState() == LOGTASK_LOGGING){
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot upload files while logging");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot download files while logging");
         return ESP_FAIL;
     }
 
@@ -279,9 +294,24 @@ esp_err_t download_get_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    // Replace %20 in filepath with space
+    char *pos;
+    while ((pos = strstr(filepath, "%%20")) != NULL)
+    {
+        *pos = ' ';
+    }
+
+
     /* If name has trailing '/', respond with directory contents */
     if (filename[strlen(filename) - 1] == '/') {
         return http_resp_dir_html(req, filepath);
+    }
+
+    if (esp_sd_card_mount() != ESP_OK) {
+        ESP_LOGE(TAG_FILESERVER, "Failed to mount SD card");
+        /* Respond with 500 Internal Server Error */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to mount SD card");
+        return ESP_FAIL;
     }
 
     if (stat(filepath, &file_stat) == -1) {
@@ -295,12 +325,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    if (esp_sd_card_mount() != ESP_OK) {
-        ESP_LOGE(TAG_FILESERVER, "Failed to mount SD card");
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to mount SD card");
-        return ESP_FAIL;
-    }
+
 
     fd = fopen(filepath, "r");
     if (!fd) {
