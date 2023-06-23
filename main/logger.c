@@ -333,7 +333,9 @@ esp_err_t Logger_singleShot()
             
         } else {
             // ESP_LOGE(TAG_LOG, "Single shot command failed.");
-            // SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+            
+            // Reset the STM in case it's stuck (workaround)
+            Logger_resetSTM32();
             return ESP_FAIL;
         }
         return ESP_OK;        
