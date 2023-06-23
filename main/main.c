@@ -120,8 +120,9 @@ void app_main(void)
     #endif
 
     ESP_ERROR_CHECK(init_fs());
-    settings_init();
     wifi_init();
+    settings_init();
+    wifi_start();
 
 
     // sysinfo_init();

@@ -22,5 +22,8 @@ esp_err_t wifi_print_ip();
 /// @brief Starts the wifi. Stops it as well if it is already running and then restarts it according to the wifi mode setting.
 /// @return ESP_OK if succesfull, ESP_FAIL if not.
 esp_err_t wifi_disconnect_ap();
+/// @brief Starts the wifi.
+/// @return ESP_OK if succesfull, ESP_FAIL if not.
+esp_err_t wifi_start();
 
 #endif

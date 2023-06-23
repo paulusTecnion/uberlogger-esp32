@@ -231,6 +231,15 @@ esp_err_t wifi_init()
 	ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
 	ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_APSTA) );
 
+    
+                                                        
+    return ESP_OK;
+    
+}
+
+
+esp_err_t wifi_start()
+{
     wifi_config_t wifi_config = {
         .ap = {
             // .ssid = wifi_ssid,
@@ -290,9 +299,8 @@ esp_err_t wifi_init()
         wifi_connect_to_ap();
      }
 
-                                                        
-    return ESP_OK;
-    
+     return ESP_OK;
+
 }
 
 int8_t wifi_get_rssi()
