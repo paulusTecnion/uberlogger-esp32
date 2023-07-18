@@ -29,28 +29,28 @@
 			<a href="settings.json" target="_blank"><button class="button" type="button">Download current settings</button></a>
 		</div>
 
-		<h2>WiFi configuration</h2>
+		<h2>Wi-Fi configuration</h2>
 		<div class="group" id="wifi_configuration">
 			<h3>Connection mode</h3>
 			<span>
 				<input id="wifi_mode_hotspot" name="WIFI_MODE" class="element radio json-as-number" type="radio" value="0" checked="true" onclick="wifiConfigVisibilityUpdate();"/>
-				<label class="choice" for="wifi_mode_hotspot">Hotspot mode<br/>UberLogger acts as a WiFi-hotspot where you can directly connect to.</label>
+				<label class="choice" for="wifi_mode_hotspot">Hotspot mode only<br/>UberLogger acts as a Wi-Fi-hotspot where you can directly connect to.</label>
 
 				<input id="wifi_mode_client" name="WIFI_MODE" class="element radio json-as-number" type="radio" value="1" onclick="wifiConfigVisibilityUpdate();"/>
-				<label class="choice" for="wifi_mode_client">Client mode<br/>UberLogger connects to your WiFi-network as a client, and you can access the UberLogger through the IP-address that is assigned through your DHCP server.</label>
+				<label class="choice" for="wifi_mode_client">Hotspot + Client mode<br/>Next to Wi-Fi hotspot, the UberLogger connects to your Wi-Fi-network as a client, and you can access the UberLogger through the IP-address that is assigned through your DHCP server.</label>
 			</span>
 			
 			<div id="wifi_client_settings">
 				<h3>Client details</h3>
-				<p>Enter the details of your WiFi-network below to allow the UberLogger to connect.</p>
-				<p><i><b>Note:</b> in case connecting to WiFi fails, press the MODE button for 10 seconds to enable the hotspot mode.</i></p>
+				<p>Enter the details of your Wi-Fi-network below to allow the UberLogger to connect.</p>
+				<p><i><b>Note:</b> in case connecting to Wi-Fi fails, press the MODE button for 5 seconds to enable the hotspot mode.</i></p>
 				<label for="WIFI_SSID">Network name (SSID)</label>
 				<input id="WIFI_SSID" name="WIFI_SSID" class="element" type="text" maxlength="32" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
 
 				<label for="WIFI_PASSWORD">Password</label>
 				<input id="WIFI_PASSWORD" name="WIFI_PASSWORD" class="element" type="text" maxlength="64" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
 
-				<p>After entering the connection details above, you can test the WiFi connection by clicking on the button below.</p>
+				<p>After entering the connection details above, you can test the Wi-Fi connection by clicking on the button below.</p>
 				<p><i><b>Tip:</b> after configuring, this page will be available via http://IPADDRESS (e.g. http://192.168.1.123).</i></p>
 				
 				<p>
@@ -58,7 +58,7 @@
 					IP-address: <span id="WIFI_TEST_IP" name="WIFI_TEST_IP">0.0.0.0</span><br/>
 					RSSI: <span id="WIFI_TEST_RSSI" name="WIFI_TEST_RSSI">-</span> dB
 				</p>
-				<p><i><b>Note:</b> the WiFi-signal strength (RSSI) should be above -80 dB for a stable connection (e.g. -75 dB is OK).</i></p>
+				<p><i><b>Note:</b> the Wi-Fi-signal strength (RSSI) should be above -80 dB for a stable connection (e.g. -75 dB is OK).</i></p>
 			</div>
 			<div>
 				<input id="btn_test_wifi_network" class="button_text" type="button" value="Save Wi-Fi settings" onclick="setConfig()">
