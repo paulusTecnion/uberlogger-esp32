@@ -134,6 +134,11 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
         httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
     }
 
+    if (CHECK_FILE_EXTENSION(filepath, ".json"))
+    {
+        httpd_resp_set_type(req, "text/json");
+    }
+
     char *chunk = rest_context->scratch;
     ssize_t read_bytes;
     do {
