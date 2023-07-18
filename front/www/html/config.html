@@ -8,64 +8,9 @@
 	<div class="invisible" id="config">
 		<p>Updating the configuration requires clicking the "Save settings" button to save the configuration and activate it. Intermediate changes will not be saved.</p>
 
-		<h2 class="first">Firmware</h2>
-		<p>
-			Current firmware version: <span name="FW_VERSION">-</span><br/>
-			<a href="/fwupdate/">Update firmware</a>
-		</p>
+	
 
-		<h2>Backup or restore configuration</h2>
-		<div class="group" id="backuprestoreconfig">
-			<h3 class="first">Restore defaults</h3>
-			<label class="description" style="padding-bottom: 10px;">Restore the default settings by clicking the button below. They will be saved after clicking the save button at the bottom of this page.</label>
-			<input id="btn_load_defaults" class="button" type="button" name="btn_load_defaults" value="Restore default settings" onclick="loadFormDefaults()"/>
-			
-			<br/>
-			
-			<h3>Import/export configuration</h3>
-			<label class="description" style="padding-bottom: 10px;">You can download the current configuration and import it at a later time. When importing, the settings will be saved only after clicking the save button at the bottom of this page.</label>
-			<input id="btn_import_config" name="btn_import_config" class="button" type="button" value="Import settings from file..." onclick="importConfigfile()"/>
-			<input id="file_import_config" name="file_import_config" class="button" type="file" onchange="importConfigFileSelected()" accept=".json" style="visibility: hidden; display: none;">
-			<a href="settings.json" target="_blank"><button class="button" type="button">Download current settings</button></a>
-		</div>
-
-		<h2>Wi-Fi configuration</h2>
-		<div class="group" id="wifi_configuration">
-			<h3>Connection mode</h3>
-			<span>
-				<input id="wifi_mode_hotspot" name="WIFI_MODE" class="element radio json-as-number" type="radio" value="0" checked="true" onclick="wifiConfigVisibilityUpdate();"/>
-				<label class="choice" for="wifi_mode_hotspot">Hotspot mode only<br/>UberLogger acts as a Wi-Fi-hotspot where you can directly connect to.</label>
-
-				<input id="wifi_mode_client" name="WIFI_MODE" class="element radio json-as-number" type="radio" value="1" onclick="wifiConfigVisibilityUpdate();"/>
-				<label class="choice" for="wifi_mode_client">Hotspot + Client mode<br/>Next to Wi-Fi hotspot, the UberLogger connects to your Wi-Fi-network as a client, and you can access the UberLogger through the IP-address that is assigned through your DHCP server.</label>
-			</span>
-			
-			<div id="wifi_client_settings">
-				<h3>Client details</h3>
-				<p>Enter the details of your Wi-Fi-network below to allow the UberLogger to connect.</p>
-				<p><i><b>Note:</b> in case connecting to Wi-Fi fails, press the MODE button for 5 seconds to enable the hotspot mode.</i></p>
-				<label for="WIFI_SSID">Network name (SSID)</label>
-				<input id="WIFI_SSID" name="WIFI_SSID" class="element" type="text" maxlength="32" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
-
-				<label for="WIFI_PASSWORD">Password</label>
-				<input id="WIFI_PASSWORD" name="WIFI_PASSWORD" class="element" type="text" maxlength="64" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
-
-				<p>After entering the connection details above, you can test the Wi-Fi connection by clicking on the button below.</p>
-				<p><i><b>Tip:</b> after configuring, this page will be available via http://IPADDRESS (e.g. http://192.168.1.123).</i></p>
-				
-				<p>
-					Connection: <span id="WIFI_TEST_STATUS" name="WIFI_TEST_STATUS">...</span><br/>
-					IP-address: <span id="WIFI_TEST_IP" name="WIFI_TEST_IP">0.0.0.0</span><br/>
-					RSSI: <span id="WIFI_TEST_RSSI" name="WIFI_TEST_RSSI">-</span> dB
-				</p>
-				<p><i><b>Note:</b> the Wi-Fi-signal strength (RSSI) should be above -80 dB for a stable connection (e.g. -75 dB is OK).</i></p>
-			</div>
-			<div>
-				<input id="btn_test_wifi_network" class="button_text" type="button" value="Save Wi-Fi settings" onclick="setConfig()">
-			</div>
-		</div>
-
-		<h2>Logging</h2>
+		<h2>Logging settings</h2>
 		<div class="group" id="logging_configuration">
 			<h3>System time</h3>
 			
@@ -241,6 +186,67 @@
 			<h3>Digital channels</h3>
 			<p>Digital channels currently have no configuration options.</p>
 		</div>
+
+
+
+		<h2>Wi-Fi configuration</h2>
+		<div class="group" id="wifi_configuration">
+			<h3>Connection mode</h3>
+			<span>
+				<input id="wifi_mode_hotspot" name="WIFI_MODE" class="element radio json-as-number" type="radio" value="0" checked="true" onclick="wifiConfigVisibilityUpdate();"/>
+				<label class="choice" for="wifi_mode_hotspot">Hotspot mode only<br/>UberLogger acts as a Wi-Fi-hotspot where you can directly connect to.</label>
+
+				<input id="wifi_mode_client" name="WIFI_MODE" class="element radio json-as-number" type="radio" value="1" onclick="wifiConfigVisibilityUpdate();"/>
+				<label class="choice" for="wifi_mode_client">Hotspot + Client mode<br/>Next to Wi-Fi hotspot, the UberLogger connects to your Wi-Fi-network as a client, and you can access the UberLogger through the IP-address that is assigned through your DHCP server.</label>
+			</span>
+			
+			<div id="wifi_client_settings">
+				<h3>Client details</h3>
+				<p>Enter the details of your Wi-Fi-network below to allow the UberLogger to connect.</p>
+				<p><i><b>Note:</b> in case connecting to Wi-Fi fails, press the MODE button for 5 seconds to enable the hotspot mode.</i></p>
+				<label for="WIFI_SSID">Network name (SSID)</label>
+				<input id="WIFI_SSID" name="WIFI_SSID" class="element" type="text" maxlength="32" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
+
+				<label for="WIFI_PASSWORD">Password</label>
+				<input id="WIFI_PASSWORD" name="WIFI_PASSWORD" class="element" type="text" maxlength="64" autocomplete="off" autocorrect="off" autocapitalize="none" value=""/> 
+
+				<p>After entering the connection details above, you can test the Wi-Fi connection by clicking on the button below.</p>
+				<p><i><b>Tip:</b> after configuring, this page will be available via http://IPADDRESS (e.g. http://192.168.1.123).</i></p>
+				
+				<p>
+					Connection: <span id="WIFI_TEST_STATUS" name="WIFI_TEST_STATUS">...</span><br/>
+					IP-address: <span id="WIFI_TEST_IP" name="WIFI_TEST_IP">0.0.0.0</span><br/>
+					RSSI: <span id="WIFI_TEST_RSSI" name="WIFI_TEST_RSSI">-</span> dB
+				</p>
+				<p><i><b>Note:</b> the Wi-Fi-signal strength (RSSI) should be above -80 dB for a stable connection (e.g. -75 dB is OK).</i></p>
+			</div>
+			<div>
+				<input id="btn_test_wifi_network" class="button_text" type="button" value="Save Wi-Fi settings" onclick="setConfig()">
+			</div>
+		</div>
+
+
+		<h2>Backup or restore configuration</h2>
+		<div class="group" id="backuprestoreconfig">
+			<h3 class="first">Restore defaults</h3>
+			<label class="description" style="padding-bottom: 10px;">Restore the default settings by clicking the button below. They will be saved after clicking the save button at the bottom of this page.</label>
+			<input id="btn_load_defaults" class="button" type="button" name="btn_load_defaults" value="Restore default settings" onclick="loadFormDefaults()"/>
+			
+			<br/>
+			
+			<h3>Import/export configuration</h3>
+			<label class="description" style="padding-bottom: 10px;">You can download the current configuration and import it at a later time. When importing, the settings will be saved only after clicking the save button at the bottom of this page.</label>
+			<input id="btn_import_config" name="btn_import_config" class="button" type="button" value="Import settings from file..." onclick="importConfigfile()"/>
+			<input id="file_import_config" name="file_import_config" class="button" type="file" onchange="importConfigFileSelected()" accept=".json" style="visibility: hidden; display: none;">
+			<a href="settings.json" target="_blank"><button class="button" type="button">Download current settings</button></a>
+		</div>
+
+		<h2 class="first">Firmware</h2>
+		<p>
+			Current firmware version: <span name="FW_VERSION">-</span><br/>
+			<a href="/fwupdate/">Update firmware</a>
+		</p>
+
 
 		<div id="configuration_done">
 			<input id="saveForm" class="button_text" type="button" onClick="setConfig()" value="Save all settings"/>
