@@ -144,6 +144,7 @@ esp_err_t settings_set_temp_offset(int32_t * offsets);
 uint16_t * settings_get_adc_offsets();
 esp_err_t settings_set_adc_offset(uint32_t * offsets, adc_resolution_t resolution);
 
+Settings_t settings_get_default();
 esp_err_t settings_set_default();
 
 log_mode_t settings_get_logmode();

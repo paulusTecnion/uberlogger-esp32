@@ -137,6 +137,38 @@ esp_err_t settings_set_adc_offset(uint32_t * offsets, adc_resolution_t resolutio
     return ESP_OK;
 }
 
+Settings_t settings_get_default()
+{
+    Settings_t default_settings;
+
+    default_settings.adc_resolution = ADC_12_BITS;
+    default_settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
+    default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
+    default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
+    default_settings.adc_channel_range = 0x00; // 10V by default
+    default_settings.logMode = LOGMODE_CSV;
+
+    // Get mac address
+    char buffer[8];
+    wifi_get_trimmed_mac(buffer);
+    
+    sprintf(default_settings.wifi_ssid_ap, "Uberlogger-%s", buffer);
+    
+    
+    strcpy(default_settings.wifi_ssid, default_settings.wifi_ssid_ap);
+    strcpy(default_settings.wifi_password, "");
+    default_settings.wifi_mode = WIFI_MODE_APSTA;
+    default_settings.wifi_channel = 1;
+
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+    {
+        default_settings.adc_offsets_12b[i] = (1<<11);
+        default_settings.adc_offsets_16b[i] = (1<<15);
+        default_settings.temp_offsets[i] = 0;
+    }
+
+    return default_settings;
+}
 
 esp_err_t settings_set_default()
 {

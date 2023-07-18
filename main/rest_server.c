@@ -323,6 +323,26 @@ const char * logger_settings_to_json(Settings_t *settings)
     return strptr;
 }
 
+static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+ 
+    Settings_t settings = settings_get_default();
+    const char * settings_json = NULL;
+    settings_json = logger_settings_to_json(&settings);
+    if (settings_json == NULL)
+    {
+        return ESP_FAIL;
+    }
+
+    httpd_resp_sendstr(req, settings_json);
+    httpd_resp_sendstr_chunk(req, NULL);
+    free((void *)settings_json);
+    
+    
+    return ESP_OK;
+}
+
 static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "application/json");
@@ -789,6 +809,15 @@ esp_err_t start_rest_server(const char *base_path)
     //     .handler = logger_wifi_status_handler,
     //     .user_ctx = rest_context
     // };
+
+    httpd_uri_t logger_getDefaultConfig_uri = {
+        .uri = "/ajax/getDefaultConfig",
+        .method = HTTP_GET,
+        .handler = logger_getDefaultConfig,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_getDefaultConfig_uri);
 
     httpd_uri_t logger_getConfig_uri = {
         .uri = "/ajax/getConfig",
