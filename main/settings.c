@@ -157,7 +157,7 @@ Settings_t settings_get_default()
     
     strcpy(default_settings.wifi_ssid, default_settings.wifi_ssid_ap);
     strcpy(default_settings.wifi_password, "");
-    default_settings.wifi_mode = WIFI_MODE_APSTA;
+    default_settings.wifi_mode = WIFI_MODE_AP;
     default_settings.wifi_channel = 1;
 
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
@@ -193,7 +193,7 @@ esp_err_t settings_set_default()
     
     strcpy(_settings.wifi_ssid, _settings.wifi_ssid_ap);
     strcpy(_settings.wifi_password, "");
-    _settings.wifi_mode = WIFI_MODE_APSTA;
+    _settings.wifi_mode = WIFI_MODE_AP;
     _settings.wifi_channel = 1;
 
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
@@ -449,7 +449,7 @@ uint8_t settings_get_wifi_mode()
 
 esp_err_t settings_set_wifi_mode(uint8_t mode)
 {
-    if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_STA)
+    if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_AP)
     {
         _settings.wifi_mode = mode;
         return ESP_OK;

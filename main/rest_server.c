@@ -223,7 +223,34 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", Logger_getLastFreeSpace());
 
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
+    
+    uint8_t wifi_state = 0;
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
+    {
+        if (wifi_is_connected_to_ap())
+        {
+            wifi_state = 3;
 
+        } else if (wifi_ap_connection_failed())
+        {
+            wifi_state = 2;
+        } else {
+            wifi_state = 1;
+        }
+    } 
+    
+    cJSON_AddNumberToObject(root, "WIFI_TEST_STATUS", wifi_state);
+    
+    if (wifi_is_connected_to_ap())
+    {
+        char buffer[20];
+        wifi_get_ip(buffer);
+        cJSON_AddStringToObject(root, "WIFI_TEST_IP", buffer);
+        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", wifi_get_rssi());
+    } else {
+        cJSON_AddStringToObject(root, "WIFI_TEST_IP", "0.0.0.0");
+        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", 0);
+    }
 
     
     const char *settings_json= cJSON_Print(root);
@@ -265,6 +292,37 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 
+     uint8_t wifi_state = 0;
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
+    {
+        if (wifi_is_connected_to_ap())
+        {
+            // connected
+            wifi_state = 3;
+
+        } else if (wifi_ap_connection_failed())
+        {
+            // Connection failed
+            wifi_state = 2;
+        } else {
+            // Connecting...
+            wifi_state = 1;
+        }
+    } 
+    
+    cJSON_AddNumberToObject(root, "WIFI_TEST_STATUS", wifi_state);
+    
+    if (wifi_is_connected_to_ap())
+    {
+        char buffer[20];
+        wifi_get_ip(buffer);
+        cJSON_AddStringToObject(root, "WIFI_TEST_IP", buffer);
+        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", wifi_get_rssi());
+    } else {
+        cJSON_AddStringToObject(root, "WIFI_TEST_IP", "0.0.0.0");
+        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", 0);
+    }
+
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
     free((void *)settings_json);
@@ -302,10 +360,10 @@ const char * logger_settings_to_json(Settings_t *settings)
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
     cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
-    if (settings->wifi_mode == WIFI_MODE_APSTA)
+    if (settings->wifi_mode == WIFI_MODE_AP)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 0);
-    } else if (settings->wifi_mode == WIFI_MODE_STA)
+    } else if (settings->wifi_mode == WIFI_MODE_APSTA)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 1);
     }
@@ -430,7 +488,7 @@ static esp_err_t logger_setTime_handler(httpd_req_t *req)
         goto error;
     }
 
-    if (settings_get_wifi_mode() == WIFI_MODE_STA)
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
     {
         wifi_connect_to_ap();
         // only send ack in case wifi mode has not changed. Else the next will get stuck
@@ -571,12 +629,12 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (item->valueint == 0)
         {
             // Wifi ap mode
-            settings_set_wifi_mode(WIFI_MODE_APSTA);
+            settings_set_wifi_mode(WIFI_MODE_AP);
         } 
         else if (item->valueint == 1)
         {
-            // Wifi station mode
-            settings_set_wifi_mode(WIFI_MODE_STA);
+            // Wifi ap/station mode
+            settings_set_wifi_mode(WIFI_MODE_APSTA);
         }
     }
 
@@ -663,7 +721,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         goto error;
     }
 
-    if (settings_get_wifi_mode() == WIFI_MODE_STA)
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
     {
         wifi_connect_to_ap();
         // only send ack in case wifi mode has not changed. Else the next will get stuck

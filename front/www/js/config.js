@@ -111,15 +111,15 @@ function getStatus() {
         break;
 
       case 1:
-        value = "...";
+        value = "Connecting";
         break;
 
       case 2:
-        value = "OK";
+        value = "Failed to connect";
         break;
 
       case 3:
-        value = "failed";
+        value = "Connected";
         break;
     }
     data["WIFI_TEST_STATUS"] = value;

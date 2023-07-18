@@ -93,16 +93,18 @@ static uint8_t wifi_enabled = 0;
 static void event_handler(void* arg, esp_event_base_t event_base,
 								int32_t event_id, void* event_data)
 {
-	if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+	if (event_base == WIFI_EVENT && 
+        event_id == WIFI_EVENT_STA_DISCONNECTED && 
+        s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
 		ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
         // Only when in station mode, we try to reconnect
         // Else when changing from STA to APSTA mode,
         // we keep connecting after a disconnect.
-		if (settings_get_wifi_mode() == WIFI_MODE_STA) 
+		if (settings_get_wifi_mode() == WIFI_MODE_APSTA) 
         {
             esp_wifi_connect();
         }
-		xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
+		xEventGroupClearBits(wifi_event_group, CONNECTED_BIT | FAIL_BIT);
 
         s_retry_num++;
         if (s_retry_num >= EXAMPLE_ESP_MAXIMUM_RETRY) 
@@ -116,7 +118,12 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 }
 
 
-esp_err_t wifi_is_connected_to_ap()
+uint8_t wifi_ap_connection_failed()
+{
+    return xEventGroupGetBits(wifi_event_group) & FAIL_BIT;
+}
+
+uint8_t wifi_is_connected_to_ap()
 {
     return xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT;
 }
@@ -130,6 +137,7 @@ esp_err_t wifi_disconnect_ap()
 
 esp_err_t wifi_connect_to_ap(void)
 {
+    wifi_disconnect_ap();
     wifi_config_t wifi_config = {
         .sta = {
             /* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (pasword len => 8).
@@ -141,7 +149,7 @@ esp_err_t wifi_connect_to_ap(void)
             .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
         },
     };
-
+    s_retry_num = 0;
     strcpy((char*)wifi_config.sta.ssid, settings_get_wifi_ssid());
     
     // wifi_config.sta.ssid_len = strlen((const char*)(wifi_config.sta.ssid));
@@ -292,7 +300,7 @@ esp_err_t wifi_start()
 
     wifi_enabled = 1;
 
-     if (settings_get_wifi_mode() == WIFI_MODE_STA) {
+     if (settings_get_wifi_mode() == WIFI_MODE_APSTA) {
         #ifdef DEBUG_WIFI
         ESP_LOGI(TAG, "Connecting with AP");
         #endif
@@ -308,6 +316,14 @@ int8_t wifi_get_rssi()
     wifi_ap_record_t ap_info;
     esp_wifi_sta_get_ap_info(&ap_info);
     return ap_info.rssi;
+}
+
+void wifi_get_ip(char * str)
+{
+    esp_netif_ip_info_t ip_info;
+    esp_netif_get_ip_info(sta_netif, &ip_info);
+    sprintf(str, IPSTR, IP2STR(&ip_info.ip));
+    
 }
 
 esp_err_t wifi_print_ip()
