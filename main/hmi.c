@@ -117,7 +117,7 @@ void task_hmi(void* ignore) {
             break;
 
             case MODEBUTTON_HOLD:
-                // if held for longer than 10 seconds, we will put the system to SoftAP mode
+                // if held for longer than 5 seconds, we will put the system to SoftAP mode
                 // ESP_LOGI(TAG, "Button held for %ld ms", 10*(xTaskGetTickCount() - startTick));
                 if ((xTaskGetTickCount() - startTick) > 500 && 
                     longPush == 0 )

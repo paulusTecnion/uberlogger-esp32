@@ -606,11 +606,13 @@ void Logger_mode_button_pushed()
 
 void Logger_mode_button_long_pushed()
 {
-    if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
+    if (_currentLogTaskState == LOGTASK_IDLE || 
+        _currentLogTaskState == LOGTASK_ERROR_OCCURED ||
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
     {
-        if (settings_get_wifi_mode()==WIFI_MODE_STA)
+        if (settings_get_wifi_mode()==WIFI_MODE_APSTA)
         {
-            settings_set_wifi_mode(WIFI_MODE_APSTA);
+            settings_set_wifi_mode(WIFI_MODE_AP);
             #ifdef DEBUG_LOGTASK
             ESP_LOGI(TAG_LOG, "Switching to AP mode");
             #endif
