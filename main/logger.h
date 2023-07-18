@@ -178,7 +178,7 @@ esp_err_t Logger_startFWupdate();
 esp_err_t Logger_startFWflash();
 
 uint8_t Logger_getFWState();
-
+void  Logger_resetSTM32();
 void Logging_restartSystem();
 
 
