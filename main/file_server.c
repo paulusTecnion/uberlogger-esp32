@@ -83,12 +83,24 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
         return ESP_FAIL;
     }
 
-    // Replace %20 inside dirpath with space
-    char *pos;
-    while ((pos = strstr(dirpath, "%%20")) != NULL)
-    {
-        *pos = ' ';
+    const char* percentTwenty = "%20";
+    const char space = ' ';
+    char* found;
+
+    // Replace %20 in dirpath with space
+    while ((found = strstr(dirpath, percentTwenty)) != NULL) {
+        memcpy(found, &space, sizeof(char)); // Replace % with space
+        memmove(found + 1, found + 3, strlen(found + 3) + 1); // Shift the rest of the string
     }
+
+    // char *pos;
+    // while ((pos = strstr(dirpath, "%20")) != NULL)
+    // {
+    //     *pos = ' ';
+    //     memmove()
+    // }
+
+    ESP_LOGI("http_resp_dir_html", "dirpath: %s", dirpath);
 
     DIR *dir = opendir(dirpath);
     const size_t dirpath_len = strlen(dirpath);
