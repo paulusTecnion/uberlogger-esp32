@@ -183,6 +183,9 @@ function populateFields(parent, data) {
         } else {
           this.selected = false;
         }
+
+        const event = new Event("change", { bubbles: true });
+        $ctrl[0].dispatchEvent(event);
       });
     } else if ($ctrl.is("input")) {
       switch ($ctrl.attr("type")) {
@@ -194,6 +197,7 @@ function populateFields(parent, data) {
           } else {
             $ctrl.val(Number(value).toFixed(2));
           }
+
           break;
 
         case "radio":

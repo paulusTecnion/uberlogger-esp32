@@ -8,6 +8,22 @@ function importConfigfile() {
   $("#file_import_config").click();
 }
 
+function disableAIN(x) {
+  var ntcSelect = document.getElementById("NTC" + x);
+  var ainSelect = document.getElementById("AIN" + x);
+
+  // Get the selected value of NTCx dropdown
+  var selectedValue = ntcSelect.options[ntcSelect.selectedIndex].value;
+
+  // Disable/enable AINx dropdown based on the selected value of NTCx
+  if (selectedValue === "1") {
+    // "NTC" option is selected
+    ainSelect.disabled = true;
+  } else {
+    ainSelect.disabled = false;
+  }
+}
+
 function importConfigFileSelected() {
   var reader = new FileReader();
   var file = $("#file_import_config").prop("files")[0];

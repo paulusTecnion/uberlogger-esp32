@@ -33,9 +33,6 @@
 					<option value="5">50 Samples/s</option>
 					<option value="6">100 Samples/s</option>
 					<option value="7">250 Samples/s</option>
-					<option value="8">500 Samples/s</option>
-					<option value="9">1 kS/s</option>
-					<option value="10">2.5 kS/s</option>
 				</select>
 			</p>
 
@@ -63,13 +60,13 @@
 				<tr>
 					<td>Channel 0</td>
 					<td>
-						<select name="NTC0" id="NTC0" class="json-as-bool">
+						<select name="NTC0" id="NTC0" class="json-as-bool" onchange="disableAIN('0')" >
 							<option value="0">Analog in</option>
 							<option value="1">NTC</option>
 						</span>
 					</td>
 					<td>
-						<select name="AIN0" id="AIN0" class="json-as-bool">
+						<select name="AIN0" id="AIN0" class="json-as-bool" >
 							<option value="0">+/-10 V</option>
 							<option value="1">+/-60 V</option>
 						</span>
@@ -78,7 +75,7 @@
 				<tr>
 					<td>Channel 1</td>
 					<td>
-						<select name="NTC1" id="NTC1" class="json-as-bool">
+						<select name="NTC1" id="NTC1" class="json-as-bool" onchange="disableAIN('1')" >
 							<option value="0">Analog in</option>
 							<option value="1">NTC</option>
 						</span>
@@ -93,7 +90,7 @@
 				<tr>
 					<td>Channel 2</td>
 					<td>
-						<select name="NTC2" id="NTC2" class="json-as-bool">
+						<select name="NTC2" id="NTC2" class="json-as-bool" onchange="disableAIN('2')">
 							<option value="0">Analog in</option>
 							<option value="1">NTC</option>
 						</span>
@@ -108,7 +105,7 @@
 				<tr>
 					<td>Channel 3</td>
 					<td>
-						<select name="NTC3" id="NTC3" class="json-as-bool">
+						<select name="NTC3" id="NTC3" class="json-as-bool" onchange="disableAIN('3')" >
 							<option value="0">Analog in</option>
 							<option value="1">NTC</option>
 						</span>
@@ -123,7 +120,7 @@
 				<tr>
 					<td>Channel 4</td>
 					<td>
-						<select name="NTC4" id="NTC4" class="json-as-bool">
+						<select name="NTC4" id="NTC4" class="json-as-bool" onchange="disableAIN('4')" >
 							<option value="0">Analog in</option>
 							<option value="1">NTC</option>
 						</span>
@@ -138,7 +135,7 @@
 				<tr>
 					<td>Channel 5</td>
 					<td>
-						<select name="NTC5" id="NTC5" class="json-as-bool">
+						<select name="NTC5" id="NTC5" class="json-as-bool" onchange="disableAIN('5')" >
 							<option value="0">Analog in</option>
 							<option value="1">NTC</option>
 						</span>
@@ -153,7 +150,7 @@
 				<tr>
 					<td>Channel 6</td>
 					<td>
-						<select name="NTC6" id="NTC6" class="json-as-bool">
+						<select name="NTC6" id="NTC6" class="json-as-bool" onchange="disableAIN('6')" >
 							<option value="0">Analog in</option>
 							<option value="1">NTC</option>
 						</span>
@@ -168,7 +165,7 @@
 				<tr>
 					<td>Channel 7</td>
 					<td>
-						<select name="NTC7" id="NTC7" class="json-as-bool">
+						<select name="NTC7" id="NTC7" class="json-as-bool" onchange="disableAIN('7')" >
 							<option value="0">Analog in</option>
 							<option value="1">NTC</option>
 						</span>
@@ -185,6 +182,10 @@
 
 			<h3>Digital channels</h3>
 			<p>Digital channels currently have no configuration options.</p>
+
+			<div id="configuration_done">
+				<input id="saveForm" class="button_text" type="button" onClick="setConfig()" value="Save all settings"/>
+			</div>
 		</div>
 
 
@@ -248,9 +249,7 @@
 		</p>
 
 
-		<div id="configuration_done">
-			<input id="saveForm" class="button_text" type="button" onClick="setConfig()" value="Save all settings"/>
-		</div>
+		
 	</div>
 
 </form>
