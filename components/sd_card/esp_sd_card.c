@@ -7,12 +7,15 @@
 #include "esp_vfs_fat.h"
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
+#include "ff.h"
+#include "vfs_fat_internal.h"
 
 #include "sdmmc_cmd.h"
 #include "sdkconfig.h"
 #include "esp_sd_card.h"
 #include "../../main/config.h"
 #include "../../main/logger.h"
+
 
 #ifdef CONFIG_IDF_TARGET_ESP32
 #include "driver/sdmmc_host.h"
@@ -226,7 +229,22 @@ esp_err_t esp_sd_card_init(void)
  *   format_sdcard(card);
  *   // proceed without remounting
  */
-esp_err_t format_sdcard(sdmmc_card_t *card) {
+esp_err_t esp_sd_card_format()
+{
+
+    if (esp_sd_card_check_for_card()) {
+        ESP_LOGE("sdcard", "SD card not inserted!");
+        return ESP_FAIL;
+    }
+
+    // check if it's mounted 
+    if (!esp_sd_card_is_mounted) {
+        if (esp_sd_card_mount() != ESP_OK)
+        {
+            return ESP_FAIL;
+        }   
+    }
+
 	char drv[3] = {'0', ':', 0};
     const size_t workbuf_size = 4096;
     void* workbuf = NULL;
@@ -253,7 +271,7 @@ esp_err_t format_sdcard(sdmmc_card_t *card) {
 
     free(workbuf);
 
-    ESP_LOGI("sdcard", "Successfully formatted the SD card");
+    // ESP_LOGI("sdcard", "Successfully formatted the SD card");
 
     return err;
 }

@@ -12,5 +12,6 @@ esp_err_t esp_sd_card_mount(void);
 
 // esp_sd_card_check_for_card() returns 0 when card detected and 1 when none is detected.
 uint8_t esp_sd_card_check_for_card();
+esp_err_t esp_sd_card_format();
 uint32_t esp_sd_card_get_free_space(void);
 sdcard_state_t esp_sd_card_get_state(void);

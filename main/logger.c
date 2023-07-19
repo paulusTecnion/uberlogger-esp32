@@ -629,6 +629,12 @@ void Logger_mode_button_long_pushed()
    
 }
 
+void Logger_format_sdcard()
+{
+    LoggerState_t t = LOGTASK_FORMAT_SDCARD;
+    xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
+}
+
 esp_err_t LogTask_start()
 {
     CLEAR_ERRORS(_errorCode);
@@ -1974,6 +1980,7 @@ void task_logging(void * pvParameters)
                 esp_restart();
             break;
             case LOGTASK_FWUPDATE:          Logtask_fw_update();                break;
+            case LOGTASK_FORMAT_SDCARD:     esp_sd_card_format();               break;
 
             default:                                                    
             ESP_LOGE(TAG_LOG, "Unknown task: %d", _currentLogTaskState);        break;

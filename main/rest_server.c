@@ -386,6 +386,13 @@ const char * logger_settings_to_json(Settings_t *settings)
     return strptr;
 }
 
+
+static esp_err_t logger_filebrowserFormat_handler(httpd_req_t *req)
+{
+    Logger_format_sdcard();
+    return ESP_OK;
+}
+
 static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "application/json");
@@ -859,7 +866,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 13;
+    config.max_uri_handlers = 14;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -872,6 +879,16 @@ esp_err_t start_rest_server(const char *base_path)
     //     .handler = logger_wifi_status_handler,
     //     .user_ctx = rest_context
     // };
+
+    httpd_uri_t logger_filebrowserFormat_uri = {
+        .uri = "/ajax/filebrowserFormat",
+        .method = HTTP_GET,
+        .handler = logger_filebrowserFormat_handler,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_filebrowserFormat_uri);
+
 
     httpd_uri_t logger_getDefaultConfig_uri = {
         .uri = "/ajax/getDefaultConfig",

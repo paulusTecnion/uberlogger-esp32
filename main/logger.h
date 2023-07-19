@@ -76,6 +76,7 @@ enum LogTaskStates
     LOGTASK_SINGLE_SHOT,
     LOGTASK_CALIBRATION,
     LOGGER_FW_UPDATE,
+    LOGTASK_FORMAT_SDCARD,
     LOGTASK_NUM_STATES
 };
 
@@ -154,6 +155,9 @@ esp_err_t Logging_start();
 void Logtask_singleShot();
 esp_err_t Logger_singleShot();
 uint32_t Logger_getError();
+
+
+void Logger_format_sdcard();
 
 
 // uint8_t Logger_flush_buffer_to_sd_card();
