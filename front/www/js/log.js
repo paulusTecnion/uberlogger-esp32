@@ -1,192 +1,222 @@
-$( document ).ready(function() {
-	filebrowserRefresh('/');
-	setInterval(renderLogStatus, 1000);
+$(document).ready(function () {
+  filebrowserRefresh("/");
+  setInterval(renderLogStatus, 1000);
 });
 
-
 function renderLogStatus() {
-	populateFields('#log', valuesData);
+  populateFields("#log", valuesData);
 }
 
 function loggerStart() {
-	let input = { ACTION: "START" };
+  let input = { ACTION: "START" };
 
-	$.ajax({
-		method: "POST",
-		url: "ajax/loggerStart",
-		data: JSON.stringify(input),
+  $.ajax({
+    method: "POST",
+    url: "ajax/loggerStart",
+    data: JSON.stringify(input),
 
-		processData: false,
-		dataType: "json",
-		contentType: "application/json",
+    processData: false,
+    dataType: "json",
+    contentType: "application/json",
 
-		success: function(response){
-			if(response["resp"] == "ack"){
-				alert("Logger started.");
-			}else{
-				alert("Error: could not start logger, response=" + response["reason"] + ".");
-				console.log( "Failed, response=" + JSON.stringify(response));
-			}
-		},
+    success: function (response) {
+      if (response["resp"] == "ack") {
+        alert("Logger started.");
+      } else {
+        alert(
+          "Error: could not start logger, response=" + response["reason"] + "."
+        );
+        console.log("Failed, response=" + JSON.stringify(response));
+      }
+    },
 
-	error: function(response) {
-	  alert("Error: could not start logger, response=" + JSON.stringify(response));
-	  console.log( "Failed, response=" + JSON.stringify(response));
-	}
-	});
+    error: function (response) {
+      alert(
+        "Error: could not start logger, response=" + JSON.stringify(response)
+      );
+      console.log("Failed, response=" + JSON.stringify(response));
+    },
+  });
 }
 
 function loggerStop() {
-	let input = { ACTION: "STOP" };
+  let input = { ACTION: "STOP" };
 
-	$.ajax({
-		method: "POST",
-		url: "ajax/loggerStop",
-		data: JSON.stringify(input),
+  $.ajax({
+    method: "POST",
+    url: "ajax/loggerStop",
+    data: JSON.stringify(input),
 
-		processData: false,
-		dataType: "json",
-		contentType: "application/json",
+    processData: false,
+    dataType: "json",
+    contentType: "application/json",
 
-		success: function(response){
-			if(response["resp"] == "ack"){
-				alert("Logger stopped.");
-			}else{
-				alert("Error: could not stop logger, response=" + response["reason"] + ".");
-				console.log( "Failed, response=" + JSON.stringify(response));
-			}
-		},
+    success: function (response) {
+      if (response["resp"] == "ack") {
+        alert("Logger stopped.");
+      } else {
+        alert(
+          "Error: could not stop logger, response=" + response["reason"] + "."
+        );
+        console.log("Failed, response=" + JSON.stringify(response));
+      }
+    },
 
-	error: function(response) {
-	  alert("Error: could not stop logger, response=" + JSON.stringify(response));
-	  console.log( "Failed, response=" + JSON.stringify(response));
-	}
-	});
-
-}
-
-
-function filebrowserRefresh(filebrowserPath){
-	parent="#filelist";
-
-	console.log(filebrowserPath)
-	
-	query="getFileList" + filebrowserPath;
-	let pathmatch=filebrowserPath.match(/(.*[\/])[^\/]+[\/]?$/);
-	let parentPath=[];	
-
-	if(pathmatch){
-		console.log(pathmatch);
-		parentPath=pathmatch[1];
-	}
-
-	$.getJSON('./ajax/' + query, (data) => {
-		let htmlstring=[];
-
-		if(filebrowserPath == "/"){
-			htmlstring+="<b>Current path: (root)</b><br/>";
-		}else{
-			htmlstring+="<b>Current path: " + filebrowserPath + "</b><br/>";
-		}
-
-		htmlstring+="<table width='100%'>";
-		htmlstring+="<tr><th width='60%'>Name</th><th width='20%'>Size</th><th width='20%'>Action</th></tr>"
-		
-		if(filebrowserPath != "/"){
-			htmlstring+="<tr><td><a onClick=\"return filebrowserRefresh('" + parentPath +"');\" href='javascript:void(0);'>/.. (open parent directory)</a></td><td><i>(directory)</i></td><td></td></tr>";
-		}
-
-		htmlstring=buildFileTree(data["root"], htmlstring, 1, filebrowserPath);
-		htmlstring+="</table>";
-
-		$("#filelist").html(htmlstring);
-
-	})
-	.fail(function() {
-		alert("Error: could not get list of SD-card files.");
-		console.log("Data query failed.");
-	});		
-}
-
-
-function filebrowserFormat(){
-	if (confirm("Format SD-card, are you sure?") == true) {
-
-		$.getJSON('./ajax/filebrowserFormat', (data) => {
-			// to do: implement a proper response sequence
-			alert("SD-card now formatting.");
-		})
-		.fail(function() {
-			alert("Error: could not format SD-card.");
-			console.log("Data query failed.");
-		});	
-
-		return true;
-	}else{
-		return false;
-	}
-
-}
-
-function promptDelete(file, filepath){
-	if (confirm("Delete file " + file + ". Are you sure?") == true) {
-		let pathmatch=filepath.match(/(.*[\/])[^\/]+[\/]?$/);
-		let parentPath=[];	
-
-		if(pathmatch){
-			console.log(pathmatch);
-			parentPath=pathmatch[1];
-		}
-
-		$.ajax({
-			method: "POST",
-			url: "/delete" + filepath,
-			data: "delete",
-
-			success: function(response){
-				if(response == "ack"){
-					alert("File deleted.");
-					filebrowserRefresh(parentPath);
-				}else{
-					alert("Error: could not delete file.");
-					console.log( "Failed, response=" + JSON.stringify(response));
-				}
-			},
-
-		error: function(response) {
-			alert("Error: could not delete file, response=" + JSON.stringify(response));
-			console.log( "Failed, response=" + JSON.stringify(response));
-		}
-		});
-
-		return true;
-	}else{
-		return false;
-	}
-}
-
-
-function buildFileTree(data, htmlstring, depth, path){
-
-  $.each(data, function(key, value){
-		if(value["TYPE"] == "FILE"){
-			htmlstring+="<tr>";
-			htmlstring+="<td style='padding-left: " + depth * 10 + "px;'>" + value["NAME"] + "</td>";
-			htmlstring+="<td>" + (value["SIZE"]/BYTES_PER_MB).toFixed(3) + " MB</td>";
-			htmlstring+="<td><a href='/ajax/getFileList" + path + value["NAME"] + "'>download</a> / <a onClick=\"return promptDelete('" + value["NAME"] + "', '" + path + value["NAME"] + "');\" href='javascript:void(0);'>delete</a></td>";
-			htmlstring+="</tr>";
-
-		}else if(value["TYPE"] == "DIRECTORY"){
-			htmlstring+="<tr>";
-			htmlstring+="<td style='padding-left: " + depth * 10 + "px;'><b><i>" + value["NAME"] + "</i></b></td>";
-			htmlstring+="<td><i>(directory)</i></td>";
-			htmlstring+="<td><a onClick=\"return filebrowserRefresh('" + path + value["NAME"] + "/');\" href='javascript:void(0);'>open</a></td>";
-			htmlstring+="</tr>";
-			
-			htmlstring=buildFileTree(value, htmlstring, depth + 1, path + value["NAME"] + "/");
-		}
+    error: function (response) {
+      alert(
+        "Error: could not stop logger, response=" + JSON.stringify(response)
+      );
+      console.log("Failed, response=" + JSON.stringify(response));
+    },
   });
-  
-  return(htmlstring);
+}
 
+function filebrowserRefresh(filebrowserPath) {
+  parent = "#filelist";
+
+  console.log(filebrowserPath);
+
+  query = "getFileList" + filebrowserPath;
+  let pathmatch = filebrowserPath.match(/(.*[\/])[^\/]+[\/]?$/);
+  let parentPath = [];
+
+  if (pathmatch) {
+    console.log(pathmatch);
+    parentPath = pathmatch[1];
+  }
+
+  $.getJSON("./ajax/" + query, (data) => {
+    let htmlstring = [];
+
+    if (filebrowserPath == "/") {
+      htmlstring += "<b>Current path: (root)</b><br/>";
+    } else {
+      htmlstring += "<b>Current path: " + filebrowserPath + "</b><br/>";
+    }
+
+    htmlstring += "<table width='100%'>";
+    htmlstring +=
+      "<tr><th width='60%'>Name</th><th width='20%'>Size</th><th width='20%'>Action</th></tr>";
+
+    if (filebrowserPath != "/") {
+      htmlstring +=
+        "<tr><td><a onClick=\"return filebrowserRefresh('" +
+        parentPath +
+        "');\" href='javascript:void(0);'>/.. (open parent directory)</a></td><td><i>(directory)</i></td><td></td></tr>";
+    }
+
+    htmlstring = buildFileTree(data["root"], htmlstring, 1, filebrowserPath);
+    htmlstring += "</table>";
+
+    $("#filelist").html(htmlstring);
+  }).fail(function () {
+    alert("Error: could not get list of SD-card files.");
+    console.log("Data query failed.");
+  });
+}
+
+function filebrowserFormat() {
+  if (confirm("Format SD-card, are you sure?") == true) {
+    $.getJSON("./ajax/filebrowserFormat", (data) => {
+      // to do: implement a proper response sequence
+      alert("SD-card now formatting.");
+    }).fail(function () {
+      alert("Error: could not format SD-card. Are you logging?");
+      console.log("Data query failed.");
+    });
+
+    return true;
+  } else {
+    return false;
+  }
+}
+
+function promptDelete(file, filepath) {
+  if (confirm("Delete file " + file + ". Are you sure?") == true) {
+    let pathmatch = filepath.match(/(.*[\/])[^\/]+[\/]?$/);
+    let parentPath = [];
+
+    if (pathmatch) {
+      console.log(pathmatch);
+      parentPath = pathmatch[1];
+    }
+
+    $.ajax({
+      method: "POST",
+      url: "/delete" + filepath,
+      data: "delete",
+
+      success: function (response) {
+        if (response == "ack") {
+          alert("File deleted.");
+          filebrowserRefresh(parentPath);
+        } else {
+          alert("Error: could not delete file.");
+          console.log("Failed, response=" + JSON.stringify(response));
+        }
+      },
+
+      error: function (response) {
+        alert(
+          "Error: could not delete file, response=" + JSON.stringify(response)
+        );
+        console.log("Failed, response=" + JSON.stringify(response));
+      },
+    });
+
+    return true;
+  } else {
+    return false;
+  }
+}
+
+function buildFileTree(data, htmlstring, depth, path) {
+  $.each(data, function (key, value) {
+    if (value["TYPE"] == "FILE") {
+      htmlstring += "<tr>";
+      htmlstring +=
+        "<td style='padding-left: " +
+        depth * 10 +
+        "px;'>" +
+        value["NAME"] +
+        "</td>";
+      htmlstring +=
+        "<td>" + (value["SIZE"] / BYTES_PER_MB).toFixed(3) + " MB</td>";
+      htmlstring +=
+        "<td><a href='/ajax/getFileList" +
+        path +
+        value["NAME"] +
+        "'>download</a> / <a onClick=\"return promptDelete('" +
+        value["NAME"] +
+        "', '" +
+        path +
+        value["NAME"] +
+        "');\" href='javascript:void(0);'>delete</a></td>";
+      htmlstring += "</tr>";
+    } else if (value["TYPE"] == "DIRECTORY") {
+      htmlstring += "<tr>";
+      htmlstring +=
+        "<td style='padding-left: " +
+        depth * 10 +
+        "px;'><b><i>" +
+        value["NAME"] +
+        "</i></b></td>";
+      htmlstring += "<td><i>(directory)</i></td>";
+      htmlstring +=
+        "<td><a onClick=\"return filebrowserRefresh('" +
+        path +
+        value["NAME"] +
+        "/');\" href='javascript:void(0);'>open</a></td>";
+      htmlstring += "</tr>";
+
+      htmlstring = buildFileTree(
+        value,
+        htmlstring,
+        depth + 1,
+        path + value["NAME"] + "/"
+      );
+    }
+  });
+
+  return htmlstring;
 }

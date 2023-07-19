@@ -389,8 +389,7 @@ const char * logger_settings_to_json(Settings_t *settings)
 
 static esp_err_t logger_filebrowserFormat_handler(httpd_req_t *req)
 {
-    Logger_format_sdcard();
-    return ESP_OK;
+    return Logger_format_sdcard();
 }
 
 static esp_err_t logger_getDefaultConfig(httpd_req_t *req)

@@ -157,7 +157,7 @@ esp_err_t Logger_singleShot();
 uint32_t Logger_getError();
 
 
-void Logger_format_sdcard();
+esp_err_t Logger_format_sdcard();
 
 
 // uint8_t Logger_flush_buffer_to_sd_card();

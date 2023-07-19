@@ -629,10 +629,18 @@ void Logger_mode_button_long_pushed()
    
 }
 
-void Logger_format_sdcard()
+esp_err_t Logger_format_sdcard()
 {
-    LoggerState_t t = LOGTASK_FORMAT_SDCARD;
-    xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
+    if (_currentLogTaskState == LOGTASK_IDLE ||
+        _currentLogTaskState == LOGTASK_ERROR_OCCURED || 
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
+    {
+        LoggerState_t t = LOGTASK_FORMAT_SDCARD;
+        xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
 }
 
 esp_err_t LogTask_start()
