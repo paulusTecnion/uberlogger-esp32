@@ -93,15 +93,6 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
         memmove(found + 1, found + 3, strlen(found + 3) + 1); // Shift the rest of the string
     }
 
-    // char *pos;
-    // while ((pos = strstr(dirpath, "%20")) != NULL)
-    // {
-    //     *pos = ' ';
-    //     memmove()
-    // }
-
-    ESP_LOGI("http_resp_dir_html", "dirpath: %s", dirpath);
-
     DIR *dir = opendir(dirpath);
     const size_t dirpath_len = strlen(dirpath);
 
