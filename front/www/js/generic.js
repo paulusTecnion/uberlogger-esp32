@@ -48,6 +48,30 @@ function getValues() {
     valuesData["SD_CARD_FREE_SPACE"] =
       (valuesData["SD_CARD_FREE_SPACE"] / BYTES_PER_MB).toFixed(3) + " MB";
 
+    // sanitize data
+    switch (data["WIFI_TEST_STATUS"]) {
+      case 0:
+      default:
+        value = "N/A";
+        break;
+
+      case 1:
+        value = "Connecting";
+        break;
+
+      case 2:
+        value = 'Failed to connect. Press "Save Wi-Fi settings" to try again.';
+        break;
+
+      case 3:
+        value = "Connected";
+        break;
+    }
+    data["WIFI_TEST_STATUS"] = value;
+
+    // populate form
+    populateFields(parent, data);
+
     switch (valuesData["SD_CARD_STATUS"]) {
       default:
       case 0:
