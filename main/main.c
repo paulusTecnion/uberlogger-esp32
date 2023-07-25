@@ -120,10 +120,16 @@ void app_main(void)
     #endif
 
     ESP_ERROR_CHECK(init_fs());
-    settings_init();
+
+    // Leave these lines BEFORE settings_init(), else the SSID will not be set correctly the first time!!
     if (!settings_get_boot_reason())
     {
         wifi_init();
+    }
+    settings_init();
+
+    if (!settings_get_boot_reason())
+    {
         wifi_start();
     }
 
