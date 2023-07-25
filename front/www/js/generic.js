@@ -44,7 +44,9 @@ function getValues() {
 
     // sanitize data
     let datetimestr = new Date(Number(valuesData["TIMESTAMP"]));
-    valuesData["TIMESTAMPSTR"] = formatDate(datetimestr);
+    // valuesData["TIMESTAMPSTR"] = formatDate(datetimestr);
+    // Set the timestampstr to local time zone
+    valuesData["TIMESTAMPSTR"] = datetimestr.toLocaleString();
     valuesData["SD_CARD_FREE_SPACE"] =
       (valuesData["SD_CARD_FREE_SPACE"] / BYTES_PER_MB).toFixed(3) + " MB";
 
@@ -57,14 +59,17 @@ function getValues() {
 
       case 1:
         value = "Connecting";
+
         break;
 
       case 2:
         value = 'Failed to connect. Press "Save Wi-Fi settings" to try again.';
+
         break;
 
       case 3:
         value = "Connected";
+
         break;
     }
     data["WIFI_TEST_STATUS"] = value;
