@@ -79,7 +79,7 @@ static const char * TAG = "WIFI";
 static EventGroupHandle_t wifi_event_group;
 
 esp_netif_t *sta_netif;
-
+esp_netif_t *ap_netif;
 /* The event group allows multiple bits for each event, but we only care about two events:
  * - we are connected to the AP with an IP
  * - we failed to connect after the maximum amount of retries */
@@ -156,8 +156,10 @@ esp_err_t wifi_connect_to_ap(void)
     strcpy((char*)wifi_config.sta.password, settings_get_wifi_password());
 
     // ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA) );
+    wifi_disconnect_ap();
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     // ESP_ERROR_CHECK(esp_wifi_start() );
+    
     ESP_ERROR_CHECK(esp_wifi_connect() );
     #ifdef DEBUG_WIFI
     ESP_LOGI(TAG, "wifi_init_sta finished.");
@@ -224,8 +226,10 @@ esp_err_t wifi_init()
 
 	ESP_ERROR_CHECK(esp_netif_init());
 	wifi_event_group = xEventGroupCreate();
+
+
 	// ESP_ERROR_CHECK(esp_event_loop_create_default());
-	esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
+	ap_netif = esp_netif_create_default_wifi_ap();
 	assert(ap_netif);
 	sta_netif = esp_netif_create_default_wifi_sta();
 	assert(sta_netif);
@@ -277,8 +281,6 @@ esp_err_t wifi_start()
         wifi_config.ap.authmode =  WIFI_AUTH_OPEN;
     }
 
-
-
     // strcpy((char*)wifi_config.sta.ssid, settings_get_wifi_ssid());
     
     // wifi_config.sta.ssid_len = strlen((const char*)(wifi_config.sta.ssid));
@@ -294,7 +296,7 @@ esp_err_t wifi_start()
     #endif
 
 
-    esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
+    // esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
 
 	ESP_ERROR_CHECK( esp_wifi_start() );
 
