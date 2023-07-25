@@ -127,15 +127,15 @@ typedef struct Settings_t Settings_t;
 void settings_init();
 Settings_t * settings_get();
 
-uint8_t settings_get_adc_channel_enabled(adc_channel_t channel);
+uint8_t settings_get_adc_channel_enabled(Settings_t *settings, adc_channel_t channel);
 uint8_t settings_get_adc_channel_enabled_all();
 esp_err_t settings_set_enabled_adc_channels(adc_channel_t channel, adc_channel_enable_t value);
 
-uint8_t settings_get_adc_channel_type(adc_channel_t channel);
+uint8_t settings_get_adc_channel_type(Settings_t *settings, adc_channel_t channel);
 uint8_t settings_get_adc_channel_type_all();
 esp_err_t settings_set_adc_channel_type(adc_channel_t channel, adc_channel_type_t value);
 
-uint8_t settings_get_adc_channel_range(adc_channel_t channel);
+uint8_t settings_get_adc_channel_range(Settings_t *settings, adc_channel_t channel);
 uint8_t settings_get_adc_channel_range_all();
 esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value);
 

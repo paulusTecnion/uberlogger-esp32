@@ -215,7 +215,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         }
         
         // The next values are calibrated values
-        if (settings_get_adc_channel_range(j))
+        if (settings_get_adc_channel_range(settings_get(), j))
         {
             channel_offset = 126811146; // 60*ADC_MULT_FACTOR_60V;
 
@@ -229,7 +229,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         // dataOutput->analogData[j] = Logger_convertAdcFloat(adcVal);
         dataOutput->analogData[j] = (float)Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
         // ESP_LOGI(TAG_LOG, "%u, %f", adcVal, dataOutput->analogData[j]);
-        if (settings_get_adc_channel_range(j))
+        if (settings_get_adc_channel_range(settings_get(), j))
         {
             // 60V range
             dataOutput->analogData[j] = dataOutput->analogData[j] / (float)ADC_MULT_FACTOR_60V;
@@ -760,7 +760,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             {
                 // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
                 // The next values are calibrated values
-                if (settings_get_adc_channel_range(x))
+                if (settings_get_adc_channel_range(settings_get(), x))
                 {
                     // 60V range
                     channel_offset = 126811146; //60*ADC_MULT_FACTOR_60V;
@@ -782,7 +782,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 if (adcVal > (1<<12)-1) adcVal = (1<<12)-1;
 
                 // Detect type of sensor and conver accordingly
-                if (settings_get_adc_channel_type(x))
+                if (settings_get_adc_channel_type(settings_get(), x))
                 {
                     // ESP_LOGI(TAG_LOG,"temp detected");
                     // calculateTemperatureLUT(&(adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]), ((uint16_t)adcData[j]) | ((uint16_t)adcData[j+1] << 8), (1 << settings_get_resolution()) - 1);
@@ -811,7 +811,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             for (j = 0; j < length; j = j + 2)
             {
                        // The next values are calibrated values
-                if (settings_get_adc_channel_range(x))
+                if (settings_get_adc_channel_range(settings_get(), x))
                 {
                     // Bit == 1
                     channel_offset = 126811146; //60*ADC_MULT_FACTOR_60V;
@@ -831,7 +831,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 if (adcVal > (0xFFF0)-1) adcVal = (0xFFF0)-1;
 
                 // Detect type of sensor and conver accordingly
-                if (settings_get_adc_channel_type(x))
+                if (settings_get_adc_channel_type(settings_get(), x))
                 {
                     // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
                     filtered_value = (int32_t)NTC_ADC2Temperature(adcVal >> 4)*100000L;

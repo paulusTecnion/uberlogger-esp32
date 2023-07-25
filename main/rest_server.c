@@ -193,7 +193,7 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     char buf[5];
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
-        if (settings_get_adc_channel_type(i))
+        if (settings_get_adc_channel_type(settings_get(), i))
         {
             sprintf(buf,"T%d", i);
              cJSON_AddNumberToObject(tValues, buf, live_data.temperatureData[i]);
@@ -355,10 +355,10 @@ const char * logger_settings_to_json(Settings_t *settings)
     {
 
             sprintf(buf,"NTC%d", i);
-            cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(i));
+            cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(settings, i));
 
             sprintf(buf,"AIN%d", i);
-             cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(i));
+             cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
 
     }
     

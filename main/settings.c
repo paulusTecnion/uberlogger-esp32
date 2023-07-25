@@ -29,9 +29,9 @@ void settings_init()
     // adc_mult_factor[ADC_RANGE_60V] = ADC_MULT_FACTOR_60V;
 }
 
-uint8_t settings_get_adc_channel_enabled(adc_channel_t channel)
+uint8_t settings_get_adc_channel_enabled(Settings_t *settings, adc_channel_t channel)
 {
-    return _settings.adc_channels_enabled & (0x01 << channel);
+    return settings->adc_channels_enabled & (0x01 << channel);
 }
 
 esp_err_t settings_set_adc_channel_enabled(adc_channel_t channel, adc_channel_enable_t value)
@@ -50,9 +50,9 @@ uint8_t settings_get_adc_channel_enabled_all()
 }
 
 
-uint8_t settings_get_adc_channel_type(adc_channel_t channel)
+uint8_t settings_get_adc_channel_type(Settings_t *settings, adc_channel_t channel)
 {
-    return _settings.adc_channel_type & (0x01 << channel);
+    return settings->adc_channel_type & (0x01 << channel);
 }
 
 uint8_t settings_get_adc_channel_type_all()
@@ -73,9 +73,9 @@ Settings_t* settings_get(){
     return &_settings;
 }
 
-uint8_t settings_get_adc_channel_range(adc_channel_t channel)
+uint8_t settings_get_adc_channel_range(Settings_t * settings, adc_channel_t channel)
 {
-    return _settings.adc_channel_range & (0x01 << channel);
+    return settings->adc_channel_range & (0x01 << channel);
 }
 
 uint8_t settings_get_adc_channel_range_all()
