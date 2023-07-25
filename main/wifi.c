@@ -137,7 +137,10 @@ esp_err_t wifi_disconnect_ap()
 
 esp_err_t wifi_connect_to_ap(void)
 {
-    wifi_disconnect_ap();
+    if (wifi_disconnect_ap() != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to disconnect from AP");
+    }
     wifi_config_t wifi_config = {
         .sta = {
             /* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (pasword len => 8).
@@ -156,11 +159,11 @@ esp_err_t wifi_connect_to_ap(void)
     strcpy((char*)wifi_config.sta.password, settings_get_wifi_password());
 
     // ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA) );
-    wifi_disconnect_ap();
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
+    
+    esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
     // ESP_ERROR_CHECK(esp_wifi_start() );
     
-    ESP_ERROR_CHECK(esp_wifi_connect() );
+    esp_wifi_connect();
     #ifdef DEBUG_WIFI
     ESP_LOGI(TAG, "wifi_init_sta finished.");
     #endif
