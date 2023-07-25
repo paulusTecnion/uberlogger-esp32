@@ -119,6 +119,7 @@ struct Settings_t {
 	uint16_t adc_offsets_16b[NUM_ADC_CHANNELS];
 	// ADC temp offset value in absolute value
 	uint16_t temp_offsets[NUM_ADC_CHANNELS];
+	uint8_t bootReason;
 };
 
 typedef struct Settings_t Settings_t;
@@ -137,6 +138,10 @@ esp_err_t settings_set_adc_channel_type(adc_channel_t channel, adc_channel_type_
 uint8_t settings_get_adc_channel_range(adc_channel_t channel);
 uint8_t settings_get_adc_channel_range_all();
 esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value);
+
+esp_err_t settings_clear_bootreason();
+uint8_t settings_get_boot_reason();
+uint8_t settings_set_boot_reason(uint8_t reason);
 
 int32_t * settings_get_temp_offsets();
 esp_err_t settings_set_temp_offset(int32_t * offsets);

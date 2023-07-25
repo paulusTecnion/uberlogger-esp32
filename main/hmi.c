@@ -169,8 +169,16 @@ void task_hmi(void* ignore) {
             toggle_green = !toggle_green;
           }
           
-          
         break;
+
+        case LOGTASK_FWUPDATE:
+          if (timerCounter % 3 == 0)
+          {
+            toggle_green = !toggle_green;
+          }
+        break;
+
+
     }
 
     

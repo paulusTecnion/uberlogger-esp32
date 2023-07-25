@@ -93,6 +93,29 @@ esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_rang
     return ESP_OK;
 }
 
+esp_err_t settings_clear_bootreason()
+{
+    _settings.bootReason = 0;
+    if (settings_persist_settings() != ESP_OK)
+    {
+        return ESP_FAIL;
+    }
+    
+    return ESP_OK;
+}
+
+uint8_t settings_get_boot_reason()
+{
+    return _settings.bootReason;
+}
+
+uint8_t settings_set_boot_reason(uint8_t reason)
+{
+    _settings.bootReason = reason;
+    settings_persist_settings();
+    return ESP_OK;
+}
+
 int32_t * settings_get_temp_offsets()
 {
     return (int32_t*)_settings.temp_offsets;
@@ -147,7 +170,7 @@ Settings_t settings_get_default()
     default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     default_settings.adc_channel_range = 0x00; // 10V by default
     default_settings.logMode = LOGMODE_CSV;
-
+    default_settings.bootReason = 0;
     // Get mac address
     char buffer[8];
     wifi_get_trimmed_mac(buffer);
@@ -182,7 +205,7 @@ esp_err_t settings_set_default()
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     _settings.adc_channel_range = 0x00; // 10V by default
     _settings.logMode = LOGMODE_CSV;
-
+    _settings.bootReason = 0;
 
     // Get mac address
     char buffer[8];

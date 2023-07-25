@@ -992,7 +992,7 @@ esp_err_t Logger_startFWupdate()
     // if (xSemaphoreTake(idle_state, 1000 / portTICK_PERIOD_MS) != pdTRUE)
     {
        // #ifdef DEBUG_LOGGING
-        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: putting logger into LOGTASK_FWUPDATEs");
+        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: putting logger into LOGTASK_FWUPDATE..rebooting");
         // #endif
         LoggerState_t t = LOGTASK_FWUPDATE;
         if (xQueueSend(xQueue, &t, 1000 / portTICK_PERIOD_MS) != pdTRUE)
@@ -1014,7 +1014,7 @@ esp_err_t Logger_startFWupdate()
 esp_err_t Logger_startFWflash()
 {
     LoggingState_t t;
-    t = LOGGER_FW_FLASHING_STM;
+    t = LOGGER_FW_START;
     xQueueSend(xQueueFW, &t, 1000 / portTICK_PERIOD_MS);
     return ESP_OK;
 }
@@ -1774,6 +1774,8 @@ void Logtask_fw_update_exit()
 
 void Logtask_fw_update()
 {
+    
+
     while(1)
     {
         if (xQueueReceive(xQueueFW, &_currentFWState, 200 / portTICK_PERIOD_MS) != pdTRUE)
@@ -1784,6 +1786,11 @@ void Logtask_fw_update()
         switch (_currentFWState)
         {    
             case LOGGER_FW_IDLE:            break;
+
+            case LOGGER_FW_START:
+                settings_set_boot_reason(1); 
+                esp_restart();
+            break;
 
             case LOGGER_FW_FLASHING_STM:
             if (esp_sd_card_mount() != ESP_OK)
@@ -1829,18 +1836,20 @@ void Logtask_fw_update()
                 }
             break;
 
+            case LOGGER_FW_ERROR:
             case LOGGER_FW_DONE:
                 esp_sd_card_unmount();
 
+                settings_clear_bootreason();
                 vTaskDelay(3000 / portTICK_PERIOD_MS);
                 esp_restart();
             break;
             // return ESP_OK;
 
-            case LOGGER_FW_ERROR:
+            
 
-            esp_sd_card_unmount();
-            return;
+            // esp_sd_card_unmount();
+            // return;
 
         } // end of case 
 
@@ -1954,6 +1963,15 @@ void task_logging(void * pvParameters)
    // Create queue for tasks
     xQueue = xQueueCreate( 10, sizeof( LoggerState_t ) );
     xQueueFW = xQueueCreate( 10, sizeof( LoggerFWState_t ) );
+
+    if (settings_get_boot_reason() == 1)
+    {
+        settings_clear_bootreason();
+        LoggingState_t t = LOGTASK_FWUPDATE;
+        LoggerFWState_t t2 = LOGGER_FW_FLASHING_STM;
+        xQueueSend(xQueue, &t, 0);
+        xQueueSend(xQueueFW, &t2, 0);
+    }
 
     while(1) {
 
