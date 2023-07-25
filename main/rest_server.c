@@ -499,13 +499,6 @@ static esp_err_t logger_setTime_handler(httpd_req_t *req)
         goto error;
     }
 
-    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
-    {
-        wifi_connect_to_ap();
-        // only send ack in case wifi mode has not changed. Else the next will get stuck
-    } else {
-        wifi_disconnect_ap();
-    }
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
