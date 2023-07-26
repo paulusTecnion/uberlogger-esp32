@@ -34,7 +34,7 @@ uint8_t _stopLogTask = 0;
 
 uint64_t first_tick = 0, first_tick2 = 0;
 
-
+uint8_t userRequestsUnmount = 0;
 uint8_t _dataReceived = 0;
 uint64_t stm32TimerTimeout, currtime_us =0;
 
@@ -1238,7 +1238,82 @@ void Logging_restartSystem()
     _nextLogTaskState = LOGTASK_REBOOT_SYSTEM;
 }
 
+esp_err_t Logger_user_unmount_sdcard()
+{
+    // Check if system is logging now
+    if (_currentLogTaskState == LOGTASK_LOGGING || 
+        esp_sd_card_check_for_card() != ESP_OK)
+    {
+        return ESP_FAIL;
+    } else {
+        userRequestsUnmount = 1;
+        return ESP_OK;
+    }
+}
 
+esp_err_t Logging_check_sdcard()
+{
+    // Check if the SD card is present and mounted. If it's mounted and the user
+    // requested it unmount it, then unmount the card. 
+    // If it's present and not mounted and the user did not unmount it, we should mount it
+    // If it's not present, then we should not do anything.
+    // If it's not present and it was mounted, then we should unmount it.
+    // If it's not present and it was not mounted, then we should not do anything.
+
+    // Check if the SD card is present
+    if (esp_sd_card_check_for_card() == ESP_OK)
+    {
+        // Card is present
+        if (esp_sdcard_is_mounted())
+        {
+            // Card is present and mounted
+            if (!userRequestsUnmount)
+            {
+                // Card is present, mounted and the user did not unmount it
+                // Nothing to do
+                return ESP_OK;
+            } else {
+                // Card is present, mounted and the user did unmount it
+                // Unmount the card
+                ESP_LOGI(TAG_LOG, "Unmounting SD card");
+                esp_sd_card_unmount();
+                return ESP_OK;
+            }
+        } else {
+            // Card is present and not mounted
+            if (!userRequestsUnmount)
+            {
+                // Card is present, not mounted and the user did not unmount it
+                // Mount the card
+                ESP_LOGI(TAG_LOG, "Mounting SD card");
+                esp_sd_card_mount();
+                return ESP_OK;
+            } else {
+                // Card is present, not mounted and the user did unmount it
+                // Nothing to do
+                return ESP_OK;
+            }
+        }
+    } else {
+        // Clear user unmount flag
+        userRequestsUnmount = 0;
+        // Card is not present
+        if (esp_sdcard_is_mounted())
+        {
+            // Card is not present and mounted
+            // Unmount the card
+            ESP_LOGI(TAG_LOG, "Unmounting SD card");
+            esp_sd_card_unmount();
+            
+        } 
+        
+        return ESP_OK;
+        
+
+       
+    }
+   
+}
 
 esp_err_t Logger_logging()
 {   
@@ -1517,56 +1592,6 @@ void Logtask_calibration()
 
             break;
 
-            // case 2:
-            //     // Retrieve the calibration values
-            //     for (calibrationCounter = 0; calibrationCounter < NUM_CALIBRATION_VALUES; calibrationCounter++)
-            //     {
-            //         Logtask_singleShot();
-            //         x= 0;
-            //         ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
-            //         for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i+2)
-            //         {
-            //             calibrationValues[x] += (uint16_t)(((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8) | (uint16_t)spi_msg_1_ptr->adcData[i]); 
-            //             // Sometimes we get zeros here. Quick fix for now.
-                        
-            //             // calibrationValues[i] += adc_buffer_fixed_point[i];
-            //             ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
-            //             x++;
-            //         }
-
-            //         // Sometimes we get zeros here. Quick fix for now.
-            //         if (calibrationValues[--x] == 0)
-            //         {
-            //             calibrationCounter--;
-            //         }
-
-            //         if (calibrationCounter == 10)
-            //         {
-            //             // store calibration values
-            //             for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
-            //             {
-            //                 calibrationValues[i] = calibrationValues[i] / calibrationCounter;
-            //                 ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", i, calibrationValues[i]);
-            //             }
-                        
-            //             settings_set_adc_offset(calibrationValues, ADC_16_BITS);
-                        
-            //             calibrationCounter = 0;
-            //             // go to next state
-            //             calibration = 0;
-            //             settings_persist_settings();
-            //             // go back to setting before calibriation
-            //             settings_set_resolution(last_resolution);
-            //             Logger_syncSettings();
-                        
-            //             settings_print();
-            //             ESP_LOGI(TAG_LOG, "Calibration done");
-            //             // Exit calibration
-            //             return;
-
-            //         } 
-            //     }
-            // break;
         }
     }
 }
@@ -1916,22 +1941,20 @@ void task_logging(void * pvParameters)
     };
 
     gpio_config(&nreset_conf);
-    // gpio_set_direction(GPIO_STM32_NRESET, GPIO_MODE_OUTPUT);
-    // Reset STM32
-    // Logger_resetSTM32();
 
 
-    // gpio_set_direction(STM32_SPI_CS, GPIO_MODE_OUTPUT);
-    // gpio_set_level(STM32_SPI_CS, 0);
+    gpio_set_direction(SDCARD_CD, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(SDCARD_CD, GPIO_PULLDOWN_ENABLE);
+       
+    // Initialize SD card
 
-    
-    // // Initialize SD card
-    if (esp_sd_card_mount() == ESP_OK)
+    if (gpio_get_level(SDCARD_CD)  &&
+        esp_sd_card_mount() == ESP_OK)
     {
         #ifdef DEBUG_LOGTASK
         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
         #endif
-        esp_sd_card_unmount();
+        // esp_sd_card_unmount();
     } 
     
     #ifdef DEBUG_LOGTASK
@@ -1974,6 +1997,9 @@ void task_logging(void * pvParameters)
     }
 
     while(1) {
+
+        // Check if SDCARD is available or not 
+        Logging_check_sdcard();
 
         // Wait for infinite time to do something
         if (xQueueReceive(xQueue, &_currentLogTaskState, 200 / portTICK_PERIOD_MS) != pdTRUE)

@@ -53,11 +53,11 @@ static const char *TAG = "SDCARD";
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO 37
-#define PIN_NUM_MOSI 35
-#define PIN_NUM_CLK  36
-#define PIN_NUM_CS   34
-#define PIN_SD_CD    33
+#define PIN_NUM_MISO SDCARD_SPI_MISO
+#define PIN_NUM_MOSI SDCARD_SPI_MOSI
+#define PIN_NUM_CLK  SDCARD_SPI_CLK
+#define PIN_NUM_CS   SDCARD_SPI_CS
+#define PIN_SD_CD    SDCARD_CD
 #endif //USE_SPI_MODE
 
 
@@ -151,7 +151,7 @@ esp_err_t esp_sd_card_init(void)
     #ifdef DEBUG_SDCARD
     ESP_LOGI(TAG, "Initializing SD card");
     #endif
-    gpio_set_direction(PIN_SD_CD, GPIO_MODE_INPUT);
+    // gpio_set_direction(PIN_SD_CD, GPIO_MODE_INPUT);
 
     // Use settings defined above to initialize SD card and mount FAT filesystem.
     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
@@ -278,14 +278,6 @@ esp_err_t esp_sd_card_format()
 
 esp_err_t esp_sd_card_unmount(void)
 {
-        
-  
-       if (esp_sd_card_check_for_card()) 
-       {
-        ESP_LOGE(TAG, "SD card not inserted!");
-        esp_sd_card_is_mounted = false;
-        return ESP_FAIL;
-       }
 
        if (esp_sd_card_is_mounted)
        {
@@ -337,6 +329,11 @@ uint32_t esp_sd_card_get_free_space()
             ESP_LOGE(TAG, "SD card not available");
             return 0;
         }
+}
+
+uint8_t esp_sdcard_is_mounted()
+{
+    return esp_sd_card_is_mounted;
 }
 
 sdcard_state_t esp_sd_card_get_state()

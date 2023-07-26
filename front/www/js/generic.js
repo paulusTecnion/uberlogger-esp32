@@ -34,6 +34,36 @@ function gotoPage(page, version) {
   location.href = "index.html?page=" + page;
 }
 
+function ejectCard() {
+  $.ajax({
+    method: "POST",
+    url: "ajax/sdcardUnmount",
+
+    success: function (response) {
+      if (response["resp"] == "ack") {
+        alert("SD card ejected");
+        console.log("Card ejected, response=" + JSON.stringify(response));
+      } else {
+        alert(
+          "Error: cannot eject card while logger. Response: " +
+            response["reason"] +
+            "."
+        );
+        console.log(
+          "SDCARD Ejection failed, response=" + JSON.stringify(response)
+        );
+      }
+    },
+
+    error: function (response) {
+      alert(
+        "Error: could not eject SD card, response=" + JSON.stringify(response)
+      );
+      console.log("Failed, response=" + JSON.stringify(response));
+    },
+  });
+}
+
 //
 function getValues() {
   query = "getValues";
@@ -231,6 +261,9 @@ function populateFields(parent, data) {
       } else {
         $ctrl.html(Number(value).toFixed(2));
       }
+    } else if ($ctrl.is("a")) {
+      $ctrl[0].innerHTML = value;
+      $ctrl[0].setAttribute("href", "http://" + value);
     }
   });
 }

@@ -9,6 +9,7 @@ typedef enum sdcard_state_e  {
 esp_err_t esp_sd_card_init();
 esp_err_t esp_sd_card_unmount(void);
 esp_err_t esp_sd_card_mount(void);
+uint8_t esp_sdcard_is_mounted(void);
 
 // esp_sd_card_check_for_card() returns 0 when card detected and 1 when none is detected.
 uint8_t esp_sd_card_check_for_card();

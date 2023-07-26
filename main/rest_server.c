@@ -784,6 +784,19 @@ static esp_err_t Logger_stop_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t  Logger_sdcard_unmount_handler(httpd_req_t *req)
+{
+    if(Logger_user_unmount_sdcard() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+    }   else {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger logging or sd card not inserted");
+    }
+
+    return ESP_OK;
+}
+
+
 // static esp_err_t logger_wifi_status_handler(httpd_req_t *req)
 // {
 //     httpd_resp_set_type(req, "application/json");
@@ -858,7 +871,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 14;
+    config.max_uri_handlers = 16;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -952,6 +965,15 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &logger_start_uri);
 
+    // Create endpoint for sdcard unmount
+    httpd_uri_t sdcard_unmount_uri = {
+        .uri = "/ajax/sdcardUnmount",
+        .method = HTTP_POST,
+        .handler = Logger_sdcard_unmount_handler,
+        .user_ctx = rest_context
+    };
+
+     httpd_register_uri_handler(server, &sdcard_unmount_uri);
 
     /* URI handler for getting uploaded files */
     httpd_uri_t file_download = {

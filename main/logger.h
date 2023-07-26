@@ -185,6 +185,7 @@ uint8_t Logger_getFWState();
 void  Logger_resetSTM32();
 void Logging_restartSystem();
 
+esp_err_t Logger_user_unmount_sdcard();
 
 void Logger_GetSingleConversion(converted_reading_t* data);
 

@@ -30,15 +30,19 @@
                     <span id="WIFI_TEST_RSSI" name="SD_CARD_STATUS">-</span>
                   </td>
                 </tr>
+
                 <tr>
                   <td>Logger status:</td>
                   <td><span name="LOGGER_STATE">-</span></td>
-                  <td>SD-card free space:</td>
-                  <td><span name="SD_CARD_FREE_SPACE">-</span></td>
+                  <td>Eject card</td>
+                  <td><button onclick="ejectCard()">&#9167;</button></td>
                 </tr>
+
                 <tr>
                   <td>Logger error:</td>
                   <td><span name="ERRORCODE">-</span></td>
+                  <td>SD-card free space:</td>
+                  <td><span name="SD_CARD_FREE_SPACE">-</span></td>
                 </tr>
               </table>
             </div>
