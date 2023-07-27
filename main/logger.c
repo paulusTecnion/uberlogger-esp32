@@ -1253,65 +1253,36 @@ esp_err_t Logger_user_unmount_sdcard()
 
 esp_err_t Logging_check_sdcard()
 {
-    // Check if the SD card is present and mounted. If it's mounted and the user
-    // requested it unmount it, then unmount the card. 
-    // If it's present and not mounted and the user did not unmount it, we should mount it
-    // If it's not present, then we should not do anything.
-    // If it's not present and it was mounted, then we should unmount it.
-    // If it's not present and it was not mounted, then we should not do anything.
-
-    // Check if the SD card is present
+    // Check if sd card is inserted
     if (esp_sd_card_check_for_card() == ESP_OK)
     {
-        // Card is present
-        if (esp_sdcard_is_mounted())
+        // Sd card inserted, mounted and user wants to unmount
+        if (esp_sdcard_is_mounted() && userRequestsUnmount)
         {
-            // Card is present and mounted
-            if (!userRequestsUnmount)
-            {
-                // Card is present, mounted and the user did not unmount it
-                // Nothing to do
-                return ESP_OK;
-            } else {
-                // Card is present, mounted and the user did unmount it
-                // Unmount the card
-                ESP_LOGI(TAG_LOG, "Unmounting SD card");
-                esp_sd_card_unmount();
-                return ESP_OK;
-            }
-        } else {
-            // Card is present and not mounted
-            if (!userRequestsUnmount)
-            {
-                // Card is present, not mounted and the user did not unmount it
-                // Mount the card
-                ESP_LOGI(TAG_LOG, "Mounting SD card");
-                esp_sd_card_mount();
-                return ESP_OK;
-            } else {
-                // Card is present, not mounted and the user did unmount it
-                // Nothing to do
-                return ESP_OK;
-            }
-        }
-    } else {
-        // Clear user unmount flag
-        userRequestsUnmount = 0;
-        // Card is not present
-        if (esp_sdcard_is_mounted())
-        {
-            // Card is not present and mounted
-            // Unmount the card
             ESP_LOGI(TAG_LOG, "Unmounting SD card");
             esp_sd_card_unmount();
-            
         } 
-        
-        return ESP_OK;
-        
-
-       
+        // sd card inserted and not mounted and last user action was not to unmount it => Mount it
+        else if (!esp_sdcard_is_mounted() && !userRequestsUnmount)
+        {
+            ESP_LOGI(TAG_LOG, "Mounting SD card");
+            esp_sd_card_mount();
+        }
+    } 
+    else 
+    {
+        // No sd card inserted. 
+        // clear userRequestsUnmount
+        userRequestsUnmount = 0;
+        // if sd card was mounted, then unmount it. 
+        if (esp_sdcard_is_mounted())
+        {
+            ESP_LOGI(TAG_LOG, "Unmounting SD card");
+            esp_sd_card_unmount();
+        }
     }
+   
+    return ESP_OK;
    
 }
 
