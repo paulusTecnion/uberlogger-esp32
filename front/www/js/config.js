@@ -203,7 +203,7 @@ function setConfig() {
     LOG_SAMPLE_RATE: input["LOG_SAMPLE_RATE"],
     ADC_RESOLUTION: input["ADC_RESOLUTION"],
     LOG_MODE: input["LOG_MODE"],
-
+    WIFI_CHANNEL: input["WIFI_CHANNEL"],
     NTC_SELECT: {
       NTC0: input["NTC0"],
       NTC1: input["NTC1"],
