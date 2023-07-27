@@ -41,8 +41,8 @@ function ejectCard() {
 
     success: function (response) {
       if (response["resp"] == "ack") {
-        alert("SD card ejected");
-        console.log("Card ejected, response=" + JSON.stringify(response));
+        alert("SD card unmounted. You can eject the card now.");
+        console.log("Card unmounted, response=" + JSON.stringify(response));
       } else {
         alert(
           "Error: cannot eject card while logger. Response: " +
