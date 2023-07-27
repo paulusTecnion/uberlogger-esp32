@@ -1605,12 +1605,12 @@ void Logtask_logging()
     spi_cmd_t spi_cmd;
     uint8_t finalwrite = 0;
 
-    if (esp_sd_card_mount() == ESP_OK)
+    if (esp_sdcard_is_mounted() )
     {
 
         if (Logger_check_sdcard_free_space() != ESP_OK)
         {
-            esp_sd_card_unmount();
+            // esp_sd_card_unmount();
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
             // push error to queue?
             // ...
@@ -1623,7 +1623,7 @@ void Logtask_logging()
         fileman_reset_subnum();
         if (fileman_open_file() != ESP_OK)
         { 
-            esp_sd_card_unmount();
+            // esp_sd_card_unmount();
             SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
             return;
             // push error to queue?
@@ -1751,7 +1751,7 @@ void Logtask_logging()
         {
             Logger_flush_to_sdcard();
             fileman_close_file();
-            esp_sd_card_unmount();
+            // esp_sd_card_unmount();
             vTaskDelay(500 / portTICK_PERIOD_MS);
             // Exit the logging function
             ESP_LOGI(TAG_LOG, "Logtask_logging() exiting..");
