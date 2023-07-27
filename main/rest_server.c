@@ -134,6 +134,11 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
         httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
     }
 
+    if (CHECK_FILE_EXTENSION(filepath, ".json"))
+    {
+        httpd_resp_set_type(req, "text/json");
+    }
+
     char *chunk = rest_context->scratch;
     ssize_t read_bytes;
     do {
@@ -188,7 +193,7 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     char buf[5];
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
-        if (settings_get_adc_channel_type(i))
+        if (settings_get_adc_channel_type(settings_get(), i))
         {
             sprintf(buf,"T%d", i);
              cJSON_AddNumberToObject(tValues, buf, live_data.temperatureData[i]);
@@ -223,7 +228,34 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", Logger_getLastFreeSpace());
 
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
+    
+    uint8_t wifi_state = 0;
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
+    {
+        if (wifi_is_connected_to_ap())
+        {
+            wifi_state = 3;
 
+        } else if (wifi_ap_connection_failed())
+        {
+            wifi_state = 2;
+        } else {
+            wifi_state = 1;
+        }
+    } 
+    
+    cJSON_AddNumberToObject(root, "WIFI_TEST_STATUS", wifi_state);
+    
+    if (wifi_is_connected_to_ap())
+    {
+        char buffer[20];
+        wifi_get_ip(buffer);
+        cJSON_AddStringToObject(root, "WIFI_TEST_IP", buffer);
+        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", wifi_get_rssi());
+    } else {
+        cJSON_AddStringToObject(root, "WIFI_TEST_IP", "0.0.0.0");
+        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", 0);
+    }
 
     
     const char *settings_json= cJSON_Print(root);
@@ -265,6 +297,37 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 
+     uint8_t wifi_state = 0;
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
+    {
+        if (wifi_is_connected_to_ap())
+        {
+            // connected
+            wifi_state = 3;
+
+        } else if (wifi_ap_connection_failed())
+        {
+            // Connection failed
+            wifi_state = 2;
+        } else {
+            // Connecting...
+            wifi_state = 1;
+        }
+    } 
+    
+    cJSON_AddNumberToObject(root, "WIFI_TEST_STATUS", wifi_state);
+    
+    if (wifi_is_connected_to_ap())
+    {
+        char buffer[20];
+        wifi_get_ip(buffer);
+        cJSON_AddStringToObject(root, "WIFI_TEST_IP", buffer);
+        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", wifi_get_rssi());
+    } else {
+        cJSON_AddStringToObject(root, "WIFI_TEST_IP", "0.0.0.0");
+        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", 0);
+    }
+
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
     free((void *)settings_json);
@@ -292,20 +355,20 @@ const char * logger_settings_to_json(Settings_t *settings)
     {
 
             sprintf(buf,"NTC%d", i);
-            cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(i));
+            cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(settings, i));
 
             sprintf(buf,"AIN%d", i);
-             cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(i));
+             cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
 
     }
     
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
     cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
-    if (settings->wifi_mode == WIFI_MODE_APSTA)
+    if (settings->wifi_mode == WIFI_MODE_AP)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 0);
-    } else if (settings->wifi_mode == WIFI_MODE_STA)
+    } else if (settings->wifi_mode == WIFI_MODE_APSTA)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 1);
     }
@@ -321,6 +384,32 @@ const char * logger_settings_to_json(Settings_t *settings)
     cJSON_Delete(root);
 
     return strptr;
+}
+
+
+static esp_err_t logger_filebrowserFormat_handler(httpd_req_t *req)
+{
+    return Logger_format_sdcard();
+}
+
+static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+ 
+    Settings_t settings = settings_get_default();
+    const char * settings_json = NULL;
+    settings_json = logger_settings_to_json(&settings);
+    if (settings_json == NULL)
+    {
+        return ESP_FAIL;
+    }
+
+    httpd_resp_sendstr(req, settings_json);
+    httpd_resp_sendstr_chunk(req, NULL);
+    free((void *)settings_json);
+    
+    
+    return ESP_OK;
 }
 
 static esp_err_t logger_getConfig_handler(httpd_req_t *req)
@@ -410,13 +499,6 @@ static esp_err_t logger_setTime_handler(httpd_req_t *req)
         goto error;
     }
 
-    if (settings_get_wifi_mode() == WIFI_MODE_STA)
-    {
-        wifi_connect_to_ap();
-        // only send ack in case wifi mode has not changed. Else the next will get stuck
-    } else {
-        wifi_disconnect_ap();
-    }
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
@@ -551,12 +633,12 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (item->valueint == 0)
         {
             // Wifi ap mode
-            settings_set_wifi_mode(WIFI_MODE_APSTA);
+            settings_set_wifi_mode(WIFI_MODE_AP);
         } 
         else if (item->valueint == 1)
         {
-            // Wifi station mode
-            settings_set_wifi_mode(WIFI_MODE_STA);
+            // Wifi ap/station mode
+            settings_set_wifi_mode(WIFI_MODE_APSTA);
         }
     }
 
@@ -643,13 +725,15 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         goto error;
     }
 
-    if (settings_get_wifi_mode() == WIFI_MODE_STA)
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
     {
         wifi_connect_to_ap();
         // only send ack in case wifi mode has not changed. Else the next will get stuck
     } else {
         wifi_disconnect_ap();
     }
+
+
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
@@ -701,6 +785,19 @@ static esp_err_t Logger_stop_handler(httpd_req_t *req)
     
     return ESP_OK;
 }
+
+esp_err_t  Logger_sdcard_unmount_handler(httpd_req_t *req)
+{
+    if(Logger_user_unmount_sdcard() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+    }   else {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger logging or sd card not inserted");
+    }
+
+    return ESP_OK;
+}
+
 
 // static esp_err_t logger_wifi_status_handler(httpd_req_t *req)
 // {
@@ -776,7 +873,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 13;
+    config.max_uri_handlers = 16;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -789,6 +886,25 @@ esp_err_t start_rest_server(const char *base_path)
     //     .handler = logger_wifi_status_handler,
     //     .user_ctx = rest_context
     // };
+
+    httpd_uri_t logger_filebrowserFormat_uri = {
+        .uri = "/ajax/filebrowserFormat",
+        .method = HTTP_GET,
+        .handler = logger_filebrowserFormat_handler,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_filebrowserFormat_uri);
+
+
+    httpd_uri_t logger_getDefaultConfig_uri = {
+        .uri = "/ajax/getDefaultConfig",
+        .method = HTTP_GET,
+        .handler = logger_getDefaultConfig,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_getDefaultConfig_uri);
 
     httpd_uri_t logger_getConfig_uri = {
         .uri = "/ajax/getConfig",
@@ -851,6 +967,15 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &logger_start_uri);
 
+    // Create endpoint for sdcard unmount
+    httpd_uri_t sdcard_unmount_uri = {
+        .uri = "/ajax/sdcardUnmount",
+        .method = HTTP_POST,
+        .handler = Logger_sdcard_unmount_handler,
+        .user_ctx = rest_context
+    };
+
+     httpd_register_uri_handler(server, &sdcard_unmount_uri);
 
     /* URI handler for getting uploaded files */
     httpd_uri_t file_download = {

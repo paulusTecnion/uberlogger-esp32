@@ -1,412 +1,379 @@
 /* generic styling */
-body
-{
-	background:hsl(215, 30%, 40%);
-	/*background:#ddd;*/
+body {
+  background: hsl(215, 30%, 40%);
+  /*background:#ddd;*/
 
-	font-family: Helvetica, Arial, sans-serif;
-	font-size:16px;
-	text-align:center;
-	line-height:130%;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  text-align: center;
+  line-height: 130%;
 
-	color:#000;	
-	margin:0 auto 0 auto;
-	min-width:500px;
-	max-width:95%;
+  color: #000;
+  margin: 0 auto 0 auto;
+  min-width: 500px;
+  max-width: 95%;
 }
 
-#shadow_top
-{
-	display:block;
-	height:30px;
-	margin:0;
-	width:auto;
-	background-image:url("top.png");
-	background-position:bottom;
-	background-repeat:no-repeat;
-	background-size:contain;
+#shadow_top {
+  display: block;
+  height: 30px;
+  margin: 0;
+  width: auto;
+  background-image: url("top.png");
+  background-position: bottom;
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
-#shadow_bottom
-{
-	display:block;
-	height:30px;
-	margin:0;
-	width:auto;
-	background-image:url("bottom.png");
-	background-position:top;
-	background-repeat:no-repeat;
-	background-size:contain;
+#shadow_bottom {
+  display: block;
+  height: 30px;
+  margin: 0;
+  width: auto;
+  background-image: url("bottom.png");
+  background-position: top;
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
-#content
-{
-	text-align:left;
-	padding:30px 2px 40px 2px;
+#content {
+  text-align: left;
+  padding: 30px 2px 40px 2px;
 }
 
-#window
-{
-	border-radius: 10px;
-	background:#fff;
-	width:auto;
-	box-shadow: 0 20px 10px -10px rgba(0, 0, 0, 0.4), 0 -20px 10px -10px rgba(0, 0, 0, 0.4);
+#window {
+  border-radius: 10px;
+  background: #fff;
+  width: auto;
+  box-shadow: 0 20px 10px -10px rgba(0, 0, 0, 0.4),
+    0 -20px 10px -10px rgba(0, 0, 0, 0.4);
 }
 
-#top
-{
-	width:auto;
+#top {
+  width: auto;
 }
-
-
 
 /* title bar and logo */
-#toptitle
-{
-	padding:15px 20px 15px 20px;
-	text-align: left;
-	border-radius: 10px;
-	background-color: hsl(215, 50%, 100%);
+#toptitle {
+  padding: 15px 20px 15px 20px;
+  text-align: left;
+  border-radius: 10px;
+  background-color: hsl(215, 50%, 100%);
 
-    display: flex;
-	flex-flow: row wrap;
-    justify-content: space-between;
-	gap: 10px 10px;
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: space-between;
+  gap: 10px 10px;
 }
 
-#toptitle .left
-{
-    align-self: left;
+#toptitle .left {
+  align-self: left;
 }
 
-#toptitle .left h1
-{
-	font-size:180%;
-	font-weight:800;
-	letter-spacing: 3px;
-	color: hsl(215, 30%, 20%);
-	text-shadow: 3px 3px 5px #999;
-	margin: 0px;
+#toptitle .left h1 {
+  font-size: 180%;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: hsl(215, 30%, 20%);
+  text-shadow: 3px 3px 5px #999;
+  margin: 0px;
 }
 
-#toptitle .left p
-{
-	font-size:120%;
-	font-weight:400;
-	letter-spacing: 2.3px;
-	color: hsl(215, 30%, 30%);
-	text-shadow: 3px 3px 5px #bbb;
-	font-style:italic;
-	margin: 10px 0 0 0;
+#toptitle .left p {
+  font-size: 120%;
+  font-weight: 400;
+  letter-spacing: 2.3px;
+  color: hsl(215, 30%, 30%);
+  text-shadow: 3px 3px 5px #bbb;
+  font-style: italic;
+  margin: 10px 0 0 0;
 }
 
-
-#toptitle .status
-{
-	width: 480px;
+#toptitle .status {
+  width: 480px;
 
   align-self: right;
 
-	text-align:left;
-	font-size: 12px;
-	padding: 2px;
+  text-align: left;
+  font-size: 12px;
+  padding: 2px;
 }
 
 #toptitle .status tr,
-#toptitle .status td
-{
-	border: none;
-	margin: 0;
-	padding: 0 10px 0 5px;
+#toptitle .status td {
+  border: none;
+  margin: 0;
+  padding: 0 10px 0 5px;
 }
-
-
 
 /* menubar */
-#topmenubar
-{
-	display:block;
-	border-radius: 10px;
-	background-color:hsl(215, 30%, 85%);
-	padding:10px 10px;
+#topmenubar {
+  display: block;
+  border-radius: 10px;
+  background-color: hsl(215, 30%, 85%);
+  padding: 10px 10px;
 
-	margin:0 10px 30px 10px;
-	box-shadow: 0px 0px 5px 0px hsl(215, 30%, 50%, 0.2);
-
+  margin: 0 10px 30px 10px;
+  box-shadow: 0px 0px 5px 0px hsl(215, 30%, 50%, 0.2);
 }
 
-#topmenubar button
-{
-	background-color: hsl(215, 30%, 30%);
-	border: 2px solid  hsl(215, 30%, 30%);
-	color: white;
+#topmenubar button {
+  background-color: hsl(215, 30%, 30%);
+  border: 2px solid hsl(215, 30%, 30%);
+  color: white;
 
-	border-radius: 10px;
-	font-size: 105%;
-	text-align: center;
-	text-decoration: none;
+  border-radius: 10px;
+  font-size: 105%;
+  text-align: center;
+  text-decoration: none;
 
-	display: inline-block;
-	margin: 0 5px 0 0;
-	height: 40px;
+  display: inline-block;
+  margin: 0 5px 0 0;
+  height: 40px;
 }
 
 #topmenubar button.selected {
-	background-color: #fff;
-	color: black;
+  background-color: #fff;
+  color: black;
 }
 
 #topmenubar button:hover {
-	background-color: hsl(215, 30%, 45%);
-	color: white;
+  background-color: hsl(215, 30%, 45%);
+  color: white;
 }
 
-
 /* render window where page is loaded into */
-#render
-{
-	border-radius: 10px;
-	margin: 0 10px;
+#render {
+  border-radius: 10px;
+  margin: 0 10px;
 }
 
 /* footer */
-#footer
-{
-	clear:both;
-	color:#999;
-	text-align:center;
+#footer {
+  clear: both;
+  color: #999;
+  text-align: center;
 
-	border-top:2px dotted #ccc;
-	margin: 15px 15px 0 15px;
-	padding-top: 10px;
-	padding-bottom: 10px;
-	font-size: 85%;
+  border-top: 2px dotted #ccc;
+  margin: 15px 15px 0 15px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-size: 85%;
 }
 
-img
-{
-	border:none;
+img {
+  border: none;
 }
-
-
 
 /* styling of text */
-h1
-{
-	font-size:160%;
-	font-weight:400;
+h1 {
+  font-size: 160%;
+  font-weight: 400;
 
-	color:hsl(215, 30%, 10%);
-	margin:0 0 10px 0;
+  color: hsl(215, 30%, 10%);
+  margin: 0 0 10px 0;
 }
 
-h2
-{
-	padding-top: 10px;
-	padding-bottom: 5px;
-	border-bottom:2px dotted #ccc;
-	font-size:140%;
-	font-weight:400;
-	color:hsl(215, 30%, 30%);
-	margin:25px 0 10px 0;
+h2 {
+  padding-top: 10px;
+  padding-bottom: 5px;
+  border-bottom: 2px dotted #ccc;
+  font-size: 140%;
+  font-weight: 400;
+  color: hsl(215, 30%, 30%);
+  margin: 25px 0 10px 0;
 }
 
-h2.first
-{
-	margin-top: 0px; 
+h2.first {
+  margin-top: 0px;
 }
 
-h3
-{
-	padding-top: 10px;
-	font-size:120%;
-	font-weight:400;
-	color:hsl(215, 30%, 30%);
-	text-decoration-line: underline;
-	text-decoration-style: line;
-	text-decoration-color: #ccc;
-	margin:15px 0 15px 0;
+h3 {
+  padding-top: 10px;
+  font-size: 120%;
+  font-weight: 400;
+  color: hsl(215, 30%, 30%);
+  text-decoration-line: underline;
+  text-decoration-style: line;
+  text-decoration-color: #ccc;
+  margin: 15px 0 15px 0;
 }
 
-h3.first
-{
-	margin-top:0px;
+h3.first {
+  margin-top: 0px;
 }
 
-
-p
-{
-	margin:5px 0 10px;
+p {
+  margin: 5px 0 10px;
 }
 
-
-li
-{
-	margin-bottom: 15px;
+li {
+  margin-bottom: 15px;
 }
-
 
 /* div groups and options */
-.group
-{
-	display: block;
-	/*border-bottom:2px dotted #ccc;*/
-	/*padding-bottom:10px;*/
+.group {
+  display: block;
+  /*border-bottom:2px dotted #ccc;*/
+  /*padding-bottom:10px;*/
 }
 
-.group.last
-{
-	border-bottom:none;
+.group.last {
+  border-bottom: none;
 }
 
-.group p{
-	margin:0.1em 0 1em 0;
+.group p {
+  margin: 0.1em 0 1em 0;
 }
 
-.invisible
-{
-	display: none;
+.invisible {
+  display: none;
 }
 
-.visible
-{
-	display: block;
+.visible {
+  display: block;
 }
 
-.greybox
-{
-	background-color: hsl(215, 30%, 95%);
-	border: 0;
-	border-radius: 10px;
-	padding: 10px 10px;
+.greybox {
+  background-color: hsl(215, 30%, 95%);
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 10px;
 }
 
-.block
-{
-	display:inline-block;
-	margin: 5px 5px;
-	vertical-align: top;
+.block {
+  display: inline-block;
+  margin: 5px 5px;
+  vertical-align: top;
 }
-
-
 
 /* tables */
-table
-{
+table {
   border-collapse: collapse;
 }
 
-td, th
-{
-	border-color:#ddd;
-	border-style: solid;
-	border-width: 2px;
-	padding: 10px;
+td,
+th {
+  border-color: #ddd;
+  border-style: solid;
+  border-width: 2px;
+  padding: 10px;
 }
-
-
 
 /* form inputs/labels */
-label
-{
-	clear:both;
-	display:block;
-	line-height: 1.4em;
-	padding: 6px 0 2px 0;
+label {
+  clear: both;
+  display: block;
+  line-height: 1.4em;
+  padding: 6px 0 2px 0;
 }
 
-label.choice
-{
-	clear:both;
-	display:block;
-	line-height: 1.4em;
-	margin: -30px 0 0 25px;
-	padding: 0 0 15px 0;
+label.choice {
+  clear: both;
+  display: block;
+  line-height: 1.4em;
+  margin: -30px 0 0 25px;
+  padding: 0 0 15px 0;
 }
 
-label.checkbox
-{
-	clear:both;
-	display:block;
-	line-height: 1.4em;
-	margin: -30px 0 0 25px;
-	padding: 0 0 8px 0;
+label.checkbox {
+  clear: both;
+  display: block;
+  line-height: 1.4em;
+  margin: -30px 0 0 25px;
+  padding: 0 0 8px 0;
 }
 
-
-input[type=text]
-{
-	width: 90%;
-	margin: 2px 0 8px 0;
-	padding: .25rem;	
+input[type="text"] {
+  width: 90%;
+  margin: 2px 0 8px 0;
+  padding: 0.25rem;
 }
 
-input[type=submit]
-{
-	margin: 10px 0 5px 0;
-	height: 40px;
+input[type="submit"] {
+  margin: 10px 0 5px 0;
+  height: 40px;
 }
 
-input[type=button]
-{
-	margin: 10px 0 5px 0;
-	height: 40px;
+input[type="button"] {
+  margin: 10px 0 5px 0;
+  height: 40px;
 }
 
-input[type=checkbox]
-{
-	margin: 0 0 0 0;
-	height: 30px;
-	vertical-align: center;	
+input[type="checkbox"] {
+  margin: 0 0 0 0;
+  height: 30px;
+  vertical-align: center;
 }
 
-input[type=radio]
-{
-	margin: 0 0 0 0;
-	height: 35px;
-	vertical-align: top;
+input[type="radio"] {
+  margin: 0 0 0 0;
+  height: 35px;
+  vertical-align: top;
 }
 
-.button
-{
-	margin: 10px 0 5px 0;
-	height: 40px;
+.button {
+  margin: 10px 0 5px 0;
+  height: 40px;
 }
 
-
-
-
-.flexcontainer{
-	display: flex;
-	flex-flow: row wrap;
-	gap: 20px;
+.flexcontainer {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 20px;
 }
 
-.flexdiv-sm{
-	flex-basis: 320px;
-	flex-grow: 1;
+.flexdiv-sm {
+  flex-basis: 320px;
+  flex-grow: 1;
 }
-.flexdiv-md{
-	flex-basis: 480px;
-	flex-grow: 2;
+.flexdiv-md {
+  flex-basis: 480px;
+  flex-grow: 2;
 }
-.flexdiv-lg{
-	flex-basis: 640px;
-	flex-grow: 3;
+.flexdiv-lg {
+  flex-basis: 640px;
+  flex-grow: 3;
 }
-
 
 /* liveview layout */
 #values {
-	flex-basis: 480px;
+  flex-basis: 480px;
 }
 
 #plot {
-	flex-grow: 2;
-	flex-basis: 800px;
+  flex-grow: 2;
+  flex-basis: 800px;
 }
 
-#plotly
-{
-	height: 75vh;
+#plotly {
+  height: 75vh;
+}
+
+.check {
+  -webkit-appearance: none; /*hides the default checkbox*/
+  height: 20px;
+  width: 20px;
+  background-color: #fe0006;
+  text-align: center;
+  font-weight: 600;
+  color: white;
+  border-radius: 3px;
+  outline: none;
+}
+
+.check:checked {
+  background-color: #0e9700;
+}
+
+.check:before {
+  content: "✖";
+}
+.check:checked:before {
+  content: "✔";
+}
+
+.check:hover {
+  cursor: pointer;
+  opacity: 0.8;
 }

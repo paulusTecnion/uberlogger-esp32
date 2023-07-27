@@ -7,12 +7,16 @@
 #include "esp_vfs_fat.h"
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
+#include "ff.h"
+#include "vfs_fat_internal.h"
 
 #include "sdmmc_cmd.h"
 #include "sdkconfig.h"
 #include "esp_sd_card.h"
 #include "../../main/config.h"
 #include "../../main/logger.h"
+#include "../../main/errorcodes.h"
+
 
 #ifdef CONFIG_IDF_TARGET_ESP32
 #include "driver/sdmmc_host.h"
@@ -50,11 +54,11 @@ static const char *TAG = "SDCARD";
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO 37
-#define PIN_NUM_MOSI 35
-#define PIN_NUM_CLK  36
-#define PIN_NUM_CS   34
-#define PIN_SD_CD    33
+#define PIN_NUM_MISO SDCARD_SPI_MISO
+#define PIN_NUM_MOSI SDCARD_SPI_MOSI
+#define PIN_NUM_CLK  SDCARD_SPI_CLK
+#define PIN_NUM_CS   SDCARD_SPI_CS
+#define PIN_SD_CD    SDCARD_CD
 #endif //USE_SPI_MODE
 
 
@@ -76,6 +80,9 @@ esp_vfs_fat_sdmmc_mount_config_t mount_config = {
 
 static bool esp_sd_spi_is_initialized = false;
 static bool esp_sd_card_is_mounted = false;
+// Need to change this:
+extern uint32_t _errorCode;
+
 
 esp_err_t esp_sd_card_mount()
 {
@@ -91,6 +98,8 @@ esp_err_t esp_sd_card_mount()
         return ESP_FAIL;
     }
 
+  
+
     if (esp_sd_card_is_mounted)
     {
         #ifdef DEBUG_SDCARD
@@ -98,6 +107,9 @@ esp_err_t esp_sd_card_mount()
         #endif
         return ESP_OK;
     }
+
+    // Clear mount error, if any 
+    CLEAR_BIT(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
 
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
@@ -148,7 +160,7 @@ esp_err_t esp_sd_card_init(void)
     #ifdef DEBUG_SDCARD
     ESP_LOGI(TAG, "Initializing SD card");
     #endif
-    gpio_set_direction(PIN_SD_CD, GPIO_MODE_INPUT);
+    // gpio_set_direction(PIN_SD_CD, GPIO_MODE_INPUT);
 
     // Use settings defined above to initialize SD card and mount FAT filesystem.
     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
@@ -217,30 +229,81 @@ esp_err_t esp_sd_card_init(void)
     return ESP_OK;
     
 }
+/**
+ * From: https://gist.github.com/dizcza/a35d8c1d09450369ed2f08f6803b5101
+ * 
+ * Usage:
+ *   // See https://github.com/espressif/esp-idf/blob/b63ec47238fd6aa6eaa59f7ad3942cbdff5fcc1f/examples/storage/sd_card/sdmmc/main/sd_card_example_main.c#L75
+ *   esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_config, &mount_config, &card);
+ *   format_sdcard(card);
+ *   // proceed without remounting
+ */
+esp_err_t esp_sd_card_format()
+{
+
+    if (esp_sd_card_check_for_card()) {
+        ESP_LOGE("sdcard", "SD card not inserted!");
+        return ESP_FAIL;
+    }
+
+    // check if it's mounted 
+    if (!esp_sd_card_is_mounted) {
+        if (esp_sd_card_mount() != ESP_OK)
+        {
+            return ESP_FAIL;
+        }   
+    }
+
+	char drv[3] = {'0', ':', 0};
+    const size_t workbuf_size = 4096;
+    void* workbuf = NULL;
+    esp_err_t err = ESP_OK;
+    ESP_LOGW("sdcard", "Formatting the SD card");
+
+    size_t allocation_unit_size = 16 * 1024;
+
+    workbuf = ff_memalloc(workbuf_size);
+    if (workbuf == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+
+    size_t alloc_unit_size = esp_vfs_fat_get_allocation_unit_size(
+                card->csd.sector_size,
+                allocation_unit_size);
+
+    const MKFS_PARM opt = {(BYTE)FM_ANY, 0, 0, 0, alloc_unit_size};
+    FRESULT res = f_mkfs(drv, &opt, workbuf, workbuf_size);
+    if (res != FR_OK) {
+        err = ESP_FAIL;
+        ESP_LOGE("sdcard", "f_mkfs failed (%d)", res);
+    }
+
+    free(workbuf);
+
+    // ESP_LOGI("sdcard", "Successfully formatted the SD card");
+
+    return err;
+}
 
 esp_err_t esp_sd_card_unmount(void)
 {
-  
-       if (esp_sd_card_check_for_card()) 
-       {
-        ESP_LOGE(TAG, "SD card not inserted!");
-        esp_sd_card_is_mounted = false;
-        return ESP_FAIL;
-       }
 
-       if (esp_sd_card_is_mounted)
-       {
-        esp_vfs_fat_sdcard_unmount(mount_point, card);
-        #ifdef DEBUG_SDCARD
-        ESP_LOGI(TAG, "File closed and card unmounted");
-        #endif
-        esp_sd_card_is_mounted = false;
-        return ESP_OK;
-       } else {
-        ESP_LOGE(TAG, "SD card not mounted!");
-        return ESP_FAIL;
-       }
-        
+    // Clear mount error, if any 
+    CLEAR_BIT(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
+
+    if (esp_sd_card_is_mounted)
+    {
+    esp_vfs_fat_sdcard_unmount(mount_point, card);
+    #ifdef DEBUG_SDCARD
+    ESP_LOGI(TAG, "File closed and card unmounted");
+    #endif
+    esp_sd_card_is_mounted = false;
+    return ESP_OK;
+    } else {
+    ESP_LOGE(TAG, "SD card not mounted!");
+    return ESP_FAIL;
+    }
+    
 }
 
 
@@ -278,6 +341,11 @@ uint32_t esp_sd_card_get_free_space()
             ESP_LOGE(TAG, "SD card not available");
             return 0;
         }
+}
+
+uint8_t esp_sdcard_is_mounted()
+{
+    return esp_sd_card_is_mounted;
 }
 
 sdcard_state_t esp_sd_card_get_state()

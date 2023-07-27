@@ -12,15 +12,21 @@
 //                                     int32_t event_id, void* event_data);
 
 esp_err_t wifi_connect_to_ap(void);
-esp_err_t wifi_is_connected_to_ap();
+uint8_t wifi_ap_connection_failed();
+uint8_t wifi_is_connected_to_ap();
 
 // Returns the first 4 bytes of the mac address in HEX form as string.
 esp_err_t wifi_get_trimmed_mac(char * str);
 esp_err_t wifi_init();
 int8_t wifi_get_rssi();
+
+void wifi_get_ip(char * str);
 esp_err_t wifi_print_ip();
 /// @brief Starts the wifi. Stops it as well if it is already running and then restarts it according to the wifi mode setting.
 /// @return ESP_OK if succesfull, ESP_FAIL if not.
 esp_err_t wifi_disconnect_ap();
+/// @brief Starts the wifi.
+/// @return ESP_OK if succesfull, ESP_FAIL if not.
+esp_err_t wifi_start();
 
 #endif

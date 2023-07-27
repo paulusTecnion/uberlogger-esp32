@@ -8,6 +8,22 @@ function importConfigfile() {
   $("#file_import_config").click();
 }
 
+function disableAIN(x) {
+  var ntcSelect = document.getElementById("NTC" + x);
+  var ainSelect = document.getElementById("AIN" + x);
+
+  // Get the selected value of NTCx dropdown
+  var selectedValue = ntcSelect.options[ntcSelect.selectedIndex].value;
+
+  // Disable/enable AINx dropdown based on the selected value of NTCx
+  if (selectedValue === "1") {
+    // "NTC" option is selected
+    ainSelect.disabled = true;
+  } else {
+    ainSelect.disabled = false;
+  }
+}
+
 function importConfigFileSelected() {
   var reader = new FileReader();
   var file = $("#file_import_config").prop("files")[0];
@@ -111,15 +127,15 @@ function getStatus() {
         break;
 
       case 1:
-        value = "...";
+        value = "Connecting";
         break;
 
       case 2:
-        value = "OK";
+        value = "Failed to connect";
         break;
 
       case 3:
-        value = "failed";
+        value = "Connected";
         break;
     }
     data["WIFI_TEST_STATUS"] = value;
@@ -187,7 +203,7 @@ function setConfig() {
     LOG_SAMPLE_RATE: input["LOG_SAMPLE_RATE"],
     ADC_RESOLUTION: input["ADC_RESOLUTION"],
     LOG_MODE: input["LOG_MODE"],
-
+    WIFI_CHANNEL: input["WIFI_CHANNEL"],
     NTC_SELECT: {
       NTC0: input["NTC0"],
       NTC1: input["NTC1"],

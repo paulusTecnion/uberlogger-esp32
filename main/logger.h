@@ -75,7 +75,7 @@ enum LogTaskStates
     LOGTASK_FWUPDATE,
     LOGTASK_SINGLE_SHOT,
     LOGTASK_CALIBRATION,
-    LOGGER_FW_UPDATE,
+    LOGTASK_FORMAT_SDCARD,
     LOGTASK_NUM_STATES
 };
 
@@ -102,6 +102,7 @@ enum Logger_modeButtonStates{
 enum LoggerFWState 
 {
     LOGGER_FW_IDLE,
+    LOGGER_FW_START,
     LOGGER_FW_FLASHING_STM,
     LOGGER_FW_FLASHING_WWW,
     LOGGER_FW_FLASHING_ESP,
@@ -156,6 +157,9 @@ esp_err_t Logger_singleShot();
 uint32_t Logger_getError();
 
 
+esp_err_t Logger_format_sdcard();
+
+
 // uint8_t Logger_flush_buffer_to_sd_card();
 size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size);
 size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdcBytes, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime, size_t datarows);
@@ -178,9 +182,10 @@ esp_err_t Logger_startFWupdate();
 esp_err_t Logger_startFWflash();
 
 uint8_t Logger_getFWState();
-
+void  Logger_resetSTM32();
 void Logging_restartSystem();
 
+esp_err_t Logger_user_unmount_sdcard();
 
 void Logger_GetSingleConversion(converted_reading_t* data);
 

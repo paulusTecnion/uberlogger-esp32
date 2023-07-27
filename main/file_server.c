@@ -83,11 +83,14 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
         return ESP_FAIL;
     }
 
-    // Replace %20 inside dirpath with space
-    char *pos;
-    while ((pos = strstr(dirpath, "%%20")) != NULL)
-    {
-        *pos = ' ';
+    const char* percentTwenty = "%20";
+    const char space = ' ';
+    char* found;
+
+    // Replace %20 in dirpath with space
+    while ((found = strstr(dirpath, percentTwenty)) != NULL) {
+        memcpy(found, &space, sizeof(char)); // Replace % with space
+        memmove(found + 1, found + 3, strlen(found + 3) + 1); // Shift the rest of the string
     }
 
     DIR *dir = opendir(dirpath);
@@ -365,7 +368,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
     /* Close file after sending complete */
     fclose(fd);
 
-    esp_sd_card_unmount();
+    // esp_sd_card_unmount();
     #ifdef DEBUG_FILESERVER
     ESP_LOGI(TAG_FILESERVER, "File sending complete");
     #endif
@@ -491,7 +494,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
 
     /* Close file upon upload completion */
     fclose(fd);
-    esp_sd_card_unmount();
+    // esp_sd_card_unmount();
     #ifdef DEBUG_FILESERVER
     ESP_LOGI(TAG_FILESERVER, "File reception complete");
     #endif
@@ -509,7 +512,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
         fclose(fd);
     }
 
-    esp_sd_card_unmount();
+    // esp_sd_card_unmount();
 
     // If we are in LOGTASK FWUPDATE state, we need to exit it else we will be stuck in it
     if (Logger_getState() == LOGTASK_FWUPDATE)
@@ -597,7 +600,7 @@ esp_err_t delete_post_handler(httpd_req_t *req)
     /* Delete file */
     unlink(filepath);
 
-    esp_sd_card_unmount();
+    // esp_sd_card_unmount();
     /* Redirect onto root to see the updated file list */
     // httpd_resp_set_status(req, "303 See Other");
     // httpd_resp_set_hdr(req, "Location", "/data");

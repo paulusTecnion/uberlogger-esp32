@@ -1,33 +1,76 @@
 <h1>SD card logging</h1>
 
 <div id="log">
-    <div id="logger">
-        <h2 class="first">Logger</h2>
-        <p>Logger time: <span name="TIMESTAMPSTR">-</span></p>
-        <p>Logger status: <span name="LOGGER_STATE">-</span></p>
-        <p>Logger error: <span name="ERRORCODE">-</span></p>
-        <p><i><b>Note:</b> ensure you have configured the channels correctly before starting logging!</i></p>
-        <div id="log_logger_buttons">
-            <input id="btn_logger_start" class="button" type="button" name="btn_logger_start" disabled value="&checkmark; Start logging" onclick="loggerStart()"/>
-            <input id="btn_logger_stop" class="button" type="button" name="btn_logger_stop" disabled value="&cross; Stop logging" onclick="loggerStop()"/>
-        </div>
+  <div id="logger">
+    <h2 class="first">Logger</h2>
+    <p>Logger time: <span name="TIMESTAMPSTR">-</span></p>
+    <p>Logger status: <span name="LOGGER_STATE">-</span></p>
+    <p>Logger error: <span name="ERRORCODE">-</span></p>
+    <p style="border-style: solid; border-color: red">
+      <i
+        ><b>Note:</b> ensure you have configured the channels correctly before
+        starting logging!</i
+      >
+    </p>
+    <div id="log_logger_buttons">
+      <input
+        id="btn_logger_start"
+        class="button"
+        type="button"
+        name="btn_logger_start"
+        disabled
+        value="&checkmark; Start logging"
+        onclick="loggerStart()"
+      />
+      <input
+        id="btn_logger_stop"
+        class="button"
+        type="button"
+        name="btn_logger_stop"
+        disabled
+        value="&cross; Stop logging"
+        onclick="loggerStop()"
+      />
+    </div>
+  </div>
+
+  <div id="filebrowser">
+    <h2>File browser</h2>
+    <p>SD card status: <span name="SD_CARD_STATUS">-</span></p>
+    <p>SD card free space: <span name="SD_CARD_FREE_SPACE">-</span></p>
+
+    <div
+      id="filelist"
+      style="display: block; max-width: 800px; border: 0; margin-top: 20px"
+    >
+      Loading list of files...
     </div>
 
-
-    <div id="filebrowser">
-        <h2>File browser</h2>
-        <p>SD card status: <span name="SD_CARD_STATUS">-</span></p>
-        <p>SD card free space: <span name="SD_CARD_FREE_SPACE">-</span></p>
-
-        <div id="filelist" style="display: block; max-width: 800px; border: 0; margin-top: 20px;">
-            Loading list of files...
-        </div>
-
-        <div id="log_filebrowser_buttons">
-            <input id="btn_refresh_sdcard" class="button" type="button" name="btn_refresh_sdcard" value="&circlearrowleft; Refresh file list" onclick="filebrowserRefresh('/')"/>
-            <input id="btn_format_sdcard" class="button" type="button" name="btn_format_sdcard" value="Format SD-card..." onclick="filebrowserFormat()"/>
-        </div>
-
+    <div id="log_filebrowser_buttons">
+      <input
+        id="btn_refresh_sdcard"
+        class="button"
+        type="button"
+        name="btn_refresh_sdcard"
+        value="&circlearrowleft; Refresh file list"
+        onclick="filebrowserRefresh('/')"
+      />
+      <input
+        id="btn_format_sdcard"
+        class="button"
+        type="button"
+        name="btn_format_sdcard"
+        value="Format SD-card..."
+        onclick="filebrowserFormat()"
+      />
+      <input
+        id="btn_unmount_sdcard"
+        class="button"
+        type="button"
+        name="btn_unmount_sdcard"
+        value="&#9167; Unmount SD-card"
+        onclick="ejectCard()"
+      />
     </div>
-
+  </div>
 </div>

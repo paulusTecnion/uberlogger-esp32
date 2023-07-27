@@ -29,9 +29,9 @@ void settings_init()
     // adc_mult_factor[ADC_RANGE_60V] = ADC_MULT_FACTOR_60V;
 }
 
-uint8_t settings_get_adc_channel_enabled(adc_channel_t channel)
+uint8_t settings_get_adc_channel_enabled(Settings_t *settings, adc_channel_t channel)
 {
-    return _settings.adc_channels_enabled & (0x01 << channel);
+    return settings->adc_channels_enabled & (0x01 << channel);
 }
 
 esp_err_t settings_set_adc_channel_enabled(adc_channel_t channel, adc_channel_enable_t value)
@@ -50,9 +50,9 @@ uint8_t settings_get_adc_channel_enabled_all()
 }
 
 
-uint8_t settings_get_adc_channel_type(adc_channel_t channel)
+uint8_t settings_get_adc_channel_type(Settings_t *settings, adc_channel_t channel)
 {
-    return _settings.adc_channel_type & (0x01 << channel);
+    return settings->adc_channel_type & (0x01 << channel);
 }
 
 uint8_t settings_get_adc_channel_type_all()
@@ -73,9 +73,9 @@ Settings_t* settings_get(){
     return &_settings;
 }
 
-uint8_t settings_get_adc_channel_range(adc_channel_t channel)
+uint8_t settings_get_adc_channel_range(Settings_t * settings, adc_channel_t channel)
 {
-    return _settings.adc_channel_range & (0x01 << channel);
+    return settings->adc_channel_range & (0x01 << channel);
 }
 
 uint8_t settings_get_adc_channel_range_all()
@@ -90,6 +90,29 @@ esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_rang
     // Set bit of channel to correct value
     _settings.adc_channel_range |= ((value << channel));
 
+    return ESP_OK;
+}
+
+esp_err_t settings_clear_bootreason()
+{
+    _settings.bootReason = 0;
+    if (settings_persist_settings() != ESP_OK)
+    {
+        return ESP_FAIL;
+    }
+    
+    return ESP_OK;
+}
+
+uint8_t settings_get_boot_reason()
+{
+    return _settings.bootReason;
+}
+
+uint8_t settings_set_boot_reason(uint8_t reason)
+{
+    _settings.bootReason = reason;
+    settings_persist_settings();
     return ESP_OK;
 }
 
@@ -137,6 +160,38 @@ esp_err_t settings_set_adc_offset(uint32_t * offsets, adc_resolution_t resolutio
     return ESP_OK;
 }
 
+Settings_t settings_get_default()
+{
+    Settings_t default_settings;
+
+    default_settings.adc_resolution = ADC_12_BITS;
+    default_settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
+    default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
+    default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
+    default_settings.adc_channel_range = 0x00; // 10V by default
+    default_settings.logMode = LOGMODE_CSV;
+    default_settings.bootReason = 0;
+    // Get mac address
+    char buffer[8];
+    wifi_get_trimmed_mac(buffer);
+    
+    sprintf(default_settings.wifi_ssid_ap, "Uberlogger-%s", buffer);
+    
+    
+    strcpy(default_settings.wifi_ssid, default_settings.wifi_ssid_ap);
+    strcpy(default_settings.wifi_password, "");
+    default_settings.wifi_mode = WIFI_MODE_AP;
+    default_settings.wifi_channel = 1;
+
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+    {
+        default_settings.adc_offsets_12b[i] = (1<<11);
+        default_settings.adc_offsets_16b[i] = (1<<15);
+        default_settings.temp_offsets[i] = 0;
+    }
+
+    return default_settings;
+}
 
 esp_err_t settings_set_default()
 {
@@ -150,7 +205,7 @@ esp_err_t settings_set_default()
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     _settings.adc_channel_range = 0x00; // 10V by default
     _settings.logMode = LOGMODE_CSV;
-
+    _settings.bootReason = 0;
 
     // Get mac address
     char buffer[8];
@@ -161,7 +216,7 @@ esp_err_t settings_set_default()
     
     strcpy(_settings.wifi_ssid, _settings.wifi_ssid_ap);
     strcpy(_settings.wifi_password, "");
-    _settings.wifi_mode = WIFI_MODE_APSTA;
+    _settings.wifi_mode = WIFI_MODE_AP;
     _settings.wifi_channel = 1;
 
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
@@ -417,7 +472,7 @@ uint8_t settings_get_wifi_mode()
 
 esp_err_t settings_set_wifi_mode(uint8_t mode)
 {
-    if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_STA)
+    if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_AP)
     {
         _settings.wifi_mode = mode;
         return ESP_OK;

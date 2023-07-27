@@ -34,7 +34,7 @@ uint8_t _stopLogTask = 0;
 
 uint64_t first_tick = 0, first_tick2 = 0;
 
-
+uint8_t userRequestsUnmount = 0;
 uint8_t _dataReceived = 0;
 uint64_t stm32TimerTimeout, currtime_us =0;
 
@@ -215,7 +215,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         }
         
         // The next values are calibrated values
-        if (settings_get_adc_channel_range(j))
+        if (settings_get_adc_channel_range(settings_get(), j))
         {
             channel_offset = 126811146; // 60*ADC_MULT_FACTOR_60V;
 
@@ -229,7 +229,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         // dataOutput->analogData[j] = Logger_convertAdcFloat(adcVal);
         dataOutput->analogData[j] = (float)Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
         // ESP_LOGI(TAG_LOG, "%u, %f", adcVal, dataOutput->analogData[j]);
-        if (settings_get_adc_channel_range(j))
+        if (settings_get_adc_channel_range(settings_get(), j))
         {
             // 60V range
             dataOutput->analogData[j] = dataOutput->analogData[j] / (float)ADC_MULT_FACTOR_60V;
@@ -333,7 +333,9 @@ esp_err_t Logger_singleShot()
             
         } else {
             // ESP_LOGE(TAG_LOG, "Single shot command failed.");
-            // SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+            
+            // Reset the STM in case it's stuck (workaround)
+            Logger_resetSTM32();
             return ESP_FAIL;
         }
         return ESP_OK;        
@@ -604,11 +606,13 @@ void Logger_mode_button_pushed()
 
 void Logger_mode_button_long_pushed()
 {
-    if (_currentLogTaskState == LOGTASK_IDLE || _currentLogTaskState == LOGTASK_ERROR_OCCURED)
+    if (_currentLogTaskState == LOGTASK_IDLE || 
+        _currentLogTaskState == LOGTASK_ERROR_OCCURED ||
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
     {
-        if (settings_get_wifi_mode()==WIFI_MODE_STA)
+        if (settings_get_wifi_mode()==WIFI_MODE_APSTA)
         {
-            settings_set_wifi_mode(WIFI_MODE_APSTA);
+            settings_set_wifi_mode(WIFI_MODE_AP);
             #ifdef DEBUG_LOGTASK
             ESP_LOGI(TAG_LOG, "Switching to AP mode");
             #endif
@@ -623,6 +627,20 @@ void Logger_mode_button_long_pushed()
         }
     }
    
+}
+
+esp_err_t Logger_format_sdcard()
+{
+    if (_currentLogTaskState == LOGTASK_IDLE ||
+        _currentLogTaskState == LOGTASK_ERROR_OCCURED || 
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
+    {
+        LoggerState_t t = LOGTASK_FORMAT_SDCARD;
+        xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
 }
 
 esp_err_t LogTask_start()
@@ -742,7 +760,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             {
                 // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
                 // The next values are calibrated values
-                if (settings_get_adc_channel_range(x))
+                if (settings_get_adc_channel_range(settings_get(), x))
                 {
                     // 60V range
                     channel_offset = 126811146; //60*ADC_MULT_FACTOR_60V;
@@ -764,7 +782,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 if (adcVal > (1<<12)-1) adcVal = (1<<12)-1;
 
                 // Detect type of sensor and conver accordingly
-                if (settings_get_adc_channel_type(x))
+                if (settings_get_adc_channel_type(settings_get(), x))
                 {
                     // ESP_LOGI(TAG_LOG,"temp detected");
                     // calculateTemperatureLUT(&(adc_buffer_fixed_point[writeptr+(log_counter*(length/2))]), ((uint16_t)adcData[j]) | ((uint16_t)adcData[j+1] << 8), (1 << settings_get_resolution()) - 1);
@@ -793,7 +811,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
             for (j = 0; j < length; j = j + 2)
             {
                        // The next values are calibrated values
-                if (settings_get_adc_channel_range(x))
+                if (settings_get_adc_channel_range(settings_get(), x))
                 {
                     // Bit == 1
                     channel_offset = 126811146; //60*ADC_MULT_FACTOR_60V;
@@ -813,7 +831,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 if (adcVal > (0xFFF0)-1) adcVal = (0xFFF0)-1;
 
                 // Detect type of sensor and conver accordingly
-                if (settings_get_adc_channel_type(x))
+                if (settings_get_adc_channel_type(settings_get(), x))
                 {
                     // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
                     filtered_value = (int32_t)NTC_ADC2Temperature(adcVal >> 4)*100000L;
@@ -974,7 +992,7 @@ esp_err_t Logger_startFWupdate()
     // if (xSemaphoreTake(idle_state, 1000 / portTICK_PERIOD_MS) != pdTRUE)
     {
        // #ifdef DEBUG_LOGGING
-        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: putting logger into LOGTASK_FWUPDATEs");
+        ESP_LOGW(TAG_LOG, "Logger_startFWupdate: putting logger into LOGTASK_FWUPDATE..rebooting");
         // #endif
         LoggerState_t t = LOGTASK_FWUPDATE;
         if (xQueueSend(xQueue, &t, 1000 / portTICK_PERIOD_MS) != pdTRUE)
@@ -996,7 +1014,7 @@ esp_err_t Logger_startFWupdate()
 esp_err_t Logger_startFWflash()
 {
     LoggingState_t t;
-    t = LOGGER_FW_FLASHING_STM;
+    t = LOGGER_FW_START;
     xQueueSend(xQueueFW, &t, 1000 / portTICK_PERIOD_MS);
     return ESP_OK;
 }
@@ -1220,7 +1238,57 @@ void Logging_restartSystem()
     _nextLogTaskState = LOGTASK_REBOOT_SYSTEM;
 }
 
+esp_err_t Logger_user_unmount_sdcard()
+{
+    // Check if system is logging now
+    if (_currentLogTaskState == LOGTASK_LOGGING || 
+        esp_sd_card_check_for_card() != ESP_OK)
+    {
+        return ESP_FAIL;
+    } else {
+        userRequestsUnmount = 1;
+        return ESP_OK;
+    }
+}
 
+esp_err_t Logging_check_sdcard()
+{
+    // Check if sd card is inserted
+    if (esp_sd_card_check_for_card() == ESP_OK)
+    {
+        // Sd card inserted, mounted and user wants to unmount
+        if (esp_sdcard_is_mounted() && userRequestsUnmount)
+        {
+            ESP_LOGI(TAG_LOG, "Unmounting SD card");
+            esp_sd_card_unmount();
+        } 
+        // sd card inserted and not mounted and last user action was not to unmount it => Mount it
+        else if (!esp_sdcard_is_mounted() && !userRequestsUnmount)
+        {
+            ESP_LOGI(TAG_LOG, "Mounting SD card");
+            if (esp_sd_card_mount() != ESP_OK)
+            {
+                SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
+                return ESP_FAIL;
+            }
+        }
+    } 
+    else 
+    {
+        // No sd card inserted. 
+        // clear userRequestsUnmount
+        userRequestsUnmount = 0;
+        // if sd card was mounted, then unmount it. 
+        if (esp_sdcard_is_mounted())
+        {
+            ESP_LOGI(TAG_LOG, "Unmounting SD card");
+            esp_sd_card_unmount();
+        }
+    }
+   
+    return ESP_OK;
+   
+}
 
 esp_err_t Logger_logging()
 {   
@@ -1499,56 +1567,6 @@ void Logtask_calibration()
 
             break;
 
-            // case 2:
-            //     // Retrieve the calibration values
-            //     for (calibrationCounter = 0; calibrationCounter < NUM_CALIBRATION_VALUES; calibrationCounter++)
-            //     {
-            //         Logtask_singleShot();
-            //         x= 0;
-            //         ESP_LOGI(TAG_LOG, "Calibration counter: %d", calibrationCounter);
-            //         for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i+2)
-            //         {
-            //             calibrationValues[x] += (uint16_t)(((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8) | (uint16_t)spi_msg_1_ptr->adcData[i]); 
-            //             // Sometimes we get zeros here. Quick fix for now.
-                        
-            //             // calibrationValues[i] += adc_buffer_fixed_point[i];
-            //             ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
-            //             x++;
-            //         }
-
-            //         // Sometimes we get zeros here. Quick fix for now.
-            //         if (calibrationValues[--x] == 0)
-            //         {
-            //             calibrationCounter--;
-            //         }
-
-            //         if (calibrationCounter == 10)
-            //         {
-            //             // store calibration values
-            //             for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
-            //             {
-            //                 calibrationValues[i] = calibrationValues[i] / calibrationCounter;
-            //                 ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", i, calibrationValues[i]);
-            //             }
-                        
-            //             settings_set_adc_offset(calibrationValues, ADC_16_BITS);
-                        
-            //             calibrationCounter = 0;
-            //             // go to next state
-            //             calibration = 0;
-            //             settings_persist_settings();
-            //             // go back to setting before calibriation
-            //             settings_set_resolution(last_resolution);
-            //             Logger_syncSettings();
-                        
-            //             settings_print();
-            //             ESP_LOGI(TAG_LOG, "Calibration done");
-            //             // Exit calibration
-            //             return;
-
-            //         } 
-            //     }
-            // break;
         }
     }
 }
@@ -1591,12 +1609,12 @@ void Logtask_logging()
     spi_cmd_t spi_cmd;
     uint8_t finalwrite = 0;
 
-    if (esp_sd_card_mount() == ESP_OK)
+    if (esp_sdcard_is_mounted() )
     {
 
         if (Logger_check_sdcard_free_space() != ESP_OK)
         {
-            esp_sd_card_unmount();
+            // esp_sd_card_unmount();
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
             // push error to queue?
             // ...
@@ -1609,7 +1627,7 @@ void Logtask_logging()
         fileman_reset_subnum();
         if (fileman_open_file() != ESP_OK)
         { 
-            esp_sd_card_unmount();
+            // esp_sd_card_unmount();
             SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
             return;
             // push error to queue?
@@ -1737,7 +1755,7 @@ void Logtask_logging()
         {
             Logger_flush_to_sdcard();
             fileman_close_file();
-            esp_sd_card_unmount();
+            // esp_sd_card_unmount();
             vTaskDelay(500 / portTICK_PERIOD_MS);
             // Exit the logging function
             ESP_LOGI(TAG_LOG, "Logtask_logging() exiting..");
@@ -1756,6 +1774,8 @@ void Logtask_fw_update_exit()
 
 void Logtask_fw_update()
 {
+    
+
     while(1)
     {
         if (xQueueReceive(xQueueFW, &_currentFWState, 200 / portTICK_PERIOD_MS) != pdTRUE)
@@ -1766,6 +1786,11 @@ void Logtask_fw_update()
         switch (_currentFWState)
         {    
             case LOGGER_FW_IDLE:            break;
+
+            case LOGGER_FW_START:
+                settings_set_boot_reason(1); 
+                esp_restart();
+            break;
 
             case LOGGER_FW_FLASHING_STM:
             if (esp_sd_card_mount() != ESP_OK)
@@ -1811,18 +1836,20 @@ void Logtask_fw_update()
                 }
             break;
 
+            case LOGGER_FW_ERROR:
             case LOGGER_FW_DONE:
                 esp_sd_card_unmount();
 
+                settings_clear_bootreason();
                 vTaskDelay(3000 / portTICK_PERIOD_MS);
                 esp_restart();
             break;
             // return ESP_OK;
 
-            case LOGGER_FW_ERROR:
+            
 
-            esp_sd_card_unmount();
-            return;
+            // esp_sd_card_unmount();
+            // return;
 
         } // end of case 
 
@@ -1889,22 +1916,20 @@ void task_logging(void * pvParameters)
     };
 
     gpio_config(&nreset_conf);
-    // gpio_set_direction(GPIO_STM32_NRESET, GPIO_MODE_OUTPUT);
-    // Reset STM32
-    // Logger_resetSTM32();
 
 
-    // gpio_set_direction(STM32_SPI_CS, GPIO_MODE_OUTPUT);
-    // gpio_set_level(STM32_SPI_CS, 0);
+    gpio_set_direction(SDCARD_CD, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(SDCARD_CD, GPIO_PULLDOWN_ENABLE);
+       
+    // Initialize SD card
 
-    
-    // // Initialize SD card
-    if (esp_sd_card_mount() == ESP_OK)
+    if (gpio_get_level(SDCARD_CD)  &&
+        esp_sd_card_mount() == ESP_OK)
     {
         #ifdef DEBUG_LOGTASK
         ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
         #endif
-        esp_sd_card_unmount();
+        // esp_sd_card_unmount();
     } 
     
     #ifdef DEBUG_LOGTASK
@@ -1937,7 +1962,19 @@ void task_logging(void * pvParameters)
     xQueue = xQueueCreate( 10, sizeof( LoggerState_t ) );
     xQueueFW = xQueueCreate( 10, sizeof( LoggerFWState_t ) );
 
+    if (settings_get_boot_reason() == 1)
+    {
+        settings_clear_bootreason();
+        LoggingState_t t = LOGTASK_FWUPDATE;
+        LoggerFWState_t t2 = LOGGER_FW_FLASHING_STM;
+        xQueueSend(xQueue, &t, 0);
+        xQueueSend(xQueueFW, &t2, 0);
+    }
+
     while(1) {
+
+        // Check if SDCARD is available or not 
+        Logging_check_sdcard();
 
         // Wait for infinite time to do something
         if (xQueueReceive(xQueue, &_currentLogTaskState, 200 / portTICK_PERIOD_MS) != pdTRUE)
@@ -1970,6 +2007,7 @@ void task_logging(void * pvParameters)
                 esp_restart();
             break;
             case LOGTASK_FWUPDATE:          Logtask_fw_update();                break;
+            case LOGTASK_FORMAT_SDCARD:     esp_sd_card_format();               break;
 
             default:                                                    
             ESP_LOGE(TAG_LOG, "Unknown task: %d", _currentLogTaskState);        break;

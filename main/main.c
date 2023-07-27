@@ -120,13 +120,18 @@ void app_main(void)
     #endif
 
     ESP_ERROR_CHECK(init_fs());
+
+    // Leave these lines BEFORE settings_init(), else the SSID will not be set correctly the first time!!
+    if (!settings_get_boot_reason())
+    {
+        wifi_init();
+    }
     settings_init();
-    wifi_init();
 
-
-    // sysinfo_init();
-
-  
+    if (!settings_get_boot_reason())
+    {
+        wifi_start();
+    }
 
     // Tasks to spin up logging and HMI
     xTaskCreate(task_logging, "task_logging", 4500, NULL, 8, &xHandle_stm32);
@@ -143,9 +148,10 @@ void app_main(void)
     // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...
     vTaskDelay (1000/portTICK_PERIOD_MS);
 
-  
-    ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
-
+    if (!settings_get_boot_reason())
+    {
+        ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
+    }
   
 
     

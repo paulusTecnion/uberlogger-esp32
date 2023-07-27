@@ -79,7 +79,7 @@ static const char * TAG = "WIFI";
 static EventGroupHandle_t wifi_event_group;
 
 esp_netif_t *sta_netif;
-
+esp_netif_t *ap_netif;
 /* The event group allows multiple bits for each event, but we only care about two events:
  * - we are connected to the AP with an IP
  * - we failed to connect after the maximum amount of retries */
@@ -93,16 +93,18 @@ static uint8_t wifi_enabled = 0;
 static void event_handler(void* arg, esp_event_base_t event_base,
 								int32_t event_id, void* event_data)
 {
-	if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+	if (event_base == WIFI_EVENT && 
+        event_id == WIFI_EVENT_STA_DISCONNECTED && 
+        s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
 		ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
         // Only when in station mode, we try to reconnect
         // Else when changing from STA to APSTA mode,
         // we keep connecting after a disconnect.
-		if (settings_get_wifi_mode() == WIFI_MODE_STA) 
+		if (settings_get_wifi_mode() == WIFI_MODE_APSTA) 
         {
             esp_wifi_connect();
         }
-		xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
+		xEventGroupClearBits(wifi_event_group, CONNECTED_BIT | FAIL_BIT);
 
         s_retry_num++;
         if (s_retry_num >= EXAMPLE_ESP_MAXIMUM_RETRY) 
@@ -116,7 +118,12 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 }
 
 
-esp_err_t wifi_is_connected_to_ap()
+uint8_t wifi_ap_connection_failed()
+{
+    return xEventGroupGetBits(wifi_event_group) & FAIL_BIT;
+}
+
+uint8_t wifi_is_connected_to_ap()
 {
     return xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT;
 }
@@ -130,6 +137,10 @@ esp_err_t wifi_disconnect_ap()
 
 esp_err_t wifi_connect_to_ap(void)
 {
+    if (wifi_disconnect_ap() != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to disconnect from AP");
+    }
     wifi_config_t wifi_config = {
         .sta = {
             /* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (pasword len => 8).
@@ -141,16 +152,18 @@ esp_err_t wifi_connect_to_ap(void)
             .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
         },
     };
-
+    s_retry_num = 0;
     strcpy((char*)wifi_config.sta.ssid, settings_get_wifi_ssid());
     
     // wifi_config.sta.ssid_len = strlen((const char*)(wifi_config.sta.ssid));
     strcpy((char*)wifi_config.sta.password, settings_get_wifi_password());
 
     // ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
+    
+    esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
     // ESP_ERROR_CHECK(esp_wifi_start() );
-    ESP_ERROR_CHECK(esp_wifi_connect() );
+    
+    esp_wifi_connect();
     #ifdef DEBUG_WIFI
     ESP_LOGI(TAG, "wifi_init_sta finished.");
     #endif
@@ -216,8 +229,10 @@ esp_err_t wifi_init()
 
 	ESP_ERROR_CHECK(esp_netif_init());
 	wifi_event_group = xEventGroupCreate();
+
+
 	// ESP_ERROR_CHECK(esp_event_loop_create_default());
-	esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
+	ap_netif = esp_netif_create_default_wifi_ap();
 	assert(ap_netif);
 	sta_netif = esp_netif_create_default_wifi_sta();
 	assert(sta_netif);
@@ -231,6 +246,15 @@ esp_err_t wifi_init()
 	ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
 	ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_APSTA) );
 
+    
+                                                        
+    return ESP_OK;
+    
+}
+
+
+esp_err_t wifi_start()
+{
     wifi_config_t wifi_config = {
         .ap = {
             // .ssid = wifi_ssid,
@@ -260,8 +284,6 @@ esp_err_t wifi_init()
         wifi_config.ap.authmode =  WIFI_AUTH_OPEN;
     }
 
-
-
     // strcpy((char*)wifi_config.sta.ssid, settings_get_wifi_ssid());
     
     // wifi_config.sta.ssid_len = strlen((const char*)(wifi_config.sta.ssid));
@@ -277,22 +299,21 @@ esp_err_t wifi_init()
     #endif
 
 
-    esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
+    // esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
 
 	ESP_ERROR_CHECK( esp_wifi_start() );
 
     wifi_enabled = 1;
 
-     if (settings_get_wifi_mode() == WIFI_MODE_STA) {
+     if (settings_get_wifi_mode() == WIFI_MODE_APSTA) {
         #ifdef DEBUG_WIFI
         ESP_LOGI(TAG, "Connecting with AP");
         #endif
         wifi_connect_to_ap();
      }
 
-                                                        
-    return ESP_OK;
-    
+     return ESP_OK;
+
 }
 
 int8_t wifi_get_rssi()
@@ -300,6 +321,14 @@ int8_t wifi_get_rssi()
     wifi_ap_record_t ap_info;
     esp_wifi_sta_get_ap_info(&ap_info);
     return ap_info.rssi;
+}
+
+void wifi_get_ip(char * str)
+{
+    esp_netif_ip_info_t ip_info;
+    esp_netif_get_ip_info(sta_netif, &ip_info);
+    sprintf(str, IPSTR, IP2STR(&ip_info.ip));
+    
 }
 
 esp_err_t wifi_print_ip()

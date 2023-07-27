@@ -1,58 +1,80 @@
 <!DOCTYPE html>
 <html>
-<head>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=1, target-densityDpi=device-dpi" /> 	
-	<title>UberLogger One - control and configuration</title>
-	<link rel="stylesheet" type="text/css" href="view.css" media="all">
-</head>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=1, target-densityDpi=device-dpi"
+    />
+    <title>UberLogger One - control and configuration</title>
+    <link rel="stylesheet" type="text/css" href="view.css" media="all" />
+  </head>
 
-<script>
-	var page_version="12";
-</script>
+  <script>
+    var page_version = "13";
+  </script>
 
-<body onload="loadPage();">
+  <body onload="loadPage();">
+    <div id="content">
+      <div id="window">
+        <div id="top">
+          <div id="toptitle">
+            <div class="left"><img src="logo.png" /></div>
+            <div class="status" id="topstatus">
+              <table>
+                <tr>
+                  <td>Logger time:</td>
+                  <td><span name="TIMESTAMPSTR">-</span></td>
+                  <td>SD-card status:</td>
+                  <td>
+                    <span id="WIFI_TEST_RSSI" name="SD_CARD_STATUS">-</span>
+                  </td>
+                </tr>
 
-<div id="content">
-	<div id="window">
-		<div id="top">
-			<div id="toptitle">
-                <div class="left"><img src="logo.png"/></div>
-                <div class="status" id="topstatus">
-                	<table>
-	                    <tr>
-                        	<td>Logger time:</td><td><span name="TIMESTAMPSTR">-</span></td>
-	                    		<td>SD-card status:</td><td><span id="WIFI_TEST_RSSI" name="SD_CARD_STATUS">-</span></td>
-            	        </tr>
-	                    <tr>
-                        	<td>Logger status:</td><td><span name="LOGGER_STATE">-</span></td>
-	                    		<td>SD-card free space:</td><td><span name="SD_CARD_FREE_SPACE">-</span></td>
-            	        </tr>
-	                    <tr>
-                        	<td>Logger error:</td><td><span name="ERRORCODE">-</span></td>
-            	        </tr>
-                	</table>
-                </div>
+                <tr>
+                  <td>Logger status:</td>
+                  <td><span name="LOGGER_STATE">-</span></td>
+                  <td>Unmount card</td>
+                  <td>
+                    <button
+                      onclick="ejectCard()"
+                      id="btn_unmount_sdcard_top"
+                      name="btn_unmount_sdcard_top"
+                    >
+                      &#9167;
+                    </button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>Logger error:</td>
+                  <td><span name="ERRORCODE">-</span></td>
+                  <td>SD-card free space:</td>
+                  <td><span name="SD_CARD_FREE_SPACE">-</span></td>
+                </tr>
+              </table>
             </div>
-			<div id="topmenubar">
-				<button id="menu_home" onclick="gotoPage('home');">Home</button>
-				<button id="menu_liveview" onclick="gotoPage('liveview');">View live data</button>
-				<button id="menu_log" onclick="gotoPage('log');">Logging</button>
-				<button id="menu_config" onclick="gotoPage('config');">Configuration</button>
-			</div>
-		</div>
-		
-		<div id="render"></div>
+          </div>
+          <div id="topmenubar">
+            <button id="menu_home" onclick="gotoPage('home');">Home</button>
+            <button id="menu_liveview" onclick="gotoPage('liveview');">
+              Live data
+            </button>
+            <button id="menu_log" onclick="gotoPage('log');">Logging</button>
+            <button id="menu_config" onclick="gotoPage('config');">
+              Configuration
+            </button>
+          </div>
+        </div>
 
-		<div id="footer">
-			<b>UberLogger</b> by Tecnion
-		</div>
-	</div>
-</div>
+        <div id="render"></div>
 
-<!--- JavaScript includes --->
-<script src="js/jquery-3.6.4.min.js"></script>
-<script src="js/generic.js"></script>
+        <div id="footer"><b>UberLogger</b> by Tecnion</div>
+      </div>
+    </div>
 
-</body>
+    <!--- JavaScript includes --->
+    <script src="js/jquery-3.6.4.min.js"></script>
+    <script src="js/generic.js"></script>
+  </body>
 </html>

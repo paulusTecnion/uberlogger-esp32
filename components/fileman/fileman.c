@@ -139,7 +139,7 @@ int fileman_write(const void * data, size_t len)
 
 int fileman_csv_write_header()
 {
-    return fprintf(f, "t,adc0,adc1,adc2,adc3,adc4,adc5,adc6,adc7,io0,io1,io2,io3,io4,io5\r\n");
+    return fprintf(f, "time(utc),adc0,adc1,adc2,adc3,adc4,adc5,adc6,adc7,io0,io1,io2,io3,io4,io5\r\n");
     
 }
 

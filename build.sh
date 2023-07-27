@@ -14,9 +14,9 @@ else
 fi
 
 # Copy the binaries to the root folder and rename them
-cp -n build/uberlogger-esp32.bin ota_main.bin
-cp -n build/www.bin ota_filesystem.bin
+cp build/uberlogger-esp32.bin ota_main.bin
+cp build/www.bin ota_filesystem.bin
 
 # Print a success message
-echo "Output file ota_main.bin and ota_filesystem.bin copied successfully to desktop."
+echo "Output file ota_main.bin and ota_filesystem.bin."
 
