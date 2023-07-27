@@ -3,7 +3,8 @@
 typedef enum sdcard_state_e  {
     SDCARD_EJECTED = 0,
     SDCARD_UNMOUNTED,
-    SDCARD_MOUNTED
+    SDCARD_MOUNTED,
+    SDCARD_MOUNT_ERROR
 } sdcard_state_t;
 
 esp_err_t esp_sd_card_init();

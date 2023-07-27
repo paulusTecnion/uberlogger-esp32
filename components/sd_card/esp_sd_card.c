@@ -15,6 +15,7 @@
 #include "esp_sd_card.h"
 #include "../../main/config.h"
 #include "../../main/logger.h"
+#include "../../main/errorcodes.h"
 
 
 #ifdef CONFIG_IDF_TARGET_ESP32
@@ -79,6 +80,9 @@ esp_vfs_fat_sdmmc_mount_config_t mount_config = {
 
 static bool esp_sd_spi_is_initialized = false;
 static bool esp_sd_card_is_mounted = false;
+// Need to change this:
+extern uint32_t _errorCode;
+
 
 esp_err_t esp_sd_card_mount()
 {
@@ -94,6 +98,8 @@ esp_err_t esp_sd_card_mount()
         return ESP_FAIL;
     }
 
+  
+
     if (esp_sd_card_is_mounted)
     {
         #ifdef DEBUG_SDCARD
@@ -101,6 +107,9 @@ esp_err_t esp_sd_card_mount()
         #endif
         return ESP_OK;
     }
+
+    // Clear mount error, if any 
+    CLEAR_BIT(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
 
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
@@ -279,19 +288,22 @@ esp_err_t esp_sd_card_format()
 esp_err_t esp_sd_card_unmount(void)
 {
 
-       if (esp_sd_card_is_mounted)
-       {
-        esp_vfs_fat_sdcard_unmount(mount_point, card);
-        #ifdef DEBUG_SDCARD
-        ESP_LOGI(TAG, "File closed and card unmounted");
-        #endif
-        esp_sd_card_is_mounted = false;
-        return ESP_OK;
-       } else {
-        ESP_LOGE(TAG, "SD card not mounted!");
-        return ESP_FAIL;
-       }
-        
+    // Clear mount error, if any 
+    CLEAR_BIT(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
+
+    if (esp_sd_card_is_mounted)
+    {
+    esp_vfs_fat_sdcard_unmount(mount_point, card);
+    #ifdef DEBUG_SDCARD
+    ESP_LOGI(TAG, "File closed and card unmounted");
+    #endif
+    esp_sd_card_is_mounted = false;
+    return ESP_OK;
+    } else {
+    ESP_LOGE(TAG, "SD card not mounted!");
+    return ESP_FAIL;
+    }
+    
 }
 
 

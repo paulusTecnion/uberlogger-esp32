@@ -1,7 +1,8 @@
 #ifndef _ERRORCODES_H
 #define _ERRORCODES_H
 
-#define SET_ERROR(REG, ERRORCODE)     ((REG) |= (ERRORCODE))
+#define SET_ERROR(REG, ERRORCODE)       ((REG) |= (ERRORCODE))
+#define CLEAR_BIT(REG, BIT) ((REG) &= ~((BIT)))
 #define CLEAR_ERRORS(REG) ((REG) = (0x0))
 
 #define ERR_FILEMAN_UNABLE_TO_OPEN_FILE (0x00000001U)

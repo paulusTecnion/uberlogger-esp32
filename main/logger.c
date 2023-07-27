@@ -1266,7 +1266,11 @@ esp_err_t Logging_check_sdcard()
         else if (!esp_sdcard_is_mounted() && !userRequestsUnmount)
         {
             ESP_LOGI(TAG_LOG, "Mounting SD card");
-            esp_sd_card_mount();
+            if (esp_sd_card_mount() != ESP_OK)
+            {
+                SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
+                return ESP_FAIL;
+            }
         }
     } 
     else 
