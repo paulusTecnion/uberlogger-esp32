@@ -174,6 +174,20 @@ function getValues() {
       $("#btn_logger_stop").attr("disabled", true);
     }
 
+    // Enable Refresh file list, format and unmount buttons in case SD card status is mounted.
+    if (valuesData["SD_CARD_STATUS"] == "MOUNTED") {
+      $("#btn_refresh_sdcard").removeAttr("disabled");
+      $("#btn_format_sdcard").removeAttr("disabled");
+      $("#btn_unmount_sdcard").removeAttr("disabled");
+      $("#btn_unmount_sdcard_top").removeAttr("disabled");
+      $("#btn_logger_start").removeAttr("disabled");
+    } else {
+      $("#btn_refresh_sdcard").attr("disabled", true);
+      $("#btn_format_sdcard").attr("disabled", true);
+      $("#btn_unmount_sdcard").attr("disabled", true);
+      $("#btn_unmount_sdcard_top").attr("disabled", true);
+      $("#btn_logger_start").attr("disabled", true);
+    }
     populateFields("#topstatus", valuesData);
   }).fail(function () {
     if (alert_active_valueserr == false) {
