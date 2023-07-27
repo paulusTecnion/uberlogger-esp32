@@ -125,6 +125,20 @@ function getValues() {
     switch (valuesData["ERRORCODE"]) {
       case 0:
         valuesData["ERRORCODE"] = "No error";
+
+        break;
+
+      case 128:
+        valuesData["ERRORCODE"] = "Mount error";
+        valuesData["SD_CARD_STATUS"] = "Mount errror";
+        break;
+
+      case 512:
+        valuesData["ERRORCODE"] = "No free space";
+        break;
+
+      case 4096:
+        valuesData["ERRORCODE"] = "Max file size reached";
         break;
 
       default:
