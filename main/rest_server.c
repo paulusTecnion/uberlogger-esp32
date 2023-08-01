@@ -703,18 +703,19 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
 
-    // item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "TIMESTAMP");
     
-    // if (item != NULL)
-    // {
-    //     if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
-    //     {
+    if (item != NULL)
+    {
+        if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
+        {
             
-    //         json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
-    //         // return ESP_FAIL;
-    //         goto error;
-    //     }
-    // }
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
 
  
 

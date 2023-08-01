@@ -1999,7 +1999,7 @@ void task_logging(void * pvParameters)
             case LOGTASK_CALIBRATION:       Logtask_calibration();              break;
             case LOGTASK_SINGLE_SHOT:       Logtask_singleShot();               break;
             case LOGTASK_PERSIST_SETTINGS:  settings_persist_settings();        break;
-            case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings(0);             break;
+            case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings(1);             break;
             case LOGTASK_SYNC_TIME:         Logger_syncSettings(1);             break;
             case LOGTASK_LOGGING:           Logtask_logging();                  break;
             case LOGTASK_REBOOT_SYSTEM:
