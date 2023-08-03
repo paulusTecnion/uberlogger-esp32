@@ -163,7 +163,11 @@
 
       return true;
     } catch (err) {
-      alert("Upload failed: " + err);
+      alert(
+        "Upload failed: " +
+          err +
+          ". Please press the reset button of the Uberlogger and try again."
+      );
       return false;
     }
   }
