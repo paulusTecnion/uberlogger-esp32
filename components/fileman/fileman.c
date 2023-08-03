@@ -22,7 +22,7 @@ void fileman_create_filename()
         sprintf(filext, "%s", ".dat");
     }
 
-    sprintf(file_name, MOUNT_POINT"/log%d_%d%s", file_seq_num, file_seq_subnum, filext);
+    sprintf(file_name, MOUNT_POINT"/log%d%s", file_seq_num, filext);
     // ESP_LOGI(TAG_FILE, "%s", file_name);
 }
 
