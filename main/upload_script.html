@@ -182,7 +182,8 @@
         return 1;
       }
     } catch (error) {
-      console.error("An error occurred:", error);
+      console.error("An error occurred:", error) +
+        ". Please press the reset button of the Uberlogger and try again.";
       return 1;
     }
   }
@@ -190,7 +191,7 @@
   function processNumber(number) {
     switch (number) {
       case 0:
-        document.getElementById("fw-update-state").innerHTML += "<p>IDLE</p>";
+        document.getElementById("fw-update-state").innerHTML += "<p>Idle</p>";
 
         break;
 
@@ -285,7 +286,7 @@
           .catch((error) => console.error("Error:", error));
       }, 1000);
     } catch (err) {
-      alert("Upload failed: " + err);
+      alert("Firmware update failed: " + err);
       return false;
     }
   }
