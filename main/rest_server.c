@@ -279,6 +279,36 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     
 }
 
+static esp_err_t logger_getRawAdc_handler(httpd_req_t *req)
+{
+     httpd_resp_set_type(req, "application/json");
+    cJSON * root = cJSON_CreateObject();
+    if (root == NULL)
+    {
+        return ESP_FAIL;
+    }
+
+    char buf[5];
+
+    for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
+    {
+            sprintf(buf,"AIN%d", i);
+            cJSON_AddNumberToObject(root, buf, live_data.analogDataRaw[i]);   
+    }
+
+
+    const char *settings_json= cJSON_Print(root);
+    httpd_resp_sendstr(req, settings_json);
+    free((void *)settings_json);
+
+    cJSON_Delete(root);
+    
+    return ESP_OK;
+
+   
+   
+}
+
 static esp_err_t logger_getStatus_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "application/json");
@@ -874,7 +904,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 16;
+    config.max_uri_handlers = 17;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -924,6 +954,17 @@ esp_err_t start_rest_server(const char *base_path)
     };
 
     httpd_register_uri_handler(server, &logger_getValues_uri);
+
+    httpd_uri_t logger_getRawAdc_uri = {
+        .uri = "/ajax/getRawAdc",
+        .method = HTTP_GET,
+        .handler = logger_getRawAdc_handler,
+        .user_ctx = rest_context
+    };
+
+    httpd_register_uri_handler(server, &logger_getRawAdc_uri);
+
+    
 
     httpd_uri_t logger_getStatus_uri = {
         .uri = "/ajax/getStatus",

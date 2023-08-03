@@ -205,6 +205,8 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         adc0 = live_data_buffer.adcData[i];
         adc1 = live_data_buffer.adcData[i+1];
         uint16_t adcVal = adc0 | (adc1 << 8);
+        dataOutput->analogDataRaw[j] = adcVal;
+
         // compensate for offset
         //  ESP_LOGI(TAG_LOG, "adcVal:%u", adcVal);
         if (settings_get()->adc_resolution == ADC_12_BITS)
@@ -226,6 +228,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
         channel_range = 2*channel_offset;
 
+       
         // dataOutput->analogData[j] = Logger_convertAdcFloat(adcVal);
         dataOutput->analogData[j] = (float)Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
         // ESP_LOGI(TAG_LOG, "%u, %f", adcVal, dataOutput->analogData[j]);
