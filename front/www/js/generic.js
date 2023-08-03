@@ -93,12 +93,13 @@ function getValues() {
         break;
 
       case 2:
-        value = 'Failed to connect. Press "Save Wi-Fi settings" to try again.';
+        value =
+          'Failed to connect &#10060;. Press "Save Wi-Fi settings" to try again.';
 
         break;
 
       case 3:
-        value = "Connected";
+        value = "Connected &#9989;";
 
         break;
     }
