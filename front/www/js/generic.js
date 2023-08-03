@@ -178,7 +178,11 @@ function getValues() {
       // 	break;
     }
 
-    if (valuesData["LOGGER_STATE"] == "IDLE") {
+    // Disable the start button when
+    if (
+      valuesData["LOGGER_STATE"] == "IDLE" &&
+      valuesData["SD_CARD_STATUS"] == "MOUNTED"
+    ) {
       $("#btn_logger_start").removeAttr("disabled");
     } else {
       $("#btn_logger_start").attr("disabled", true);
@@ -195,13 +199,11 @@ function getValues() {
       $("#btn_format_sdcard").removeAttr("disabled");
       $("#btn_unmount_sdcard").removeAttr("disabled");
       $("#btn_unmount_sdcard_top").removeAttr("disabled");
-      $("#btn_logger_start").removeAttr("disabled");
     } else {
       $("#btn_refresh_sdcard").attr("disabled", true);
       $("#btn_format_sdcard").attr("disabled", true);
       $("#btn_unmount_sdcard").attr("disabled", true);
       $("#btn_unmount_sdcard_top").attr("disabled", true);
-      $("#btn_logger_start").attr("disabled", true);
     }
     populateFields("#topstatus", valuesData);
   }).fail(function () {
