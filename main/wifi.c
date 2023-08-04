@@ -153,7 +153,9 @@ esp_err_t wifi_connect_to_ap(void)
             //.threshold.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD,
             .threshold.rssi = -80,
             .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
-            .sort_method = WIFI_CONNECT_AP_BY_SIGNAL
+            .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
+            .scan_method = WIFI_ALL_CHANNEL_SCAN, // scan all channels for potentially same SSID on a better channel
+            .failure_retry_cnt =3,                  // retry 3 times in case of failure. Potentially remove own retry system? 
         },
     };
     s_retry_num = 0;
