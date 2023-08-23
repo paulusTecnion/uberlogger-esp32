@@ -722,17 +722,22 @@ size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uint
 esp_err_t Logger_calibrate()
 {
     // #ifdef DEBUG_LOGGING
-    ESP_LOGI(TAG_LOG, "Logger_calibrate() called");
-    // #endif
-
-        LoggingState_t t = LOGTASK_CALIBRATION;
-        if (xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS) != pdTRUE)
+    if (_currentLogTaskState == LOGTASK_IDLE || 
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
         {
-            ESP_LOGE(TAG_LOG, "Unable to send calibrate command to queue");
-            return ESP_FAIL;
+            ESP_LOGI(TAG_LOG, "Logger_calibrate() called");
+
+            LoggingState_t t = LOGTASK_CALIBRATION;
+            if (xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS) != pdTRUE)
+            {
+                ESP_LOGE(TAG_LOG, "Unable to send calibrate command to queue");
+                return ESP_FAIL;
+            }
+            return ESP_OK;
         }
-        return ESP_OK;
-  
+
+        return ESP_FAIL;
+
 }
 
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
@@ -1065,7 +1070,7 @@ esp_err_t Logger_processData()
             expected_msg_part = 1;
             // ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
             // In this case we have Time bytes first...
-            
+            sizeof(spi_msg_1_t);
             ESP_ERROR_CHECK(esp_async_memcpy(driver, 
                 sdcard_data.timeData+log_counter*sizeof(spi_msg_1_ptr->timeData),
                 spi_msg_1_ptr->timeData, 
@@ -1463,7 +1468,7 @@ void Logtask_calibration()
                 last_resolution = settings_get_resolution();
                 last_sample_rate = settings_get_samplerate();
                 settings_set_resolution(ADC_12_BITS);
-                settings_set_samplerate(ADC_SAMPLE_RATE_100Hz);
+                settings_set_samplerate(ADC_SAMPLE_RATE_250Hz);
                 settings_persist_settings();
                 Logger_syncSettings(0);
                 // Wait to let the stm32 make the configuration run
@@ -1515,7 +1520,7 @@ void Logtask_calibration()
                     //     ESP_LOGI(TAG_LOG, "Average calib value %u: %lu", i, calibrationValues[i]);
                     // }
                     
-                    if (calibrationCounter == 10)
+                    if (calibrationCounter == NUM_CALIBRATION_VALUES)
                     {
                         // store calibration values
                         for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)

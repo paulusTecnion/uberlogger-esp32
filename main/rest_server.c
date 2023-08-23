@@ -416,6 +416,22 @@ const char * logger_settings_to_json(Settings_t *settings)
     return strptr;
 }
 
+static esp_err_t logger_calibrate_handler(httpd_req_t *req)
+{
+
+   
+    httpd_resp_set_type(req, "application/json");
+
+    if (Logger_calibrate())
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK, "Calibration in progress");
+    } else {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started. Are you logging?");
+    }
+
+    return ESP_OK;
+}
+
 
 static esp_err_t logger_filebrowserFormat_handler(httpd_req_t *req)
 {
@@ -911,12 +927,12 @@ esp_err_t start_rest_server(const char *base_path)
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
 
-    // httpd_uri_t logger_wifi_status_uri = {
-    //     .uri = "/ajax/wifiStatus",
-    //     .method = HTTP_GET,
-    //     .handler = logger_wifi_status_handler,
-    //     .user_ctx = rest_context
-    // };
+    httpd_uri_t logger_calibrate_uri = {
+        .uri = "/ajax/calibrate",
+        .method = HTTP_GET,
+        .handler = logger_calibrate_handler,
+        .user_ctx = rest_context
+    };
 
     httpd_uri_t logger_filebrowserFormat_uri = {
         .uri = "/ajax/filebrowserFormat",
