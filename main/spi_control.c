@@ -145,7 +145,7 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
         //  the issue. Setting the SPI mode to 2 (CPOL = 1, CPHA = 0, sample on SCK 2nd edge and phase crossing of MISO/MOSI ) on the ESP32 while leaving it on SPI mode 0 on the
         //  STM32 makes the ESP32 sample the MISO line on the falling edge of the SCLK, effectively  sampling it half a cycle later. This does fix
         //  the issue. This is very odd, but it works. Setting both SPI modes to 2 does not work. Need to investigate what goes wrong here later. 
-        .mode=2,                    // SPI mode 2,
+        .mode=0,                    // SPI mode 2,
         .spics_io_num= STM32_SPI_CS, //STM32_SPI_CS,//GPIO_CS,
         .cs_ena_posttrans=1,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
