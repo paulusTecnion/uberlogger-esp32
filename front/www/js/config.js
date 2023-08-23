@@ -131,11 +131,11 @@ function getStatus() {
         break;
 
       case 2:
-        value = "Failed to connect";
+        value = "Failed to connect &#10060;";
         break;
 
       case 3:
-        value = "Connected";
+        value = "Connected &#9989;";
         break;
     }
     data["WIFI_TEST_STATUS"] = value;
@@ -224,6 +224,7 @@ function setConfig() {
       AIN6: input["AIN6"],
       AIN7: input["AIN7"],
     },
+    TIMESTAMP: Number(new Date()),
   };
 
   $.ajax({

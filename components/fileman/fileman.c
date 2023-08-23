@@ -22,7 +22,7 @@ void fileman_create_filename()
         sprintf(filext, "%s", ".dat");
     }
 
-    sprintf(file_name, MOUNT_POINT"/log%d_%d%s", file_seq_num, file_seq_subnum, filext);
+    sprintf(file_name, MOUNT_POINT"/log%d%s", file_seq_num, filext);
     // ESP_LOGI(TAG_FILE, "%s", file_name);
 }
 
@@ -139,7 +139,26 @@ int fileman_write(const void * data, size_t len)
 
 int fileman_csv_write_header()
 {
-    return fprintf(f, "time(utc),adc0,adc1,adc2,adc3,adc4,adc5,adc6,adc7,io0,io1,io2,io3,io4,io5\r\n");
+    // first write entire string into buffer
+    char filestrbuffer[200];
+    int writeptr = 0;
+    writeptr = writeptr + sprintf(filestrbuffer+writeptr, "time(utc),");
+    // Print ADC or NTC, depending on settings
+    for (int i = 0; i<NUM_ADC_CHANNELS; i++)
+    {
+        if ((settings_get()->adc_channel_type & (1 << i)))
+        {
+            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "NTC%d,", i);
+        } else {
+            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "AIN%d,", i);
+        }
+    }
+    writeptr = writeptr + sprintf(filestrbuffer+writeptr,"DI0,DI1,DI2,DI3,DI4,DI5\r\n");
+    // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
+    // finally write to file and return
+    return fprintf(f, filestrbuffer);
+
+  
     
 }
 

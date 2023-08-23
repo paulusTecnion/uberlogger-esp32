@@ -272,10 +272,14 @@ void init_console(){
     // register_update_www();
     esp_console_register_help_command();
 
+    // Check if UART is set to USB or not existing
+    #ifdef CONFIG_ESP_CONSOLE_USB_CDC
     // esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
     esp_console_dev_uart_config_t hw_config =    ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT();
 
     // Enable console
+
     ESP_ERROR_CHECK(esp_console_new_repl_usb_cdc(&hw_config, &repl_config, &repl));
     ESP_ERROR_CHECK(esp_console_start_repl(repl));
+    #endif
 }
