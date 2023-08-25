@@ -262,7 +262,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
 {
    
       if (Logger_getState() == LOGTASK_LOGGING){
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot download files while logging");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot request files while logging");
         return ESP_FAIL;
     }
 
@@ -529,7 +529,7 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 {
   
       if (Logger_getState() == LOGTASK_LOGGING){
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot upload files while logging");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot delete files while logging");
         return ESP_FAIL;
     }
 
