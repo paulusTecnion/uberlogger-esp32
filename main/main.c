@@ -128,6 +128,10 @@ void app_main(void)
     }
     settings_init();
 
+    // The wifi seems to be either crashing the ESP sometimes due to this: https://github.com/espressif/esp-idf/issues/7404
+    // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...
+    vTaskDelay (1000/portTICK_PERIOD_MS);
+    
     if (!settings_get_boot_reason())
     {
         wifi_start();
@@ -144,9 +148,7 @@ void app_main(void)
     
  
 
-    // The wifi seems to be either crashing the ESP sometimes due to this: https://github.com/espressif/esp-idf/issues/7404
-    // Or it uses too much current which resets the ESP internally. Either way, the next delay seems to fix this issue for now...
-    vTaskDelay (1000/portTICK_PERIOD_MS);
+    
 
     if (!settings_get_boot_reason())
     {
