@@ -109,9 +109,11 @@ function filebrowserRefresh(filebrowserPath) {
     htmlstring += "</table>";
 
     $("#filelist").html(htmlstring);
-  }).fail(function () {
-    alert("Error: could not get list of SD-card files.");
-    console.log("Data query failed.");
+  }).fail(function (response) {
+    alert(
+      "Error: could not get list of SD-card files. Reason: " +
+        response.responseText
+    );
   });
 }
 
