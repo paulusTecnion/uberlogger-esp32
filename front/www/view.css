@@ -1,6 +1,6 @@
 /* generic styling */
 body {
-  background: hsl(215, 30%, 40%);
+  background: white; /* hsl(215, 30%, 40%); */
   /*background:#ddd;*/
 
   font-family: Helvetica, Arial, sans-serif;
@@ -38,7 +38,7 @@ body {
 
 #content {
   text-align: left;
-  padding: 30px 2px 40px 2px;
+  padding: 30px 2px 0px 0px;
 }
 
 #window {
@@ -118,8 +118,8 @@ body {
 }
 
 #topmenubar button {
-  background-color: hsl(215, 30%, 30%);
-  border: 2px solid hsl(215, 30%, 30%);
+  background-color: #ff5b23;
+  border: 2px solid #ff5b23;
   color: white;
 
   border-radius: 10px;
@@ -138,7 +138,7 @@ body {
 }
 
 #topmenubar button:hover {
-  background-color: hsl(215, 30%, 45%);
+  background-color: #f8a285;
   color: white;
 }
 
@@ -235,7 +235,7 @@ li {
 }
 
 .greybox {
-  background-color: hsl(215, 30%, 95%);
+  background-color: hsl(30, 31%, 95%);
   border: 0;
   border-radius: 10px;
   padding: 10px 10px;
@@ -377,3 +377,92 @@ input[type="radio"] {
   cursor: pointer;
   opacity: 0.8;
 }
+
+/* generic styling */
+body {
+  background: #191932; /* Updated background color */
+  font-family: "Roboto", sans-serif;
+  font-size: 16px;
+  text-align: center;
+  line-height: 130%;
+  color: #191932; /* Updated text color */
+  margin: 0 auto 0 auto;
+  min-width: 500px;
+  max-width: 95%;
+}
+
+/* ... (rest of your CSS remains unchanged) ... */
+
+#toptitle {
+  /* ... other styles ... */
+  background-color: white; /* Updated to orange for accent */
+}
+
+#toptitle .left h1 {
+  /* ... other styles ... */
+  color: #ffffff; /* Updated to white for contrast */
+  text-shadow: 3px 3px 5px #000; /* Updated shadow for better visibility */
+}
+
+#toptitle .left p {
+  /* ... other styles ... */
+  color: #ffffff; /* Updated to white */
+  text-shadow: 3px 3px 5px #000; /* Updated shadow for better visibility */
+}
+
+#topmenubar {
+  /* ... other styles ... */
+  background-color: white; /* Updated to the main dark blue background */
+}
+
+#topmenubar button {
+  background-color: #f78661; /* Updated to orange */
+  border: 2px solid #f78661; /* Same orange border */
+  color: #ffffff; /* White text */
+}
+
+#topmenubar button.selected {
+  background-color: #ffffff; /* White for selected */
+  color: #191932; /* Dark blue text */
+}
+
+#topmenubar button:hover {
+  background-color: #fcb69a; /* Lightened orange for hover effect */
+  color: #ffffff;
+}
+
+/* ... (rest of your CSS remains unchanged) ... */
+
+/* styling of text */
+h1,
+h2,
+h3 {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 700;
+}
+
+h1 {
+  /* ... other styles ... */
+  color: #f78661; /* Updated to orange */
+}
+
+h2 {
+  /* ... other styles ... */
+  color: #f78661; /* Updated to orange */
+}
+
+h3 {
+  /* ... other styles ... */
+  color: #f78661; /* Updated to orange */
+}
+
+/* ... (rest of your CSS remains unchanged) ... */
+
+/* ... (rest of your CSS remains unchanged) ... */
+
+#footer {
+  /* ... other styles ... */
+  color: #ffffff; /* Updated to white */
+}
+
+/* ... (rest of your CSS remains unchanged) ... */
