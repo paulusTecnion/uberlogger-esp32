@@ -527,7 +527,7 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
 
 esp_err_t Logtask_sync_settings()
 {
-    if (_currentLogTaskState != LOGTASK_IDLE || LOGTASK_SINGLE_SHOT)
+    if (_currentLogTaskState != LOGTASK_IDLE && _currentLogTaskState != LOGTASK_SINGLE_SHOT)
     {
         ESP_LOGE(TAG_LOG, "Cannot sync settings while logging or calibration");
         return ESP_FAIL;

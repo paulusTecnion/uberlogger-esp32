@@ -187,13 +187,19 @@ function syncTime() {
 }
 
 function startCalibration() {
-  query = "calibrate";
+  ret = confirm(
+    "Please set the DIP switches of ALL channels to ANALOG before starting the calibration. Continue?"
+  );
 
-  $.getJSON("./ajax/" + query, (data) => {
-    alert("Calibration in progress...");
-  }).fail(function (response) {
-    alert("Error: calibration failed: " + response);
-  });
+  if (ret == true) {
+    query = "calibrate";
+
+    $.getJSON("./ajax/" + query, (data) => {
+      alert("Calibration in progress...");
+    }).fail(function (response) {
+      alert("Error: calibration failed: " + response);
+    });
+  }
 }
 
 function setConfig() {
