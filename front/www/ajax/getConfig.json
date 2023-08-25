@@ -7,23 +7,23 @@
   "LOG_SAMPLE_RATE": 3,
   "ADC_RESOLUTION": 16,
   "NTC_SELECT": {
-    "NTC0": false,
     "NTC1": false,
     "NTC2": false,
     "NTC3": false,
-    "NTC4": true,
-    "NTC5": false,
+    "NTC4": false,
+    "NTC5": true,
     "NTC6": false,
-    "NTC7": true
+    "NTC7": false,
+    "NTC8": true
   },
   "AIN_RANGE_SELECT": {
-    "AIN0": false,
     "AIN1": false,
     "AIN2": false,
-    "AIN3": true,
+    "AIN3": false,
     "AIN4": true,
-    "AIN5": false,
+    "AIN5": true,
     "AIN6": false,
-    "AIN7": true
+    "AIN7": false,
+    "AIN8": true
   }
 }

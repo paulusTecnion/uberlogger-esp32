@@ -148,12 +148,12 @@ int fileman_csv_write_header()
     {
         if ((settings_get()->adc_channel_type & (1 << i)))
         {
-            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "NTC%d,", i);
+            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "NTC%d,", i+1);
         } else {
-            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "AIN%d,", i);
+            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "AIN%d,", i+1);
         }
     }
-    writeptr = writeptr + sprintf(filestrbuffer+writeptr,"DI0,DI1,DI2,DI3,DI4,DI5\r\n");
+    writeptr = writeptr + sprintf(filestrbuffer+writeptr,"DI1,DI2,DI3,DI4,DI5,DI6\r\n");
     // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
     // finally write to file and return
     return fprintf(f, filestrbuffer);

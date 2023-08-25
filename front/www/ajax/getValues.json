@@ -1,47 +1,45 @@
 {
-	"TIMESTAMP": 1673607089000,
+  "TIMESTAMP": 1673607089000,
 
-	"READINGS":{
+  "READINGS": {
+    "TEMPERATURE": {
+      "UNITS": "deg. C",
+      "VALUES": {
+        "T1": 0,
+        "T2": -1,
+        "T3": 2,
+        "T4": -3,
+        "T5": 4,
+        "T6": -5,
+        "T7": 6,
+        "T8": -7
+      }
+    },
 
-		"TEMPERATURE": {
-			"UNITS": "deg. C",
-			"VALUES":	{ 
-				"T0": 0,
-				"T1": -1,
-				"T2": 2,
-				"T3": -3,
-				"T4": 4,
-				"T5": -5,
-				"T6": 6,
-				"T7": -7
-			}
-		},
+    "ANALOG": {
+      "UNITS": "Volt",
+      "VALUES": {
+        "AIN1": 999.0,
+        "AIN2": -0.01,
+        "AIN3": 0.02,
+        "AIN4": -0.03,
+        "AIN5": 0.04,
+        "AIN6": -0.05,
+        "AIN7": 0.06,
+        "AIN8": -999.999
+      }
+    },
 
-		"ANALOG":	{
-			"UNITS": "Volt",
-			"VALUES":	{
-				"AIN0": 999.000,
-				"AIN1": -0.01,
-				"AIN2": 0.02,
-				"AIN3": -0.03,
-				"AIN4": 0.04,
-				"AIN5": -0.05,
-				"AIN6": 0.06,
-				"AIN7": -999.999
-			}
-		},
-				
-		"DIGITAL": {
-			"UNITS": "State",
-			"VALUES":	{ 
-				"DI0": false,
-				"DI1": true,
-				"DI2": false,
-				"DI3": true,
-				"DI4": false,
-				"DI5": true
-			}
-		}
-
-	}
+    "DIGITAL": {
+      "UNITS": "State",
+      "VALUES": {
+        "DI1": false,
+        "DI2": true,
+        "DI3": false,
+        "DI4": true,
+        "DI5": false,
+        "DI6": true
+      }
+    }
+  }
 }

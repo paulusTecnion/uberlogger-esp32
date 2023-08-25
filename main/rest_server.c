@@ -195,10 +195,10 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     {
         if (settings_get_adc_channel_type(settings_get(), i))
         {
-            sprintf(buf,"T%d", i);
+            sprintf(buf,"T%d", i+1);
              cJSON_AddNumberToObject(tValues, buf, live_data.temperatureData[i]);
         } else {
-            sprintf(buf,"AIN%d", i);
+            sprintf(buf,"AIN%d", i+1);
             cJSON_AddNumberToObject(aValues, buf, live_data.analogData[i]);
         }
         
@@ -213,12 +213,12 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
 //    cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
     cJSON * aDigital = cJSON_AddObjectToObject(digital, "VALUES");
 
-    cJSON_AddNumberToObject(aDigital, "DI0", live_data.gpioData[0]);
-    cJSON_AddNumberToObject(aDigital, "DI1", live_data.gpioData[1]);
-    cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[2]);
-    cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[3]);
-    cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[4]);
-    cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[5]);
+    cJSON_AddNumberToObject(aDigital, "DI1", live_data.gpioData[0]);
+    cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[1]);
+    cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[2]);
+    cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[3]);
+    cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[4]);
+    cJSON_AddNumberToObject(aDigital, "DI6", live_data.gpioData[5]);
 
     // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
@@ -292,7 +292,7 @@ static esp_err_t logger_getRawAdc_handler(httpd_req_t *req)
 
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
-            sprintf(buf,"AIN%d", i);
+            sprintf(buf,"AIN%d", i+1);
             cJSON_AddNumberToObject(root, buf, live_data.analogDataRaw[i]);   
     }
 
@@ -384,10 +384,10 @@ const char * logger_settings_to_json(Settings_t *settings)
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
 
-            sprintf(buf,"NTC%d", i);
+            sprintf(buf,"NTC%d", i+1);
             cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(settings, i));
 
-            sprintf(buf,"AIN%d", i);
+            sprintf(buf,"AIN%d", i+1);
              cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
 
     }
@@ -616,7 +616,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTC_SELECT");
                 if (item != NULL)
                 {
-                    sprintf(buf2, "NTC%d", i);
+                    sprintf(buf2, "NTC%d", i+1);
                     // json_send_resp(req, ENDPOINT_RESP_ERROR);
                     // return ESP_FAIL;
                 }
@@ -626,7 +626,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "AIN_RANGE_SELECT");
                 if (item != NULL)
                 {
-                    sprintf(buf2, "AIN%d", i);
+                    sprintf(buf2, "AIN%d", i+1);
                     // json_send_resp(req, ENDPOINT_RESP_ERROR);
                     // return ESP_FAIL;
                 }
