@@ -417,9 +417,7 @@ const char * logger_settings_to_json(Settings_t *settings)
 }
 
 static esp_err_t logger_calibrate_handler(httpd_req_t *req)
-{
-
-   
+{   
     httpd_resp_set_type(req, "application/json");
 
     if (Logger_calibrate())
@@ -920,7 +918,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 17;
+    config.max_uri_handlers = 18;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -933,6 +931,8 @@ esp_err_t start_rest_server(const char *base_path)
         .handler = logger_calibrate_handler,
         .user_ctx = rest_context
     };
+
+     httpd_register_uri_handler(server, &logger_calibrate_uri);
 
     httpd_uri_t logger_filebrowserFormat_uri = {
         .uri = "/ajax/filebrowserFormat",

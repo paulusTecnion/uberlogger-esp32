@@ -172,6 +172,9 @@ function getValues() {
       case 8:
         valuesData["LOGGER_STATE"] = "FW UPDATE";
         break;
+      case 10:
+        valuesData["LOGGER_STATE"] = "Calibrating";
+        break;
 
       // case 9:
       // 	valuesData["LOGGER_STATE"]="CALIBRATION";

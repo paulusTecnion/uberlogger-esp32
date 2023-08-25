@@ -86,26 +86,6 @@
           <th>Range</th>
         </tr>
         <tr>
-          <td>Channel 0</td>
-          <td>
-            <select
-              name="NTC0"
-              id="NTC0"
-              class="json-as-bool"
-              onchange="disableAIN('0')"
-            >
-              <option value="0">Analog in</option>
-              <option value="1">NTC</option>
-            </select>
-          </td>
-          <td>
-            <select name="AIN0" id="AIN0" class="json-as-bool">
-              <option value="0">+/-10 V</option>
-              <option value="1">+/-60 V</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
           <td>Channel 1</td>
           <td>
             <select
@@ -245,10 +225,27 @@
             </select>
           </td>
         </tr>
+        <tr>
+          <td>Channel 8</td>
+          <td>
+            <select
+              name="NTC8"
+              id="NTC8"
+              class="json-as-bool"
+              onchange="disableAIN('8')"
+            >
+              <option value="0">Analog in</option>
+              <option value="1">NTC</option>
+            </select>
+          </td>
+          <td>
+            <select name="AIN8" id="AIN8" class="json-as-bool">
+              <option value="0">+/-10 V</option>
+              <option value="1">+/-60 V</option>
+            </select>
+          </td>
+        </tr>
       </table>
-
-      <h3>Digital channels</h3>
-      <p>Digital channels currently have no configuration options.</p>
 
       <div id="configuration_done">
         <input
@@ -256,9 +253,26 @@
           class="button_text"
           type="button"
           onClick="setConfig()"
-          value="Save all settings"
+          value="Save channel settings"
         />
       </div>
+
+      <h3>Analog Calibration</h3>
+      <p>
+        Hit the calibration button below to start calibration of the channels
+      </p>
+      <div id="calibration">
+        <input
+          id="calibrationStart"
+          class="button_text"
+          type="button"
+          onClick="startCalibration()"
+          value="Start calibration"
+        />
+      </div>
+
+      <!-- <h3>Digital channels</h3>
+      <p>Digital channels currently have no configuration options.</p> -->
     </div>
 
     <h2>Wi-Fi configuration</h2>
@@ -284,7 +298,7 @@
       </p>
       <p>
         <i
-          ><b>Note: </b>Please reset the Uberlogger manually after saving this
+          ><b>Note: </b>Please press the reset button manually after saving this
           setting</i
         >
       </p>
