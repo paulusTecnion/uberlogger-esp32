@@ -369,7 +369,7 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
 
     // Reset STM32
 
-    Logger_resetSTM32();
+    // Logger_resetSTM32();
 
     vTaskDelay(300 / portTICK_PERIOD_MS);
     // Send command to STM32 to go into settings mode
