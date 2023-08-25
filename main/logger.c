@@ -1951,6 +1951,9 @@ void task_logging(void * pvParameters)
         while(1);
     }
 
+    // Reset the STM32
+    Logger_resetSTM32();
+
     if (Logger_syncSettings(0) != ESP_OK)
     {
         ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
