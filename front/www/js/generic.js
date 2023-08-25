@@ -210,11 +210,11 @@ function getValues() {
       $("#btn_unmount_sdcard_top").attr("disabled", true);
     }
     populateFields("#topstatus", valuesData);
+    alert_active_valueserr = false;
   }).fail(function () {
     if (alert_active_valueserr == false) {
       alert_active_valueserr = true;
       alert("Error: could not update values.");
-      alert_active_valueserr = false;
     }
     console.log("Data query failed.");
   });
