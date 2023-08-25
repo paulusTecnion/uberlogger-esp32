@@ -419,12 +419,27 @@ const char * logger_settings_to_json(Settings_t *settings)
 static esp_err_t logger_calibrate_handler(httpd_req_t *req)
 {   
     httpd_resp_set_type(req, "application/json");
-
-    if (Logger_calibrate())
+    if (Logger_getState() == LOGTASK_LOGGING)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, "Calibration in progress");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started while logging."); 
+        return ESP_FAIL;
+    } 
+    else if (Logger_getState() == LOGTASK_CALIBRATION) 
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration already started."); 
+        return ESP_FAIL;
+    } else if ((Logger_getState() != LOGTASK_IDLE) && (Logger_getState() !=LOGTASK_SINGLE_SHOT))
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not idle. Are you updating firmware?"); 
+        return ESP_FAIL;
+    }
+
+    if (Logger_calibrate() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK, "Calibration started...");
     } else {
         json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started. Are you logging?");
+        return ESP_FAIL;
     }
 
     return ESP_OK;

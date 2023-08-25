@@ -195,7 +195,11 @@ function startCalibration() {
     query = "calibrate";
 
     $.getJSON("./ajax/" + query, (data) => {
-      alert("Calibration in progress...");
+      if (data["resp"] == "ack") {
+        alert("Calibration in progress...");
+      } else {
+        alert("Error: calibration failed: " + data["reason"]);
+      }
     }).fail(function (response) {
       alert("Error: calibration failed: " + response);
     });
