@@ -1070,7 +1070,6 @@ esp_err_t Logger_processData()
             expected_msg_part = 1;
             // ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
             // In this case we have Time bytes first...
-            sizeof(spi_msg_1_t);
             ESP_ERROR_CHECK(esp_async_memcpy(driver, 
                 sdcard_data.timeData+log_counter*sizeof(spi_msg_1_ptr->timeData),
                 spi_msg_1_ptr->timeData, 
