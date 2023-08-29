@@ -892,19 +892,26 @@ uint32_t Logger_getLastFreeSpace()
 esp_err_t Logger_check_sdcard_free_space()
 {
      // Flush buffer to sd card
-    free_space = esp_sd_card_get_free_space();
-    if ( free_space < SDCARD_FREE_SPACE_MINIMUM_KB)
+
+    if (esp_sdcard_is_mounted())
     {
-        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
-        ESP_LOGE(TAG_LOG, "Not sufficient disk space");
-        return ESP_FAIL;
-    } 
-    else if (free_space < SDCARD_FREE_SPACE_WARNING_KB)
-    {   
-        #ifdef DEBUG_SDCARD 
-        ESP_LOGW(TAG_LOG, "Warning, low disk space!");
-        #endif
+        free_space = esp_sd_card_get_free_space();
+        if ( free_space < SDCARD_FREE_SPACE_MINIMUM_KB)
+        {
+            SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
+            ESP_LOGE(TAG_LOG, "Not sufficient disk space");
+            return ESP_FAIL;
+        } 
+        else if (free_space < SDCARD_FREE_SPACE_WARNING_KB)
+        {   
+            #ifdef DEBUG_SDCARD 
+            ESP_LOGW(TAG_LOG, "Warning, low disk space!");
+            #endif
+        }
+    } else {
+        free_space = 0;
     }
+
 
     return ESP_OK;
 }
@@ -1268,6 +1275,7 @@ esp_err_t Logging_check_sdcard()
         {
             ESP_LOGI(TAG_LOG, "Unmounting SD card");
             esp_sd_card_unmount();
+            Logger_check_sdcard_free_space();
         } 
         // sd card inserted and not mounted and last user action was not to unmount it => Mount it
         else if (!esp_sdcard_is_mounted() && !userRequestsUnmount)
@@ -1277,6 +1285,9 @@ esp_err_t Logging_check_sdcard()
             {
                 SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
                 return ESP_FAIL;
+            } else {
+                // check for free disk space
+                Logger_check_sdcard_free_space();
             }
         }
     } 
@@ -1290,6 +1301,7 @@ esp_err_t Logging_check_sdcard()
         {
             ESP_LOGI(TAG_LOG, "Unmounting SD card");
             esp_sd_card_unmount();
+            Logger_check_sdcard_free_space();
         }
     }
    
