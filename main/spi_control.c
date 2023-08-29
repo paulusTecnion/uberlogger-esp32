@@ -187,7 +187,7 @@ esp_err_t spi_ctrl_single_transaction(spi_transaction_t * transaction)
     
     if (spi_device_queue_trans(stm_spi_handle, transaction, 50/ portTICK_PERIOD_MS) == ESP_OK)
     {
-        if (spi_device_get_trans_result(stm_spi_handle, &transaction, 1000 / portTICK_PERIOD_MS) == ESP_OK)
+        if (spi_device_get_trans_result(stm_spi_handle, &transaction, 2000 / portTICK_PERIOD_MS) == ESP_OK)
         {
             return ESP_OK;
         }   
@@ -226,7 +226,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout >= 100)
+        if (timeout >= 200)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 has data rdy still high, expected low 1/3", cmd);
             
@@ -251,7 +251,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout >= 100)
+        if (timeout >= 200)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 was LOW, expected HIGH 2/3", cmd);
             return ESP_FAIL;
@@ -276,7 +276,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout >= 100)
+        if (timeout >= 200)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 was HIGH, expected LOW 3/3", cmd);
             return ESP_FAIL;
