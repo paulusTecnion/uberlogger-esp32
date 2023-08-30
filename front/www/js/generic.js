@@ -1,6 +1,7 @@
 var valuesData = [];
 var alert_active_valueserr = false;
-
+var calibrating = false;
+var calibCounter = 0;
 const BYTES_PER_MB = 1024 * 1024;
 
 // load correct page after document is ready and highlight correct item in menu
@@ -175,11 +176,24 @@ function getValues() {
 
       case 10:
         valuesData["LOGGER_STATE"] = "Calibrating";
+        $("#calibrationStart").attr("disabled", true);
+        calibrating = true;
+        calibCounter = 0;
         break;
 
       // case 9:
       // 	valuesData["LOGGER_STATE"]="CALIBRATION";
       // 	break;
+    }
+
+    if (valuesData["LOGGER_STATE"] == "Calibrating") {
+      $("#calibStatus").html("Calibrating...");
+    } else if (calibrating == true && calibCounter < 5) {
+      $("#calibStatus").html("Calibration done &checkmark;");
+      $("#calibrationStart").attr("disabled", false);
+      calibCounter++;
+    } else {
+      $("#calibStatus").html("");
     }
 
     // Disable the start button when
