@@ -204,6 +204,9 @@ function getValues() {
       $("#btn_unmount_sdcard").removeAttr("disabled");
       $("#btn_unmount_sdcard_top").removeAttr("disabled");
     } else {
+      $("#filelist").html(
+        "File browser is not available when logging or when no SD card is inserted."
+      );
       $("#btn_refresh_sdcard").attr("disabled", true);
       $("#btn_format_sdcard").attr("disabled", true);
       $("#btn_unmount_sdcard").attr("disabled", true);

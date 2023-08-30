@@ -110,9 +110,12 @@ function filebrowserRefresh(filebrowserPath) {
 
     $("#filelist").html(htmlstring);
   }).fail(function (response) {
-    alert(
-      "Error: could not get list of SD-card files. Reason: " +
-        response.responseText
+    // alert(
+    //   "Error: could not get list of SD-card files. Reason: " +
+    //     response.responseText
+    // );
+    $("#filelist").html(
+      "File browser is not available when logging or when no SD card is inserted."
     );
   });
 }
