@@ -65,6 +65,74 @@ function ejectCard() {
   });
 }
 
+function loggerStart() {
+  let input = { ACTION: "START" };
+
+  $.ajax({
+    method: "POST",
+    url: "ajax/loggerStart",
+    data: JSON.stringify(input),
+
+    processData: false,
+    dataType: "json",
+    contentType: "application/json",
+
+    success: function (response) {
+      if (response["resp"] == "ack") {
+        alert("Logger started.");
+
+        $("#start_logging_button").attr("onclick", "loggerStop()");
+      } else {
+        alert(
+          "Error: could not start logger, response=" + response["reason"] + "."
+        );
+        console.log("Failed, response=" + JSON.stringify(response));
+      }
+    },
+
+    error: function (response) {
+      alert(
+        "Error: could not start logger, response=" + JSON.stringify(response)
+      );
+      console.log("Failed, response=" + JSON.stringify(response));
+    },
+  });
+}
+
+function loggerStop() {
+  let input = { ACTION: "STOP" };
+
+  $.ajax({
+    method: "POST",
+    url: "ajax/loggerStop",
+    data: JSON.stringify(input),
+
+    processData: false,
+    dataType: "json",
+    contentType: "application/json",
+
+    success: function (response) {
+      if (response["resp"] == "ack") {
+        alert("Logger stopped.");
+
+        $("#start_logging_button").attr("onclick", "loggerStart()");
+      } else {
+        alert(
+          "Error: could not stop logger, response=" + response["reason"] + "."
+        );
+        console.log("Failed, response=" + JSON.stringify(response));
+      }
+    },
+
+    error: function (response) {
+      alert(
+        "Error: could not stop logger, response=" + JSON.stringify(response)
+      );
+      console.log("Failed, response=" + JSON.stringify(response));
+    },
+  });
+}
+
 //
 function getValues() {
   query = "getValues";
@@ -202,17 +270,37 @@ function getValues() {
       valuesData["SD_CARD_STATUS"] == "MOUNTED"
     ) {
       $("#btn_logger_start").removeAttr("disabled");
+      $("#start_logging_button").attr("onclick", "loggerStart();");
+      $("#start_logging_button").html(
+        '<span class="button-icon">&#9658;</span><span class="button-text">Start logging</span>'
+      );
     } else {
       $("#btn_logger_start").attr("disabled", true);
     }
+
+    if (
+      valuesData["LOGGER_STATE"] == "IDLE" &&
+      valuesData["SD_CARD_STATUS"] == "EJECTED"
+    ) {
+      $("#start_logging_button").attr("onclick", "");
+      $("#start_logging_button").html(
+        '<span class="button-text">No sd card</span>'
+      );
+    }
+
     if (valuesData["LOGGER_STATE"] == "LOGGING") {
       $("#btn_logger_stop").removeAttr("disabled");
+      $("#start_logging_button").attr("onclick", "loggerStop();");
+      $("#start_logging_button").html(
+        '<span class="button-icon">&#9209;</span><span class="button-text">Stop logging</span>'
+      );
     } else {
       $("#btn_logger_stop").attr("disabled", true);
     }
 
     // Enable Refresh file list, format and unmount buttons in case SD card status is mounted.
     if (valuesData["SD_CARD_STATUS"] == "MOUNTED") {
+      $("#start_logging_button").removeAttr("disabled");
       $("#btn_refresh_sdcard").removeAttr("disabled");
       $("#btn_format_sdcard").removeAttr("disabled");
       $("#btn_unmount_sdcard").removeAttr("disabled");
@@ -221,6 +309,7 @@ function getValues() {
       $("#filelist").html(
         "File browser is not available when logging or when no SD card is inserted."
       );
+      $("#start_logging_button").attr("disabled", true);
       $("#btn_refresh_sdcard").attr("disabled", true);
       $("#btn_format_sdcard").attr("disabled", true);
       $("#btn_unmount_sdcard").attr("disabled", true);

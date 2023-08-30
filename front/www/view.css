@@ -108,7 +108,8 @@ body {
 
 /* menubar */
 #topmenubar {
-  display: block;
+  display: flex;
+  justify-content: space-between;
   border-radius: 10px;
   background-color: hsl(215, 30%, 85%);
   padding: 10px 10px;
@@ -429,6 +430,22 @@ body {
 #topmenubar button:hover {
   background-color: #fcb69a; /* Lightened orange for hover effect */
   color: #ffffff;
+}
+
+#topmenubar button #start_logging_button {
+  order: 2;
+  background-color: #52dd43;
+}
+
+#topmenubar button:hover #start_logging_button {
+  background-color: #9cdf95;
+}
+
+/* Hide the text for smaller screens */
+@media (max-width: 768px) {
+  #start_logging_button .button-text {
+    display: none;
+  }
 }
 
 /* ... (rest of your CSS remains unchanged) ... */

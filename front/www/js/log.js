@@ -22,6 +22,9 @@ function loggerStart() {
     success: function (response) {
       if (response["resp"] == "ack") {
         alert("Logger started.");
+        $("#start_logging_button").html =
+          '<span class="button-icon">&#9209;</span><span class="button-text">Stop logging</span>';
+        $("#start_logging_button").attr("onclick", "loggerStop()");
       } else {
         alert(
           "Error: could not start logger, response=" + response["reason"] + "."
@@ -54,6 +57,9 @@ function loggerStop() {
     success: function (response) {
       if (response["resp"] == "ack") {
         alert("Logger stopped.");
+        $("#start_logging_button").html =
+          '<span class="button-icon">&#9658;</span><span class="button-text">Stop logging</span>';
+        $("#start_logging_button").attr("onclick", "loggerStart()");
       } else {
         alert(
           "Error: could not stop logger, response=" + response["reason"] + "."
