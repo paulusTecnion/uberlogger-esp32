@@ -457,9 +457,30 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
         SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
         return ESP_FAIL;
     }
+
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Sample rate set");
     #endif
+
+    cmd.command = STM32_CMD_SET_RANGE;
+    cmd.data0 = (uint8_t)settings_get_adc_channel_range_all();
+
+    spi_ctrl_cmd(STM32_CMD_SET_RANGE, &cmd, sizeof(spi_cmd_t));
+    // spi_ctrl_print_rx_buffer();
+    if (spi_buffer[0] != STM32_CMD_SET_RANGE || spi_buffer[1] != STM32_RESP_OK )
+    {
+        ESP_LOGE(TAG_LOG, "Unable to set STM32 voltage range. ");
+        spi_ctrl_print_rx_buffer(spi_buffer);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
+        return ESP_FAIL;
+    }
+
+    #ifdef DEBUG_LOGGING
+    ESP_LOGI(TAG_LOG, "Voltage range set");
+    #endif
+
+    
+
 
     if (syncTime)
     {
