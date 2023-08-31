@@ -7,76 +7,6 @@ function renderLogStatus() {
   populateFields("#log", valuesData);
 }
 
-function loggerStart() {
-  let input = { ACTION: "START" };
-
-  $.ajax({
-    method: "POST",
-    url: "ajax/loggerStart",
-    data: JSON.stringify(input),
-
-    processData: false,
-    dataType: "json",
-    contentType: "application/json",
-
-    success: function (response) {
-      if (response["resp"] == "ack") {
-        alert("Logger started.");
-        $("#start_logging_button").html =
-          '<span class="button-icon">&#9209;</span><span class="button-text">Stop logging</span>';
-        $("#start_logging_button").attr("onclick", "loggerStop()");
-      } else {
-        alert(
-          "Error: could not start logger, response=" + response["reason"] + "."
-        );
-        console.log("Failed, response=" + JSON.stringify(response));
-      }
-    },
-
-    error: function (response) {
-      alert(
-        "Error: could not start logger, response=" + JSON.stringify(response)
-      );
-      console.log("Failed, response=" + JSON.stringify(response));
-    },
-  });
-}
-
-function loggerStop() {
-  let input = { ACTION: "STOP" };
-
-  $.ajax({
-    method: "POST",
-    url: "ajax/loggerStop",
-    data: JSON.stringify(input),
-
-    processData: false,
-    dataType: "json",
-    contentType: "application/json",
-
-    success: function (response) {
-      if (response["resp"] == "ack") {
-        alert("Logger stopped.");
-        $("#start_logging_button").html =
-          '<span class="button-icon">&#9658;</span><span class="button-text">Stop logging</span>';
-        $("#start_logging_button").attr("onclick", "loggerStart()");
-      } else {
-        alert(
-          "Error: could not stop logger, response=" + response["reason"] + "."
-        );
-        console.log("Failed, response=" + JSON.stringify(response));
-      }
-    },
-
-    error: function (response) {
-      alert(
-        "Error: could not stop logger, response=" + JSON.stringify(response)
-      );
-      console.log("Failed, response=" + JSON.stringify(response));
-    },
-  });
-}
-
 function filebrowserRefresh(filebrowserPath) {
   parent = "#filelist";
 
@@ -192,7 +122,13 @@ function buildFileTree(data, htmlstring, depth, path) {
         value["NAME"] +
         "</td>";
       htmlstring +=
-        "<td>" + (value["SIZE"] / BYTES_PER_MB).toFixed(3) + " MB</td>";
+        "<td>" +
+        (value["SIZE"] / BYTES_PER_MB < 0.001
+          ? 0.001
+          : value["SIZE"] / BYTES_PER_MB
+        ).toFixed(3) +
+        " MB</td>";
+
       htmlstring +=
         "<td><a href='/ajax/getFileList" +
         path +
