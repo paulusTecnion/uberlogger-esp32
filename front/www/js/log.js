@@ -123,7 +123,7 @@ function buildFileTree(data, htmlstring, depth, path) {
         "</td>";
       htmlstring +=
         "<td>" +
-        (value["SIZE"] / BYTES_PER_MB < 0.001
+        (((value["SIZE"] / BYTES_PER_MB) < 0.001)
           ? 0.001
           : value["SIZE"] / BYTES_PER_MB
         ).toFixed(3) +
