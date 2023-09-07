@@ -125,7 +125,7 @@ esp_err_t settings_set_temp_offsets(int32_t * offsets)
 {
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
-        _settings.temp_offsets[i] = (uint16_t*)offsets[i];
+        _settings.temp_offsets[i] = (uint16_t)offsets[i];
     }
     return ESP_OK;
 }

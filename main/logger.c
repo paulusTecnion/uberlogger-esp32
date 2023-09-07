@@ -77,7 +77,7 @@ char strbuffer[16];
 
 
 LoggerFWState_t _currentFWState = LOGGER_FW_IDLE;
-LoggerFWState_t _nextFWState = NULL;
+LoggerFWState_t _nextFWState = LOGGER_FW_EMPTY_STATE;
 
 // Really need to change all these variable names to something more sensible
 LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
@@ -1894,8 +1894,8 @@ void Logtask_fw_update()
         } // end of case 
 
         // If nextFWState is not NULL, then we have to send it to the queue
-        if (_nextFWState != NULL) xQueueSend(xQueueFW, &_nextFWState, 0);
-        _nextFWState = NULL;
+        if (_nextFWState != LOGGER_FW_EMPTY_STATE) xQueueSend(xQueueFW, &_nextFWState, 0);
+        _nextFWState = LOGGER_FW_EMPTY_STATE;
         
     }
 
@@ -1908,16 +1908,16 @@ void task_logging(void * pvParameters)
     // esp_err_t ret;
     CLEAR_ERRORS(_errorCode);
    
-    uint32_t lastTick = 0;
-    uint32_t startTick = 0, stopTick = 0;
+    // uint32_t lastTick = 0;
+    // uint32_t startTick = 0, stopTick = 0;
 
     uint8_t x = 0;
 
-    esp_err_t ret;
+    // esp_err_t ret;
     // Init STM32 ADC enable pin
     // gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
 
-    spi_cmd_t spi_cmd;
+    // spi_cmd_t spi_cmd;
 
     // ****************************
     // Async mem copy settings

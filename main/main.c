@@ -45,24 +45,6 @@ void task_logging(void * pvParameters);
 void init_console();
 
 
-// static void initialise_mdns(void)
-// {
-//     mdns_init();
-//     mdns_hostname_set(CONFIG_EXAMPLE_MDNS_HOST_NAME);
-//     mdns_instance_name_set(MDNS_INSTANCE);
-
-//     mdns_txt_item_t serviceTxtData[] = {
-//         {"board", "esp32"},
-//         {"path", "/"}
-//     };
-
-//     ESP_ERROR_CHECK(mdns_service_add("ESP32-WebServer", "_http", "_tcp", 80, serviceTxtData,
-//                                      sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
-// }
-
-
-
-
 #if CONFIG_EXAMPLE_WEB_DEPLOY_SF
 esp_err_t init_fs(void)
 {
@@ -141,16 +123,7 @@ void app_main(void)
     xTaskCreate(task_logging, "task_logging", 4500, NULL, 8, &xHandle_stm32);
     xTaskCreate(task_hmi, "task_hmi", 2000, NULL, tskIDLE_PRIORITY, &xHandle_oled);
     
-    
-    // wifi_init_sta();
-    // wifi_init_softap();
-    // esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
-    
- 
-
-    
-
-    if (!settings_get_boot_reason())
+    if (settings_get_boot_reason() == 0)
     {
         ESP_ERROR_CHECK(start_rest_server(CONFIG_EXAMPLE_WEB_MOUNT_POINT));
     }

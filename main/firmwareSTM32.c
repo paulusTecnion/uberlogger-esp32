@@ -51,10 +51,10 @@ static int8_t recv_byte()
     return data;
 }
 
-static void recv_bytes(uint8_t* data, uint32_t len)
-{
-    uart_read_bytes(UART_PORT, data, len, 1000 / portTICK_PERIOD_MS);
-}
+// static void recv_bytes(uint8_t* data, uint32_t len)
+// {
+//     uart_read_bytes(UART_PORT, data, len, 1000 / portTICK_PERIOD_MS);
+// }
 
 static void send_data(uint8_t* data, uint32_t len)
 {
@@ -93,17 +93,17 @@ static uint8_t recv_ack()
     }
 }
 
-static uint8_t recv_resp(uint8_t resp)
-{
-    uint8_t ack = recv_byte();
-    if (ack == resp)
-    {
-        return 1;
-    } else {
-        ESP_LOGE(TAG, "Unexpected response: %02X", ack);
-        return 0;
-    }
-}
+// static uint8_t recv_resp(uint8_t resp)
+// {
+//     uint8_t ack = recv_byte();
+//     if (ack == resp)
+//     {
+//         return 1;
+//     } else {
+//         ESP_LOGE(TAG, "Unexpected response: %02X", ack);
+//         return 0;
+//     }
+// }
 
 static esp_err_t flash_wipe()
 {
