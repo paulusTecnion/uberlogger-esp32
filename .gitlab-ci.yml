@@ -1,25 +1,17 @@
-image: espressif/idf:latest
-
-# before_script:
-# - apt-get update -y && apt-get install -y git wget python3.10-venv
-# Since ESP-IDF is pre-configured in this Docker image, you might not need the following steps. But if your project requires a specific ESP-IDF version or configuration, then adjust accordingly.
-#- |
-#  git clone --recursive https://github.com/espressif/esp-idf.git
-#  cd esp-idf
-#  ./install.sh
-#- source esp-idf/export.sh
+image: espressif/idf:v5.0.1
 
 stages:
   - update_version
   - build
-  - rename_artifacts
+  - create_artifact_zip
   - create_release
 
 update_version:
   stage: update_version
+  only:
+    - master
   script:
-    - |
-      sed -i '/MINOR = /s/\(MINOR = \)\([0-9]\+\)/echo "\1$((\2 + 1))"/e' update_version.py
+    - sed -i '/MINOR = /s/\(MINOR = \)\([0-9]\+\)/echo "\1$((\2 + 1))"/e' update_version.py
 
 build_code:
   stage: build
@@ -27,19 +19,31 @@ build_code:
     - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC=y/d' sdkconfig
     - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC_RX_BUF_SIZE=64/d' sdkconfig
     - idf.py build
+    - |
+      VERSION=$(grep 'static const char SW_VERSION\[\]' main/sysinfo.h | awk -F '"' '{print $2}' | awk -F '_' '{print $1}')
+      if [ "$CI_COMMIT_REF_NAME" != "master" ]; then
+          VERSION="dirty_${VERSION}"
+      fi
+      echo "VERSION=${VERSION}" >> build_vars
   artifacts:
     paths:
       - build/uberlogger-esp32.bin
       - build/www.bin
+      - build_vars
 
-rename_and_store_artifacts:
-  stage: rename_artifacts
+create_artifact_zip:
+  stage: create_artifact_zip
   script:
+    - source build_vars
     - mv build/uberlogger-esp32.bin build/ota_main.bin
     - mv build/www.bin build/ota_filesystem.bin
+    # - zip build/${VERSION}_artifacts.zip build/ota_main.bin build/ota_filesystem.bin
+    #- mv artifacts.zip ${VERSION}_artifacts.zip
+    # - ls -l build/${VERSION}_artifacts.zip || echo "${VERSION}_artifacts.zip not found"
   dependencies:
     - build_code
   artifacts:
+    name: ${VERSION}
     paths:
       - build/ota_main.bin
       - build/ota_filesystem.bin
@@ -47,13 +51,18 @@ rename_and_store_artifacts:
 create_release:
   stage: create_release
   script:
+    - source build_vars
     - |
-      VERSION=$(grep 'static const char SW_VERSION[]' main/sysinfo.h | awk -F '"' '{print $2}' | awk -F '_' '{print $1}')
       git tag $VERSION
       git push origin $VERSION
-      curl --header "PRIVATE-TOKEN: glptt-751479be01e5f5db4fd3961eada69c2b926b4b98" -X POST "https://gitlab.com/api/v4/projects/39465634/releases" -d "name=$VERSION" -d "tag_name=$VERSION" -d "description=Release version $VERSION"
-      #- "curl -X POST --fail -F token=TOKEN -F ref=REF_NAME https://gitlab.com/api/v4/projects/39465634/trigger/pipeline"
+      ARTIFACT_LINK="https://gitlab.com/uberlogger/uberlogger-esp32/-/jobs/artifacts/${VERSION}/download?job=create_artifact_zip"
+      curl --header "PRIVATE-TOKEN: glptt-751479be01e5f5db4fd3961eada69c2b926b4b98" -X POST "https://gitlab.com/api/v4/projects/39465634/releases" \
+      -d "name=$VERSION" \
+      -d "tag_name=$VERSION" \
+      -d "description=Release version $VERSION" \
+      -d "assets[links][][name]=Artifacts" \
+      -d "assets[links][][url]=$ARTIFACT_LINK"
   dependencies:
-    - build_code
+    - create_artifact_zip
   only:
     - master
