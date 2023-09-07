@@ -25,6 +25,9 @@ build_code:
           VERSION="dirty_${VERSION}"
       fi
       echo "VERSION=${VERSION}" >> build_vars
+    - git config --global user.name "ci-cd"
+    - git config --global user.email "ci@cd.com"
+    - git add main/sysinfo.h
     - git commit -m "Updated release version to ${VERSION}"
     - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git -o ci.skip
     - mv build/uberlogger-esp32.bin build/ota_main.bin
