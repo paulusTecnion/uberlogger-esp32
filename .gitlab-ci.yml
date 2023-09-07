@@ -1,0 +1,63 @@
+image: ubuntu:22.04
+
+before_script:
+  - apt-get update -y && apt-get install -y git wget flex bison gperf python python-pip python-setuptools python-serial python-click python-cryptography python-future python-pyparsing python-pyelftools cmake ninja-build ccache libffi-dev libssl-dev
+  - |
+    git clone --recursive https://github.com/espressif/esp-idf.git
+    cd esp-idf
+    ./install.sh
+  - source esp-idf/export.sh
+
+stages:
+  - update_version
+  - build
+  - rename_artifacts
+  - create_release
+
+update_version:
+  stage: update_version
+  script:
+    - |
+      # Use sed to retrieve the line containing "MINOR = x" and increase x by 1
+      sed -i '/MINOR = /s/\(MINOR = \)\([0-9]\+\)/echo "\1$((\2 + 1))"/e' update_version.py
+
+build_code:
+  stage: build
+  script:
+    # Remove the specified lines from sdkconfig
+    - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC=y/d' sdkconfig
+    - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC_RX_BUF_SIZE=64/d' sdkconfig
+    - idf.py build
+  artifacts:
+    paths:
+      - build/uberlogger-esp32.bin
+      - build/www.bin
+
+rename_and_store_artifacts:
+  stage: rename_artifacts
+  script:
+    - mv build/uberlogger-esp32.bin build/ota_main.bin
+    - mv build/www.bin build/ota_filesystem.bin
+  dependencies:
+    - build_code
+  artifacts:
+    paths:
+      - build/ota_main.bin
+      - build/ota_filesystem.bin
+
+create_release:
+  stage: create_release
+  script:
+    - |
+      # Extract version info using grep and awk
+      VERSION=$(grep 'static const char SW_VERSION[]' main/sysinfo.h | awk -F '"' '{print $2}' | awk -F '_' '{print $1}')
+      # Create a tag and a release in GitLab
+      git tag $VERSION
+      git push origin $VERSION
+      curl --header "PRIVATE-TOKEN: glptt-751479be01e5f5db4fd3961eada69c2b926b4b98" -X POST "https://gitlab.com/api/v4/projects/39465634/releases" -d "name=$VERSION" -d "tag_name=$VERSION" -d "description=Release version $VERSION"
+      #- "curl -X POST --fail -F token=TOKEN -F ref=REF_NAME https://gitlab.com/api/v4/projects/39465634/trigger/pipeline"
+  dependencies:
+    - build_code
+  only:
+    - master
+
