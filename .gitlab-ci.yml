@@ -20,7 +20,7 @@ build_code:
     - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC_RX_BUF_SIZE=64/d' sdkconfig
     - idf.py build
     - |
-      VERSION=$(grep 'static const char SW_VERSION[]' main/sysinfo.h | awk -F '"' '{print $2}')
+      VERSION=$(grep 'static const char SW_VERSION[]' main/sysinfo.h | awk -F '"' '{print $2}' | awk -F '_' '{print $1}')
       if [ "$CI_COMMIT_REF_NAME" != "master" ]; then
           VERSION="dirty_${VERSION}"
       fi
