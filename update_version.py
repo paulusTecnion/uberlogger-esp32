@@ -4,7 +4,7 @@ import os
 
 # Define major, minor, patch version numbers
 MAJOR = 0
-MINOR = 1
+MINOR = 0
 PATCH = 0
 
 # Get the directory where the script is located
