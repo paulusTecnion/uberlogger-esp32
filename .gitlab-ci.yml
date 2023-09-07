@@ -40,10 +40,10 @@ create_artifact_zip:
     - zip artifacts.zip build/ota_main.bin build/ota_filesystem.bin
     - mv artifacts.zip ${VERSION}_artifacts.zip
     - ls -l ${VERSION}_artifacts.zip || echo "${VERSION}_artifacts.zip not found"
-artifacts:
-  name: "${VERSION}_artifacts.zip"
-  paths:
-    - "${VERSION}_artifacts.zip"
+  artifacts:
+    name: "${VERSION}_artifacts.zip"
+    paths:
+      - "${VERSION}_artifacts.zip"
 
 create_release:
   stage: create_release
