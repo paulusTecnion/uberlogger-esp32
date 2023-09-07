@@ -11,7 +11,20 @@ update_version:
     - master
   script:
     - sed -i '/MINOR = /s/\(MINOR = \)\([0-9]\+\)/echo "\1$((\2 + 1))"/e' update_version.py
-
+    - python3 update_version.py
+    - |
+      VERSION=$(grep 'static const char SW_VERSION\[\]' main/sysinfo.h | awk -F '"' '{print $2}' | awk -F '_' '{print $1}')
+      if [ "$CI_COMMIT_REF_NAME" != "master" ]; then
+          VERSION="dirty_${VERSION}"
+      fi
+      echo "VERSION=${VERSION}" >> build_vars
+    - git config --global user.name "ci-cd"
+    - git config --global user.email "ci@cd.com"
+    - git add update_version.py
+    - git commit -m "Updated release version to ${VERSION}"
+    # - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git HEAD -o ci.skip
+    - git push origin HEAD:master
+    # - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git -o ci.skip
 build_code:
   stage: build
   script:
@@ -25,12 +38,7 @@ build_code:
           VERSION="dirty_${VERSION}"
       fi
       echo "VERSION=${VERSION}" >> build_vars
-    - git config --global user.name "ci-cd"
-    - git config --global user.email "ci@cd.com"
-    - git add main/sysinfo.h
-    - git commit -m "Updated release version to ${VERSION}"
-    # - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git HEAD -o ci.skip
-    - git push origin HEAD
+
     - mv build/uberlogger-esp32.bin build/ota_main.bin
     - mv build/www.bin build/ota_filesystem.bin
   artifacts:
