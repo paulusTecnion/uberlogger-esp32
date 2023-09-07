@@ -48,6 +48,6 @@ create_release:
       -d "assets[links][][name]=Artifacts" \
       -d "assets[links][][url]=$ARTIFACT_LINK"
   dependencies:
-    - create_artifact_zip
+    - build_code
   only:
     - master
