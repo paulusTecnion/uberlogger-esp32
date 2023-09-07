@@ -20,7 +20,7 @@ update_version:
       echo "VERSION=${VERSION}" >> build_vars
     - git config --global user.name "ci-cd"
     - git config --global user.email "ci@cd.com"
-    - git add update_version.py
+    - git add update_version.py main/sysinfo.h
     - git commit -m "Updated release version to ${VERSION}"
     # - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git HEAD -o ci.skip
     # - git push origin HEAD:master
