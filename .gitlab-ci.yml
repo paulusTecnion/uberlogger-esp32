@@ -37,10 +37,34 @@ create_release:
   stage: create_release
   script:
     - source build_vars
-    - git config --global user.name "Paulus Potter"
-    - git config --global user.email "info@tecnion.nl"
+    # Enable pushing from CI pipeline:
+    #
+    # At that point git origin points to CI_REPOSITORY_URL=
+    # https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/acme/my-project.git
+    # This setup does not allow modifications (i.e git push will be rejected).
+    #
+    # Setting SSH environment is what many developers do to execute git commands here,
+    # but it is complex and requires submitting SSH private keys to Gitlab (cringe).
+    #
+    # Private Gitlab tokens are deprecated.
+    #
+    # We use Gitlab Personal Access Token with 'write' access. This token shall
+    # be generated via Gitlab user settings and then it shall be added as a masked
+    # environment variable for this project CI settings.
+    #
+    # Use "oauth2" as user. For example for CI_PROJECT_URL=https://gitlab.com/acme/my-project
+    #   set origin to https://oauth2:wSHnMvSmYXtTfXtqRMxs@gitlab.com/acme/my-project.git
+    #
+    - git remote set-url origin ${CI_PROJECT_URL/gitlab.com/oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com}.git
+    - git remote -v
+
+    # Don't trigger pipeline again:
+    # -o ci.skip is not well known Gitlab Git option which allows skipping new CI.
+    # Without ci.skip option CI would be triggered recursively by tag push.
+    #
+    # - git push origin v1.9d --force -o ci.skip
     - git tag $VERSION
-    - git push https://${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git --tags
+    - git push -o ci.skip
     - ARTIFACT_LINK="https://gitlab.com/uberlogger/uberlogger-esp32/-/jobs/artifacts/${VERSION}/download?job=create_artifact_zip"
     - |
       curl --header "PRIVATE-TOKEN: ${GITLAB_PRIVATE_TOKEN}" -X POST "https://gitlab.com/api/v4/projects/39465634/releases" \
