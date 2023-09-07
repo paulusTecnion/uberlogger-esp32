@@ -48,9 +48,10 @@ create_release:
   stage: create_release
   script:
     - source build_vars
-    - git tag $VERSION
-    - git push origin $VERSION
-    - curl --header "PRIVATE-TOKEN: glptt-751479be01e5f5db4fd3961eada69c2b926b4b98" -X POST "https://gitlab.com/api/v4/projects/39465634/releases" -d "name=$VERSION" -d "tag_name=$VERSION" -d "description=Release version $VERSION"
+    - |
+      git tag $VERSION
+      git push origin $VERSION
+      curl --header "PRIVATE-TOKEN: glptt-751479be01e5f5db4fd3961eada69c2b926b4b98" -X POST "https://gitlab.com/api/v4/projects/39465634/releases" -d "name=$VERSION" -d "tag_name=$VERSION" -d "description=Release version $VERSION"
   dependencies:
     - build_code
   only:
