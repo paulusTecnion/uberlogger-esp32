@@ -23,8 +23,8 @@ update_version:
     - git add update_version.py
     - git commit -m "Updated release version to ${VERSION}"
     # - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git HEAD -o ci.skip
-    - git push origin HEAD:master
-    # - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git -o ci.skip
+    # - git push origin HEAD:master
+    - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git HEAD:master -o ci.skip
 build_code:
   stage: build
   script:
