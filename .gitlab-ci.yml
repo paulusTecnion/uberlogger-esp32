@@ -35,11 +35,11 @@ create_artifact_zip:
   stage: create_artifact_zip
   script:
     - source build_vars
-    - echo "VERSION is: $VERSION"
+    - echo \"VERSION is: $VERSION\"
     - mv build/uberlogger-esp32.bin build/ota_main.bin
     - mv build/www.bin build/ota_filesystem.bin
     - zip ${VERSION}_artifacts.zip build/ota_main.bin build/ota_filesystem.bin
-    - ls -l ${VERSION}_artifacts.zip || echo "${VERSION}_artifacts.zip not found"
+    - ls -l ${VERSION}_artifacts.zip || echo \"${VERSION}_artifacts.zip not found\"
   dependencies:
     - build_code
   artifacts:
