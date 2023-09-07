@@ -37,11 +37,13 @@ create_release:
   stage: create_release
   script:
     - source build_vars
+    - git config --global user.name "Paulus Potter"
+    - git config --global user.email "info@tecnion.nl"
+    - git tag $VERSION
+    - git push https://${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git --tags
+    - ARTIFACT_LINK="https://gitlab.com/uberlogger/uberlogger-esp32/-/jobs/artifacts/${VERSION}/download?job=create_artifact_zip"
     - |
-      git tag $VERSION
-      git push origin $VERSION
-      ARTIFACT_LINK="https://gitlab.com/uberlogger/uberlogger-esp32/-/jobs/artifacts/${VERSION}/download?job=create_artifact_zip"
-      curl --header "PRIVATE-TOKEN: glptt-751479be01e5f5db4fd3961eada69c2b926b4b98" -X POST "https://gitlab.com/api/v4/projects/39465634/releases" \
+      curl --header "PRIVATE-TOKEN: ${GITLAB_PRIVATE_TOKEN}" -X POST "https://gitlab.com/api/v4/projects/39465634/releases" \
       -d "name=$VERSION" \
       -d "tag_name=$VERSION" \
       -d "description=Release version $VERSION" \
