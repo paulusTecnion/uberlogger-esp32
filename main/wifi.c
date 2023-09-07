@@ -33,6 +33,8 @@
 #include "settings.h"
 #include "wifi.h"
 
+#include "logger.h"
+
 /* The examples use WiFi configuration that you can set via project configuration menu.
    If you'd rather not, just change the below entries to strings with
    the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
@@ -90,19 +92,20 @@ esp_netif_t *ap_netif;
 
 static int s_retry_num = 0;
 static uint8_t wifi_enabled = 0;
-static void event_handler(void* arg, esp_event_base_t event_base,
+static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 								int32_t event_id, void* event_data)
 {
 	if (event_base == WIFI_EVENT && 
         event_id == WIFI_EVENT_STA_DISCONNECTED && 
         s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
 		ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
-        // Only when in station mode, we try to reconnect
+        // Only when in STA mode, we try to reconnect
         // Else when changing from STA to APSTA mode,
         // we keep connecting after a disconnect.
 		if (settings_get_wifi_mode() == WIFI_MODE_APSTA) 
         {
             esp_wifi_connect();
+            // Logtask_wifi_connect_ap();s
         }
 		xEventGroupClearBits(wifi_event_group, CONNECTED_BIT | FAIL_BIT);
 
@@ -114,7 +117,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 	} else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
 		ESP_LOGI(TAG, "IP_EVENT_STA_GOT_IP");
 		xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-	}
+	} 
 }
 
 
@@ -137,11 +140,14 @@ esp_err_t wifi_disconnect_ap()
 
 esp_err_t wifi_connect_to_ap(void)
 {
-    if (wifi_disconnect_ap() != ESP_OK)
+    if (wifi_is_connected_to_ap())
     {
-        ESP_LOGW(TAG, "Failed to disconnect from AP");
+         if (wifi_disconnect_ap() != ESP_OK)
+        {
+            ESP_LOGW(TAG, "Failed to disconnect from AP");
+        }
     }
-
+   
 
     wifi_config_t wifi_config = {
         .sta = {
@@ -176,7 +182,7 @@ esp_err_t wifi_connect_to_ap(void)
 
     
       /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
-     * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
+     * number of re-tries (WIFI_FAIL_BIT). The bits are set by wifi_event_handler() (see above) */
     // EventBits_t bits = xEventGroupWaitBits(wifi_event_group,
     //         CONNECTED_BIT | FAIL_BIT,
     //         pdFALSE,
@@ -245,9 +251,8 @@ esp_err_t wifi_init()
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 
 	ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-	ESP_ERROR_CHECK( esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &event_handler, NULL, NULL) );
-	ESP_ERROR_CHECK( esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, NULL) );
-    
+	ESP_ERROR_CHECK( esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &wifi_event_handler, NULL, NULL) );
+	ESP_ERROR_CHECK( esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL) ); 
 
 	ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
 	ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_APSTA) );

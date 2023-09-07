@@ -56,14 +56,14 @@ function filebrowserRefresh(filebrowserPath) {
   });
 }
 
-function filebrowserFormat() {
+function formatSdcard() {
   if (confirm("Format SD-card, are you sure?") == true) {
-    $.getJSON("./ajax/filebrowserFormat", (data) => {
+    $.getJSON("./ajax/formatSdcard", (data) => {
       // to do: implement a proper response sequence
       alert("SD-card now formatting.");
     }).fail(function () {
       alert("Error: could not format SD-card. Are you logging?");
-      console.log("Data query failed.");
+      console.log("Data query failed. NOK.");
     });
 
     return true;

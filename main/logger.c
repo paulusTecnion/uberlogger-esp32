@@ -77,7 +77,7 @@ char strbuffer[16];
 
 
 LoggerFWState_t _currentFWState = LOGGER_FW_IDLE;
-LoggerFWState_t _nextFWState = NULL;
+LoggerFWState_t _nextFWState = LOGGER_FW_EMPTY_STATE;
 
 // Really need to change all these variable names to something more sensible
 LoggerState_t _currentLogTaskState = LOGTASK_IDLE;
@@ -359,9 +359,9 @@ esp_err_t Logger_singleShot()
 void  Logger_resetSTM32()
 {
     gpio_set_level(GPIO_STM32_NRESET, 0);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    vTaskDelay(300 / portTICK_PERIOD_MS);
     gpio_set_level(GPIO_STM32_NRESET, 1);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    vTaskDelay(300 / portTICK_PERIOD_MS);
 }
 
 esp_err_t Logger_syncSettings(uint8_t syncTime)
@@ -592,6 +592,29 @@ esp_err_t Logtask_sync_time()
     }
 
     return ESP_OK;  
+}
+
+esp_err_t Logtask_wifi_connect_ap()
+{
+    LoggingState_t t = LOGTASK_WIFI_CONNECT_AP;
+    if (xQueueSend(xQueue, &t, 0) != pdTRUE)
+    {
+        ESP_LOGE(TAG_LOG, "Unable to connect to AP");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t Logtask_wifi_disconnect_ap()
+{
+        LoggingState_t t = LOGTASK_WIFI_DISCONNECT_AP;
+    if (xQueueSend(xQueue, &t, 0) != pdTRUE)
+    {
+        ESP_LOGE(TAG_LOG, "Unable to disconnect from AP");
+        return ESP_FAIL;
+    }
+    return ESP_OK;
 }
 
 uint8_t Logger_setCsvLog(log_mode_t value)
@@ -1894,8 +1917,8 @@ void Logtask_fw_update()
         } // end of case 
 
         // If nextFWState is not NULL, then we have to send it to the queue
-        if (_nextFWState != NULL) xQueueSend(xQueueFW, &_nextFWState, 0);
-        _nextFWState = NULL;
+        if (_nextFWState != LOGGER_FW_EMPTY_STATE) xQueueSend(xQueueFW, &_nextFWState, 0);
+        _nextFWState = LOGGER_FW_EMPTY_STATE;
         
     }
 
@@ -1908,16 +1931,16 @@ void task_logging(void * pvParameters)
     // esp_err_t ret;
     CLEAR_ERRORS(_errorCode);
    
-    uint32_t lastTick = 0;
-    uint32_t startTick = 0, stopTick = 0;
+    // uint32_t lastTick = 0;
+    // uint32_t startTick = 0, stopTick = 0;
 
     uint8_t x = 0;
 
-    esp_err_t ret;
+    // esp_err_t ret;
     // Init STM32 ADC enable pin
     // gpio_set_direction(GPIO_DATA_RDY_PIN, GPIO_MODE_INPUT);
 
-    spi_cmd_t spi_cmd;
+    // spi_cmd_t spi_cmd;
 
     // ****************************
     // Async mem copy settings
@@ -1987,14 +2010,14 @@ void task_logging(void * pvParameters)
     // Reset the STM32
     Logger_resetSTM32();
 
-    if (Logger_syncSettings(0) != ESP_OK)
-    {
-        ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
-    } else {
-        #ifdef DEBUG_LOGTASK
-        ESP_LOGI(TAG_LOG, "STM32 settings synced");
-        #endif
-    }
+     if (Logger_syncSettings(0) != ESP_OK)
+        {
+            ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
+        } else {
+            #ifdef DEBUG_LOGTASK
+            ESP_LOGI(TAG_LOG, "STM32 settings synced");
+            #endif
+        }
 
     
     spi_msg_1_ptr = (spi_msg_1_t*)spi_buffer;
@@ -2012,7 +2035,7 @@ void task_logging(void * pvParameters)
         LoggerFWState_t t2 = LOGGER_FW_FLASHING_STM;
         xQueueSend(xQueue, &t, 0);
         xQueueSend(xQueueFW, &t2, 0);
-    }
+    } 
 
     while(1) {
 
@@ -2051,6 +2074,8 @@ void task_logging(void * pvParameters)
             break;
             case LOGTASK_FWUPDATE:          Logtask_fw_update();                break;
             case LOGTASK_FORMAT_SDCARD:     esp_sd_card_format();               break;
+            // case LOGTASK_WIFI_CONNECT_AP:   wifi_connect_to_ap();               break;
+            // case LOGTASK_WIFI_DISCONNECT_AP: wifi_disconnect_ap();              break;
 
             default:                                                    
             ESP_LOGE(TAG_LOG, "Unknown task: %d", _currentLogTaskState);        break;

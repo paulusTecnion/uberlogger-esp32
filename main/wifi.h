@@ -8,9 +8,8 @@
 #include "esp_event.h"
 #include "esp_wifi.h"
 
-// static void wifi_event_handler(void* arg, esp_event_base_t event_base,
-//                                     int32_t event_id, void* event_data);
-
+// static void wifi_wifi_event_handler(void* arg, esp_event_base_t event_base,
+//                                     int32_t event_id, void* event_data);                               
 esp_err_t wifi_connect_to_ap(void);
 uint8_t wifi_ap_connection_failed();
 uint8_t wifi_is_connected_to_ap();

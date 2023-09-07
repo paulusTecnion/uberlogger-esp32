@@ -1,12 +1,13 @@
-image: ubuntu:22.04
+image: espressif/idf:latest
 
-before_script:
-  - apt-get update -y && apt-get install -y git wget flex bison gperf python python-pip python-setuptools python-serial python-click python-cryptography python-future python-pyparsing python-pyelftools cmake ninja-build ccache libffi-dev libssl-dev
-  - |
-    git clone --recursive https://github.com/espressif/esp-idf.git
-    cd esp-idf
-    ./install.sh
-  - source esp-idf/export.sh
+# before_script:
+# - apt-get update -y && apt-get install -y git wget python3.10-venv
+# Since ESP-IDF is pre-configured in this Docker image, you might not need the following steps. But if your project requires a specific ESP-IDF version or configuration, then adjust accordingly.
+#- |
+#  git clone --recursive https://github.com/espressif/esp-idf.git
+#  cd esp-idf
+#  ./install.sh
+#- source esp-idf/export.sh
 
 stages:
   - update_version
@@ -18,13 +19,11 @@ update_version:
   stage: update_version
   script:
     - |
-      # Use sed to retrieve the line containing "MINOR = x" and increase x by 1
       sed -i '/MINOR = /s/\(MINOR = \)\([0-9]\+\)/echo "\1$((\2 + 1))"/e' update_version.py
 
 build_code:
   stage: build
   script:
-    # Remove the specified lines from sdkconfig
     - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC=y/d' sdkconfig
     - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC_RX_BUF_SIZE=64/d' sdkconfig
     - idf.py build
@@ -49,9 +48,7 @@ create_release:
   stage: create_release
   script:
     - |
-      # Extract version info using grep and awk
       VERSION=$(grep 'static const char SW_VERSION[]' main/sysinfo.h | awk -F '"' '{print $2}' | awk -F '_' '{print $1}')
-      # Create a tag and a release in GitLab
       git tag $VERSION
       git push origin $VERSION
       curl --header "PRIVATE-TOKEN: glptt-751479be01e5f5db4fd3961eada69c2b926b4b98" -X POST "https://gitlab.com/api/v4/projects/39465634/releases" -d "name=$VERSION" -d "tag_name=$VERSION" -d "description=Release version $VERSION"
@@ -60,4 +57,3 @@ create_release:
     - build_code
   only:
     - master
-

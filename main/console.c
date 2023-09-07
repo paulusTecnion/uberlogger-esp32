@@ -22,7 +22,7 @@
 #include "wifi.h"
 
 
-static const char* TAG_CONSOLE = "CONSOLE";
+// static const char* TAG_CONSOLE = "CONSOLE";
 
 static struct {
     struct arg_str *arg0;
@@ -215,25 +215,25 @@ static void register_update_stm32(){
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
-static void register_update_esp32(){
-    const esp_console_cmd_t cmd = {
-        .command = "update-esp32",
-        .help = "Update ESP32 firmware",
-        .hint = NULL,
-        .func = &updateESP32
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
+// static void register_update_esp32(){
+//     const esp_console_cmd_t cmd = {
+//         .command = "update-esp32",
+//         .help = "Update ESP32 firmware",
+//         .hint = NULL,
+//         .func = &updateESP32
+//     };
+//     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+// }
 
-static void register_update_www(){
-    const esp_console_cmd_t cmd = {
-        .command = "update-www",
-        .help = "Update www files",
-        .hint = NULL,
-        .func = &update_www
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
+// static void register_update_www(){
+//     const esp_console_cmd_t cmd = {
+//         .command = "update-www",
+//         .help = "Update www files",
+//         .hint = NULL,
+//         .func = &update_www
+//     };
+//     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+// }
 
 
 
@@ -268,14 +268,14 @@ void init_console(){
     // register_singleshot();
     register_stm32_sync();
     // register_update_esp32();
-    // register_update_stm32();
+    register_update_stm32();
     // register_update_www();
     esp_console_register_help_command();
 
     // Check if UART is set to USB or not existing
     #ifdef CONFIG_ESP_CONSOLE_USB_CDC
     // esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
-    esp_console_dev_uart_config_t hw_config =    ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT();
+    esp_console_dev_usb_cdc_config_t hw_config =    ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT();
 
     // Enable console
 

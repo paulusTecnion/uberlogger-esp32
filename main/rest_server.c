@@ -446,7 +446,7 @@ static esp_err_t logger_calibrate_handler(httpd_req_t *req)
 }
 
 
-static esp_err_t logger_filebrowserFormat_handler(httpd_req_t *req)
+static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 {
     return Logger_format_sdcard();
 }
@@ -594,6 +594,9 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     }
 
 
+    // Store old settings (only to compare old wifi settings)
+    Settings_t oldSettings;
+     memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
 
     int total_len = req->content_len;
     int cur_len = 0;
@@ -785,21 +788,38 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         goto error;
     }
 
-    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
+
+    // First check if old wifi mode != new mode
+    if (oldSettings.wifi_mode != settings_get_wifi_mode())
     {
+        if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
+        {
+            // wifi_connect_to_ap(); 
+            // Send task to wifi queue to connect to access point
+            // 
+            // Logtask_wifi_connect_ap();
+            wifi_connect_to_ap();
+        } else {
+            // send event to wifi to disconnect from access point
+            // Logtask_wifi_disconnect_ap();
+            wifi_disconnect_ap();
+        }
+    } else if // if any wifi setting has changed, then we need to reconnect to the access point when mode is WIFI_MODE_APSTA
+        (settings_get_wifi_mode() == WIFI_MODE_APSTA && 
+        (
+        (wifi_is_connected_to_ap() == false)  ||
+        (oldSettings.wifi_channel != settings_get_wifi_channel()) || 
+        (strcmp(oldSettings.wifi_ssid_ap, settings_get_wifi_ssid_ap()) != 0)  || 
+        (strcmp(oldSettings.wifi_password, settings_get_wifi_password()) !=0 )
+        ))
+    {
+        // a connect event automatically disconnects and reconnects to an access point
+        // Logtask_wifi_connect_ap();
         wifi_connect_to_ap();
-        // only send ack in case wifi mode has not changed. Else the next will get stuck
-    } else {
-        wifi_disconnect_ap();
     }
-
-
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
-    
-
-    
     
 
 error:
@@ -949,14 +969,14 @@ esp_err_t start_rest_server(const char *base_path)
 
      httpd_register_uri_handler(server, &logger_calibrate_uri);
 
-    httpd_uri_t logger_filebrowserFormat_uri = {
-        .uri = "/ajax/filebrowserFormat",
+    httpd_uri_t logger_formatSdcard_uri = {
+        .uri = "/ajax/formatSdcard",
         .method = HTTP_GET,
-        .handler = logger_filebrowserFormat_handler,
+        .handler = logger_formatSdcard_handler,
         .user_ctx = rest_context
     };
 
-    httpd_register_uri_handler(server, &logger_filebrowserFormat_uri);
+    httpd_register_uri_handler(server, &logger_formatSdcard_uri);
 
 
     httpd_uri_t logger_getDefaultConfig_uri = {
