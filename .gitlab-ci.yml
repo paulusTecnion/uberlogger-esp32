@@ -1,12 +1,13 @@
 image: ubuntu:22.04
 
 before_script:
-  - apt-get update -y && apt-get install -y git wget flex bison gperf python python-pip python-setuptools python-serial python-click python-cryptography python-future python-pyparsing python-pyelftools cmake ninja-build ccache libffi-dev libssl-dev
+  - apt-get update -y && apt-get install -y git wget flex bison gperf python3 python3-pip python3-setuptools python3-serial python3-click python3-cryptography python3-future python3-pyparsing cmake ninja-build ccache libffi-dev libssl-dev
   - |
     git clone --recursive https://github.com/espressif/esp-idf.git
     cd esp-idf
     ./install.sh
   - source esp-idf/export.sh
+
 
 stages:
   - update_version
