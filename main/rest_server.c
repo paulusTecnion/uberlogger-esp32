@@ -446,7 +446,7 @@ static esp_err_t logger_calibrate_handler(httpd_req_t *req)
 }
 
 
-static esp_err_t logger_filebrowserFormat_handler(httpd_req_t *req)
+static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 {
     return Logger_format_sdcard();
 }
@@ -969,14 +969,14 @@ esp_err_t start_rest_server(const char *base_path)
 
      httpd_register_uri_handler(server, &logger_calibrate_uri);
 
-    httpd_uri_t logger_filebrowserFormat_uri = {
-        .uri = "/ajax/filebrowserFormat",
+    httpd_uri_t logger_formatSdcard_uri = {
+        .uri = "/ajax/formatSdcard",
         .method = HTTP_GET,
-        .handler = logger_filebrowserFormat_handler,
+        .handler = logger_formatSdcard_handler,
         .user_ctx = rest_context
     };
 
-    httpd_register_uri_handler(server, &logger_filebrowserFormat_uri);
+    httpd_register_uri_handler(server, &logger_formatSdcard_uri);
 
 
     httpd_uri_t logger_getDefaultConfig_uri = {
