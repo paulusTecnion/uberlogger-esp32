@@ -359,9 +359,9 @@ esp_err_t Logger_singleShot()
 void  Logger_resetSTM32()
 {
     gpio_set_level(GPIO_STM32_NRESET, 0);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    vTaskDelay(300 / portTICK_PERIOD_MS);
     gpio_set_level(GPIO_STM32_NRESET, 1);
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    vTaskDelay(300 / portTICK_PERIOD_MS);
 }
 
 esp_err_t Logger_syncSettings(uint8_t syncTime)
@@ -2010,14 +2010,14 @@ void task_logging(void * pvParameters)
     // Reset the STM32
     Logger_resetSTM32();
 
-    if (Logger_syncSettings(0) != ESP_OK)
-    {
-        ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
-    } else {
-        #ifdef DEBUG_LOGTASK
-        ESP_LOGI(TAG_LOG, "STM32 settings synced");
-        #endif
-    }
+     if (Logger_syncSettings(0) != ESP_OK)
+        {
+            ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
+        } else {
+            #ifdef DEBUG_LOGTASK
+            ESP_LOGI(TAG_LOG, "STM32 settings synced");
+            #endif
+        }
 
     
     spi_msg_1_ptr = (spi_msg_1_t*)spi_buffer;
@@ -2035,7 +2035,7 @@ void task_logging(void * pvParameters)
         LoggerFWState_t t2 = LOGGER_FW_FLASHING_STM;
         xQueueSend(xQueue, &t, 0);
         xQueueSend(xQueueFW, &t2, 0);
-    }
+    } 
 
     while(1) {
 

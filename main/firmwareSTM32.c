@@ -8,6 +8,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "logger.h"
 
 #define TAG "FW-STM32"
 #define FILE_STM32 "/sdcard/ota_support.bin"
@@ -254,9 +255,11 @@ static void flash_jump_to(uint32_t addr)
 
 esp_err_t bootload_stm()
 {
+    gpio_set_level(GPIO_STM32_BOOT0, 1);
     uint8_t error = 0;
     for (uint8_t i=0; i<5; i++)
     {
+        Logger_resetSTM32();
         // Send the activate command (doesn't need CRC!)
         send_byte(CMD_ACTIVATE);
 
@@ -379,16 +382,14 @@ esp_err_t flash_stm32()
     #endif
 
 
-    gpio_set_level(GPIO_STM32_BOOT0, 1);
-    gpio_set_level(GPIO_STM32_NRESET, 0);
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-    gpio_set_level(GPIO_STM32_NRESET, 1);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+ 
+
     
     if (bootload_stm() == ESP_FAIL)
     {
         ESP_LOGI(TAG, "Failed to activate STM32G030 bootloader");
         err = ESP_FAIL;
+        while(1);
         goto error;
     }
 
