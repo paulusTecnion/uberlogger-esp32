@@ -29,7 +29,7 @@ build_code:
     - git config --global user.email "ci@cd.com"
     - git add main/sysinfo.h
     - git commit -m "Updated release version to ${VERSION}"
-    - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git -o ci.skip
+    - git push https://oauth2:${GITLAB_PRIVATE_TOKEN}@gitlab.com/uberlogger/uberlogger-esp32.git HEAD -o ci.skip
     - mv build/uberlogger-esp32.bin build/ota_main.bin
     - mv build/www.bin build/ota_filesystem.bin
   artifacts:
