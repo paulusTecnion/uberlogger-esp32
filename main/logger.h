@@ -77,6 +77,8 @@ enum LogTaskStates
     LOGTASK_SINGLE_SHOT,
     LOGTASK_CALIBRATION,
     LOGTASK_FORMAT_SDCARD,
+    LOGTASK_WIFI_CONNECT_AP,
+    LOGTASK_WIFI_DISCONNECT_AP,
     LOGTASK_NUM_STATES
 };
 
@@ -180,6 +182,10 @@ esp_err_t Logtask_sync_settings();
 esp_err_t Logtask_sync_time();
 
 void Logtask_fw_update_exit();
+
+esp_err_t Logtask_wifi_connect_ap();
+esp_err_t Logtask_wifi_disconnect_ap();
+
 esp_err_t Logger_startFWupdate();
 esp_err_t Logger_startFWflash();
 
