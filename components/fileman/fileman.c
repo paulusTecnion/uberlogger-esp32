@@ -148,12 +148,12 @@ int fileman_csv_write_header()
     {
         if ((settings_get()->adc_channel_type & (1 << i)))
         {
-            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "NTC%d,", i);
+            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "NTC%d,", i+1);
         } else {
-            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "AIN%d,", i);
+            writeptr = writeptr + sprintf(filestrbuffer+writeptr, "AIN%d,", i+1);
         }
     }
-    writeptr = writeptr + sprintf(filestrbuffer+writeptr,"DI0,DI1,DI2,DI3,DI4,DI5\r\n");
+    writeptr = writeptr + sprintf(filestrbuffer+writeptr,"DI1,DI2,DI3,DI4,DI5,DI6\r\n");
     // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
     // finally write to file and return
     return fprintf(f, filestrbuffer);
@@ -206,10 +206,8 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             // If temperature sensor and 16 bits we need to multiply input with 100 (or divide with factor 100 less which is ADC_MULT_FACTOR_16B_TEMP)
             if ((settings_get()->adc_channel_type & (1 << x)))
             {
-                // if ((settings_get()->adc_resolution == ADC_16_BITS))
-                // {
                     // Only 2 digits after decimal point for temperature
-                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%07d,",
+                    writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%06d,",
                         (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_16B_TEMP)), 
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_16B_TEMP));

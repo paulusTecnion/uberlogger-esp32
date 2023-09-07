@@ -140,17 +140,12 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
         .dummy_bits=0,
         .clock_speed_hz=SPI_STM32_BUS_FREQUENCY, //400000,
         .duty_cycle_pos=128,        //50% duty cycle
-        // On the scope, we see that the MISO is lagging 1 complete SCLK behind with CS enabled leading to reading of incorrect data at the ESP32. 
-        // This only occurs with CS pin enabled. Trying to increase the input delay to 61 ns (50 ns = 1 complete cycle extra), however, does not fix
-        //  the issue. Setting the SPI mode to 2 (CPOL = 1, CPHA = 0, sample on SCK 2nd edge and phase crossing of MISO/MOSI ) on the ESP32 while leaving it on SPI mode 0 on the
-        //  STM32 makes the ESP32 sample the MISO line on the falling edge of the SCLK, effectively  sampling it half a cycle later. This does fix
-        //  the issue. This is very odd, but it works. Setting both SPI modes to 2 does not work. Need to investigate what goes wrong here later. 
-        .mode=0,                    // SPI mode 2,
+        .mode=0,                    // SPI mode 0,
         .spics_io_num= STM32_SPI_CS, //STM32_SPI_CS,//GPIO_CS,
         .cs_ena_posttrans=1,        //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
         .queue_size=3,
         .flags = 0,
-        .input_delay_ns=11    // (50 ns GPIO matrix ESP32) + 11 ns STM32
+        .input_delay_ns= 11    // (50 ns GPIO matrix ESP32) + 11 ns STM32
     };  
 
     
@@ -192,7 +187,7 @@ esp_err_t spi_ctrl_single_transaction(spi_transaction_t * transaction)
     
     if (spi_device_queue_trans(stm_spi_handle, transaction, 50/ portTICK_PERIOD_MS) == ESP_OK)
     {
-        if (spi_device_get_trans_result(stm_spi_handle, &transaction, 1000 / portTICK_PERIOD_MS) == ESP_OK)
+        if (spi_device_get_trans_result(stm_spi_handle, &transaction, 2000 / portTICK_PERIOD_MS) == ESP_OK)
         {
             return ESP_OK;
         }   
@@ -231,7 +226,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout >= 100)
+        if (timeout >= 200)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 has data rdy still high, expected low 1/3", cmd);
             
@@ -256,7 +251,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout >= 100)
+        if (timeout >= 200)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 was LOW, expected HIGH 2/3", cmd);
             return ESP_FAIL;
@@ -281,7 +276,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout >= 100)
+        if (timeout >= 200)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 was HIGH, expected LOW 3/3", cmd);
             return ESP_FAIL;

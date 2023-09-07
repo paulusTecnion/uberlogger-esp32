@@ -186,6 +186,26 @@ function syncTime() {
   });
 }
 
+function startCalibration() {
+  ret = confirm(
+    "Please disconnect all input wires from the Uberlogger and set the DIP switches of ALL channels to ANALOG and the range to +/-10V before starting the calibration. Continue?"
+  );
+
+  if (ret == true) {
+    query = "calibrate";
+
+    $.getJSON("./ajax/" + query, (data) => {
+      if (data["resp"] == "ack") {
+        alert("Calibration in progress...");
+      } else {
+        alert("Error: calibration failed: " + data["reason"]);
+      }
+    }).fail(function (response) {
+      alert("Error: calibration failed: " + response);
+    });
+  }
+}
+
 function setConfig() {
   let input_all = getFormDataAsJsonObject($("#configuration"));
   let input_numbers = getFormDataAsJsonObject(
@@ -205,7 +225,6 @@ function setConfig() {
     LOG_MODE: input["LOG_MODE"],
     WIFI_CHANNEL: input["WIFI_CHANNEL"],
     NTC_SELECT: {
-      NTC0: input["NTC0"],
       NTC1: input["NTC1"],
       NTC2: input["NTC2"],
       NTC3: input["NTC3"],
@@ -213,9 +232,9 @@ function setConfig() {
       NTC5: input["NTC5"],
       NTC6: input["NTC6"],
       NTC7: input["NTC7"],
+      NTC8: input["NTC8"],
     },
     AIN_RANGE_SELECT: {
-      AIN0: input["AIN0"],
       AIN1: input["AIN1"],
       AIN2: input["AIN2"],
       AIN3: input["AIN3"],
@@ -223,6 +242,7 @@ function setConfig() {
       AIN5: input["AIN5"],
       AIN6: input["AIN6"],
       AIN7: input["AIN7"],
+      AIN8: input["AIN8"],
     },
     TIMESTAMP: Number(new Date()),
   };

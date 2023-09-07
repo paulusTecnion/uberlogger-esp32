@@ -7,70 +7,6 @@ function renderLogStatus() {
   populateFields("#log", valuesData);
 }
 
-function loggerStart() {
-  let input = { ACTION: "START" };
-
-  $.ajax({
-    method: "POST",
-    url: "ajax/loggerStart",
-    data: JSON.stringify(input),
-
-    processData: false,
-    dataType: "json",
-    contentType: "application/json",
-
-    success: function (response) {
-      if (response["resp"] == "ack") {
-        alert("Logger started.");
-      } else {
-        alert(
-          "Error: could not start logger, response=" + response["reason"] + "."
-        );
-        console.log("Failed, response=" + JSON.stringify(response));
-      }
-    },
-
-    error: function (response) {
-      alert(
-        "Error: could not start logger, response=" + JSON.stringify(response)
-      );
-      console.log("Failed, response=" + JSON.stringify(response));
-    },
-  });
-}
-
-function loggerStop() {
-  let input = { ACTION: "STOP" };
-
-  $.ajax({
-    method: "POST",
-    url: "ajax/loggerStop",
-    data: JSON.stringify(input),
-
-    processData: false,
-    dataType: "json",
-    contentType: "application/json",
-
-    success: function (response) {
-      if (response["resp"] == "ack") {
-        alert("Logger stopped.");
-      } else {
-        alert(
-          "Error: could not stop logger, response=" + response["reason"] + "."
-        );
-        console.log("Failed, response=" + JSON.stringify(response));
-      }
-    },
-
-    error: function (response) {
-      alert(
-        "Error: could not stop logger, response=" + JSON.stringify(response)
-      );
-      console.log("Failed, response=" + JSON.stringify(response));
-    },
-  });
-}
-
 function filebrowserRefresh(filebrowserPath) {
   parent = "#filelist";
 
@@ -109,9 +45,14 @@ function filebrowserRefresh(filebrowserPath) {
     htmlstring += "</table>";
 
     $("#filelist").html(htmlstring);
-  }).fail(function () {
-    alert("Error: could not get list of SD-card files.");
-    console.log("Data query failed.");
+  }).fail(function (response) {
+    // alert(
+    //   "Error: could not get list of SD-card files. Reason: " +
+    //     response.responseText
+    // );
+    $("#filelist").html(
+      "File browser is not available when logging or when no SD card is inserted."
+    );
   });
 }
 
@@ -181,7 +122,13 @@ function buildFileTree(data, htmlstring, depth, path) {
         value["NAME"] +
         "</td>";
       htmlstring +=
-        "<td>" + (value["SIZE"] / BYTES_PER_MB).toFixed(3) + " MB</td>";
+        "<td>" +
+        (((value["SIZE"] / BYTES_PER_MB) < 0.001)
+          ? 0.001
+          : value["SIZE"] / BYTES_PER_MB
+        ).toFixed(3) +
+        " MB</td>";
+
       htmlstring +=
         "<td><a href='/ajax/getFileList" +
         path +

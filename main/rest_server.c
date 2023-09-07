@@ -195,10 +195,10 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     {
         if (settings_get_adc_channel_type(settings_get(), i))
         {
-            sprintf(buf,"T%d", i);
+            sprintf(buf,"T%d", i+1);
              cJSON_AddNumberToObject(tValues, buf, live_data.temperatureData[i]);
         } else {
-            sprintf(buf,"AIN%d", i);
+            sprintf(buf,"AIN%d", i+1);
             cJSON_AddNumberToObject(aValues, buf, live_data.analogData[i]);
         }
         
@@ -213,12 +213,12 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
 //    cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
     cJSON * aDigital = cJSON_AddObjectToObject(digital, "VALUES");
 
-    cJSON_AddNumberToObject(aDigital, "DI0", live_data.gpioData[0]);
-    cJSON_AddNumberToObject(aDigital, "DI1", live_data.gpioData[1]);
-    cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[2]);
-    cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[3]);
-    cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[4]);
-    cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[5]);
+    cJSON_AddNumberToObject(aDigital, "DI1", live_data.gpioData[0]);
+    cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[1]);
+    cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[2]);
+    cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[3]);
+    cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[4]);
+    cJSON_AddNumberToObject(aDigital, "DI6", live_data.gpioData[5]);
 
     // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
@@ -292,7 +292,7 @@ static esp_err_t logger_getRawAdc_handler(httpd_req_t *req)
 
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
-            sprintf(buf,"AIN%d", i);
+            sprintf(buf,"AIN%d", i+1);
             cJSON_AddNumberToObject(root, buf, live_data.analogDataRaw[i]);   
     }
 
@@ -384,10 +384,10 @@ const char * logger_settings_to_json(Settings_t *settings)
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
 
-            sprintf(buf,"NTC%d", i);
+            sprintf(buf,"NTC%d", i+1);
             cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(settings, i));
 
-            sprintf(buf,"AIN%d", i);
+            sprintf(buf,"AIN%d", i+1);
              cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
 
     }
@@ -414,6 +414,35 @@ const char * logger_settings_to_json(Settings_t *settings)
     cJSON_Delete(root);
 
     return strptr;
+}
+
+static esp_err_t logger_calibrate_handler(httpd_req_t *req)
+{   
+    httpd_resp_set_type(req, "application/json");
+    if (Logger_getState() == LOGTASK_LOGGING)
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started while logging."); 
+        return ESP_FAIL;
+    } 
+    else if (Logger_getState() == LOGTASK_CALIBRATION) 
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration already started."); 
+        return ESP_FAIL;
+    } else if ((Logger_getState() != LOGTASK_IDLE) && (Logger_getState() !=LOGTASK_SINGLE_SHOT))
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not idle. Are you updating firmware?"); 
+        return ESP_FAIL;
+    }
+
+    if (Logger_calibrate() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK, "Calibration started...");
+    } else {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started. Are you logging?");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
 }
 
 
@@ -602,7 +631,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTC_SELECT");
                 if (item != NULL)
                 {
-                    sprintf(buf2, "NTC%d", i);
+                    sprintf(buf2, "NTC%d", i+1);
                     // json_send_resp(req, ENDPOINT_RESP_ERROR);
                     // return ESP_FAIL;
                 }
@@ -612,7 +641,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "AIN_RANGE_SELECT");
                 if (item != NULL)
                 {
-                    sprintf(buf2, "AIN%d", i);
+                    sprintf(buf2, "AIN%d", i+1);
                     // json_send_resp(req, ENDPOINT_RESP_ERROR);
                     // return ESP_FAIL;
                 }
@@ -904,19 +933,21 @@ esp_err_t start_rest_server(const char *base_path)
 
     server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 17;
+    config.max_uri_handlers = 18;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
 
-    // httpd_uri_t logger_wifi_status_uri = {
-    //     .uri = "/ajax/wifiStatus",
-    //     .method = HTTP_GET,
-    //     .handler = logger_wifi_status_handler,
-    //     .user_ctx = rest_context
-    // };
+    httpd_uri_t logger_calibrate_uri = {
+        .uri = "/ajax/calibrate",
+        .method = HTTP_GET,
+        .handler = logger_calibrate_handler,
+        .user_ctx = rest_context
+    };
+
+     httpd_register_uri_handler(server, &logger_calibrate_uri);
 
     httpd_uri_t logger_filebrowserFormat_uri = {
         .uri = "/ajax/filebrowserFormat",

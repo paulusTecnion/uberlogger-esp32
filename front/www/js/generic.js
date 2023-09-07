@@ -1,6 +1,7 @@
 var valuesData = [];
 var alert_active_valueserr = false;
-
+var calibrating = false;
+var calibCounter = 0;
 const BYTES_PER_MB = 1024 * 1024;
 
 // load correct page after document is ready and highlight correct item in menu
@@ -58,6 +59,74 @@ function ejectCard() {
     error: function (response) {
       alert(
         "Error: could not eject SD card, response=" + JSON.stringify(response)
+      );
+      console.log("Failed, response=" + JSON.stringify(response));
+    },
+  });
+}
+
+function loggerStart() {
+  let input = { ACTION: "START" };
+
+  $.ajax({
+    method: "POST",
+    url: "ajax/loggerStart",
+    data: JSON.stringify(input),
+
+    processData: false,
+    dataType: "json",
+    contentType: "application/json",
+
+    success: function (response) {
+      if (response["resp"] == "ack") {
+        alert("Logger started.");
+
+        $("#start_logging_button").attr("onclick", "loggerStop()");
+      } else {
+        alert(
+          "Error: could not start logger, response=" + response["reason"] + "."
+        );
+        console.log("Failed, response=" + JSON.stringify(response));
+      }
+    },
+
+    error: function (response) {
+      alert(
+        "Error: could not start logger, response=" + JSON.stringify(response)
+      );
+      console.log("Failed, response=" + JSON.stringify(response));
+    },
+  });
+}
+
+function loggerStop() {
+  let input = { ACTION: "STOP" };
+
+  $.ajax({
+    method: "POST",
+    url: "ajax/loggerStop",
+    data: JSON.stringify(input),
+
+    processData: false,
+    dataType: "json",
+    contentType: "application/json",
+
+    success: function (response) {
+      if (response["resp"] == "ack") {
+        alert("Logger stopped.");
+
+        $("#start_logging_button").attr("onclick", "loggerStart()");
+      } else {
+        alert(
+          "Error: could not stop logger, response=" + response["reason"] + "."
+        );
+        console.log("Failed, response=" + JSON.stringify(response));
+      }
+    },
+
+    error: function (response) {
+      alert(
+        "Error: could not stop logger, response=" + JSON.stringify(response)
       );
       console.log("Failed, response=" + JSON.stringify(response));
     },
@@ -173,9 +242,26 @@ function getValues() {
         valuesData["LOGGER_STATE"] = "FW UPDATE";
         break;
 
+      case 10:
+        valuesData["LOGGER_STATE"] = "Calibrating";
+        $("#calibrationStart").attr("disabled", true);
+        calibrating = true;
+        calibCounter = 0;
+        break;
+
       // case 9:
       // 	valuesData["LOGGER_STATE"]="CALIBRATION";
       // 	break;
+    }
+
+    if (valuesData["LOGGER_STATE"] == "Calibrating") {
+      $("#calibStatus").html("Calibrating...");
+    } else if (calibrating == true && calibCounter < 5) {
+      $("#calibStatus").html("Calibration done &checkmark;");
+      $("#calibrationStart").attr("disabled", false);
+      calibCounter++;
+    } else {
+      $("#calibStatus").html("");
     }
 
     // Disable the start button when
@@ -184,33 +270,57 @@ function getValues() {
       valuesData["SD_CARD_STATUS"] == "MOUNTED"
     ) {
       $("#btn_logger_start").removeAttr("disabled");
+      $("#start_logging_button").attr("onclick", "loggerStart();");
+      $("#start_logging_button").html(
+        '<span class="button-icon">&#9658;</span><span class="button-text">Start logging</span>'
+      );
     } else {
       $("#btn_logger_start").attr("disabled", true);
     }
+
+    if (
+      valuesData["LOGGER_STATE"] == "IDLE" &&
+      valuesData["SD_CARD_STATUS"] == "EJECTED"
+    ) {
+      $("#start_logging_button").attr("onclick", "");
+      $("#start_logging_button").html(
+        '<span class="button-text">No sd card</span>'
+      );
+    }
+
     if (valuesData["LOGGER_STATE"] == "LOGGING") {
       $("#btn_logger_stop").removeAttr("disabled");
+      $("#start_logging_button").attr("onclick", "loggerStop();");
+      $("#start_logging_button").html(
+        '<span class="button-icon">&#9209;</span><span class="button-text">Stop logging</span>'
+      );
     } else {
       $("#btn_logger_stop").attr("disabled", true);
     }
 
     // Enable Refresh file list, format and unmount buttons in case SD card status is mounted.
     if (valuesData["SD_CARD_STATUS"] == "MOUNTED") {
+      $("#start_logging_button").removeAttr("disabled");
       $("#btn_refresh_sdcard").removeAttr("disabled");
       $("#btn_format_sdcard").removeAttr("disabled");
       $("#btn_unmount_sdcard").removeAttr("disabled");
       $("#btn_unmount_sdcard_top").removeAttr("disabled");
     } else {
+      $("#filelist").html(
+        "File browser is not available when logging or when no SD card is inserted."
+      );
+      $("#start_logging_button").attr("disabled", true);
       $("#btn_refresh_sdcard").attr("disabled", true);
       $("#btn_format_sdcard").attr("disabled", true);
       $("#btn_unmount_sdcard").attr("disabled", true);
       $("#btn_unmount_sdcard_top").attr("disabled", true);
     }
     populateFields("#topstatus", valuesData);
+    alert_active_valueserr = false;
   }).fail(function () {
     if (alert_active_valueserr == false) {
       alert_active_valueserr = true;
       alert("Error: could not update values.");
-      alert_active_valueserr = false;
     }
     console.log("Data query failed.");
   });

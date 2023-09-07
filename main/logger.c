@@ -369,7 +369,7 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
 
     // Reset STM32
 
-    Logger_resetSTM32();
+    // Logger_resetSTM32();
 
     vTaskDelay(300 / portTICK_PERIOD_MS);
     // Send command to STM32 to go into settings mode
@@ -457,9 +457,30 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
         SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
         return ESP_FAIL;
     }
+
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "Sample rate set");
     #endif
+
+    cmd.command = STM32_CMD_SET_RANGE;
+    cmd.data0 = (uint8_t)settings_get_adc_channel_range_all();
+
+    spi_ctrl_cmd(STM32_CMD_SET_RANGE, &cmd, sizeof(spi_cmd_t));
+    // spi_ctrl_print_rx_buffer();
+    if (spi_buffer[0] != STM32_CMD_SET_RANGE || spi_buffer[1] != STM32_RESP_OK )
+    {
+        ESP_LOGE(TAG_LOG, "Unable to set STM32 voltage range. ");
+        spi_ctrl_print_rx_buffer(spi_buffer);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
+        return ESP_FAIL;
+    }
+
+    #ifdef DEBUG_LOGGING
+    ESP_LOGI(TAG_LOG, "Voltage range set");
+    #endif
+
+    
+
 
     if (syncTime)
     {
@@ -527,9 +548,9 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
 
 esp_err_t Logtask_sync_settings()
 {
-    if (_currentLogTaskState == LOGTASK_LOGGING)
+    if (_currentLogTaskState != LOGTASK_IDLE && _currentLogTaskState != LOGTASK_SINGLE_SHOT)
     {
-        ESP_LOGE(TAG_LOG, "Cannot sync settings while logging");
+        ESP_LOGE(TAG_LOG, "Cannot sync settings while logging or calibration");
         return ESP_FAIL;
     }
     LoggingState_t t = LOGTASK_PERSIST_SETTINGS;
@@ -722,17 +743,22 @@ size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdc, uint
 esp_err_t Logger_calibrate()
 {
     // #ifdef DEBUG_LOGGING
-    ESP_LOGI(TAG_LOG, "Logger_calibrate() called");
-    // #endif
-
-        LoggingState_t t = LOGTASK_CALIBRATION;
-        if (xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS) != pdTRUE)
+    if (_currentLogTaskState == LOGTASK_IDLE || 
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
         {
-            ESP_LOGE(TAG_LOG, "Unable to send calibrate command to queue");
-            return ESP_FAIL;
+            ESP_LOGI(TAG_LOG, "Logger_calibrate() called");
+
+            LoggingState_t t = LOGTASK_CALIBRATION;
+            if (xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS) != pdTRUE)
+            {
+                ESP_LOGE(TAG_LOG, "Unable to send calibrate command to queue");
+                return ESP_FAIL;
+            }
+            return ESP_OK;
         }
-        return ESP_OK;
-  
+
+        return ESP_FAIL;
+
 }
 
 // uint8_t Logger_raw_to_csv(uint8_t * buffer, size_t size, uint8_t log_counter)
@@ -887,19 +913,26 @@ uint32_t Logger_getLastFreeSpace()
 esp_err_t Logger_check_sdcard_free_space()
 {
      // Flush buffer to sd card
-    free_space = esp_sd_card_get_free_space();
-    if ( free_space < SDCARD_FREE_SPACE_MINIMUM_KB)
+
+    if (esp_sdcard_is_mounted())
     {
-        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
-        ESP_LOGE(TAG_LOG, "Not sufficient disk space");
-        return ESP_FAIL;
-    } 
-    else if (free_space < SDCARD_FREE_SPACE_WARNING_KB)
-    {   
-        #ifdef DEBUG_SDCARD 
-        ESP_LOGW(TAG_LOG, "Warning, low disk space!");
-        #endif
+        free_space = esp_sd_card_get_free_space();
+        if ( free_space < SDCARD_FREE_SPACE_MINIMUM_KB)
+        {
+            SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
+            ESP_LOGE(TAG_LOG, "Not sufficient disk space");
+            return ESP_FAIL;
+        } 
+        else if (free_space < SDCARD_FREE_SPACE_WARNING_KB)
+        {   
+            #ifdef DEBUG_SDCARD 
+            ESP_LOGW(TAG_LOG, "Warning, low disk space!");
+            #endif
+        }
+    } else {
+        free_space = 0;
     }
+
 
     return ESP_OK;
 }
@@ -1065,7 +1098,6 @@ esp_err_t Logger_processData()
             expected_msg_part = 1;
             // ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
             // In this case we have Time bytes first...
-            
             ESP_ERROR_CHECK(esp_async_memcpy(driver, 
                 sdcard_data.timeData+log_counter*sizeof(spi_msg_1_ptr->timeData),
                 spi_msg_1_ptr->timeData, 
@@ -1264,6 +1296,7 @@ esp_err_t Logging_check_sdcard()
         {
             ESP_LOGI(TAG_LOG, "Unmounting SD card");
             esp_sd_card_unmount();
+            Logger_check_sdcard_free_space();
         } 
         // sd card inserted and not mounted and last user action was not to unmount it => Mount it
         else if (!esp_sdcard_is_mounted() && !userRequestsUnmount)
@@ -1273,6 +1306,9 @@ esp_err_t Logging_check_sdcard()
             {
                 SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
                 return ESP_FAIL;
+            } else {
+                // check for free disk space
+                Logger_check_sdcard_free_space();
             }
         }
     } 
@@ -1286,6 +1322,7 @@ esp_err_t Logging_check_sdcard()
         {
             ESP_LOGI(TAG_LOG, "Unmounting SD card");
             esp_sd_card_unmount();
+            Logger_check_sdcard_free_space();
         }
     }
    
@@ -1463,7 +1500,7 @@ void Logtask_calibration()
                 last_resolution = settings_get_resolution();
                 last_sample_rate = settings_get_samplerate();
                 settings_set_resolution(ADC_12_BITS);
-                settings_set_samplerate(ADC_SAMPLE_RATE_100Hz);
+                settings_set_samplerate(ADC_SAMPLE_RATE_250Hz);
                 settings_persist_settings();
                 Logger_syncSettings(0);
                 // Wait to let the stm32 make the configuration run
@@ -1515,7 +1552,7 @@ void Logtask_calibration()
                     //     ESP_LOGI(TAG_LOG, "Average calib value %u: %lu", i, calibrationValues[i]);
                     // }
                     
-                    if (calibrationCounter == 10)
+                    if (calibrationCounter == NUM_CALIBRATION_VALUES)
                     {
                         // store calibration values
                         for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
@@ -1947,7 +1984,10 @@ void task_logging(void * pvParameters)
         while(1);
     }
 
-    if (Logger_syncSettings(1) != ESP_OK)
+    // Reset the STM32
+    Logger_resetSTM32();
+
+    if (Logger_syncSettings(0) != ESP_OK)
     {
         ESP_LOGE(TAG_LOG, "STM32 settings FAILED");
     } else {
@@ -2002,7 +2042,7 @@ void task_logging(void * pvParameters)
             case LOGTASK_CALIBRATION:       Logtask_calibration();              break;
             case LOGTASK_SINGLE_SHOT:       Logtask_singleShot();               break;
             case LOGTASK_PERSIST_SETTINGS:  settings_persist_settings();        break;
-            case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings(1);             break;
+            case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings(0);             break;
             case LOGTASK_SYNC_TIME:         Logger_syncSettings(1);             break;
             case LOGTASK_LOGGING:           Logtask_logging();                  break;
             case LOGTASK_REBOOT_SYSTEM:

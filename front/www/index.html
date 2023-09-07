@@ -55,15 +55,24 @@
               </table>
             </div>
           </div>
+
           <div id="topmenubar">
-            <button id="menu_home" onclick="gotoPage('home');">Home</button>
-            <button id="menu_liveview" onclick="gotoPage('liveview');">
-              Live data
-            </button>
-            <button id="menu_log" onclick="gotoPage('log');">Logging</button>
-            <button id="menu_config" onclick="gotoPage('config');">
-              Configuration
-            </button>
+            <div id="left_buttons">
+              <button id="menu_home" onclick="gotoPage('home');">Home</button>
+              <button id="menu_liveview" onclick="gotoPage('liveview');">
+                Live data
+              </button>
+              <button id="menu_log" onclick="gotoPage('log');">Logging</button>
+              <button id="menu_config" onclick="gotoPage('config');">
+                Configuration
+              </button>
+            </div>
+            <div id="right_buttons">
+              <button id="start_logging_button">
+                <span class="button-icon">&#9658;</span>
+                <span class="button-text"></span>
+              </button>
+            </div>
           </div>
         </div>
 
