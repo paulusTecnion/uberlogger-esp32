@@ -65,7 +65,7 @@ static const char *TAG = "SDCARD";
 static sdmmc_card_t* card;
 static const char mount_point[] = MOUNT_POINT;
 sdmmc_host_t host;
-spi_bus_config_t bus_cfg ;
+
 sdspi_device_config_t slot_config ;
 esp_vfs_fat_sdmmc_mount_config_t mount_config = {
 #ifdef CONFIG_EXAMPLE_FORMAT_IF_MOUNT_FAILED
@@ -116,15 +116,6 @@ esp_err_t esp_sd_card_mount()
     host.slot = SDCARD_SPI_HOST;
     // host.max_freq_khz = SDMMC_FREQ_DEFAULT;
     
-    spi_bus_config_t bus_cfg = {
-        .mosi_io_num = PIN_NUM_MOSI,
-        .miso_io_num = PIN_NUM_MISO,
-        .sclk_io_num = PIN_NUM_CLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = 8192, // defaults to 4092 for DMA mode
-    };
-
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_NUM_CS;
     slot_config.host_id = host.slot;
@@ -323,7 +314,8 @@ uint32_t esp_sd_card_get_free_space()
             }
                 
             FATFS *fs;
-            uint64_t fre_clust, fre_sect, tot_sect;
+            uint64_t fre_clust; //, tot_sect;
+            DWORD fre_sect;
             /* Get volume information and free clusters of drive 0 */
             int res = f_getfree("/sdcard/", &fre_clust, &fs);
             if (res) {
@@ -331,7 +323,7 @@ uint32_t esp_sd_card_get_free_space()
                 return 0;
             }
             /* Get total sectors and free sectors */
-            tot_sect = (fs->n_fatent - 2) * fs->csize;
+            // tot_sect = (fs->n_fatent - 2) * fs->csize;
             fre_sect = fre_clust * fs->csize;
             /* Print the free space (assuming 512 bytes/sector) */
             // ESP_LOGI(TAG, "%10u KiB total drive space.\r\n%10u KiB available.\r\n%10u free clust.\r\n",tot_sect / 2, fre_sect / 2,fre_clust);
