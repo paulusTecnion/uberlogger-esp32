@@ -101,7 +101,7 @@ function loggerStart() {
 
 function tryFileBrowserRefresh(){
   try{
-    filebrowserRefresh(parentPath)
+    filebrowserRefresh('/');
   }catch(error){
 
   };
