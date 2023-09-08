@@ -60,7 +60,7 @@ function formatSdcard() {
   if (confirm("Format SD-card, are you sure?") == true) {
     $.getJSON("./ajax/formatSdcard", (data) => {
       // to do: implement a proper response sequence
-      alert("SD-card now formatting.");
+      alert("SD-card now formatting. Please wait, this will take up to 30 seconds.");
     }).fail(function () {
       alert("Error: could not format SD-card. Are you logging?");
       console.log("Data query failed. NOK.");
@@ -89,7 +89,6 @@ function promptDelete(file, filepath) {
 
       success: function (response) {
         if (response == "ack") {
-          alert("File deleted.");
           filebrowserRefresh(parentPath);
         } else {
           alert("Error: could not delete file.");

@@ -79,7 +79,7 @@ function loggerStart() {
 
     success: function (response) {
       if (response["resp"] == "ack") {
-        alert("Logger started.");
+        //alert("Logger started.");
 
         $("#start_logging_button").attr("onclick", "loggerStop()");
       } else {
@@ -99,6 +99,14 @@ function loggerStart() {
   });
 }
 
+function tryFileBrowserRefresh(){
+  try{
+    filebrowserRefresh(parentPath)
+  }catch(error){
+
+  };
+}
+
 function loggerStop() {
   let input = { ACTION: "STOP" };
 
@@ -113,8 +121,9 @@ function loggerStop() {
 
     success: function (response) {
       if (response["resp"] == "ack") {
-        alert("Logger stopped.");
-
+        //alert("Logger stopped.");
+        setTimeout(tryFileBrowserRefresh, 2000);
+        
         $("#start_logging_button").attr("onclick", "loggerStart()");
       } else {
         alert(
