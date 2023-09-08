@@ -89,7 +89,7 @@ function promptDelete(file, filepath) {
 
       success: function (response) {
         if (response == "ack") {
-          filebrowserRefresh(parentPath);
+          setTimeout(filebrowserRefresh(parentPath), 1000);
         } else {
           alert("Error: could not delete file.");
           console.log("Failed, response=" + JSON.stringify(response));
