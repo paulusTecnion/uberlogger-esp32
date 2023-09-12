@@ -4,13 +4,6 @@ stages:
   - build
   - create_release
 
-update_version:
-  stage: update_version
-  only:
-    - master
-  script:
-    - sed -i '/MINOR = /s/\(MINOR = \)\([0-9]\+\)/echo "\1$((\2 + 1))"/e' update_version.py
-
 build_code:
   stage: build
   script:
