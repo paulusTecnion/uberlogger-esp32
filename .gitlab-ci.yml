@@ -24,14 +24,15 @@ build_code:
       0xf000 build/ota_data_initial.bin \
       0x20000 build/uberlogger-esp32.bin \
       0x27c000 build/www.bin
-    - mv build/uberlogger-esp32.bin build/ota_main.bin
-    - mv build/www.bin build/ota_filesystem.bin
+    - mv build/uberlogger-esp32.bin ./ota_main.bin
+    - mv build/www.bin ./ota_filesystem.bin
 
   artifacts:
     name: ${VERSION}
     paths:
       - build/ota_main.bin
       - build/ota_filesystem.bin
+      - firmware.bin
       - build_vars
 
 create_release:
