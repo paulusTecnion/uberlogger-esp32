@@ -30,8 +30,8 @@ build_code:
   artifacts:
     name: ${VERSION}
     paths:
-      - build/ota_main.bin
-      - build/ota_filesystem.bin
+      - ota_main.bin
+      - ota_filesystem.bin
       - firmware.bin
       - build_vars
 
