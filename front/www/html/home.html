@@ -27,9 +27,8 @@
 				<p>In hotspot mode, you can connect to UberLogger via any device with an integrated WiFi adapter, and access the control panel through http://192.168.4.1 via your favorite web browser. Note that using this mode will  disconnect you from internet while you're connected to the UberLogger hotspot. You also might have to disable any active mobile data connections.</p>
 			</li>
 			<li>
-				<p>Client mode</p>
-				<p>In client mode, the UberLogger will attempt to connect to an available WiFi access point. You will have to configure this mode through the "Configuration"-page. After configuring and successful connection, you will be able to access the control panel through http://IPADDRESS, where IPADDRESS is the IP-address that is obtained through the DHCP-server. You can find this address when clicking "Test connection" in the "Configuration"-page.</p>
-				<p><i><b>Important:</b> in case the connection fails, you can temporarily re-enable the hotspot mode by pressing the MODE-button for 10 seconds to regain access to the control panel.</i></p>
+				<p>Client + Hotspot mode</p>
+				<p>In this mode, the UberLogger will attempt to connect to the configured WiFi access point, which you will have to configure through the "Configuration"-page. After configuring and successful connection, you will be able to access the control panel through http://IPADDRESS, where IPADDRESS is the IP-address that is obtained through the DHCP-server. You can find this address on the "Configuration"-page after succesful connection.</p>
 			</li>
 		</ol>
       </p>
@@ -42,7 +41,7 @@
         The UberLogger can measure three types of signals: temperature, analog voltage, and digital signals. Additionally, the sample rate, resolution and (analog) scaling can be adjusted to ensure your measurements are recorded accurately.
       </p>
       <p>
-        <b>NTCx/AINx selection:</b> The temperature and analog voltage channels are shared, which means you have to select whether you want to measure temperature or voltage for each individual channel (NTC1/AIN0, NTC1/AIN1, ...).
+        <b>NTCx/AINx selection:</b> The temperature and analog voltage channels are shared, which means you have to select whether you want to measure temperature or voltage for each individual channel (NTC1/AIN1, NTC2/AIN2, ...).
         <i>Important: this selection needs to be done on two locations: using the hardware DIP-switches on the UberLogger, and you need to tell the logger what the current DIP-switch configuration is through the "Configuration"-page.</i>
       </p>
       <p>
@@ -54,17 +53,17 @@
 
     <div class="flexdiv-md greybox">
       <h3 class="first">Sampling</h3>
-      The analog frontend of the UberLogger has a configurable sample rate and resolution. Before starting any measurement, it is important to select a suitable sample rate and resolution. 
+      The analog front-end of the UberLogger has a configurable sample rate and resolution. Before starting any measurement, it is important to select a suitable sample rate and resolution. 
       <p>
         <b>Sample rate:</b> The sample rate determines two things: (1) the maximum frequency that can be recorded, and (2) the required SD-card space for a recording.
         The higher the sample rate, the larger the file that will be written to the SD-card.
         It is therefore recommended to pick a sample rate that is at approximately 10x ... 20x higher than the highest frequency that needs to be captured, but not higher than that to save disk space.
-        If increased precision is required, a higher factor can be selected, compromising disk space for measurement precision.
+        If increased signal accuracy is required, a higher factor can be selected, compromising disk space.
         The UberLogger contains an anti-aliassing filter which removes high-frequency content to reduce aliasing effects.
       </p>
       <p>
         <b>Resolution:</b> The sampling resolution is adjustable between 12 and 16 bits.
-        Selecting 12 bits disables oversampling and thereby bypasses the digital anti-aliassing filter. This allows measurements which rely on aliassing (frequency-folding) to occur.
+        Selecting 12 bits bypasses the digital anti-aliassing filter. This allows measurements which rely on aliassing (frequency-folding) to occur.
         Note that the hardware anti-aliassing filter is always enabled and has a first-order roll off and a bandwith of 10 kHz.
       </p>
     </div>
@@ -72,7 +71,7 @@
     <div class="flexdiv-md greybox">
 		<h3 class="first">Time synchronization</h3>
 		<p>
-			The UberLogger has an integrated real-time clock (RTC) which accurately keeps track of the elapsed time.
+			The UberLogger has an integrated real-time clock (RTC) which accurately keeps track of the elapsed time. Place an RTC-battery to ensure the RTC keeps track of time even when the power is switched off.
 			The RTC can be synchronized to your PC's time easily through the "Configuration"-page, by clicking on "Synchronize to local time". The data timestamp in the live data view will update to the local time.
 		</p>
 		<p>
@@ -96,7 +95,7 @@
                 	<td>Supply voltage</td><td></td><td>4.75 V ... 5.25 V</td>
             	</tr>
             	<tr>
-                	<td>Supply current</td><td></td><td>300 mA (max)</td>
+                	<td>Supply current</td><td></td><td>300 mA (typ)</td>
             	</tr>
 
             	<tr>
@@ -109,7 +108,7 @@
                 	<td>Input impedance</td><td></td><td>100 kOhm</td>
             	</tr>
             	<tr>
-                	<td>Input accuracy</td><td></td><td>+/-0.2% (check: LSB + R tolerances!)</td>
+                	<td>Input accuracy</td><td></td><td>+/-0.5%</td>
             	</tr>
             	<tr>
                 	<td>ADC resolution</td><td>selectable</td><td>12 bit<br/>16 bit</td>
