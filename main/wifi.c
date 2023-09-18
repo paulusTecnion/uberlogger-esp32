@@ -295,6 +295,9 @@ esp_err_t wifi_start()
         wifi_config.ap.authmode =  WIFI_AUTH_OPEN;
     }
 
+    ESP_ERROR_CHECK(esp_netif_set_hostname(ap_netif, settings_get_wifi_ssid_ap()));
+    esp_netif_set_hostname(sta_netif, settings_get_wifi_ssid_ap());
+
     // strcpy((char*)wifi_config.sta.ssid, settings_get_wifi_ssid());
     
     // wifi_config.sta.ssid_len = strlen((const char*)(wifi_config.sta.ssid));
