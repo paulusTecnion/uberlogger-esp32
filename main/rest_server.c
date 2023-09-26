@@ -448,13 +448,22 @@ static esp_err_t logger_calibrate_handler(httpd_req_t *req)
 
 static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 {
-    return Logger_format_sdcard();
+    httpd_resp_set_type(req, "application/json");
+
+    if (Logger_format_sdcard() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK, "Formt started...");
+    } else {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Could not start format. Do you have an sd card inserted or are you logging?");
+    }
+
+    return ESP_OK;
+
 }
 
 static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "application/json");
- 
     Settings_t settings = settings_get_default();
     const char * settings_json = NULL;
     settings_json = logger_settings_to_json(&settings);
@@ -466,7 +475,6 @@ static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
     httpd_resp_sendstr(req, settings_json);
     httpd_resp_sendstr_chunk(req, NULL);
     free((void *)settings_json);
-    
     
     return ESP_OK;
 }
