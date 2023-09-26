@@ -89,7 +89,9 @@ function plotDataPoints(){
 	const dataPointsArray=Object.values(dataPoints);
 
 	let config={
-		responsive: true
+		responsive: true,
+		displayModeBar: true,
+		modeBarButtonsToRemove: ['lasso2d']
 	}
 
 	if(plot_drawn_state==0){
