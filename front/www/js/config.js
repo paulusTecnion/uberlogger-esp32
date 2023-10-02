@@ -188,7 +188,7 @@ function syncTime() {
 
 function startCalibration() {
   ret = confirm(
-    "Please disconnect all input wires from the Uberlogger and set the DIP switches of ALL channels to ANALOG and the range to +/-10V before starting the calibration. Continue?"
+    "Please disconnect all input wires from the Uberlogger and set the DIP switches of ALL channels to ANALOG before starting the calibration. You can leave the range settings as they are. Continue?"
   );
 
   if (ret == true) {
