@@ -140,7 +140,7 @@ int32_t * settings_get_adc_offsets_16b()
     return (int32_t*)_settings.adc_offsets_16b;
 }
 
-esp_err_t settings_set_adc_offset(uint32_t * offsets, adc_resolution_t resolution)
+esp_err_t settings_set_adc_offset(int32_t * offsets, adc_resolution_t resolution)
 {
     if (resolution == ADC_12_BITS)
     {
@@ -403,12 +403,12 @@ esp_err_t settings_print()
 
     for (i=0; i<8; i++)
     {
-        ESP_LOGI(TAG_SETTINGS, "ADC 12 bit offset %d: %u", i, _settings.adc_offsets_12b[i]);
+        ESP_LOGI(TAG_SETTINGS, "ADC 12 bit offset %d: %ld", i, _settings.adc_offsets_12b[i]);
     }
 
     for (i=0; i<8; i++)
     {
-        ESP_LOGI(TAG_SETTINGS, "ADC 16 bit offset %d: %u", i, _settings.adc_offsets_16b[i]);
+        ESP_LOGI(TAG_SETTINGS, "ADC 16 bit offset %d: %ld", i, _settings.adc_offsets_16b[i]);
     }
 
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");

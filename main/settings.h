@@ -114,11 +114,11 @@ struct Settings_t {
 	uint8_t wifi_mode;
 	uint32_t timestamp; // time in BCD format
 	// ADC 12 bit offset value in absolute value
-	uint16_t adc_offsets_12b[NUM_ADC_CHANNELS];
+	int32_t adc_offsets_12b[NUM_ADC_CHANNELS];
 	// ADC 16 bit offset value in absolute value
-	uint16_t adc_offsets_16b[NUM_ADC_CHANNELS];
+	int32_t adc_offsets_16b[NUM_ADC_CHANNELS];
 	// ADC temp offset value in absolute value
-	uint16_t temp_offsets[NUM_ADC_CHANNELS];
+	int16_t temp_offsets[NUM_ADC_CHANNELS];
 	uint8_t bootReason;
 };
 
@@ -146,8 +146,8 @@ uint8_t settings_set_boot_reason(uint8_t reason);
 int32_t * settings_get_temp_offsets();
 esp_err_t settings_set_temp_offset(int32_t * offsets);
 
-uint16_t * settings_get_adc_offsets();
-esp_err_t settings_set_adc_offset(uint32_t * offsets, adc_resolution_t resolution);
+int32_t * settings_get_adc_offsets();
+esp_err_t settings_set_adc_offset(int32_t * offsets, adc_resolution_t resolution);
 
 Settings_t settings_get_default();
 esp_err_t settings_set_default();

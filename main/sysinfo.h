@@ -2,8 +2,8 @@
 
 #include "esp_system.h"
 
-static const char SW_VERSION[] =  "0.1.0_2023.09.26.16.00";
+static const char SW_VERSION[] =  "0.1.0_2023.10.02.20.16";
 
-float sysinfo_get_core_temperature();
+// float sysinfo_get_core_temperature();
 const char * sysinfo_get_fw_version();
 esp_err_t sysinfo_init();
