@@ -61,14 +61,22 @@
           <option value="16">16 bits</option>
         </select>
       </p>
+      <p>
+        <i
+          ><b>Note:</b>16-bits will not improve resolution for temperature
+          sensors, since these channels will be scaled down to 12-bits.</i
+        >
+      </p>
     </div>
 
     <div class="group" id="channel_configuration">
       <h3>Analog channels</h3>
       <p>Select the mode used for the analog channels.</p>
       <p>
-        <i><b>Important:</b> ensure the hardware configuration (DIP-switch
-          setting) is equal to the settings below.</i>
+        <i
+          ><b>Important:</b> ensure the hardware configuration (DIP-switch
+          setting) is equal to the settings below.</i
+        >
       </p>
 
       <table>
@@ -463,16 +471,14 @@
       >
       <h3 class="first">Save all settings</h3>
       <input
-          id="btn_test_wifi_network"
-          class="button_text"
-          type="button"
-          value="Save all settings"
-          onclick="setConfig()"
-        />
+        id="btn_test_wifi_network"
+        class="button_text"
+        type="button"
+        value="Save all settings"
+        onclick="setConfig()"
+      />
     </div>
 
-    
-    
     <h2 class="first">Firmware</h2>
     <p>
       Current firmware version: <span name="FW_VERSION">-</span><br />
