@@ -281,37 +281,37 @@ int NTC_ADC2Temperature(unsigned int adc_value){
   return p1 - ( (p1-p2) * (adc_value & 0x0003) ) / 4;
 };
 
-void calculateTemperatureFloat(float* T, float v_out, float v_in){
-  // calculate temperature with 10k NTC with 10k pull-up from measured voltages v_out and v_in of resistor divider
+// void calculateTemperatureFloat(float* T, float v_out, float v_in){
+//   // calculate temperature with 10k NTC with 10k pull-up from measured voltages v_out and v_in of resistor divider
   
-  // R_ntc = R_pullup * (V_o/(V_i-V_o))
-  // T_ntc = 1/((log(R_ntc/R_ntc_nominal)/NTC_BETA)+1/(25.0+273.15))-273.15
+//   // R_ntc = R_pullup * (V_o/(V_i-V_o))
+//   // T_ntc = 1/((log(R_ntc/R_ntc_nominal)/NTC_BETA)+1/(25.0+273.15))-273.15
   
 
 
-  float R, steinhart;
+//   float R, steinhart;
   
-  if((v_out < 0.91*v_in)&&(v_out > 0.08*v_in)){ // sensor has valid range (between -20 deg C and +90 deg C)
+//   if((v_out < 0.91*v_in)&&(v_out > 0.08*v_in)){ // sensor has valid range (between -20 deg C and +90 deg C)
     
-    R = NTC_R_PULLUP * (v_out / (v_in - v_out));
+//     R = NTC_R_PULLUP * (v_out / (v_in - v_out));
     
-    steinhart = R / NTC_R_NOMINAL;
-    steinhart = log(steinhart);
-    steinhart /= NTC_BETA;
-    steinhart += 1.0 / (25.0 + 273.15);
-    steinhart = 1.0 / steinhart;
-    steinhart -= 273.15;
+//     steinhart = R / NTC_R_NOMINAL;
+//     steinhart = log(steinhart);
+//     steinhart /= NTC_BETA;
+//     steinhart += 1.0 / (25.0 + 273.15);
+//     steinhart = 1.0 / steinhart;
+//     steinhart -= 273.15;
 
-    // if(steinhart > (*T + 100)){ // detect re-connection of temperature sensor, initialize
-    //   *T = steinhart;
-    // }else{
-    //   *T = (1 - TEMPERATURE_FILTER_COEFF) * (*T) + TEMPERATURE_FILTER_COEFF * steinhart;
-    // }
+//     // if(steinhart > (*T + 100)){ // detect re-connection of temperature sensor, initialize
+//     //   *T = steinhart;
+//     // }else{
+//     //   *T = (1 - TEMPERATURE_FILTER_COEFF) * (*T) + TEMPERATURE_FILTER_COEFF * steinhart;
+//     // }
 
-      // ESP_LOGI(TEMP_TAG, "T %f", T);
-    *T = steinhart;
+//       // ESP_LOGI(TEMP_TAG, "T %f", T);
+//     *T = steinhart;
     
-  } else {
-    *T = -1e3; // sensor has invalid reading
-  }
-}
+//   } else {
+//     *T = -1e3; // sensor has invalid reading
+//   }
+// }

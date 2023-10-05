@@ -110,14 +110,15 @@
   </tr>
 </table>
 <div id="fw-update-state">
-  <label for=" update-progress" id="update-progress-label"></label>
+  <label for="update-progress" id="update-progress-label"></label>
   <progress
     id="update-progress"
     value="0"
-    max="4"
+    max="3"
     style="width: 250px"
   ></progress>
 </div>
+<div id="status-text"></div>
 <script>
   function setpath() {
     var default_path = document.getElementById("ota_main").files[0].name;
@@ -188,6 +189,16 @@
     }
   }
 
+  function disableAllElements() {
+    document.getElementById("ota_main").disabled = true;
+    document.getElementById("filepath_ota_main").disabled = true;
+    document.getElementById("ota_support").disabled = true;
+    document.getElementById("filepath_ota_support").disabled = true;
+    document.getElementById("ota_filesystem").disabled = true;
+    document.getElementById("filepath_ota_filesystem").disabled = true;
+    document.getElementById("upload").disabled = true;
+  }
+
   function processNumber(number) {
     switch (number) {
       case 0:
@@ -236,55 +247,57 @@
       // Start the FW update process
       try {
         document.getElementById("update-progress-label").innerText =
-          "Upload complete! Rebooting and flashing...";
+          "Upload complete!";
+
+        document.getElementById("status-text").innerHTML =
+          'Updating firmware..please wait until green led is lighting up continuously again and reconnect to the Uberlogger (if necessary). Updating will take around 60 seconds. After that go back to the <a href="/">start page</a>. If the green LED does start blinking, reset the logger and try again or contact customer support.';
         result2 = await fetch("/fwupdate/startupgrade");
       } catch (result2) {
-        document.getElementById("fw-update-state").innerHTML =
-          "<p>Can't start update process</p>";
+        document.getElementById("fw-update-state").innerHTML = "";
         return false;
       }
 
       // wait for 60 seconds
-      var countdown = 60;
-      var timer = setInterval(function () {
-        countdown--;
-        if (countdown <= 0) {
-          clearInterval(timer);
-          document.getElementById("update-progress-label").innerText =
-            "Done! Forwarding... Make sure you are connected to the same Wi-Fi as the Uberlogger";
-          return;
-        }
+      // var countdown = 60;
+      // var timer = setInterval(function () {
+      //   countdown--;
+      //   if (countdown <= 0) {
+      //     clearInterval(timer);
+      //     document.getElementById("update-progress-label").innerText =
+      //       "Done! Forwarding... Make sure you are connected to the same Wi-Fi as the Uberlogger";
+      //     return;
+      //   }
 
-        if (countdown < 10) {
-          document.getElementById("update-progress-label").innerText =
-            "Waiting for Uberlogger to finish flashing... " +
-            countdown +
-            " seconds left. Almost...";
-        } else {
-          document.getElementById("update-progress-label").innerText =
-            "Waiting for Uberlogger to finish flashing... " +
-            countdown +
-            " seconds left";
-        }
-      }, 1000);
-      console.log("Trying to connect");
+      //   if (countdown < 10) {
+      //     document.getElementById("update-progress-label").innerText =
+      //       "Waiting for Uberlogger to finish flashing... " +
+      //       countdown +
+      //       " seconds left. Almost...";
+      //   } else {
+      //     document.getElementById("update-progress-label").innerText =
+      //       "Waiting for Uberlogger to finish flashing... " +
+      //       countdown +
+      //       " seconds left";
+      //   }
+      // }, 1000);
+      // console.log("Trying to connect");
 
       // Keep polling for state of FW updater
-      const intervalId = setInterval(() => {
-        fetch("/fwupdate/state")
-          .then((response) => response.json())
-          .then((data) => {
-            // processNumber(data);
-            // if (data === 0) {
-            clearInterval(intervalId);
-            // Wait for 3 seconds before forwarding to main page
-            setTimeout(() => {
-              window.location.href = "/";
-            }, 3000);
-            // }
-          })
-          .catch((error) => console.error("Error:", error));
-      }, 1000);
+      // const intervalId = setInterval(() => {
+      //   fetch("/fwupdate/state")
+      //     .then((response) => response.json())
+      //     .then((data) => {
+      //       // processNumber(data);
+      //       // if (data === 0) {
+      //       clearInterval(intervalId);
+      //       // Wait for 3 seconds before forwarding to main page
+      //       setTimeout(() => {
+      //         window.location.href = "/";
+      //       }, 3000);
+      //       // }
+      //     })
+      //     .catch((error) => console.error("Error:", error));
+      // }, 1000);
     } catch (err) {
       alert("Firmware update failed: " + err);
       return false;
@@ -302,9 +315,19 @@
         "You are about to flash your Uberlogger. Do not interrupt this process, since this may brick your Uberlogger! Continue?"
       )
     ) {
+      // If user cancels, re-enable the inputs and return
+      for (let input of inputs) {
+        input.disabled = false;
+      }
       return;
     }
 
+    // disableAllElements();
+
+    let inputs = document.querySelectorAll("input, button");
+    for (let input of inputs) {
+      input.disabled = true;
+    }
     var lastResponseLength = 0;
 
     // var myDiv = document.getElementById("fw-update-state");
@@ -316,6 +339,32 @@
     let upload_path = [];
     var filePath = [];
     var fileInput = [];
+
+    // Check file names
+    const expectedNames = [
+      "ota_main.bin",
+      "ota_support.bin",
+      "ota_filesystem.bin",
+    ];
+    const fileIds = ["ota_main", "ota_support", "ota_filesystem"];
+    for (let i = 0; i < fileIds.length; i++) {
+      const fileElem = document.getElementById(fileIds[i]);
+      if (!fileElem.files.length) {
+        alert(`Please select the ${expectedNames[i]} file.`);
+        for (let input of inputs) {
+          input.disabled = false; // Re-enable the inputs
+        }
+        return;
+      } else if (fileElem.files[0].name !== expectedNames[i]) {
+        alert(
+          `The selected file for ${fileIds[i]} does not match the expected file name: ${expectedNames[i]}.`
+        );
+        for (let input of inputs) {
+          input.disabled = false; // Re-enable the inputs
+        }
+        return;
+      }
+    }
 
     const result = await enableFWupdate();
     if (result) {

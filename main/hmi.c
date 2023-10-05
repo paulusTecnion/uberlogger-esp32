@@ -16,6 +16,8 @@
 
 #define TAG "HMI"
 
+gpio_num_t GPIO_HMI_LED_GREEN = GPIO_HMI_LED_GREEN_HW_T00;
+gpio_num_t GPIO_HMI_LED_RED = GPIO_HMI_LED_RED_HW_T00;
 
 uint8_t hmi_check_mode_button()
 {
@@ -90,9 +92,25 @@ void task_hmi(void* ignore) {
 // //   ESP_LOGI(TAG, "u8g2_SendBuffer");
 //   u8g2_SendBuffer(&u8g2);
 //   int i=0;
+  gpio_set_direction(BOARD_REV0, GPIO_MODE_INPUT);
+  gpio_set_direction(BOARD_REV1, GPIO_MODE_INPUT);
+  gpio_set_direction(BOARD_REV2, GPIO_MODE_INPUT);
 
-  // Required for red LED. Disable JTAG functionality.
-  gpio_reset_pin(GPIO_HMI_LED_RED);
+  if ((gpio_get_level(BOARD_REV0) == 1) && 
+      (gpio_get_level(BOARD_REV1) == 1) && 
+      (gpio_get_level(BOARD_REV2) == 1))
+      {
+        ESP_LOGI(TAG, "Setting HW Type 0");
+        GPIO_HMI_LED_RED = GPIO_HMI_LED_RED_HW_T00;
+        GPIO_HMI_LED_GREEN = GPIO_HMI_LED_GREEN_HW_T00;
+        // Required for red LED. Disable JTAG functionality.
+        gpio_reset_pin(GPIO_HMI_LED_RED);
+      } else {
+        ESP_LOGI(TAG, "Setting HW Type 1");
+        GPIO_HMI_LED_RED = GPIO_HMI_LED_RED_HW_T01;
+        GPIO_HMI_LED_GREEN = GPIO_HMI_LED_GREEN_HW_T01;
+      }
+ 
 
   gpio_set_direction(GPIO_HMI_LED_GREEN, GPIO_MODE_OUTPUT);
   gpio_set_direction(GPIO_HMI_LED_RED, GPIO_MODE_OUTPUT);

@@ -115,19 +115,19 @@ static IRAM_ATTR bool async_memcpy_cb(async_memcpy_t mcp_hdl, async_memcpy_event
 }
 
 
-int32_t Logger_convertAdcFixedPoint(uint16_t adcVal, uint64_t range, uint64_t offset)
+int32_t Logger_convertAdcFixedPoint(int32_t adcVal, int64_t range, int64_t offset)
 {
     // t0 = ((int32_t)adcData0 | ((int32_t)adcData1 << 8));
-    t0 = (int32_t)adcVal;
+    t0 = (int64_t)adcVal;
             
     // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
     t1 = t0 * (-1LL*range); // note the minus for inverted input!
     if (settings_get_resolution() == ADC_12_BITS)
     {
-        t2 = t1 / ((1 << 12) - 1); // -1 for 4095 steps
+        t2 = t1 / (4095); // 4096 - 1  steps
     } else {
         // For 16 bits, take this value (from datasheet STM32G030, page 305).
-        t2 = t1 / ((0xFFF0) - 1); // -1 for 4095 steps
+        t2 = t1 / (65520); //  65520 -1 steps
     }
     t3 = t2 + offset;
     return (int32_t) t3;
@@ -183,9 +183,9 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
     struct tm t = {0};
     float tfloat = 0.0;
 
-    uint16_t adc0, adc1; 
+    int32_t adc0, adc1; 
 
-    uint64_t channel_offset, channel_range;
+    int32_t channel_offset, channel_range;
 
 
     for (int i =0; i < 16; i=i+2)
@@ -204,25 +204,25 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
         adc0 = live_data_buffer.adcData[i];
         adc1 = live_data_buffer.adcData[i+1];
-        uint16_t adcVal = adc0 | (adc1 << 8);
+        int32_t adcVal = adc0 | (adc1 << 8);
         dataOutput->analogDataRaw[j] = adcVal;
 
         // compensate for offset
         //  ESP_LOGI(TAG_LOG, "adcVal:%u", adcVal);
         if (settings_get()->adc_resolution == ADC_12_BITS)
         {
-            adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<11) - (int16_t)(settings_get()->adc_offsets_12b[j])));
+            adcVal = adcVal + ((int32_t)(1<<11) - (int32_t)(settings_get()->adc_offsets_12b[j]));
         } else {
-            adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<15) - (int16_t)(settings_get()->adc_offsets_16b[j])));
+            adcVal = adcVal + ((int32_t)(32760) - (int32_t)(settings_get()->adc_offsets_16b[j])); // Max ADC is FFF0 (65520) if 16 bits
         }
         
         // The next values are calibrated values
         if (settings_get_adc_channel_range(settings_get(), j))
         {
-            channel_offset = 126811146; // 60*ADC_MULT_FACTOR_60V;
+            channel_offset = V_OFFSET_60V; //126811146; // 60*ADC_MULT_FACTOR_60V;
 
         } else {
-            channel_offset = 151703704; //10*ADC_MULT_FACTOR_10V;
+            channel_offset = V_OFFSET_10V; //151703704; //10*ADC_MULT_FACTOR_10V;
             
         }
 
@@ -243,8 +243,6 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         }
 
         // ESP_LOGI(TAG_LOG, "%f", dataOutput->analogData[j]);
-
-        // calculateTemperatureFloat(&tfloat, (float)(adcVal) , (float)(0x01 << settings_get_resolution())-1);
         
         if (settings_get_resolution() == ADC_16_BITS)
         {
@@ -790,7 +788,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
      
         int j,x=0;
         uint32_t writeptr = 0;
-        int32_t channel_range=0, channel_offset=0;
+        int64_t channel_range=0, channel_offset=0;
         int32_t filtered_value=0, unfiltered_value=0;
         // int32_t factor;
         int32_t adcVal = 0;
@@ -815,23 +813,23 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 if (settings_get_adc_channel_range(settings_get(), x))
                 {
                     // 60V range
-                    channel_offset = 126811146; //60*ADC_MULT_FACTOR_60V;
+                    channel_offset = V_OFFSET_60V; //126811146; //60*ADC_MULT_FACTOR_60V;
 
                 } else {
-                    channel_offset = 151703704; // 10*ADC_MULT_FACTOR_10V;
+                    channel_offset = V_OFFSET_10V; //151703704; // 10*ADC_MULT_FACTOR_10V;
                     
                 }
 
                 channel_range = 2*channel_offset;
                 // factor = ADC_12_BITS_10V_FACTOR;
                 
-                adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+                adcVal = (int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
                 // Compenate offset
                 // adcVal = (uint16_t)((int16_t)adcVal + (int16_t)((int16_t)(1<<11) - (int16_t)settings_get()->adc_offsets_12b[x]) );
-                adcVal = adcVal - settings_get()->adc_offsets_12b[x] + (1<<11);
+                adcVal = adcVal  + ( 4095 -settings_get()->adc_offsets_12b[x]);
                 // Clip values
                 if (adcVal < 0) adcVal = 0;
-                if (adcVal > (1<<12)-1) adcVal = (1<<12)-1;
+                if (adcVal > 4095) adcVal = 4095;
 
                 // Detect type of sensor and conver accordingly
                 if (settings_get_adc_channel_type(settings_get(), x))
@@ -866,9 +864,9 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 if (settings_get_adc_channel_range(settings_get(), x))
                 {
                     // Bit == 1
-                    channel_offset = 126811146; //60*ADC_MULT_FACTOR_60V;
+                    channel_offset = V_OFFSET_60V;  //126811146; //60*ADC_MULT_FACTOR_60V;
                 } else {
-                    channel_offset = 151703704; //10*ADC_MULT_FACTOR_10V;
+                    channel_offset = V_OFFSET_10V; //151703704; //10*ADC_MULT_FACTOR_10V;
                 }
                 channel_range = 2*channel_offset;
                 // factor = ADC_16_BITS_60V_FACTOR;
@@ -876,11 +874,11 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
                 // Compenate offset
                 // adcVal = (uint16_t)((int16_t)adcVal + ((int16_t)(1<<15) - (int16_t)settings_get()->adc_offsets_16b[x]) );
-                adcVal = adcVal - settings_get()->adc_offsets_16b[x] + (1<<15);
+                adcVal = adcVal + ( (32760) - settings_get()->adc_offsets_16b[x]); // 32760 = 0xFFF0/2
                 // Clip values
                 if (adcVal < 0) adcVal = 0;
                 // if (adcVal > (1<<16)-1) adcVal = (1<<16)-1;
-                if (adcVal > (0xFFF0)-1) adcVal = (0xFFF0)-1;
+                if (adcVal > (0xFFF0)) adcVal = (0xFFF0);
 
                 // Detect type of sensor and conver accordingly
                 if (settings_get_adc_channel_type(settings_get(), x))
@@ -1507,7 +1505,7 @@ esp_err_t Logger_logging()
 void Logtask_calibration()
 {
     uint8_t calibration = 0, calibrationCounter = 0;
-    uint32_t calibrationValues[NUM_ADC_CHANNELS];
+    int32_t calibrationValues[NUM_ADC_CHANNELS];
     adc_resolution_t last_resolution;
     adc_sample_rate_t last_sample_rate;
     uint8_t x = 0;
