@@ -130,6 +130,20 @@ esp_err_t settings_set_temp_offsets(int32_t * offsets)
     return ESP_OK;
 }
 
+int32_t * settings_get_adc_offsets()
+{
+    if (_settings.adc_resolution == ADC_12_BITS)
+    {
+        return (int32_t*)_settings.adc_offsets_12b;
+    } else if (_settings.adc_resolution == ADC_16_BITS)
+    {
+        return (int32_t*)_settings.adc_offsets_16b;
+    } else {
+        return NULL;
+    }
+    
+}
+
 int32_t * settings_get_adc_offsets_12b()
 {
     return (int32_t*)_settings.adc_offsets_12b;

@@ -1699,6 +1699,9 @@ void Logtask_logging()
         if (settings_get_logmode() == LOGMODE_CSV)
         {
             fileman_csv_write_header();
+        } else {
+            // write the ADC settings to the file when writing a raw file
+            fileman_raw_write_header();
         }
                       
         // Reset and start the logging statemachine
