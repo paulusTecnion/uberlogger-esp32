@@ -39,11 +39,19 @@ typedef struct {
     uint8_t padding3;
     uint8_t padding4;
     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
-    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
+    union 
+    {
+        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
+        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
+    };
+    
 } spi_msg_1_t ;
 
 typedef struct {
-    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
+    union {
+        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
+        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
+    };    
     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
     uint8_t padding1;
     uint8_t padding2;
@@ -53,6 +61,11 @@ typedef struct {
 } spi_msg_2_t;
 // END OF NO TOUCH
 // *********************************************************************************************************************
+
+typedef struct {
+    uint8_t spi_data[sizeof(spi_msg_1_t)*4];
+    uint32_t datarows;
+} sdcard_data_t;
 
 
 typedef struct {
