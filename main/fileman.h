@@ -6,6 +6,8 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_vfs_fat.h"
+#include "logger.h"
+
 
 
 esp_err_t fileman_open_file(void);
@@ -17,3 +19,5 @@ int fileman_write(const void * data, size_t len);
 int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio, const uint8_t* dataTime, size_t lenTime, size_t datarows);
 int fileman_csv_write_header(void);
 esp_err_t fileman_raw_write_header(void);
+int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t * adcData);
+

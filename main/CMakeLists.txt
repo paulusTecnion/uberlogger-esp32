@@ -1,6 +1,7 @@
 idf_component_register(SRCS 
                             "console.c"
                             "file_server.c"
+                            "fileman.c"
                             "firmwareESP32.c"
                             "firmwareSTM32.c"
                             "firmware-www.c"
@@ -15,6 +16,7 @@ idf_component_register(SRCS
                             "wifi.c" 
                             
                     INCLUDE_DIRS "" 
+                    # REQUIRES fatfs vfs sdmmc
                     EMBED_FILES 
                     # "favicon.ico" 
                     "upload_script.html")

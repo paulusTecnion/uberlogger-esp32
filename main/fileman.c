@@ -1,8 +1,9 @@
 #include "fileman.h"
-#include "../../main/settings.h"
-#include "../../main/config.h"
+#include "settings.h"
+#include "config.h"
 
 #define MOUNT_POINT "/sdcard"
+
 static const char *TAG_FILE = "FILEMAN";
 static uint32_t file_seq_num=0;
 static uint32_t file_seq_subnum=0;
@@ -22,7 +23,7 @@ void fileman_create_filename()
         sprintf(filext, "%s", ".dat");
     }
 
-    sprintf(file_name, MOUNT_POINT"/log%d%s", file_seq_num, filext);
+    sprintf(file_name, MOUNT_POINT"/log%lu%s", file_seq_num, filext);
     // ESP_LOGI(TAG_FILE, "%s", file_name);
 }
 
@@ -162,20 +163,70 @@ int fileman_csv_write_header()
     
 }
 
+int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t * adcData)
+{
+    // loop through the sdcard data and write to file
+
+    int32_t ret = 0;
+    uint16_t i = 0;
+    // Determine how many spi_msg_t data we have
+    int numSpiMsgs = sdcard_data->datarows / DATA_LINES_PER_SPI_TRANSACTION;
+    int numRemainingRows = sdcard_data->datarows % DATA_LINES_PER_SPI_TRANSACTION;
+    for ( i=0; i<numSpiMsgs; i++)
+    {
+        // Depending on which data we are writing, we need to use a different pointer
+        if (i % 2 != 0)
+        {
+            ESP_LOGI(TAG_FILE, "Writing SPI msg 2");	
+            spi_msg_2_t *spi_msg = (spi_msg_2_t*) (sdcard_data->spi_data+i*sizeof(spi_msg_2_t));
+            ret = fileman_csv_write(adcData+i*ADC_VALUES_PER_SPI_TRANSACTION, ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->gpioData, sizeof(spi_msg->gpioData), (const uint8_t*)spi_msg->timeData, sizeof(spi_msg->timeData), spi_msg->dataLen); 
+            
+        } else  {
+             ESP_LOGI(TAG_FILE, "Writing SPI msg 1, i: %u, numSpiMsgs: %d, ", i, numSpiMsgs);
+            spi_msg_1_t *spi_msg = (spi_msg_1_t*) (sdcard_data->spi_data+i*sizeof(spi_msg_1_t));
+            ret = fileman_csv_write(adcData+i*ADC_VALUES_PER_SPI_TRANSACTION, ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->gpioData, sizeof(spi_msg->gpioData), (const uint8_t*)spi_msg->timeData, sizeof(spi_msg->timeData), spi_msg->dataLen);
+        }
+        // Abort mission when failure occured..
+        if (ret < 0)
+            return ret;
+    }
+
+    if (numRemainingRows > 0)
+    {
+        // Depending on which data we are writing, we need to use a different pointer
+        if ((i % 2) != 0)
+        {
+            ESP_LOGI(TAG_FILE, "Writing remaining rows 2");
+            spi_msg_2_t *spi_msg = (spi_msg_2_t*) (sdcard_data->spi_data+(i)*sizeof(spi_msg_2_t));
+            ret = fileman_csv_write(adcData+i*ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->gpioData, sizeof(spi_msg->gpioData), (const uint8_t*)spi_msg->timeData, sizeof(spi_msg->timeData), spi_msg->dataLen);
+
+        } else  {
+             ESP_LOGI(TAG_FILE, "Writing remaining rows 1");
+            spi_msg_1_t *spi_msg = (spi_msg_1_t*) (sdcard_data->spi_data+(i)*sizeof(spi_msg_1_t));
+            ret = fileman_csv_write(adcData+i*ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->gpioData, sizeof(spi_msg->gpioData), (const uint8_t*)spi_msg->timeData, sizeof(spi_msg->timeData), spi_msg->dataLen);
+        }
+    }
+
+    return ret;
+
+}
+
 int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio, const uint8_t* dataTime, size_t lenTime, size_t datarows)
 {
     int j = 0;
     uint32_t writeptr =0;
+
+    
     
     s_date_time_t *date_time_ptr = (s_date_time_t*)dataTime;
-    // ESP_LOGI(TAG_FILE,"Lengths: %d, %d, %d", lenAdc, lenGpio, lenTime);
+    ESP_LOGI(TAG_FILE,"Lengths: %u, %u, %u", lenAdc, lenGpio, lenTime);
     
-    // for (int i = 0; i<32; i++)
-    // {
-    //     ESP_LOGI(TAG_FILE, "ADC fp: %d", *(dataAdc+i));
-    // }
+    for (int i = 0; i<32; i++)
+    {
+        ESP_LOGI(TAG_FILE, "ADC fp: %ld", *(dataAdc+i*sizeof(int32_t)));
+    }
 
-    // ESP_LOGI(TAG_FILE, "Writing %d rows", datarows);
+    ESP_LOGI(TAG_FILE, "Writing %u rows", datarows);
 
     for (int i = 0; i<datarows; i++)
     {
@@ -194,15 +245,6 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
         for (int x=0; x<NUM_ADC_CHANNELS; x++)
         {
             
-            // if (dataAdc[i*NUM_ADC_CHANNELS+x] > -1000000 && dataAdc[i*NUM_ADC_CHANNELS+x]<0)
-            // {
-            //     writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "-%d.%06d,",
-            //     dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
-            // } else {
-            //     writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%d.%06d,", 
-            //     dataAdc[i*NUM_ADC_CHANNELS+x] / 1000000, abs((dataAdc[i*NUM_ADC_CHANNELS+x] - ((dataAdc[i*NUM_ADC_CHANNELS+x]/ 1000000)*1000000))));
-            // }
-
             // If temperature sensor and 16 bits we need to multiply input with 100 (or divide with factor 100 less which is ADC_MULT_FACTOR_16B_TEMP)
             if ((settings_get()->adc_channel_type & (1 << x)))
             {
@@ -211,12 +253,7 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
                         (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_16B_TEMP)), 
                         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_16B_TEMP));
-                // } else {
-                //     writeptr = writeptr + snprintf(filestrbuffer+writeptr, 14, "%s%d.%06d,",
-                //         (dataAdc[i*NUM_ADC_CHANNELS+x] < 0) ? "-" : "",
-                //         abs(dataAdc[i*NUM_ADC_CHANNELS+x] / (ADC_MULT_FACTOR_12B_TEMP)), 
-                //         abs(dataAdc[i*NUM_ADC_CHANNELS+x] % ADC_MULT_FACTOR_12B_TEMP));
-                // }
+
             } else {
                 // if range is 60V...
                 if ((settings_get()->adc_channel_range & (1<<x)))
@@ -279,25 +316,6 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
 
     }
 
-    // Write any remaining data
-    // if (j % 35 != 0)
-    // {
-    //     // replace by put function. Much faster
-    //     // int len = strlen((const char*)filestrbuffer);
-    //     filestrbuffer[writeptr] = '\0';
-    //     int len = fprintf(f, (const char*)filestrbuffer);
-    //     // int len = fputs((const char*)filestrbuffer, f);
-    //     // if (fputs((const char*)filestrbuffer, f) < 0)
-    //     if (len < 0)
-    //     {    
-    //         return 0;
-    //     }
-    //     file_bytes_written += writeptr;
-    //     writeptr = 0;
-    // }
-    // ESP_LOGI(TAG_FILE, "%d %s %ld", datarows, filestrbuffer, writeptr);
-
-    
 
    return lenAdc;
 }
