@@ -59,7 +59,7 @@
     "unistd.h": "c",
     "cmath": "c",
     "format": "c",
-    "spi_control.h": "c"
+    "spi_control.h": "c",
     "format": "c",
     "fcntl.h": "c",
     "esp_console.h": "c",
@@ -78,8 +78,5 @@
     "esp_http_server.h": "c"
   },
   "idf.adapterTargetName": "esp32s2",
-  "idf.flashType": "UART",
-  "idf.portWin": "COM7",
-  "cmake.configureOnOpen": false,
-  "idf.port": "/dev/ttyACM0"
+  "idf.flashType": "UART"
 }
