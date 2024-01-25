@@ -219,14 +219,14 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
     
     
     s_date_time_t *date_time_ptr = (s_date_time_t*)dataTime;
-    ESP_LOGI(TAG_FILE,"Lengths: %u, %u, %u", lenAdc, lenGpio, lenTime);
+    // ESP_LOGI(TAG_FILE,"Lengths: %u, %u, %u", lenAdc, lenGpio, lenTime);
     
     // for (int i = 0; i<32; i++)
     // {
     //     ESP_LOGI(TAG_FILE, "ADC fp: %ld", *(dataAdc+i*sizeof(int32_t)));
     // }
 
-    ESP_LOGI(TAG_FILE, "Writing %u rows", datarows);
+    // ESP_LOGI(TAG_FILE, "Writing %u rows", datarows);
 
     for (int i = 0; i<datarows; i++)
     {

@@ -987,7 +987,7 @@ esp_err_t Logger_flush_to_sdcard()
         // }
 
     } else {
-        size_t len = Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&sdcard_data, SD_BUFFERSIZE) ;
+        size_t len = Logger_flush_buffer_to_sd_card_uint8((uint8_t*)&sdcard_data, sizeof(sdcard_data)) ;
         // if (len != SD_BUFFERSIZE)
         if (len != 1)
         {
@@ -1106,7 +1106,7 @@ esp_err_t Logger_processData()
         {
             msg_part = 0;
             expected_msg_part = 1;
-            ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
+            // ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
             // In this case we have Time bytes first...
 
             // copy all data from spi buffer to sdcard buffer
@@ -1135,7 +1135,7 @@ esp_err_t Logger_processData()
             msg_part = 1;
             expected_msg_part = 0;
             // Now the order is reversed.
-            ESP_LOGI(TAG_LOG, "Start bytes found 2/2");
+            // ESP_LOGI(TAG_LOG, "Start bytes found 2/2");
              // copy all data from spi buffer to sdcard buffer
             ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data+log_counter*sizeof(spi_msg_2_t), spi_msg_2_ptr, sizeof(spi_msg_2_t), async_memcpy_cb, NULL));
 
