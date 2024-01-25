@@ -826,7 +826,7 @@ uint8_t Logger_raw_to_csv(uint8_t log_counter, const uint8_t * adcData, size_t l
                 adcVal = (int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
                 // Compenate offset
                 // adcVal = (uint16_t)((int16_t)adcVal + (int16_t)((int16_t)(1<<11) - (int16_t)settings_get()->adc_offsets_12b[x]) );
-                adcVal = adcVal  + ( 4095 -settings_get()->adc_offsets_12b[x]);
+                adcVal = adcVal  + ( 2048 -settings_get()->adc_offsets_12b[x]);
                 // Clip values
                 if (adcVal < 0) adcVal = 0;
                 if (adcVal > 4095) adcVal = 4095;
