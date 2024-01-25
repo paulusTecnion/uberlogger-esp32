@@ -48,6 +48,17 @@ typedef struct {
 } spi_msg_1_t ;
 
 typedef struct {
+    uint8_t startByte[START_STOP_NUM_BYTES]; // 2 bytes
+    uint16_t dataLen; // 2 bytes
+    union 
+    {
+        uint8_t adcData[2032]; // Increased size to match the total size of spi_msg_1_t
+        uint16_t adcData16[1016]; // Corresponding increase for the 16-bit representation
+    };
+} spi_msg_1_adc_only_t;
+
+
+typedef struct {
     union {
         uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
         uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
@@ -59,6 +70,19 @@ typedef struct {
     uint16_t dataLen;
     uint8_t stopByte[START_STOP_NUM_BYTES];
 } spi_msg_2_t;
+
+typedef struct {
+    union 
+    {
+        uint8_t adcData[2032]; // Increased size to match the total size of spi_msg_1_t
+        uint16_t adcData16[1016]; // Corresponding increase for the 16-bit representation
+    };  
+    uint16_t dataLen; // 2 bytes
+    uint8_t startByte[START_STOP_NUM_BYTES]; // 2 bytes
+} spi_msg_1_adc_only_t;
+
+
+
 // END OF NO TOUCH
 // *********************************************************************************************************************
 
