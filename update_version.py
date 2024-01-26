@@ -5,7 +5,7 @@ import os
 # Define major, minor, patch version numbers
 MAJOR = 1
 MINOR = 0
-PATCH = 1
+PATCH = 2
 
 # Get the directory where the script is located
 script_dir = os.path.dirname(os.path.realpath(__file__))
