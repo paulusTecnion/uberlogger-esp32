@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "esp_log.h"
+#include "esp_ota_ops.h"
 #include "esp_console.h"
 #include "freertos/FreeRTOS.h"
 #include "argtable3/argtable3.h"
@@ -82,6 +83,14 @@ esp_err_t init_fs(void)
 //Main application
 void app_main(void)
 {
+
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t ota_state;
+    if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK) {
+        if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+            esp_ota_mark_app_valid_cancel_rollback();
+        }
+    }
 
     // Create default loop for event handler for Wifi, REST etc.
     ESP_ERROR_CHECK(esp_event_loop_create_default());
