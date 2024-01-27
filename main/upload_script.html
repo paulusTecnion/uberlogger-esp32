@@ -240,7 +240,7 @@
       const result = await uploadFiles(files, upload_path, myDiv);
       if (!result) {
         document.getElementById("fw-update-state").innerText =
-          "<p>Failed to upload files!</p>";
+          "Failed to upload files! Please reset the logger, empty the SD card on your pc and try again.";
         return false;
       }
 

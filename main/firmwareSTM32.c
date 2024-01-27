@@ -480,6 +480,7 @@ error:
     if (err!=ESP_OK)
     {
         gpio_set_level(GPIO_STM32_BOOT0, 0);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         gpio_set_level(GPIO_STM32_NRESET, 0);
         vTaskDelay(500 / portTICK_PERIOD_MS);
         gpio_set_level(GPIO_STM32_NRESET, 1);
