@@ -250,7 +250,7 @@
           "Upload complete!";
 
         document.getElementById("status-text").innerHTML =
-          'Updating firmware..please wait until green led is lighting up continuously again and reconnect to the Uberlogger (if necessary). Updating will take around 60 seconds. After that go back to the <a href="/">start page</a>. If the green LED does start blinking, reset the logger and try again or contact customer support.';
+          'Updating firmware; this will take around 60 seconds. Do NOT power down your Uberlogger during updating. Please wait until green led is lighting up continuously again and reconnect to the Uberlogger Wi-Fi.  After that go back to the <a href="/">start page</a>. If the green LED does not start blinking or stops within 5-8 seconds, reset the logger and try again. If this still fails, then contact customer support.';
         result2 = await fetch("/fwupdate/startupgrade");
       } catch (result2) {
         document.getElementById("fw-update-state").innerHTML = "";
