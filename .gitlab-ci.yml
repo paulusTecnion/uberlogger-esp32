@@ -7,8 +7,8 @@ stages:
 build_code:
   stage: build
   script:
-    - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC=y/d' sdkconfig
-    - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC_RX_BUF_SIZE=64/d' sdkconfig
+    # - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC=y/d' sdkconfig
+    # - sed -i '/CONFIG_ESP_CONSOLE_USB_CDC_RX_BUF_SIZE=64/d' sdkconfig
 
     - idf.py build
     - |
