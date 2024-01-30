@@ -825,6 +825,7 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint8_t * adcData, size
                 
                 adcVal = (int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
                 // Compenate offset
+                // adcVal = (uint16_t)((int16_t)adcVal + (int16_t)((int16_t)(1<<11) - (int16_t)settings_get()->adc_offsets_12b[x]) );
                 adcVal = adcVal  + ( 2048 -settings_get()->adc_offsets_12b[x]);
                 // Clip values
                 if (adcVal < 0) adcVal = 0;
