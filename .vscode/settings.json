@@ -60,7 +60,6 @@
     "cmath": "c",
     "format": "c",
     "spi_control.h": "c",
-    "format": "c",
     "fcntl.h": "c",
     "esp_console.h": "c",
     "u8g2.h": "c",
@@ -75,7 +74,8 @@
     "esp_netif_types.h": "c",
     "build_info.h": "c",
     "soc_caps.h": "c",
-    "esp_http_server.h": "c"
+    "esp_http_server.h": "c",
+    "config.h": "c"
   },
   "idf.adapterTargetName": "esp32s2",
   "idf.flashType": "UART"
