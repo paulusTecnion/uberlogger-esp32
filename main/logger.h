@@ -32,44 +32,69 @@
 
 // It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
 
-typedef struct {
-    uint8_t startByte[START_STOP_NUM_BYTES]; // 2
-    uint16_t dataLen;
+// typedef struct {
+//     uint8_t startByte[START_STOP_NUM_BYTES]; // 2
+//     uint16_t dataLen;
+//     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
+//     uint8_t padding3;
+//     uint8_t padding4;
+//     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
+//     union 
+//     {
+//         uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
+//         uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
+//     };
+    
+// } spi_msg_1_t;
+
+
+
+// typedef struct {
+//     union {
+//         uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
+//         uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
+//     };    
+//     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
+//     uint8_t padding1;
+//     uint8_t padding2;
+//     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
+//     uint16_t dataLen;
+//     uint8_t stopByte[START_STOP_NUM_BYTES];
+// } spi_msg_2_t;
+
+
+
+// This should align with 4 bytes FIFO. Alternatively, one could use __attribute__((aligned(4))) spi_msg_1_t;
+// Since the size of this struct is 2048 it can quickly flush the data to the sd card. 
+typedef struct   __attribute__((aligned(4)))  {
+    uint8_t msg_no;
+	uint16_t dataLen;
+    uint8_t padding1[11];
     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
-    uint8_t padding3;
-    uint8_t padding4;
     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
-    union 
+    union
     {
         uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
-        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
+        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION]; // 560
     };
-    
-} spi_msg_1_t ;
+    // uint16_t crc;
+} spi_msg_slow_freq_t;
+
+
 
 typedef struct {
     uint8_t startByte[START_STOP_NUM_BYTES]; // 2 bytes
     uint16_t dataLen; // 2 bytes
+    uint8_t padding0;
+    uint8_t padding1[8];
     union 
     {
         uint8_t adcData[2032]; // Increased size to match the total size of spi_msg_1_t
         uint16_t adcData16[1016]; // Corresponding increase for the 16-bit representation
     };
+    // uint16_t crc; // 2 bytes
 } spi_msg_1_adc_only_t;
 
-
-typedef struct {
-    union {
-        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
-        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
-    };    
-    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
-    uint8_t padding1;
-    uint8_t padding2;
-    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
-    uint16_t dataLen;
-    uint8_t stopByte[START_STOP_NUM_BYTES];
-} spi_msg_2_t;
 
 typedef struct {
     union 
@@ -78,16 +103,20 @@ typedef struct {
         uint16_t adcData16[1016]; // Corresponding increase for the 16-bit representation
     };  
     uint16_t dataLen; // 2 bytes
-    uint8_t startByte[START_STOP_NUM_BYTES]; // 2 bytes
-} spi_msg_1_adc_only_t;
-
+    uint8_t stopByte[START_STOP_NUM_BYTES]; // 2 bytes
+    // The next 3 padding bytes makes the total size of spi_msg_2_t 2048 bytes. The sd card buffer will be 4*2048 bytes.
+    // This is ideal for flushing data to the SD card.
+    uint8_t padding0;
+    uint8_t padding1[8];
+    // uint16_t crc; // 2 bytes
+} spi_msg_2_adc_only_t;
 
 
 // END OF NO TOUCH
 // *********************************************************************************************************************
 
 typedef struct {
-    uint8_t spi_data[sizeof(spi_msg_1_t)*4];
+    uint8_t spi_data[sizeof(spi_msg_1_adc_only_t)*4];
     uint32_t datarows;
 } sdcard_data_t;
 

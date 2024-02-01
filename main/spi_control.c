@@ -30,7 +30,7 @@ static const char* TAG_SPI_CTRL = "SPI_CTRL";
 // Buffer for sending data to the STM
 DMA_ATTR uint8_t sendbuf[STM_SPI_BUFFERSIZE_CMD_TX];
 // Buffer for receiving data from the STM
-DMA_ATTR uint8_t recvbuf0[sizeof(spi_msg_1_t)];
+DMA_ATTR uint8_t recvbuf0[sizeof(spi_msg_slow_freq_t)];
 
 // handle to spi device
 spi_device_handle_t stm_spi_handle;
