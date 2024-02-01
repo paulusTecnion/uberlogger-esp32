@@ -1111,7 +1111,7 @@ esp_err_t Logger_processData()
     if (settings_get_samplerate() <= ADC_SAMPLE_RATE_250Hz)
     {
         // Straight copy the data into the sdcard buffer
-        ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_slow_freq_t), spi_msg_1_adc_only_ptr, sizeof(spi_msg_slow_freq_t), async_memcpy_cb, NULL));
+        ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_slow_freq_t), spi_msg_slow_freq_1_ptr, sizeof(spi_msg_slow_freq_t), async_memcpy_cb, NULL));
 
         // Do something else here
         xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
@@ -1500,7 +1500,7 @@ void Logtask_calibration()
                     for (uint8_t i = 0; i < NUM_ADC_CHANNELS*2; i = i + 2)
                     {
                         // (uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)
-                        calibrationValues[x] += ((uint16_t)spi_msg_1_ptr->adcData[i]) | ((uint16_t)spi_msg_1_ptr->adcData[i+1] << 8); 
+                        calibrationValues[x] += ((uint16_t)spi_msg_slow_freq_1_ptr->adcData[i]) | ((uint16_t)spi_msg_slow_freq_1_ptr->adcData[i+1] << 8); 
                         ESP_LOGI(TAG_LOG, "Calibration value %u: %lu", x, calibrationValues[x]);
                         x++;
                     }
