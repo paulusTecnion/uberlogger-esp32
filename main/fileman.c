@@ -175,46 +175,50 @@ int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData
     uint16_t i = 0;
     // Determine how many spi_msg_t data we have
     int numSpiMsgs = sdcard_data->datarows / DATA_LINES_PER_SPI_TRANSACTION;
-    // int numRemainingRows = sdcard_data->datarows % DATA_LINES_PER_SPI_TRANSACTION;
+    int numRemainingRows = sdcard_data->datarows % DATA_LINES_PER_SPI_TRANSACTION;
 
     spi_msg_slow_freq_t *spi_msg = (spi_msg_slow_freq_t *)(sdcard_data->spi_data);
-    ret = fileman_csv_write(adcData,  spi_msg->gpioData,  spi_msg->timeData, spi_msg->dataLen);
-        // for (i = 0; i < numSpiMsgs; i++)
-        // {
-        //     // Depending on which data we are writing, we need to use a different pointer
-        //     if (i % 2 != 0)
-        //     {
-        //         // ESP_LOGI(TAG_FILE, "Writing SPI msg 2");
-        //         spi_msg_2_adc_only_t *spi_msg = (spi_msg_2_adc_only_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_2_adc_only_t));
-        //         ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-        //     }
-        //     else
-        //     {
-        //         //  ESP_LOGI(TAG_FILE, "Writing SPI msg 1, i: %u, numSpiMsgs: %d, ", i, numSpiMsgs);
-        //         spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_1_adc_only_t));
-        //         ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-        //     }
-        //     // Abort mission when failure occured..
-        //     if (ret < 0)
-        //         return ret;
-        // }
+    // ret = fileman_csv_write(adcData,  spi_msg->gpioData,  spi_msg->timeData, spi_msg->dataLen);
+        for (i = 0; i < numSpiMsgs; i++)
+        {
+            // Depending on which data we are writing, we need to use a different pointer
+            // if (i % 2 != 0)
+            // {
+            //     // ESP_LOGI(TAG_FILE, "Writing SPI msg 2");
+            //     spi_msg_2_adc_only_t *spi_msg = (spi_msg_2_adc_only_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_2_adc_only_t));
+            //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->dataLen);
+            // }
+            // else
+            // {
+            //     //  ESP_LOGI(TAG_FILE, "Writing SPI msg 1, i: %u, numSpiMsgs: %d, ", i, numSpiMsgs);
+            //     spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_1_adc_only_t));
+            //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->dataLen);
+            // }
+            spi_msg_slow_freq_t *spi_msg = (spi_msg_slow_freq_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_slow_freq_t));
+            ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->gpioData, spi_msg->timeData, spi_msg->dataLen);
+            // Abort mission when failure occured..
+            if (ret < 0)
+                return ret;
+        }
 
-        // if (numRemainingRows > 0)
-        // {
-        //     // Depending on which data we are writing, we need to use a different pointer
-        //     if ((i % 2) != 0)
-        //     {
-        //         // ESP_LOGI(TAG_FILE, "Writing remaining rows 2");
-        //         spi_msg_2_adc_only_t *spi_msg = (spi_msg_2_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_2_adc_only_t));
-        //         ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-        //     }
-        //     else
-        //     {
-        //         //  ESP_LOGI(TAG_FILE, "Writing remaining rows 1");
-        //         spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_adc_only_t));
-        //         ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-        //     }
-        // }
+        if (numRemainingRows > 0)
+        {
+            // Depending on which data we are writing, we need to use a different pointer
+            // if ((i % 2) != 0)
+            // {
+            //     // ESP_LOGI(TAG_FILE, "Writing remaining rows 2");
+            //     spi_msg_2_adc_only_t *spi_msg = (spi_msg_2_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_2_adc_only_t));
+            //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
+            // }
+            // else
+            // {
+            //     //  ESP_LOGI(TAG_FILE, "Writing remaining rows 1");
+            //     spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_adc_only_t));
+            //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
+            // }
+            spi_msg_slow_freq_t *spi_msg = (spi_msg_slow_freq_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_slow_freq_t));
+            ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->gpioData, spi_msg->timeData, spi_msg->dataLen);
+        }
     
 
     return ret;
@@ -307,8 +311,8 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
             return 0;
         }
 
-        int len = fprintf(f, (const char *)filestrbuffer);
-        // int len = fputs((const char*)filestrbuffer, f);
+        // int len = fprintf(f, (const char *)filestrbuffer);
+        int len = fputs((const char*)filestrbuffer, f);
         // if (fputs((const char*)filestrbuffer, f) < 0)
         if (len < 0)
         {

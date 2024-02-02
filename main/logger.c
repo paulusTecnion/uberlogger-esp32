@@ -981,7 +981,7 @@ esp_err_t Logger_flush_to_sdcard()
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
             goto error;
         }
-
+    } else {
         // if (!Logger_flush_buffer_to_sd_card_csv(
         //     adc_buffer_fixed_point, (sizeof(adc_buffer_fixed_point)/sizeof(int32_t)),
         //     sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
@@ -991,7 +991,7 @@ esp_err_t Logger_flush_to_sdcard()
         //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
         //     goto error;
         // }
-        size_t len = Logger_flush_buffer_to_sd_card_uint8((uint8_t *)&sdcard_data, sizeof(sdcard_data));
+        size_t len = Logger_flush_buffer_to_sd_card_uint8(sdcard_data.spi_data, sizeof(sdcard_data.spi_data));
         // if (len != SD_BUFFERSIZE)
         if (len != 1)
         {
@@ -1120,6 +1120,7 @@ esp_err_t Logger_processData()
         {
             // what needs to be done: take the ADC data and convert it
             spi_msg_slow_freq_t *spi_msg = (spi_msg_slow_freq_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_slow_freq_t));
+            sdcard_data.datarows += spi_msg->dataLen;
             Logger_raw_to_fixedpt(log_counter, spi_msg->adcData, sizeof(spi_msg->adcData));
         }
     }
@@ -1590,7 +1591,7 @@ void Logtask_singleShot()
         spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
 
         LogTask_resetCounter();
-        ESP_LOGI(TAG_LOG, "Getting data of size %d", sizeof(spi_msg_slow_freq_t));
+        // ESP_LOGI(TAG_LOG, "Getting data of size %d", sizeof(spi_msg_slow_freq_t));
         if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_slow_freq_t)) == ESP_OK)
         {
 #ifdef DEBUG_LOGTASK_RX

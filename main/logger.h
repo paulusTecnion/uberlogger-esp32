@@ -86,7 +86,7 @@ typedef struct {
     uint8_t startByte[START_STOP_NUM_BYTES]; // 2 bytes
     uint16_t dataLen; // 2 bytes
     uint8_t padding0;
-    uint8_t padding1[8];
+    uint8_t padding1[10];
     union 
     {
         uint8_t adcData[2032]; // Increased size to match the total size of spi_msg_1_t
@@ -107,7 +107,7 @@ typedef struct {
     // The next 3 padding bytes makes the total size of spi_msg_2_t 2048 bytes. The sd card buffer will be 4*2048 bytes.
     // This is ideal for flushing data to the SD card.
     uint8_t padding0;
-    uint8_t padding1[8];
+    uint8_t padding1[10];
     // uint16_t crc; // 2 bytes
 } spi_msg_2_adc_only_t;
 
@@ -119,6 +119,7 @@ typedef struct {
     uint8_t spi_data[sizeof(spi_msg_1_adc_only_t)*4];
     uint32_t datarows;
 } sdcard_data_t;
+
 
 
 typedef struct {
