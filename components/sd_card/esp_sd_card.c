@@ -175,7 +175,7 @@ esp_err_t esp_sd_card_init(void)
     host.slot = SDCARD_SPI_HOST;
 
     // probe max speed
-    host.max_freq_khz = SDMMC_FREQ_DEFAULT;
+    // host.max_freq_khz = SDMMC_FREQ_DEFAULT;
 
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_NUM_MOSI,
@@ -190,7 +190,7 @@ esp_err_t esp_sd_card_init(void)
     gpio_set_drive_capability(PIN_NUM_MOSI, GPIO_DRIVE_CAP_3);
     gpio_set_drive_capability(PIN_NUM_CLK, GPIO_DRIVE_CAP_3);
     
-    // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+    host.max_freq_khz = 50000;
     
     ret = spi_bus_initialize(host.slot, &bus_cfg, SDCARD_SPI_HOST);
     if (ret != ESP_OK) {
