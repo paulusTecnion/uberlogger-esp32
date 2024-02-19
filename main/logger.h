@@ -65,20 +65,20 @@ typedef struct {
 
 
 // This should align with 4 bytes FIFO. Alternatively, one could use __attribute__((aligned(4))) spi_msg_1_t;
-// Since the size of this struct is 2048 it can quickly flush the data to the sd card. 
-typedef struct   __attribute__((aligned(4)))  {
-    uint8_t msg_no;
-	uint16_t dataLen;
-    uint8_t padding1[11];
-    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
-    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
-    union
-    {
-        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
-        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION]; // 560
-    };
-    // uint16_t crc;
-} spi_msg_slow_freq_t;
+// // Since the size of this struct is 2048 it can quickly flush the data to the sd card. 
+// typedef struct   __attribute__((aligned(4)))  {
+//     uint8_t msg_no;
+// 	uint16_t dataLen;
+//     uint8_t padding1[11];
+//     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
+//     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
+//     union
+//     {
+//         uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
+//         uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION]; // 560
+//     };
+//     // uint16_t crc;
+// } spi_msg_slow_freq_t;
 
 
 

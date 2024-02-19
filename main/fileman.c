@@ -177,7 +177,8 @@ int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData
     int numSpiMsgs = sdcard_data->datarows / DATA_LINES_PER_SPI_TRANSACTION;
     int numRemainingRows = sdcard_data->datarows % DATA_LINES_PER_SPI_TRANSACTION;
 
-    spi_msg_slow_freq_t *spi_msg = (spi_msg_slow_freq_t *)(sdcard_data->spi_data);
+    spi_msg_1_t *t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data);
+    spi_msg_2_t *t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data);
     // ret = fileman_csv_write(adcData,  spi_msg->gpioData,  spi_msg->timeData, spi_msg->dataLen);
         for (i = 0; i < numSpiMsgs; i++)
         {
@@ -194,8 +195,17 @@ int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData
             //     spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_1_adc_only_t));
             //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->dataLen);
             // }
-            spi_msg_slow_freq_t *spi_msg = (spi_msg_slow_freq_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_slow_freq_t));
-            ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->gpioData, spi_msg->timeData, spi_msg->dataLen);
+            if (i % 2 != 0 )
+            {
+                t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_1_t));
+                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_1->gpioData, t_spi_msg_1->timeData, t_spi_msg_1->dataLen);
+            } else 
+            {
+                t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_2_t));
+                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_2->gpioData, t_spi_msg_2->timeData, t_spi_msg_2->dataLen);
+            }
+           
+            
             // Abort mission when failure occured..
             if (ret < 0)
                 return ret;
@@ -216,8 +226,16 @@ int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData
             //     spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_adc_only_t));
             //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
             // }
-            spi_msg_slow_freq_t *spi_msg = (spi_msg_slow_freq_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_slow_freq_t));
-            ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->gpioData, spi_msg->timeData, spi_msg->dataLen);
+            if (i % 2 != 0)
+            {
+                t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_t));
+                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_1->gpioData, t_spi_msg_1->timeData, t_spi_msg_1->dataLen);
+            } else {
+                t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_2_t));
+                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_2->gpioData, t_spi_msg_2->timeData, t_spi_msg_2->dataLen); 
+            }
+            
+           
         }
     
 
