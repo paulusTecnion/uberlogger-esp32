@@ -166,8 +166,8 @@ def read_struct(file):
         return -1  # End of file reached
     time_data = decode_time_data(time_data_raw, data_len)
 
-    # Read GPIO data
-    gpio_data_raw = file.read(data_len)
+    # Read GPIO data + 2 padding bytes
+    gpio_data_raw = file.read(data_len + 2)
     if not gpio_data_raw:
         return -1  # End of file reached
     gpio_data = decode_gpio_data(gpio_data_raw)
@@ -249,7 +249,7 @@ def generate_header(adc_channel_type):
     return "time(utc)," + ",".join(headers) + ",DI1,DI2,DI3,DI4,DI5,DI6"         
 
 # File path to your .dat file
-file_path = 'C:/Users/ppott/Downloads/log7.dat'  # Replace with the actual file path
+file_path = 'C:/Users/ppott/Downloads/log2.dat'  # Replace with the actual file path
 
 # Read and decode the file header
 file_header = read_file_header(file_path)
