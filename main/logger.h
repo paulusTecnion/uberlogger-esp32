@@ -32,35 +32,35 @@
 
 // It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
 
-// typedef struct {
-//     uint8_t startByte[START_STOP_NUM_BYTES]; // 2
-//     uint16_t dataLen;
-//     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
-//     uint8_t padding3;
-//     uint8_t padding4;
-//     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
-//     union 
-//     {
-//         uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
-//         uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
-//     };
+typedef struct {
+    uint8_t startByte[START_STOP_NUM_BYTES]; // 2
+    uint16_t dataLen;
+    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
+    uint8_t padding3;
+    uint8_t padding4;
+    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
+    union 
+    {
+        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
+        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
+    };
     
-// } spi_msg_1_t;
+} spi_msg_1_t;
 
 
 
-// typedef struct {
-//     union {
-//         uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
-//         uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
-//     };    
-//     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
-//     uint8_t padding1;
-//     uint8_t padding2;
-//     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
-//     uint16_t dataLen;
-//     uint8_t stopByte[START_STOP_NUM_BYTES];
-// } spi_msg_2_t;
+typedef struct {
+    union {
+        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
+        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
+    };    
+    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
+    uint8_t padding1;
+    uint8_t padding2;
+    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
+    uint16_t dataLen;
+    uint8_t stopByte[START_STOP_NUM_BYTES];
+} spi_msg_2_t;
 
 
 

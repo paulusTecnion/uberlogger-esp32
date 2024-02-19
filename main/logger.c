@@ -27,7 +27,8 @@ static const char* TAG_LOG = "LOGGER";
 uint8_t *spi_buffer;
 spi_msg_1_adc_only_t *spi_msg_1_adc_only_ptr;
 spi_msg_2_adc_only_t *spi_msg_2_adc_only_ptr;
-spi_msg_slow_freq_t *spi_msg_slow_freq_1_ptr, *spi_msg_slow_freq_2_ptr;
+spi_msg_1_t *spi_msg_slow_freq_1_ptr;
+spi_msg_2_t *spi_msg_slow_freq_2_ptr;
 uint8_t _stopLogging = 0;
 uint8_t _startLogging = 0;
 uint8_t _startLogTask = 0;
@@ -1108,36 +1109,36 @@ esp_err_t Logger_processData()
     // - Or we log with a high speed frequency (>500) with the structures spi_msg_adc_only_1_t and spi_msg_adc_only_2_t
 
     // Check what frequency we are logging with
-    if (settings_get_samplerate() <= ADC_SAMPLE_RATE_250Hz)
+   
+    // there is data
+    if (spi_msg_1_adc_only_ptr->startByte[0] == 0xFA &&
+        spi_msg_1_adc_only_ptr->startByte[1] == 0xFB &&
+        expected_msg_part == 0)
     {
-        // Straight copy the data into the sdcard buffer
-        ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_slow_freq_t), spi_msg_slow_freq_1_ptr, sizeof(spi_msg_slow_freq_t), async_memcpy_cb, NULL));
-
-        // Do something else here
-        xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
-            // Convert data if necessary
-        if (settings_get_logmode() == LOGMODE_CSV)
+        msg_part = 0;
+        expected_msg_part = 1;
+        // ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
+  
+        // Convert data if necessary
+        if (settings_get_samplerate() <= ADC_SAMPLE_RATE_250Hz)
         {
-            // what needs to be done: take the ADC data and convert it
-            spi_msg_slow_freq_t *spi_msg = (spi_msg_slow_freq_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_slow_freq_t));
+            // Straight copy the data into the sdcard buffer
+            ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t), spi_msg_slow_freq_1_ptr, sizeof(spi_msg_1_t), async_memcpy_cb, NULL));
+
+            // Do something else here
+            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
+      
+            spi_msg_1_t *spi_msg = (spi_msg_1_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t));
             sdcard_data.datarows += spi_msg->dataLen;
-            Logger_raw_to_fixedpt(log_counter, spi_msg->adcData, sizeof(spi_msg->adcData));
+            if (settings_get_logmode() == LOGMODE_CSV)
+            {
+                // what needs to be done: take the ADC data and convert it
+                Logger_raw_to_fixedpt(log_counter, spi_msg->adcData, sizeof(spi_msg->adcData));
+            }
         }
-    }
-    else
-
-    {
-        // there is data
-        if (spi_msg_1_adc_only_ptr->startByte[0] == 0xFA &&
-            spi_msg_1_adc_only_ptr->startByte[1] == 0xFB &&
-            expected_msg_part == 0)
+        else
         {
-            msg_part = 0;
-            expected_msg_part = 1;
-            // ESP_LOGI(TAG_LOG, "Start bytes found 1/2");
-            // In this case we have Time bytes first...
-
-            // copy all data from spi buffer to sdcard buffer
+            // ADC only.
             ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_adc_only_t), spi_msg_1_adc_only_ptr, sizeof(spi_msg_1_adc_only_t), async_memcpy_cb, NULL));
 
             // Do something else here
@@ -1148,23 +1149,42 @@ esp_err_t Logger_processData()
 
             
             ESP_LOGI(TAG_LOG, "Data rows: %lu", sdcard_data.datarows);
-#ifdef DEBUG_LOGGING
-            spi_msg_slow_freq_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_adc_only_t));
-            ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter * sizeof(spi_msg_1_ptr->timeData)], sdcard_data.timeData[log_counter * sizeof(spi_msg_1_ptr->timeData) + 1], sdcard_data.timeData[log_counter * sizeof(spi_msg_1_ptr->timeData) + 2]);
-            ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter * sizeof(spi_msg_1_ptr->gpioData)], sdcard_data.gpioData[log_counter * sizeof(spi_msg_1_ptr->gpioData) + 1], sdcard_data.gpioData[log_counter * sizeof(spi_msg_1_ptr->gpioData) + 2]);
-            ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter * sizeof(spi_msg_1_ptr->adcData)], sdcard_data.adcData[log_counter * sizeof(spi_msg_1_ptr->adcData) + 1], sdcard_data.adcData[log_counter * sizeof(spi_msg_1_ptr->adcData) + 2], sdcard_data.adcData[log_counter * sizeof(spi_msg_1_ptr->adcData) + 3]);
-            ESP_LOGI(TAG_LOG, "dataLen: %ld", sdcard_data.datarows);
-#endif
+        #ifdef DEBUG_LOGGING
+                spi_msg_slow_freq_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_adc_only_t));
+                ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter * sizeof(spi_msg_1_ptr->timeData)], sdcard_data.timeData[log_counter * sizeof(spi_msg_1_ptr->timeData) + 1], sdcard_data.timeData[log_counter * sizeof(spi_msg_1_ptr->timeData) + 2]);
+                ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter * sizeof(spi_msg_1_ptr->gpioData)], sdcard_data.gpioData[log_counter * sizeof(spi_msg_1_ptr->gpioData) + 1], sdcard_data.gpioData[log_counter * sizeof(spi_msg_1_ptr->gpioData) + 2]);
+                ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter * sizeof(spi_msg_1_ptr->adcData)], sdcard_data.adcData[log_counter * sizeof(spi_msg_1_ptr->adcData) + 1], sdcard_data.adcData[log_counter * sizeof(spi_msg_1_ptr->adcData) + 2], sdcard_data.adcData[log_counter * sizeof(spi_msg_1_ptr->adcData) + 3]);
+                ESP_LOGI(TAG_LOG, "dataLen: %ld", sdcard_data.datarows);
+        #endif
         }
-        else if (spi_msg_2_adc_only_ptr->stopByte[0] == 0xFB &&
-                 spi_msg_2_adc_only_ptr->stopByte[1] == 0xFA &&
-                 expected_msg_part == 1)
+    }
+    else if (spi_msg_2_adc_only_ptr->stopByte[0] == 0xFB &&
+                spi_msg_2_adc_only_ptr->stopByte[1] == 0xFA &&
+                expected_msg_part == 1)
+    {
+        msg_part = 1;
+        expected_msg_part = 0;
+        // Now the order is reversed.
+        // ESP_LOGI(TAG_LOG, "Start bytes found 2/2");
+        // copy all data from spi buffer to sdcard buffer
+
+        if (settings_get_samplerate() <= ADC_SAMPLE_RATE_250Hz)
         {
-            msg_part = 1;
-            expected_msg_part = 0;
-            // Now the order is reversed.
-            // ESP_LOGI(TAG_LOG, "Start bytes found 2/2");
-            // copy all data from spi buffer to sdcard buffer
+            // Straight copy the data into the sdcard buffer
+            ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_2_t), spi_msg_slow_freq_1_ptr, sizeof(spi_msg_2_t), async_memcpy_cb, NULL));
+
+            // Do something else here
+            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
+
+            spi_msg_2_t *spi_msg = (spi_msg_1_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t));
+            sdcard_data.datarows += spi_msg->dataLen;
+            if (settings_get_logmode() == LOGMODE_CSV)
+            {
+                // what needs to be done: take the ADC data and convert it
+                Logger_raw_to_fixedpt(log_counter, spi_msg->adcData, sizeof(spi_msg->adcData));
+            }
+
+        } else {
             ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_2_adc_only_t), spi_msg_2_adc_only_ptr, sizeof(spi_msg_2_adc_only_t), async_memcpy_cb, NULL));
 
             // Do something else here
@@ -1173,22 +1193,23 @@ esp_err_t Logger_processData()
             // ESP_LOGI(TAG_LOG, "Done");
             sdcard_data.datarows += spi_msg_2_adc_only_ptr->dataLen;
             ESP_LOGI(TAG_LOG, "Data rows: %lu", sdcard_data.datarows);
-#ifdef DEBUG_LOGGING
+    #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "Time: %d, %d, %d", sdcard_data.timeData[log_counter * sizeof(spi_msg_2_ptr->timeData)], sdcard_data.timeData[log_counter * sizeof(spi_msg_2_ptr->timeData) + 1], sdcard_data.timeData[log_counter * sizeof(spi_msg_2_ptr->timeData) + 2]);
             ESP_LOGI(TAG_LOG, "GPIO: %d, %d, %d", sdcard_data.gpioData[log_counter * sizeof(spi_msg_2_ptr->gpioData)], sdcard_data.gpioData[log_counter * sizeof(spi_msg_2_ptr->gpioData) + 1], sdcard_data.gpioData[log_counter * sizeof(spi_msg_2_ptr->gpioData) + 2]);
             ESP_LOGI(TAG_LOG, "ADC: %d, %d, %d, %d", sdcard_data.adcData[log_counter * sizeof(spi_msg_2_ptr->adcData)], sdcard_data.adcData[log_counter * sizeof(spi_msg_2_ptr->adcData) + 1], sdcard_data.adcData[log_counter * sizeof(spi_msg_2_ptr->adcData) + 2], sdcard_data.adcData[log_counter * sizeof(spi_msg_2_ptr->adcData) + 3]);
             ESP_LOGI(TAG_LOG, "dataLen: %ld", sdcard_data.datarows);
-#endif
-            // }
+    #endif
         }
-        else
-        {
-            //     // No start or stop byte found!
-            ESP_LOGE(TAG_LOG, "No start or stop byte found! Expected message: %d, stop bytes: %d, %d and %d, %d", expected_msg_part, spi_msg_1_adc_only_ptr->startByte[0], spi_msg_1_adc_only_ptr->startByte[1], spi_msg_2_adc_only_ptr->stopByte[0], spi_msg_2_adc_only_ptr->stopByte[1]);
-            SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
-            return ESP_FAIL;
-        }
+        // }
     }
+    else
+    {
+        //     // No start or stop byte found!
+        ESP_LOGE(TAG_LOG, "No start or stop byte found! Expected message: %d, stop bytes: %d, %d and %d, %d", expected_msg_part, spi_msg_1_adc_only_ptr->startByte[0], spi_msg_1_adc_only_ptr->startByte[1], spi_msg_2_adc_only_ptr->stopByte[0], spi_msg_2_adc_only_ptr->stopByte[1]);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+        return ESP_FAIL;
+    }
+    
 
 
     log_counter++; // received bytes = log_counter*512
