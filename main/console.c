@@ -193,17 +193,17 @@ static void register_stm32_sync(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
-static void register_singleshot(void)
-{
+// static void register_singleshot(void)
+// {
 
-    const esp_console_cmd_t cmd = {
-        .command = "ss",
-        .help = "Single shot measurment",
-        .hint = NULL,
-        .func = &Logger_singleShot
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
+//     const esp_console_cmd_t cmd = {
+//         .command = "ss",
+//         .help = "Single shot measurment",
+//         .hint = NULL,
+//         .func = &Logger_singleShot
+//     };
+//     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+// }
 
 static void register_update_stm32(){
     const esp_console_cmd_t cmd = {
@@ -239,13 +239,15 @@ static void register_update_stm32(){
 
 
 void init_console(){
+    #ifdef CONFIG_ESP_CONSOLE_USB_CDC
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
-
         /* Prompt to be printed before each line.
      * This can be customized, made dynamic, etc.
      */
     repl_config.prompt = PROMPT_STR ">";
+    #endif
+ 
     
     // repl_config.max_cmdline_length = CONFIG_CONSOLE_MAX_COMMAND_LINE_LENGTH;
     #if CONFIG_CONSOLE_STORE_HISTORY

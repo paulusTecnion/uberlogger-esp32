@@ -122,10 +122,11 @@ NTC_table = [
 -534, -548, -564, -583, -604, -629, -661,
 -704, -774, -844
 ]
+
 def decode_adc_data(adc_data_raw, data_len):
     adc_data = []
     for i in range(0, len(adc_data_raw), 2):
-        value = struct.unpack('>H', adc_data_raw[i:i+2])[0]
+        value = struct.unpack('H', adc_data_raw[i:i+2])[0]
         adc_data.append(value)
     return adc_data
 
@@ -148,8 +149,9 @@ def decode_time_data(time_data_raw, data_len):
     return time_data
 
 def read_struct(file):
+    msg_no = []
     # Read the struct header
-    struct_header_format = 'B H 11x'  # Format string for unpacking.  Assuming msg_no (1 byte), data_len (2 bytes), padding (11 bytes)
+    struct_header_format = '2B H 12x'  # Format string for unpacking.  Assuming msg_no (1 byte), data_len (2 bytes), padding (11 bytes)
     struct_header_data = file.read(struct.calcsize(struct_header_format))
 
     if not struct_header_data:
@@ -158,26 +160,31 @@ def read_struct(file):
         return "Incomplete or missing struct header."
 
     # Unpack the struct header
-    msg_no, data_len = struct.unpack(struct_header_format, struct_header_data)
+    startByte1, startByte2, data_len = struct.unpack(struct_header_format, struct_header_data)
 
-    # Read time data
-    time_data_raw = file.read(12 * data_len)
-    if not time_data_raw:
-        return -1  # End of file reached
-    time_data = decode_time_data(time_data_raw, data_len)
+    # check if this is spi_msg_1 or spi_msg_2
+    if startByte1 == 0xFA and startByte2 == 0xFB:
+        # Read time data
+        time_data_raw = file.read(12 * data_len)
+        if not time_data_raw:
+            return -1  # End of file reached
+        time_data = decode_time_data(time_data_raw, data_len)
 
-    # Read GPIO data + 2 padding bytes
-    gpio_data_raw = file.read(data_len + 2)
-    if not gpio_data_raw:
-        return -1  # End of file reached
-    gpio_data = decode_gpio_data(gpio_data_raw)
+        # Read GPIO data + 2 padding bytes
+        gpio_data_raw = file.read(data_len + 2)
+        if not gpio_data_raw:
+            return -1  # End of file reached
+        gpio_data = decode_gpio_data(gpio_data_raw[0:70])
 
-    # Read ADC data
-    adc_data_raw = file.read(2 * 8 * data_len)  # 2 bytes per channel, 8 channels, data_len entries
-    if not adc_data_raw:
-        return -1  # End of file reached
-    adc_data = decode_adc_data(adc_data_raw, data_len)
-
+        # Read ADC data
+        adc_data_raw = file.read(2 * 8 * data_len)  # 2 bytes per channel, 8 channels, data_len entries
+        if not adc_data_raw:
+            return -1  # End of file reached
+        adc_data = decode_adc_data(adc_data_raw, data_len)
+    else:
+        # this must be spi_msg_2 type
+        # Edit here:
+        gpio_data = gpio_data
     return data_len, time_data, gpio_data, adc_data
 
 
@@ -232,8 +239,8 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
 
 def format_time_data(time_data_entry):
     # Assuming time_data_entry is a tuple (year, month, day, hours, minutes, seconds, padding1, padding2, subseconds)
-    _, year, month, day, hours, minutes, seconds, _, subseconds = time_data_entry
-    subseconds = subseconds // 1000
+    year, month, day, hours, minutes, seconds, _, _, subseconds = time_data_entry
+    subseconds = subseconds
     return f"{2000 + year}-{month:02d}-{day:02d} {hours:02d}:{minutes:02d}:{seconds:02d}.{subseconds:03d}"
 
 def format_gpio_data(gpio_data_entry):
@@ -248,8 +255,70 @@ def generate_header(adc_channel_type):
         headers.append(f"{channel_type}{i+1}")
     return "time(utc)," + ",".join(headers) + ",DI1,DI2,DI3,DI4,DI5,DI6"         
 
+def read_spi_msg_1(file):
+    # Read the header for spi_msg_1
+    try:
+        startByte1, startByte2, data_len = struct.unpack('2B H', file.read(4))
+    except struct.error:
+        return -1  # End of file or error in reading
+    
+    if not (startByte1 == 0xFA and startByte2 == 0xFB):
+        return "Unexpected start bytes for spi_msg_1."
+    if not ( data_len<=70):
+        return "Unexpected data length for spi_msg_1"
+    
+    file.read(12)  # Skip padding0
+
+    # Read time data
+    time_data_raw = file.read(12 * data_len)
+    time_data = decode_time_data(time_data_raw, data_len)
+
+    # Read GPIO data
+    gpio_data_raw = file.read(data_len + 2)
+    gpio_data = decode_gpio_data(gpio_data_raw[:-2])  # Exclude padding bytes
+
+    # Read ADC data
+    adc_data_raw = file.read(2 * 8 * data_len)
+    adc_data = decode_adc_data(adc_data_raw, data_len)
+
+    return data_len, time_data, gpio_data, adc_data
+
+def read_spi_msg_2(file):
+
+
+    # Skip to the adcData part directly, assuming we know its offset
+    adc_data_raw = file.read(1120)
+    gpio_data_raw = file.read(72)
+    time_data_raw = file.read(70*12)
+    padding = file.read(12)
+    try:
+        data_len, stopByte0, stopByte1 = struct.unpack('H 2B', file.read(4))
+    except struct.error:
+        return -1  # End of file or error in reading
+        
+    if not (stopByte0 == 0xFB and stopByte1 == 0xFA):
+        return "Unexpected start bytes for spi_msg_2."
+    if not ( data_len<=70):
+        return "Unexpected data length for spi_msg_2"
+    
+    adc_data = decode_adc_data(adc_data_raw, data_len)
+
+    # Read and process GPIO data
+   
+    gpio_data = decode_gpio_data(gpio_data_raw[2:])  # Exclude padding bytes
+
+    # Read and process time data
+    time_data = decode_time_data(time_data_raw, data_len)
+
+    # Verify stop bytes, assuming we know their offset
+  
+
+    return data_len, time_data, gpio_data, adc_data
+
+
+
 # File path to your .dat file
-file_path = 'C:/Users/ppott/Downloads/log2.dat'  # Replace with the actual file path
+file_path = 'C:/Users/ppott/Downloads/log6.dat'  # Replace with the actual file path
 
 # Read and decode the file header
 file_header = read_file_header(file_path)
@@ -278,11 +347,29 @@ with open(file_path, 'rb') as file:
     header_size = 5 + 4 * 8  # Size of the header (5 bytes of settings + 8* adc_offsets)
     # Skip the header
     file.seek(header_size)
-
+    message_type = 1  # Start with spi_msg_1
     while True:
-        result = read_struct(file)
+        # result = read_struct(file)
+        if message_type == 1:
+            result = read_spi_msg_1(file)
+            if result == -1:
+                break  # End of file reached
+            elif isinstance(result, str):
+                print(result)  # Error message
+                break
+            message_type = 2  # Switch to spi_msg_2 for the next iteration
+        else:
+            result = read_spi_msg_2(file)
+            if result == -1:
+                break  # End of file reached
+            elif isinstance(result, str):
+                print(result)  # Error message
+                break
+            message_type = 1  # Switch back to spi_msg_1 for the next iteration
+
         if result == -1:
             break  # End of file reached
+
         data_len, time_data, gpio_data, adc_data = result
 
         # Convert ADC data
