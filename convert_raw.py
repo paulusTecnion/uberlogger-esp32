@@ -1,5 +1,7 @@
 import struct 
 
+# Number of rows inside spi_msg
+ROWS_PER_SPI_MSG = 70
 
 NTC_table = [
 4140, 3521, 2902, 2593, 2394, 2249, 2136,
@@ -236,6 +238,49 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
 
     return converted_values
 
+def convert_adc_fixed_point(settings, adc_offsets, adc_data, data_len):
+    adc_channel_range, adc_channel_type = settings[0], settings[1]
+    converted_values = []
+
+    # Define fixed-point scaling factors
+    scale_factor = 10000  # Scaling factor to maintain precision without using floats
+    range_value_high = 2535497  # Adjusted for fixed-point arithmetic
+    offset_high = 1267748  # Adjusted for fixed-point arithmetic
+    range_value_low = 303398  # Adjusted for fixed-point arithmetic
+    offset_low = 151699  # Adjusted for fixed-point arithmetic
+
+    for i in range(data_len * 8):
+        channel = i % 8  # Determine the channel number (0-7)
+        adc_value = adc_data[i]
+        # Select range and offset based on adc_channel_range
+        if adc_channel_range & (1 << channel):
+            range_value = range_value_high
+            offset = offset_high
+        else:
+            range_value = range_value_low
+            offset = offset_low
+            
+        is_ntc = (adc_channel_type >> channel) & 1
+
+        if is_ntc:  # If NTC input, use a placeholder conversion
+            # Placeholder for NTC conversion logic
+            # Assuming NTC values would be processed separately with appropriate scaling
+            temperature = -1  # Placeholder to indicate NTC processing is required
+            converted_values.append(temperature)
+        else:  # Voltage input
+            adc_offset = adc_offsets[channel] * scale_factor
+            t1 = adc_value * (-range_value)  # Invert input and apply range
+            # Apply offset and scale back
+            if settings[3] == 12:  # ADC_12_BITS
+                t2 = ((t1 + (2048 * scale_factor - adc_offset)) * scale_factor) // (4095 * scale_factor)
+            else:  # ADC_16_BITS
+                t2 = ((t1 + (32768 * scale_factor - adc_offset)) * scale_factor) // (65535 * scale_factor)
+            voltage = (t2 + offset) // scale_factor  # Apply scaling factor at the end
+            # Correct rounding for negative values close to zero
+            voltage = voltage if voltage != -1 else 0
+            converted_values.append(voltage / scale_factor)  # Divide by scale_factor for final value
+
+    return converted_values
 
 def format_time_data(time_data_entry):
     # Assuming time_data_entry is a tuple (year, month, day, hours, minutes, seconds, padding1, padding2, subseconds)
@@ -270,15 +315,15 @@ def read_spi_msg_1(file):
     file.read(12)  # Skip padding0
 
     # Read time data
-    time_data_raw = file.read(12 * data_len)
+    time_data_raw = file.read(12 * ROWS_PER_SPI_MSG)
     time_data = decode_time_data(time_data_raw, data_len)
 
     # Read GPIO data
-    gpio_data_raw = file.read(data_len + 2)
+    gpio_data_raw = file.read(ROWS_PER_SPI_MSG + 2)
     gpio_data = decode_gpio_data(gpio_data_raw[:-2])  # Exclude padding bytes
 
     # Read ADC data
-    adc_data_raw = file.read(2 * 8 * data_len)
+    adc_data_raw = file.read(2 * 8 * ROWS_PER_SPI_MSG)
     adc_data = decode_adc_data(adc_data_raw, data_len)
 
     return data_len, time_data, gpio_data, adc_data
@@ -287,9 +332,9 @@ def read_spi_msg_2(file):
 
 
     # Skip to the adcData part directly, assuming we know its offset
-    adc_data_raw = file.read(1120)
-    gpio_data_raw = file.read(72)
-    time_data_raw = file.read(70*12)
+    adc_data_raw = file.read(ROWS_PER_SPI_MSG*8*2)
+    gpio_data_raw = file.read(ROWS_PER_SPI_MSG+2)
+    time_data_raw = file.read(ROWS_PER_SPI_MSG*12)
     padding = file.read(12)
     try:
         data_len, stopByte0, stopByte1 = struct.unpack('H 2B', file.read(4))
@@ -318,7 +363,7 @@ def read_spi_msg_2(file):
 
 
 # File path to your .dat file
-file_path = 'C:/Users/ppott/Downloads/log6.dat'  # Replace with the actual file path
+file_path = 'C:/Users/ppott/Downloads/log12.dat'  # Replace with the actual file path
 
 # Read and decode the file header
 file_header = read_file_header(file_path)
