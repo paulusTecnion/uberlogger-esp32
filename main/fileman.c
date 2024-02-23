@@ -174,13 +174,13 @@ int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData
     int32_t ret = 0;
     uint16_t i = 0;
     // Determine how many spi_msg_t data we have
-    int numSpiMsgs = sdcard_data->datarows / DATA_LINES_PER_SPI_TRANSACTION;
-    int numRemainingRows = sdcard_data->datarows % DATA_LINES_PER_SPI_TRANSACTION;
+    // int numSpiMsgs = sdcard_data->datarows / DATA_LINES_PER_SPI_TRANSACTION;
 
-    spi_msg_1_t *t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data);
-    spi_msg_2_t *t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data);
+
+    spi_msg_1_t *t_spi_msg_1;// = (spi_msg_1_t *)(sdcard_data->spi_data);
+    spi_msg_2_t *t_spi_msg_2;// = (spi_msg_2_t *)(sdcard_data->spi_data);
     // ret = fileman_csv_write(adcData,  spi_msg->gpioData,  spi_msg->timeData, spi_msg->dataLen);
-        for (i = 0; i < numSpiMsgs; i++)
+        for (i = 0; i < sdcard_data->numSpiMessages; i++)
         {
             // Depending on which data we are writing, we need to use a different pointer
             // if (i % 2 != 0)
@@ -197,12 +197,12 @@ int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData
             // }
             if (i % 2 != 0 )
             {
-                t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_1_t));
-                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_1->gpioData, t_spi_msg_1->timeData, t_spi_msg_1->dataLen);
-            } else 
-            {
                 t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_2_t));
                 ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_2->gpioData, t_spi_msg_2->timeData, t_spi_msg_2->dataLen);
+            } else 
+            {
+                t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_1_t));
+                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_1->gpioData, t_spi_msg_1->timeData, t_spi_msg_1->dataLen);
             }
            
             
@@ -211,32 +211,32 @@ int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData
                 return ret;
         }
 
-        if (numRemainingRows > 0)
-        {
-            // Depending on which data we are writing, we need to use a different pointer
-            // if ((i % 2) != 0)
-            // {
-            //     // ESP_LOGI(TAG_FILE, "Writing remaining rows 2");
-            //     spi_msg_2_adc_only_t *spi_msg = (spi_msg_2_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_2_adc_only_t));
-            //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-            // }
-            // else
-            // {
-            //     //  ESP_LOGI(TAG_FILE, "Writing remaining rows 1");
-            //     spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_adc_only_t));
-            //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-            // }
-            if (i % 2 != 0)
-            {
-                t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_t));
-                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_1->gpioData, t_spi_msg_1->timeData, t_spi_msg_1->dataLen);
-            } else {
-                t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_2_t));
-                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_2->gpioData, t_spi_msg_2->timeData, t_spi_msg_2->dataLen); 
-            }
+        // if (numRemainingRows > 0)
+        // {
+        //     // Depending on which data we are writing, we need to use a different pointer
+        //     // if ((i % 2) != 0)
+        //     // {
+        //     //     // ESP_LOGI(TAG_FILE, "Writing remaining rows 2");
+        //     //     spi_msg_2_adc_only_t *spi_msg = (spi_msg_2_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_2_adc_only_t));
+        //     //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
+        //     // }
+        //     // else
+        //     // {
+        //     //     //  ESP_LOGI(TAG_FILE, "Writing remaining rows 1");
+        //     //     spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_adc_only_t));
+        //     //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
+        //     // }
+        //     if ((i == 0) || (i % 2 != 0))
+        //     {
+        //         t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_t));
+        //         ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_1->gpioData, t_spi_msg_1->timeData, t_spi_msg_1->dataLen);
+        //     } else {
+        //         t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_2_t));
+        //         ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_2->gpioData, t_spi_msg_2->timeData, t_spi_msg_2->dataLen); 
+        //     }
             
            
-        }
+        // }
     
 
     return ret;
