@@ -302,8 +302,7 @@ esp_err_t Logger_singleShot()
     // {
         if (spi_ctrl_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, &cmd, sizeof(spi_cmd_t)) == ESP_OK)
         {
-            if (settings_get_samplerate() == ADC_SAMPLE_RATE_1Hz || 
-                settings_get_samplerate() == ADC_SAMPLE_RATE_2Hz)
+            if (settings_get_samplerate() <= ADC_SAMPLE_RATE_2Hz)
             {
                 vTaskDelay(1500 / portTICK_PERIOD_MS);
             } 
@@ -1077,7 +1076,7 @@ esp_err_t Logger_processData()
     // - Or we log with a high speed frequency (>500) with the structures spi_msg_adc_only_1_t and spi_msg_adc_only_2_t
 
     // Check what frequency we are logging with
-    if (settings_get_samplerate() <= ADC_SAMPLE_RATE_250Hz)
+    if (settings_get_samplerate() <= ADC_SAMPLE_RATE_1000Hz)
     {
         // determine size of 1 message
        
