@@ -119,6 +119,8 @@ typedef struct {
     uint8_t spi_data[sizeof(spi_msg_1_adc_only_t)*4];
     uint32_t datarows;
     uint8_t numSpiMessages;
+    uint32_t msgSize;
+    uint32_t total_datarows;
 } sdcard_data_t;
 
 

@@ -1,7 +1,9 @@
 import struct 
 
-# Number of rows inside spi_msg
-ROWS_PER_SPI_MSG = 70
+NUM_ADC_CHANNELS = 8
+ADC_MULT_FACTOR_16B_TEMP = 1000000
+ADC_MULT_FACTOR_60V = 1000000
+ADC_MULT_FACTOR_10V = 10000000
 
 NTC_table = [
 4140, 3521, 2902, 2593, 2394, 2249, 2136,
@@ -213,11 +215,12 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
         adc_value = adc_data[i]
         # Define range and offset based on adc_channel_range
         if adc_channel_range & channel:
-            range_value = 253.549696
-            offset = 126.774848
+            offset = 126774848
+            range_value = 2*offset
+            
         else:
-            range_value = 30.3398058
-            offset = 15.1699029
+            offset = 151699029
+            range_value = 2*offset
             
         is_ntc = (adc_channel_type >> channel) & 1
 
@@ -233,54 +236,48 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
             else:  # ADC_16_BITS
                 # 65520 is ADC max for 16 bits
                 t2 = (t1+(32760-adc_offsets[channel])) / 65520  
-            voltage = round(t2 + offset, 5)
+            voltage = round(t2 + offset, 0)
             converted_values.append(voltage)
 
     return converted_values
 
-def convert_adc_fixed_point(settings, adc_offsets, adc_data, data_len):
-    adc_channel_range, adc_channel_type = settings[0], settings[1]
-    converted_values = []
+def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type, adc_channel_range, f):
+    file_bytes_written = 0
+    filestrbuffer = ""
 
-    # Define fixed-point scaling factors
-    scale_factor = 10000  # Scaling factor to maintain precision without using floats
-    range_value_high = 2535497  # Adjusted for fixed-point arithmetic
-    offset_high = 1267748  # Adjusted for fixed-point arithmetic
-    range_value_low = 303398  # Adjusted for fixed-point arithmetic
-    offset_low = 151699  # Adjusted for fixed-point arithmetic
+    for j, date_time in enumerate(date_time_list):
+        # Print time stamp
+        year, month, day, hours, minutes, seconds, _, _, subseconds = date_time
+        filestrbuffer += f"20{year:02d}-{month:02d}-{day:02d} {hours:02d}:{minutes:02d}:{seconds:02d}.{subseconds:03d},"
 
-    for i in range(data_len * 8):
-        channel = i % 8  # Determine the channel number (0-7)
-        adc_value = adc_data[i]
-        # Select range and offset based on adc_channel_range
-        if adc_channel_range & (1 << channel):
-            range_value = range_value_high
-            offset = offset_high
-        else:
-            range_value = range_value_low
-            offset = offset_low
-            
-        is_ntc = (adc_channel_type >> channel) & 1
+        # Print ADC
+        for x in range(NUM_ADC_CHANNELS):
+            adc_value = dataAdc[j * NUM_ADC_CHANNELS + x]
+            if adc_channel_type & (1 << x):
+                # Temperature sensor
+                filestrbuffer += f"{adc_value},"
+            elif adc_channel_range & (1 << x):
+                # Range is 60V
+                filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_60V:.6f},"
+            else:
+                # Range is 10V
+                filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_10V:.7f},"
 
-        if is_ntc:  # If NTC input, use a placeholder conversion
-            # Placeholder for NTC conversion logic
-            # Assuming NTC values would be processed separately with appropriate scaling
-            temperature = -1  # Placeholder to indicate NTC processing is required
-            converted_values.append(temperature)
-        else:  # Voltage input
-            adc_offset = adc_offsets[channel] * scale_factor
-            t1 = adc_value * (-range_value)  # Invert input and apply range
-            # Apply offset and scale back
-            if settings[3] == 12:  # ADC_12_BITS
-                t2 = ((t1 + (2048 * scale_factor - adc_offset)) * scale_factor) // (4095 * scale_factor)
-            else:  # ADC_16_BITS
-                t2 = ((t1 + (32768 * scale_factor - adc_offset)) * scale_factor) // (65535 * scale_factor)
-            voltage = (t2 + offset) // scale_factor  # Apply scaling factor at the end
-            # Correct rounding for negative values close to zero
-            voltage = voltage if voltage != -1 else 0
-            converted_values.append(voltage / scale_factor)  # Divide by scale_factor for final value
+        # Finally the IOs
+        gpio_val = dataGpio[j]
+        filestrbuffer += f"{(gpio_val & 0x04) >> 2},{(gpio_val & 0x08) >> 3},{(gpio_val & 0x10) >> 4},{(gpio_val & 0x20) >> 5},{(gpio_val & 0x40) >> 6},{(gpio_val & 0x80) >> 7}\n"
 
-    return converted_values
+        print(filestrbuffer)
+        if f is not None:
+            len_written = f.write(filestrbuffer)
+            if len_written < 0:
+                return 0
+            file_bytes_written += len_written
+            filestrbuffer = ""  # Clear buffer after writing
+
+    return data_len
+
+
 
 def format_time_data(time_data_entry):
     # Assuming time_data_entry is a tuple (year, month, day, hours, minutes, seconds, padding1, padding2, subseconds)
@@ -300,7 +297,7 @@ def generate_header(adc_channel_type):
         headers.append(f"{channel_type}{i+1}")
     return "time(utc)," + ",".join(headers) + ",DI1,DI2,DI3,DI4,DI5,DI6"         
 
-def read_spi_msg_1(file):
+def read_spi_msg_1(file, rows_remaining):
     # Read the header for spi_msg_1
     try:
         startByte1, startByte2, data_len = struct.unpack('2B H', file.read(4))
@@ -312,30 +309,60 @@ def read_spi_msg_1(file):
     if not ( data_len<=70):
         return "Unexpected data length for spi_msg_1"
     
-    file.read(12)  # Skip padding0
+    # if data_len < 70, there are no padding bytes
+    if (data_len == 70):
+        if rows_remaining < data_len:
+            data_len = rows_remaining
 
-    # Read time data
-    time_data_raw = file.read(12 * ROWS_PER_SPI_MSG)
-    time_data = decode_time_data(time_data_raw, data_len)
+        file.read(12)  # Skip padding0
 
-    # Read GPIO data
-    gpio_data_raw = file.read(ROWS_PER_SPI_MSG + 2)
-    gpio_data = decode_gpio_data(gpio_data_raw[:-2])  # Exclude padding bytes
+        # Read time data
+        time_data_raw = file.read(12 * data_len)
+        time_data = decode_time_data(time_data_raw, data_len)
 
-    # Read ADC data
-    adc_data_raw = file.read(2 * 8 * ROWS_PER_SPI_MSG)
-    adc_data = decode_adc_data(adc_data_raw, data_len)
+        # Read GPIO data
+        gpio_data_raw = file.read(data_len + 2)
+        gpio_data = decode_gpio_data(gpio_data_raw[:-2])  # Exclude padding bytes
 
-    return data_len, time_data, gpio_data, adc_data
+        # Read ADC data
+        adc_data_raw = file.read(2 * 8 * data_len)
+        adc_data = decode_adc_data(adc_data_raw, data_len)
+    else:
+        # Read time data
+        time_data_raw = file.read(12 * data_len)
+        time_data = decode_time_data(time_data_raw, data_len)
 
-def read_spi_msg_2(file):
+        # Read GPIO data
+        gpio_data_raw = file.read(data_len)
+        gpio_data = decode_gpio_data(gpio_data_raw)  # Exclude padding bytes
 
+        # Read ADC data
+        adc_data_raw = file.read(2 * 8 * data_len)
+        adc_data = decode_adc_data(adc_data_raw, data_len)
 
-    # Skip to the adcData part directly, assuming we know its offset
-    adc_data_raw = file.read(ROWS_PER_SPI_MSG*8*2)
-    gpio_data_raw = file.read(ROWS_PER_SPI_MSG+2)
-    time_data_raw = file.read(ROWS_PER_SPI_MSG*12)
-    padding = file.read(12)
+    rows_remaining = rows_remaining - data_len
+
+    return data_len, time_data, gpio_data, adc_data, rows_remaining
+
+def read_spi_msg_2(file, data_len, rows_remaining):
+
+    
+
+    if (data_len == 70):
+        if rows_remaining < data_len:
+            data_len = rows_remaining
+        # Skip to the adcData part directly, assuming we know its offset
+        adc_data_raw = file.read(data_len*8*2)
+        padding = file.read(2)
+        gpio_data_raw = file.read(data_len)
+        time_data_raw = file.read(data_len*12)
+        padding = file.read(12)
+    else:
+        adc_data_raw = file.read(data_len*8*2)
+        gpio_data_raw = file.read(data_len)
+        time_data_raw = file.read(data_len*12)
+   
+    
     try:
         data_len, stopByte0, stopByte1 = struct.unpack('H 2B', file.read(4))
     except struct.error:
@@ -350,20 +377,21 @@ def read_spi_msg_2(file):
 
     # Read and process GPIO data
    
-    gpio_data = decode_gpio_data(gpio_data_raw[2:])  # Exclude padding bytes
+    gpio_data = decode_gpio_data(gpio_data_raw)  # Exclude padding bytes
 
     # Read and process time data
     time_data = decode_time_data(time_data_raw, data_len)
 
-    # Verify stop bytes, assuming we know their offset
-  
+    rows_remaining = rows_remaining - data_len
+    
 
-    return data_len, time_data, gpio_data, adc_data
+    return data_len, time_data, gpio_data, adc_data, rows_remaining
 
 
 
 # File path to your .dat file
-file_path = 'C:/Users/ppott/Downloads/log12.dat'  # Replace with the actual file path
+file_path = 'C:/Users/ppott/Downloads/log2.dat'  # Replace with the actual file path
+csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
 # Read and decode the file header
 file_header = read_file_header(file_path)
@@ -384,19 +412,31 @@ for i, setting in enumerate(decoded_settings):
 
 
 print("ADC Offsets:", decoded_adc_offsets)
-
+adc_channel_range = decoded_settings[0]
 adc_channel_type = decoded_settings[1]  # Extract adc_channel_type from settings
 print(generate_header(adc_channel_type))  # Print the dynamically generated header
 
-with open(file_path, 'rb') as file:
+
+with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
     header_size = 5 + 4 * 8  # Size of the header (5 bytes of settings + 8* adc_offsets)
     # Skip the header
     file.seek(header_size)
+
+    # Seek to 4 bytes from the end of the file
+    file.seek(-4, 2)  # The '2' argument means 'seek relative to file's end'
+    # Read the last 4 bytes
+    total_number_rows = file.read(4)
+    rows_remaining = struct.unpack('<I', total_number_rows)[0]
+    # go back
+    file.seek(header_size)
+    # write the csv header
+    fcsv.write(generate_header(adc_channel_type) + '\r')
+
     message_type = 1  # Start with spi_msg_1
     while True:
         # result = read_struct(file)
         if message_type == 1:
-            result = read_spi_msg_1(file)
+            result = read_spi_msg_1(file, rows_remaining)
             if result == -1:
                 break  # End of file reached
             elif isinstance(result, str):
@@ -404,7 +444,7 @@ with open(file_path, 'rb') as file:
                 break
             message_type = 2  # Switch to spi_msg_2 for the next iteration
         else:
-            result = read_spi_msg_2(file)
+            result = read_spi_msg_2(file, data_len, rows_remaining) # this is under the condition that read_spi_msg_1 is always called before read_spi_msg_2
             if result == -1:
                 break  # End of file reached
             elif isinstance(result, str):
@@ -415,15 +455,24 @@ with open(file_path, 'rb') as file:
         if result == -1:
             break  # End of file reached
 
-        data_len, time_data, gpio_data, adc_data = result
+        data_len, time_data, gpio_data, adc_data, rows_remaining = result
 
+        
         # Convert ADC data
         converted_adc_values = convert_adc(decoded_settings, decoded_adc_offsets, adc_data, data_len)
-
+        
         # Process and print each line of data
-        for i in range(data_len):
-            time_str = format_time_data(time_data[i])
-            gpio_states = format_gpio_data(gpio_data[i])
-            adc_values = converted_adc_values[i * 8:(i + 1) * 8]  # Extract ADC values for this timestamp
-            print(f"{time_str},{','.join(map(str, adc_values))},{','.join(map(str, gpio_states))}")
+        # for i in range(data_len):
+            # time_str = format_time_data(time_data[i])
+            # gpio_states = format_gpio_data(gpio_data[i])
+            # adc_values = converted_adc_values[i * 8:(i + 1) * 8]  # Extract ADC values for this timestamp
+            # print(f"{time_str},{','.join(map(str, adc_values))},{','.join(map(str, gpio_states))}")
+        
+        csv_write(converted_adc_values, gpio_data, time_data, data_len, adc_channel_type, adc_channel_range, fcsv)
+
+        print('Rows remaining:', {rows_remaining})
+
+        if (rows_remaining == 0):
+            print('No rows remaining. Done')
+            break
 

@@ -956,13 +956,16 @@ esp_err_t Logger_flush_to_sdcard()
         //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
         //     goto error;
         // }
-        size_t len = Logger_flush_buffer_to_sd_card_uint8(sdcard_data.spi_data, sizeof(sdcard_data.spi_data));
+        
+        size_t len = Logger_flush_buffer_to_sd_card_uint8(sdcard_data.spi_data, sdcard_data.msgSize*sdcard_data.numSpiMessages);
         // if (len != SD_BUFFERSIZE)
         if (len != 1)
         {
             ESP_LOGE(TAG_LOG, "Raw write error. Returned: %d", len);
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
             goto error;
+        } else {
+            sdcard_data.total_datarows += sdcard_data.datarows;
         }
     }
 
@@ -1052,6 +1055,7 @@ void LogTask_resetCounter()
 
     log_counter = 0;
     sdcard_data.datarows = 0;
+    sdcard_data.total_datarows = 0;
     expected_msg_part = 0;
     msg_part = 0;
 }
@@ -1075,25 +1079,56 @@ esp_err_t Logger_processData()
     // Check what frequency we are logging with
     if (settings_get_samplerate() <= ADC_SAMPLE_RATE_250Hz)
     {
+        // determine size of 1 message
+       
+
         if (spi_msg_slow_freq_1_ptr->startByte[0] == 0xFA &&
             spi_msg_slow_freq_1_ptr->startByte[1] == 0xFB &&
             expected_msg_part == 0)
         {
+            size_t msgSize = 4 + spi_msg_slow_freq_1_ptr->dataLen*sizeof(s_date_time_t) + spi_msg_slow_freq_1_ptr->dataLen + spi_msg_slow_freq_1_ptr->dataLen*2*8;
             msg_part = 0;
             expected_msg_part = 1;
-     
-            // Straight copy the data into the sdcard buffer
-            ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t), spi_msg_slow_freq_1_ptr, sizeof(spi_msg_1_t), async_memcpy_cb, NULL));
 
-            // Do something else here
-            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
+          
+
+            // Straight copy the data into the sdcard buffer
+            if (spi_msg_slow_freq_1_ptr->dataLen < 70 && (settings_get_logmode() == LOGMODE_RAW))
+            {
+                // Copy startbytes and length
+                memcpy(sdcard_data.spi_data + msgSize*log_counter, spi_msg_slow_freq_1_ptr->startByte, 2); 
+                memcpy(sdcard_data.spi_data + msgSize*log_counter + 2, &(spi_msg_slow_freq_1_ptr->dataLen), 2);
+                // Calculate the base offset for the current log entry
+                size_t baseOffset = msgSize * log_counter + 4; // +4 to skip over the startBytes and dataLen which have already been copied
+
+                // Copy time data block
+                memcpy(sdcard_data.spi_data + baseOffset, spi_msg_slow_freq_1_ptr->timeData, sizeof(s_date_time_t) * spi_msg_slow_freq_1_ptr->dataLen);
+                
+                //ESP_LOGI("SPI MSG 1", "Time %d %d", spi_msg_slow_freq_1_ptr->timeData->minutes, spi_msg_slow_freq_1_ptr->timeData->seconds);
+                // Copy gpio data block
+                size_t gpioDataOffset = baseOffset + sizeof(s_date_time_t) * spi_msg_slow_freq_1_ptr->dataLen;
+                memcpy(sdcard_data.spi_data + gpioDataOffset, spi_msg_slow_freq_1_ptr->gpioData, spi_msg_slow_freq_1_ptr->dataLen);
+
+                // Copy adc data block
+                size_t adcDataOffset = gpioDataOffset + spi_msg_slow_freq_1_ptr->dataLen;
+                memcpy(sdcard_data.spi_data + adcDataOffset, spi_msg_slow_freq_1_ptr->adcData, spi_msg_slow_freq_1_ptr->dataLen * 2 * 8);
+                
+                sdcard_data.msgSize = msgSize;
+                
+            } else {
+                ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t), spi_msg_slow_freq_1_ptr, sizeof(spi_msg_1_t), async_memcpy_cb, NULL));
+                sdcard_data.msgSize = sizeof(spi_msg_1_t);
+                // Do something else here
+                xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
+            }
+            sdcard_data.datarows += spi_msg_slow_freq_1_ptr->dataLen;
                 // Convert data if necessary
             if (settings_get_logmode() == LOGMODE_CSV)
             {
                 // what needs to be done: take the ADC data and convert it
                 spi_msg_1_t * spi_msg;
                 spi_msg = (spi_msg_1_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t));
-                sdcard_data.datarows += spi_msg->dataLen;
+                sdcard_data.msgSize = sizeof(spi_msg_1_t);
                 Logger_raw_to_fixedpt(log_counter, spi_msg->adcData, spi_msg->dataLen); 
             }
         } else if (spi_msg_slow_freq_2_ptr->stopByte[0] == 0xFB &&
@@ -1103,17 +1138,41 @@ esp_err_t Logger_processData()
             msg_part = 1;
             expected_msg_part = 0;
 
-            // Straight copy the data into the sdcard buffer
-            ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_2_t), spi_msg_slow_freq_2_ptr, sizeof(spi_msg_2_t), async_memcpy_cb, NULL));
+            if (spi_msg_slow_freq_2_ptr->dataLen < 70 && (settings_get_logmode() == LOGMODE_RAW))
+            {
+                size_t msgSize = 4 + spi_msg_slow_freq_2_ptr->dataLen*sizeof(s_date_time_t) + spi_msg_slow_freq_2_ptr->dataLen + spi_msg_slow_freq_2_ptr->dataLen*2*8;
+                size_t baseOffset = msgSize * log_counter; 
 
-            // Do something else here
-            xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
+                 // Copy adc data block
+                memcpy(sdcard_data.spi_data + baseOffset, spi_msg_slow_freq_2_ptr->adcData, spi_msg_slow_freq_2_ptr->dataLen * 2 * 8);
 
+                  // Copy gpio data block
+                size_t gpioDataOffset = baseOffset + spi_msg_slow_freq_2_ptr->dataLen * 2 * 8;
+                memcpy(sdcard_data.spi_data + gpioDataOffset, spi_msg_slow_freq_2_ptr->gpioData, spi_msg_slow_freq_2_ptr->dataLen);
+                
+                size_t timeDataOffset = gpioDataOffset + spi_msg_slow_freq_2_ptr->dataLen;
+                // Copy time data block
+                memcpy(sdcard_data.spi_data + timeDataOffset, spi_msg_slow_freq_2_ptr->timeData, sizeof(s_date_time_t) * spi_msg_slow_freq_2_ptr->dataLen);
+                //ESP_LOGI("SPI MSG 2", "Time %d %d", spi_msg_slow_freq_2_ptr->timeData->minutes, spi_msg_slow_freq_2_ptr->timeData->seconds);
+                size_t dataLenOffset = timeDataOffset + sizeof(s_date_time_t) * spi_msg_slow_freq_2_ptr->dataLen;
+                // Copy stopbytes and length
+                memcpy(sdcard_data.spi_data + dataLenOffset, &(spi_msg_slow_freq_2_ptr->dataLen), 2);
+                memcpy(sdcard_data.spi_data + dataLenOffset + 2, spi_msg_slow_freq_2_ptr->stopByte, 2); 
+                
+            } else {
+                // Straight copy the data into the sdcard buffer
+                ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_2_t), spi_msg_slow_freq_2_ptr, sizeof(spi_msg_2_t), async_memcpy_cb, NULL));
+                sdcard_data.msgSize = sizeof(spi_msg_2_t);
+                // Do something else here
+                xSemaphoreTake(copy_done_sem, portMAX_DELAY); // Wait until the buffer copy is done
+
+            }
+
+             sdcard_data.datarows += spi_msg_slow_freq_2_ptr->dataLen;
             if (settings_get_logmode() == LOGMODE_CSV)
             {
                     spi_msg_2_t * spi_msg;
                     spi_msg = (spi_msg_2_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_2_t));
-                    sdcard_data.datarows += spi_msg->dataLen;
                     Logger_raw_to_fixedpt(log_counter, spi_msg->adcData, spi_msg->dataLen);
             }
         }
@@ -1736,28 +1795,34 @@ void Logtask_logging()
 #endif
                 _dataReceived = 0;
             }
-            else
-            {
-                // Wait for STM to stop ADC and go to idle mode
-                vTaskDelay(200 / portTICK_PERIOD_MS);
-                spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
-                // Retrieve any remaining ADC bytes
+    //         else
+    //         {
+    //             // Wait for STM to stop ADC and go to idle mode
+    //             vTaskDelay(600 / portTICK_PERIOD_MS);
 
-                if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
-                {
-#ifdef DEBUG_LOGTASK_RX
-                    ESP_LOGI(TAG_LOG, "Last ADC data received");
-#endif
+    //             // only retrieve last bytes in case we have faster log rates (ugly!!)
+    //             if (settings_get_samplerate() > ADC_SAMPLE_RATE_2Hz)
+    //             {
+    //                 spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
+    //                 // Retrieve any remaining ADC bytes
 
-                    // Add check if last number bytes equals number of data lines. If so, we should discard that
-                    Logger_processData();
-                }
-                else
-                {
-                    ESP_LOGE(TAG_LOG, "Error receiving last message");
-                    SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
-                }
-            }
+    //                 if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
+    //                 {
+    // #ifdef DEBUG_LOGTASK_RX
+    //                     ESP_LOGI(TAG_LOG, "Last ADC data received");
+    // #endif
+
+    //                     // Add check if last number bytes equals number of data lines. If so, we should discard that
+    //                     Logger_processData();
+    //                 }
+    //                 else
+    //                 {
+    //                     ESP_LOGE(TAG_LOG, "Error receiving last message");
+    //                     SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+    //                 }
+    //             }
+                
+    //         }
             // Flush the data to SD card
             finalwrite = 1;
             
@@ -1766,6 +1831,11 @@ void Logtask_logging()
         if (finalwrite)
         {
             Logger_flush_to_sdcard();
+            if (settings_get_logmode() == LOGMODE_RAW)
+            {
+                // Write total number of rows at the end of the file
+                fileman_write(&(sdcard_data.total_datarows), sizeof(sdcard_data.total_datarows));
+            }
             fileman_close_file();
             // esp_sd_card_unmount();
             vTaskDelay(500 / portTICK_PERIOD_MS);
