@@ -223,8 +223,13 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
             range_value = 2*offset
             
         is_ntc = (adc_channel_type >> channel) & 1
+        
+
 
         if is_ntc:  # NTC input
+            # if in 16 bits, reduce to 12 bits
+            if settings[3] == 16:
+                adc_value = adc_value >> 4
             p1 = NTC_table[adc_value >> 2]
             p2 = NTC_table[(adc_value >> 2) + 1]
             temperature = p1 - ((p1 - p2) * (adc_value & 0x0003)) // 4
@@ -390,7 +395,7 @@ def read_spi_msg_2(file, data_len, rows_remaining):
 
 
 # File path to your .dat file
-file_path = 'C:/Users/ppott/Downloads/log2.dat'  # Replace with the actual file path
+file_path = 'C:/Users/ppott/Downloads/log6.dat'  # Replace with the actual file path
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
 # Read and decode the file header
