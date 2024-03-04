@@ -344,48 +344,6 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
     return datarows;
 }
 
-// does this work?
-
-// int fileman_csv_write(const int32_t *dataAdc, size_t lenAdc, const uint8_t* dataGpio, size_t lenGpio,
-//                       const uint8_t* dataTime, size_t lenTime, size_t datarows) {
-//     uint32_t writeptr = 0;
-//     s_date_time_t *date_time_ptr = (s_date_time_t*)dataTime;
-//     char buffer[BUFSIZE]; // Define BUFSIZE according to your maximum expected row size
-
-//     for (size_t i = 0; i < datarows; i++, date_time_ptr++) {
-//         // Format time stamp
-//         writeptr += sprintf(buffer + writeptr, "20%d-%02d-%02d %02d:%02d:%02d.%03lu,",
-//                             date_time_ptr->year, date_time_ptr->month, date_time_ptr->date,
-//                             date_time_ptr->hours, date_time_ptr->minutes, date_time_ptr->seconds,
-//                             date_time_ptr->subseconds);
-
-//         // Format ADC
-//         for (size_t x = 0; x < NUM_ADC_CHANNELS; x++) {
-//             int32_t adcValue = dataAdc[i * NUM_ADC_CHANNELS + x];
-//             int32_t factor = ((settings_get()->adc_channel_type & (1 << x)) ? ADC_MULT_FACTOR_16B_TEMP :
-//                              (settings_get()->adc_channel_range & (1 << x)) ? ADC_MULT_FACTOR_60V : ADC_MULT_FACTOR_10V);
-
-//             writeptr += snprintf(buffer + writeptr, 14, "%s%d.%0*d,",
-//                                  (adcValue < 0) ? "-" : "", abs(adcValue / factor),
-//                                  (factor == ADC_MULT_FACTOR_16B_TEMP) ? 2 : 6, abs(adcValue % factor));
-//         }
-
-//         // Format GPIO
-//         uint8_t gpio = dataGpio[i];
-//         writeptr += snprintf(buffer + writeptr, (2 * 6 + 5), "%d,%d,%d,%d,%d,%d\r\n",
-//                              (gpio & 0x04) ? 1 : 0, (gpio & 0x08) ? 1 : 0,
-//                              (gpio & 0x10) ? 1 : 0, (gpio & 0x20) ? 1 : 0,
-//                              (gpio & 0x40) ? 1 : 0, (gpio & 0x80) ? 1 : 0);
-
-//         // Write to file
-//         if (f == NULL) return 0;
-//         int len = fprintf(f, "%s", buffer);
-//         if (len < 0) return 0;
-//         file_bytes_written += len;
-//         writeptr = 0;
-//     }
-//     return lenAdc;
-// }
 
 esp_err_t fileman_raw_write_header()
 {
