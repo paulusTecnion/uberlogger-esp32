@@ -260,7 +260,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
     for (int i = 0; i < datarows; i++)
     {
         // Print time stamp
-        writeptr = writeptr + sprintf(filestrbuffer + writeptr, "20%d-%02d-%02d %02d:%02d:%02d.%03lu,",
+        writeptr = writeptr + sprintf(filestrbuffer + writeptr, "20%02d-%02d-%02d %02d:%02d:%02d.%03lu,",
                                       date_time_ptr[j].year,
                                       date_time_ptr[j].month,
                                       date_time_ptr[j].date,
@@ -277,10 +277,10 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
             if ((settings_get()->adc_channel_type & (1 << x)))
             {
                 // Only 2 digits after decimal point for temperature
-                writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d.%06d,",
+                writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d.%02d,",
                                                (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",
                                                abs(dataAdc[i * NUM_ADC_CHANNELS + x] / (ADC_MULT_FACTOR_16B_TEMP)),
-                                               abs(dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_16B_TEMP));
+                                               abs((dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_16B_TEMP) / (ADC_MULT_FACTOR_16B_TEMP / 100)));
             }
             else
             {
