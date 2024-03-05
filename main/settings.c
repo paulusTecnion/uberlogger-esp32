@@ -355,7 +355,7 @@ adc_resolution_t settings_get_resolution()
 
 esp_err_t settings_set_samplerate(adc_sample_rate_t rate)
 {
-    if (rate >= ADC_SAMPLE_RATE_1_DIV_10HZ && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
+    if (rate >= ADC_SAMPLE_RATE_EVERY_60S && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
     {
         #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "ADC SAMPLE RATE= %d", rate);

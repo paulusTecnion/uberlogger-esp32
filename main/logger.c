@@ -1076,7 +1076,7 @@ esp_err_t Logger_processData()
     // - Or we log with a high speed frequency (>500) with the structures spi_msg_adc_only_1_t and spi_msg_adc_only_2_t
 
     // Check what frequency we are logging with
-    if (settings_get_samplerate() <= ADC_SAMPLE_RATE_1000Hz)
+    if (settings_get_samplerate() <= ADC_SAMPLE_RATE_250Hz)
     {
         // determine size of 1 message
        
