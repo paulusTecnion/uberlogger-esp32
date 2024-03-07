@@ -152,6 +152,11 @@ int fileman_csv_write_header()
     // Print ADC or NTC, depending on settings
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
+        if (!settings_get_adc_channel_enabled(i))
+        {
+            continue;
+        }   
+
         if ((settings_get()->adc_channel_type & (1 << i)))
         {
             writeptr = writeptr + sprintf(filestrbuffer + writeptr, "NTC%d,", i + 1);
@@ -161,7 +166,25 @@ int fileman_csv_write_header()
             writeptr = writeptr + sprintf(filestrbuffer + writeptr, "AIN%d,", i + 1);
         }
     }
-    writeptr = writeptr + sprintf(filestrbuffer + writeptr, "DI1,DI2,DI3,DI4,DI5,DI6\r\n");
+
+     // Finally the IOs
+    for (int x = 0; x < 6; x++)
+    {
+        if (settings_get_gpio_channel_enabled(x))
+        {
+            // Assuming MAX_LENGTH is the total size of filestrbuffer.
+            // Replace MAX_LENGTH with the actual size of filestrbuffer.
+            int remaining_space = 200 - writeptr;
+            writeptr += snprintf(filestrbuffer + writeptr, remaining_space, "DI%d%s", x+1, (x+1 == 6) ? "" : ",");
+        }
+    }
+
+    // Make sure there is enough room for "\r\n" and the null terminator.
+    int remaining_space = 200 - writeptr;
+    if (remaining_space >= 3) // Enough space for "\r\n" and null-terminator.
+    {
+        writeptr += snprintf(filestrbuffer + writeptr, remaining_space, "\r\n");
+    }
     // ESP_LOGI(TAG_FILE, "%s", filestrbuffer);
     // finally write to file and return
     return fprintf(f, filestrbuffer);
@@ -282,10 +305,10 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
             if ((settings_get()->adc_channel_type & (1 << x)))
             {
                 // Only 2 digits after decimal point for temperature
-                writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d.%02d,",
+                writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d.%01d,",
                                                (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",
                                                abs(dataAdc[i * NUM_ADC_CHANNELS + x] / (ADC_MULT_FACTOR_16B_TEMP)),
-                                               abs((dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_16B_TEMP) / (ADC_MULT_FACTOR_16B_TEMP / 100)));
+                                               abs((dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_16B_TEMP) / (ADC_MULT_FACTOR_16B_TEMP / 1000)));
             }
             else
             {
