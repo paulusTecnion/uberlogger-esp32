@@ -379,7 +379,9 @@ const char * logger_settings_to_json(Settings_t *settings)
     
     cJSON *range_select = cJSON_AddObjectToObject(root, "AIN_RANGE_SELECT");
     cJSON *ntc_select = cJSON_AddObjectToObject(root, "NTC_SELECT");
-    char buf[5];
+    cJSON *ain_enabled = cJSON_AddObjectToObject(root, "AIN_ENABLED");
+    cJSON *din_enabled = cJSON_AddObjectToObject(root, "DIN_ENABLED");
+    char buf[15];
 
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
@@ -387,8 +389,14 @@ const char * logger_settings_to_json(Settings_t *settings)
             sprintf(buf,"NTC%d", i+1);
             cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(settings, i));
 
-            sprintf(buf,"AIN%d", i+1);
+            sprintf(buf,"AIN%d_RANGE", i+1);
              cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
+            
+            sprintf(buf,"AIN%d_ENABLE", i+1);
+             cJSON_AddBoolToObject(ain_enabled, buf, settings_get_adc_channel_enabled(i));
+
+             sprintf(buf,"DIN%d_ENABLE", i+1);
+             cJSON_AddBoolToObject(din_enabled, buf, settings_get_gpio_channel_enabled(i));
 
     }
     
@@ -629,58 +637,68 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     buf[total_len] = '\0';
 
     settings_in = cJSON_Parse(buf);
-    cJSON * item;
+    cJSON * item = NULL;
 
     
     char buf2[30];
-    for (int j = 0; j<2; j++)
+    for (int j = 0; j<4; j++)
     {
         for (int i = 0; i<8; i++)
         {
-            if (j ==0)
+            if (j == 0)
             {
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTC_SELECT");
                 if (item != NULL)
                 {
                     sprintf(buf2, "NTC%d", i+1);
-                    // json_send_resp(req, ENDPOINT_RESP_ERROR);
-                    // return ESP_FAIL;
                 }
 
-                
-            } else {
+            } else if (j == 1) {
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "AIN_RANGE_SELECT");
                 if (item != NULL)
                 {
-                    sprintf(buf2, "AIN%d", i+1);
-                    // json_send_resp(req, ENDPOINT_RESP_ERROR);
-                    // return ESP_FAIL;
+                    sprintf(buf2, "AIN%d_RANGE", i+1);
                 }
-                
+            } else if (j == 2) {
+                item = cJSON_GetObjectItemCaseSensitive(settings_in, "AIN_ENABLED");
+                if (item != NULL)
+                {
+                    sprintf(buf2, "AIN%d_ENABLE", i+1);
+                }
+            } else if (j == 3) {
+                item = cJSON_GetObjectItemCaseSensitive(settings_in, "DIN_ENABLED");
+                if (item != NULL)
+                {
+                    sprintf(buf2, "DIN%d_ENABLE", i+1);
+                }
+            } else {
+                item = NULL;
             }
                 
-            cJSON * subItem = cJSON_GetObjectItemCaseSensitive(item, buf2);
-            if (subItem != NULL)
+            if (item!=NULL)
             {
-                if (j==0)
+                cJSON * subItem = cJSON_GetObjectItemCaseSensitive(item, buf2);
+                if (subItem != NULL)
                 {
-                    #ifdef DEBUG_REST_SERVER
-                    ESP_LOGI("REST: ", "NTC%d %d", i, (subItem->valueint));
-                    #endif
-                    settings_set_adc_channel_type(i, subItem->valueint);
-                } else {
-                    #ifdef DEBUG_REST_SERVER
-                    ESP_LOGI("REST: ", "AIN%d %d", i, (subItem->valueint));
-                    #endif
-                    settings_set_adc_channel_range(i, subItem->valueint);
+                    if (j == 0) {
+                        // #ifdef DEBUG_REST_SERVER
+                        ESP_LOGI("REST: ", "NTC%d %d", i, (subItem->valueint));
+                        // #endif
+                        settings_set_adc_channel_type(i, subItem->valueint);
+                    } else if (j == 1) {
+                        // #ifdef DEBUG_REST_SERVER
+                        ESP_LOGI("REST: ", "AIN%d %d", i, (subItem->valueint));
+                        // #endif
+                        settings_set_adc_channel_range(i, subItem->valueint);
+                    } else if (j == 2) {
+                        ESP_LOGI("REST: ", "AIN ENABLE AIN%d %d", i, (subItem->valueint));
+                        settings_set_adc_channel_enabled(i, subItem->valueint);
+                    } else if (j == 3 ) {
+                        ESP_LOGI("REST: ", "DIO ENABLE DI%d %d", i, (subItem->valueint));
+                        settings_set_gpio_channel_enabled(i, subItem->valueint);
+                    } 
                 }
-                
-            } 
-            // else {
-            //     json_send_resp(req, ENDPOINT_RESP_ERROR);
-            //     return ESP_FAIL;
-            // }
-        
+            }        
         }
     }
         

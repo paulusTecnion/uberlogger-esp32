@@ -272,6 +272,11 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
         // Print ADC
         for (int x = 0; x < NUM_ADC_CHANNELS; x++)
         {
+            // Check if the channel is enable, else skip it
+            if (!settings_get_adc_channel_enabled(x))
+            {
+                continue;
+            }
 
             // If temperature sensor and 16 bits we need to multiply input with 100 (or divide with factor 100 less which is ADC_MULT_FACTOR_16B_TEMP)
             if ((settings_get()->adc_channel_type & (1 << x)))
@@ -305,13 +310,19 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
         }
 
         // Finally the IOs
-        writeptr = writeptr + snprintf(filestrbuffer + writeptr, (2 * 6 + 5), "%d,%d,%d,%d,%d,%d\r\n",
-                                       (dataGpio[j] & 0x04) && 1,
-                                       (dataGpio[j] & 0x08) && 1,
-                                       (dataGpio[j] & 0x10) && 1,
-                                       (dataGpio[j] & 0x20) && 1,
-                                       (dataGpio[j] & 0x40) && 1,
-                                       (dataGpio[j] & 0x80) && 1);
+        for (int x = 0; x < 6; x++)
+        {
+            if (settings_get_gpio_channel_enabled(x))
+            {
+                writeptr = writeptr + snprintf(filestrbuffer + writeptr, 3, "%d%s",
+                                       (dataGpio[j] & (0x04 << x)) && 1,
+                                        ((x == 5) ? "" : ","));
+                           
+            }
+        }
+
+        writeptr = writeptr + snprintf(filestrbuffer + writeptr, 3, "\r\n");
+        
         // ESP_LOGI(TAG_FILE, "%d %ld", j, writeptr);
 
         // writeptr = 0;

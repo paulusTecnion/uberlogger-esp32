@@ -108,6 +108,7 @@ struct Settings_t {
     uint8_t adc_channel_type; // indicate whether channel 0..7 are normal ADC (bit = 0) or NTC (bit = 1). LSB = channel 0, MSB = channel 7
     uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
 	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
+	uint8_t gpio_channels_enabled;
 	uint8_t logMode;
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
@@ -129,9 +130,9 @@ typedef struct Settings_t Settings_t;
 void settings_init();
 Settings_t * settings_get();
 
-uint8_t settings_get_adc_channel_enabled(Settings_t *settings, adc_channel_t channel);
+uint8_t settings_get_adc_channel_enabled(adc_channel_t channel);
 uint8_t settings_get_adc_channel_enabled_all();
-esp_err_t settings_set_enabled_adc_channels(adc_channel_t channel, adc_channel_enable_t value);
+esp_err_t settings_set_adc_channel_enabled(adc_channel_t channel, adc_channel_enable_t value);
 
 uint8_t settings_get_adc_channel_type(Settings_t *settings, adc_channel_t channel);
 uint8_t settings_get_adc_channel_type_all();
@@ -153,6 +154,9 @@ esp_err_t settings_set_adc_offset(int32_t * offsets, adc_resolution_t resolution
 
 Settings_t settings_get_default();
 esp_err_t settings_set_default();
+
+uint8_t settings_get_gpio_channel_enabled(uint8_t channel);
+esp_err_t settings_set_gpio_channel_enabled(uint8_t channel, uint8_t value);
 
 log_mode_t settings_get_logmode();
 esp_err_t settings_set_logmode(log_mode_t mode);

@@ -29,10 +29,11 @@ void settings_init()
     // adc_mult_factor[ADC_RANGE_60V] = ADC_MULT_FACTOR_60V;
 }
 
-uint8_t settings_get_adc_channel_enabled(Settings_t *settings, adc_channel_t channel)
+uint8_t settings_get_adc_channel_enabled(adc_channel_t channel)
 {
-    return settings->adc_channels_enabled & (0x01 << channel);
+    return _settings.adc_channels_enabled & (0x01 << channel);
 }
+
 
 esp_err_t settings_set_adc_channel_enabled(adc_channel_t channel, adc_channel_enable_t value)
 {
@@ -183,6 +184,7 @@ Settings_t settings_get_default()
     default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
     default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     default_settings.adc_channel_range = 0x00; // 10V by default
+    default_settings.gpio_channels_enabled = 0xFF;
     default_settings.logMode = LOGMODE_CSV;
     default_settings.bootReason = 0;
     // Get mac address
@@ -218,6 +220,7 @@ esp_err_t settings_set_default()
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     _settings.adc_channel_range = 0x00; // 10V by default
+    _settings.gpio_channels_enabled = 0xFF;
     _settings.logMode = LOGMODE_CSV;
     _settings.bootReason = 0;
 
@@ -243,6 +246,20 @@ esp_err_t settings_set_default()
     return ESP_OK;
 }
 
+uint8_t settings_get_gpio_channel_enabled(uint8_t channel)
+{
+    return _settings.gpio_channels_enabled & (0x01 << channel);
+}
+
+esp_err_t settings_set_gpio_channel_enabled(uint8_t channel, uint8_t value)
+{
+    // strategie: zet bitje van channel X naar 0 en dan set of unset hem. 
+    _settings.gpio_channels_enabled = _settings.gpio_channels_enabled & ~(0x01 << channel);
+    // Set bit of channel to correct value
+    _settings.gpio_channels_enabled |= ((value << channel));
+
+    return ESP_OK;
+}
 
 log_mode_t settings_get_logmode()
 {
@@ -425,6 +442,8 @@ esp_err_t settings_print()
         ESP_LOGI(TAG_SETTINGS, "ADC 16 bit offset %d: %ld", i, _settings.adc_offsets_16b[i]);
     }
 
+    ESP_LOGI(TAG_SETTINGS, "ADC Enabled: %d", _settings.adc_channels_enabled);
+    ESP_LOGI(TAG_SETTINGS, "GPIO Enabled: %d", _settings.gpio_channels_enabled);
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
     
     ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);

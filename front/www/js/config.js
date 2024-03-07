@@ -10,7 +10,7 @@ function importConfigfile() {
 
 function disableAIN(x) {
   var ntcSelect = document.getElementById("NTC" + x);
-  var ainSelect = document.getElementById("AIN" + x);
+  var ainSelect = document.getElementById("AIN"+ x + "_RANGE");
 
   // Get the selected value of NTCx dropdown
   var selectedValue = ntcSelect.options[ntcSelect.selectedIndex].value;
@@ -84,6 +84,8 @@ function parseConfig(data) {
   populateFields("#configuration", data);
   populateFields("#channel_configuration", data["NTC_SELECT"]);
   populateFields("#channel_configuration", data["AIN_RANGE_SELECT"]);
+  populateFields("#channel_configuration", data["AIN_ENABLED"]);
+  populateFields("#channel_configuration", data["DIN_ENABLED"]);
 }
 
 function testWifiNetwork() {
@@ -235,14 +237,34 @@ function setConfig() {
       NTC8: input["NTC8"],
     },
     AIN_RANGE_SELECT: {
-      AIN1: input["AIN1"],
-      AIN2: input["AIN2"],
-      AIN3: input["AIN3"],
-      AIN4: input["AIN4"],
-      AIN5: input["AIN5"],
-      AIN6: input["AIN6"],
-      AIN7: input["AIN7"],
-      AIN8: input["AIN8"],
+      AIN1_RANGE: input["AIN1_RANGE"],
+      AIN2_RANGE: input["AIN2_RANGE"],
+      AIN3_RANGE: input["AIN3_RANGE"],
+      AIN4_RANGE: input["AIN4_RANGE"],
+      AIN5_RANGE: input["AIN5_RANGE"],
+      AIN6_RANGE: input["AIN6_RANGE"],
+      AIN7_RANGE: input["AIN7_RANGE"],
+      AIN8_RANGE: input["AIN8_RANGE"],
+    },
+    AIN_ENABLED:
+    {
+      AIN1_ENABLE: input["AIN1_ENABLE"],
+      AIN2_ENABLE: input["AIN2_ENABLE"],
+      AIN3_ENABLE: input["AIN3_ENABLE"],
+      AIN4_ENABLE: input["AIN4_ENABLE"],
+      AIN5_ENABLE: input["AIN5_ENABLE"],
+      AIN6_ENABLE: input["AIN6_ENABLE"],
+      AIN7_ENABLE: input["AIN7_ENABLE"],
+      AIN8_ENABLE: input["AIN8_ENABLE"],
+    },
+    DIN_ENABLED:
+    {
+      DIN1_ENABLE: input["DIN1_ENABLE"],
+      DIN2_ENABLE: input["DIN2_ENABLE"],
+      DIN3_ENABLE: input["DIN3_ENABLE"],
+      DIN4_ENABLE: input["DIN4_ENABLE"],
+      DIN5_ENABLE: input["DIN5_ENABLE"],
+      DIN6_ENABLE: input["DIN6_ENABLE"],
     },
     TIMESTAMP: Number(new Date()),
   };
@@ -276,13 +298,26 @@ function setConfig() {
   });
 }
 
-function getFormDataAsJsonObject(object) {
-  let array = {};
-  let data = object.serializeArray();
-
-  $.map(data, function (x) {
-    array[x["name"]] = x["value"];
+function getFormDataAsJsonObject(form) {
+  let jsonObject = {};
+  // Handle regular input fields, unchecked checkboxes, and numeric conversions
+  form.find('input, select, textarea').each(function() {
+      let value = this.value;
+      
+      // Check if value is numeric and convert if so
+      if (!isNaN(value) && value.trim() !== '') {
+          value = +value; // Unary plus operator converts string to number if possible
+      }
+      
+      if (this.type === "checkbox") {
+          jsonObject[this.name] = this.checked; // Directly set boolean value for checkboxes
+      }  else if (this.type === "radio") {
+        if (this.checked) { // Only add if the radio button is checked
+            jsonObject[this.name] = value;
+        }
+      } else {
+          jsonObject[this.name] = value; // Set converted numeric value or original value
+      }
   });
-
-  return array;
+  return jsonObject;
 }
