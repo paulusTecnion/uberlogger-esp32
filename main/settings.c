@@ -7,10 +7,8 @@ static const char* TAG_SETTINGS = "SETTINGS";
 const char * settings_filename = "settings.json";
 Settings_t _settings;
 
-// Mult factor for the ADC channels.
-// Use as follows: mult_factor[resolution][range]
-// int32_t adc_factor[2][2];
-// int64_t adc_mult_factor[2];
+static int8_t lastEnabledADC = -1;
+static int8_t lastEnabledGPIO = -1;
 
 void settings_init()
 {
@@ -18,15 +16,49 @@ void settings_init()
     {
         settings_set_default();
         settings_persist_settings();
+    }    
+}
+
+// Determines the last enabled channel for ADC and GPIO inputs
+void settings_determine_last_enabled_channel()
+{
+    for (int i = NUM_ADC_CHANNELS - 1; i >= 0; i--)
+    {
+        if (settings_get_adc_channel_enabled(i))
+        {
+            lastEnabledADC = i;
+            break; // Found the last enabled ADC, exit the loop
+        }
+
+        if (i == 0)
+        {
+            lastEnabledADC = -1;
+        }
     }
 
-    // Set mult_factor 
-    // adc_factor[ADC_12_BITS0][ADC_RANGE_10V] = ADC_12_BITS_10V_FACTOR;
-    // adc_factor[ADC_12_BITS0][ADC_RANGE_60V] = ADC_12_BITS_60V_FACTOR;
-    // adc_factor[ADC_16_BITS0][ADC_RANGE_10V] = ADC_16_BITS_10V_FACTOR;
-    // adc_factor[ADC_16_BITS0][ADC_RANGE_60V] = ADC_16_BITS_60V_FACTOR;
-    // adc_mult_factor[ADC_RANGE_10V] = ADC_MULT_FACTOR_10V;
-    // adc_mult_factor[ADC_RANGE_60V] = ADC_MULT_FACTOR_60V;
+    for (int i = 5; i >= 0; i--) // Assuming 6 DI channels
+    {
+        if (settings_get_gpio_channel_enabled(i))
+        {
+            lastEnabledGPIO = i;
+            break; // Found the last enabled GPIO, exit the loop
+        }
+
+        if (i == 0)
+        {
+            lastEnabledGPIO = -1;
+        }
+    }
+}
+
+int8_t settings_get_last_enabled_ADC_channel()
+{
+    return lastEnabledADC;
+}
+
+int8_t settings_get_last_enabled_GPIO_channel()
+{
+    return lastEnabledGPIO;
 }
 
 uint8_t settings_get_adc_channel_enabled(adc_channel_t channel)
@@ -184,7 +216,7 @@ Settings_t settings_get_default()
     default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
     default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     default_settings.adc_channel_range = 0x00; // 10V by default
-    default_settings.gpio_channels_enabled = 0xFF;
+    default_settings.gpio_channels_enabled = 0x3F; // 6 always enabled. 2 not available
     default_settings.logMode = LOGMODE_CSV;
     default_settings.bootReason = 0;
     // Get mac address
@@ -257,6 +289,7 @@ esp_err_t settings_set_gpio_channel_enabled(uint8_t channel, uint8_t value)
     _settings.gpio_channels_enabled = _settings.gpio_channels_enabled & ~(0x01 << channel);
     // Set bit of channel to correct value
     _settings.gpio_channels_enabled |= ((value << channel));
+    
 
     return ESP_OK;
 }
@@ -402,6 +435,7 @@ esp_err_t settings_load_persisted_settings()
             #ifdef DEBUG_SETTINGS
             ESP_LOGI(TAG_SETTINGS, "Persisted settings loaded succesfully");
             #endif
+            settings_determine_last_enabled_channel();
             return ESP_OK;     
         } else {
             ESP_LOGE(TAG_SETTINGS, "Error reading settings file, setting and persisting defaults");
@@ -456,6 +490,7 @@ esp_err_t settings_print()
 esp_err_t settings_persist_settings()
 {
     const char * json = logger_settings_to_json(&_settings);
+    settings_determine_last_enabled_channel();
     FILE * f = fopen("/www/settings.json", "w");
     if (f == NULL)
     {
@@ -473,8 +508,6 @@ esp_err_t settings_persist_settings()
         #endif
         return ESP_OK;     
     }
-
-
 
     ESP_LOGE(TAG_SETTINGS, "Persisting settings FAILED");
     return ESP_FAIL;

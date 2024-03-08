@@ -158,6 +158,10 @@ esp_err_t settings_set_default();
 uint8_t settings_get_gpio_channel_enabled(uint8_t channel);
 esp_err_t settings_set_gpio_channel_enabled(uint8_t channel, uint8_t value);
 
+
+int8_t settings_get_last_enabled_ADC_channel();
+int8_t settings_get_last_enabled_GPIO_channel();
+
 log_mode_t settings_get_logmode();
 esp_err_t settings_set_logmode(log_mode_t mode);
 
