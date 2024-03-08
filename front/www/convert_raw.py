@@ -1,5 +1,6 @@
 import struct 
 
+RAW_FORMAT_VERSION = 1
 NUM_ADC_CHANNELS = 8
 ADC_MULT_FACTOR_16B_TEMP = 1000000
 ADC_MULT_FACTOR_60V = 1000000
@@ -140,8 +141,8 @@ def decode_gpio_data(gpio_data_raw):
 def read_file_header(file_path):
     """ Read and return the file header. """
     with open(file_path, 'rb') as file:
-        # Read the settings (5 bytes) and adc_offsets (4 bytes * 8 channels)
-        header_data = file.read(5 + 4 * 8)
+        # Read the settings (6 bytes) and adc_offsets (4 bytes * 8 channels)
+        header_data = file.read(7 + 4 * 8)
         return header_data
     
 def decode_time_data(time_data_raw, data_len):
@@ -195,18 +196,18 @@ def read_struct(file):
 
 
 def decode_file_header(header_data):
-    # Unpack the settings (5 bytes)
-    settings_format = '5B'  # 5 bytes for settings
-    settings = struct.unpack(settings_format, header_data[:5])
+    # Unpack the settings (7 bytes)
+    settings_format = '7B'  # 7 bytes for settings
+    settings = struct.unpack(settings_format, header_data[:7])
 
     # Unpack the adc_offsets (8 int32_t values)
     adc_offsets_format = '8i'  # 8 int32_t values
-    adc_offsets = struct.unpack(adc_offsets_format, header_data[5:])
+    adc_offsets = struct.unpack(adc_offsets_format, header_data[7:])
 
     return settings, adc_offsets
 
 def convert_adc(settings, adc_offsets, adc_data, data_len):
-    adc_channel_range, adc_channel_type = settings[0], settings[1]
+    adc_channel_range, adc_channel_type = settings[1], settings[2]
     converted_values = []
 
     # loop through a total of data_len*8 adc channels
@@ -228,7 +229,7 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
 
         if is_ntc:  # NTC input
             # if in 16 bits, reduce to 12 bits
-            if settings[3] == 16:
+            if settings[4] == 16:
                 adc_value = adc_value >> 4
             p1 = NTC_table[adc_value >> 2]
             p2 = NTC_table[(adc_value >> 2) + 1]
@@ -246,41 +247,63 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
 
     return converted_values
 
-def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type, adc_channel_range, f):
+def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type, adc_channel_range, adc_channel_enable, gpio_channel_enable, f):
     file_bytes_written = 0
-    filestrbuffer = ""
+
+    # Identify the last enabled ADC channel for correct comma handling
+    last_enabled_adc = -1
+    for i in reversed(range(NUM_ADC_CHANNELS)):
+        if adc_channel_enable & (1 << i):
+            last_enabled_adc = i
+            break
+
+    # Identify the last enabled GPIO for correct comma handling
+    last_enabled_gpio = -1
+    for i in reversed(range(6)):  # Assuming 6 GPIO channels
+        if gpio_channel_enable & (1 << i):
+            last_enabled_gpio = i
+            break
 
     for j, date_time in enumerate(date_time_list):
+        # Initialize the string buffer for this row
+        filestrbuffer = ""
         # Print time stamp
         year, month, day, hours, minutes, seconds, _, _, subseconds = date_time
         filestrbuffer += f"20{year:02d}-{month:02d}-{day:02d} {hours:02d}:{minutes:02d}:{seconds:02d}.{subseconds:03d},"
 
-        # Print ADC
+        # Print ADC values
         for x in range(NUM_ADC_CHANNELS):
-            adc_value = dataAdc[j * NUM_ADC_CHANNELS + x]
-            if adc_channel_type & (1 << x):
-                # Temperature sensor
-                filestrbuffer += f"{adc_value},"
-            elif adc_channel_range & (1 << x):
-                # Range is 60V
-                filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_60V:.6f},"
-            else:
-                # Range is 10V
-                filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_10V:.7f},"
+            if adc_channel_enable & (1 << x):  # Check if the ADC channel is enabled
+                adc_value = dataAdc[j * NUM_ADC_CHANNELS + x]
+                # Determine if a comma should follow based on whether this is the last item overall
+                add_comma = x != last_enabled_adc or last_enabled_gpio != -1
+                if adc_channel_type & (1 << x):  # Temperature sensor
+                    filestrbuffer += f"{adc_value}{',' if add_comma else ''}"
+                elif adc_channel_range & (1 << x):  # Range is 60V
+                    filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_60V:.6f}{',' if add_comma else ''}"
+                else:  # Range is 10V
+                    filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_10V:.7f}{',' if add_comma else ''}"
 
-        # Finally the IOs
-        gpio_val = dataGpio[j]
-        filestrbuffer += f"{(gpio_val & 0x04) >> 2},{(gpio_val & 0x08) >> 3},{(gpio_val & 0x10) >> 4},{(gpio_val & 0x20) >> 5},{(gpio_val & 0x40) >> 6},{(gpio_val & 0x80) >> 7}\n"
+        # Print GPIO values
+        for x in range(6):  # Assuming 6 GPIO channels
+            if gpio_channel_enable & (1 << x):  # Check if the GPIO channel is enabled
+                gpio_val = (dataGpio[j] & (1 << x)) >> x
+                add_comma = x != last_enabled_gpio  # Add a comma only if this isn't the last enabled GPIO
+                filestrbuffer += f"{gpio_val}{',' if add_comma else ''}"
 
+        filestrbuffer += "\n"  # End of line for this record
+
+        # Print and write the constructed CSV line
         print(filestrbuffer)
-        if f is not None:
+        if f is not None:  # If a file object is provided, write to it
             len_written = f.write(filestrbuffer)
             if len_written < 0:
-                return 0
+                return 0  # Return zero if writing to the file failed
             file_bytes_written += len_written
-            filestrbuffer = ""  # Clear buffer after writing
 
-    return data_len
+    return data_len  # Return the original data length
+
+
 
 
 
@@ -295,12 +318,20 @@ def format_gpio_data(gpio_data_entry):
     return [int(bit) for bit in format(gpio_data_entry, '08b')[:6]]
 
 
-def generate_header(adc_channel_type):
-    headers = []
+def generate_header(adc_channel_type, adc_channel_enabled, gpio_channel_enabled):
+    headers = ["time(utc)"]  # Start with fixed header part
+    # Iterate through ADC channels
     for i in range(8):  # Assuming 8 channels
-        channel_type = 'NTC' if (adc_channel_type >> i) & 1 else 'AIN'
-        headers.append(f"{channel_type}{i+1}")
-    return "time(utc)," + ",".join(headers) + ",DI1,DI2,DI3,DI4,DI5,DI6"         
+        if (adc_channel_enabled >> i) & 1:  # Check if the channel is enabled
+            channel_type = 'NTC' if (adc_channel_type >> i) & 1 else 'AIN'
+            headers.append(f"{channel_type}{i+1}")
+    
+    # Iterate through GPIO channels
+    for i in range(6):  # Assuming 6 GPIO channels
+        if (gpio_channel_enabled >> i) & 1:  # Check if the channel is enabled
+            headers.append(f"DI{i+1}")
+    
+    return ",".join(headers)
 
 def read_spi_msg_1(file, rows_remaining):
     # Read the header for spi_msg_1
@@ -395,7 +426,7 @@ def read_spi_msg_2(file, data_len, rows_remaining):
 
 
 # File path to your .dat file
-file_path = 'C:/Users/ppott/Downloads/log6.dat'  # Replace with the actual file path
+file_path = 'C:/Users/ppott/Downloads/log0.dat'  # Replace with the actual file path
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
 # Read and decode the file header
@@ -409,21 +440,27 @@ print("Settings:", decoded_settings)
 # For example: decoded_settings = (0, 4, 255, 12, 7)
 
 # Names of the settings
-settings_names = ["adc_channel_range", "adc_channel_type", "adc_channels_enabled", "adc_resolution", "log_sample_rate"]
+settings_names = ["File format version", "adc_channel_range", "adc_channel_type", "adc_channels_enabled", "adc_resolution", "log_sample_rate", "GPIO inputs enabled"]
 
 # Print the settings
 for i, setting in enumerate(decoded_settings):
     print(f"{i+1}. {settings_names[i]}: {setting}")
+    if (i==0 and (setting != RAW_FORMAT_VERSION)):
+        print("ERROR: cannot convert %s. This data file is made with an older and incompatible Uberlogger firmware version.", file_path)
+        exit()
 
 
 print("ADC Offsets:", decoded_adc_offsets)
-adc_channel_range = decoded_settings[0]
-adc_channel_type = decoded_settings[1]  # Extract adc_channel_type from settings
-print(generate_header(adc_channel_type))  # Print the dynamically generated header
+adc_channel_range = decoded_settings[1]
+adc_channel_type = decoded_settings[2]  # Extract adc_channel_type from settings
+adc_channel_enabled = decoded_settings[3]
+gpio_channel_enabled = decoded_settings[6]
+
+print(generate_header(adc_channel_type, adc_channel_enabled, gpio_channel_enabled))  # Print the dynamically generated header
 
 
 with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
-    header_size = 5 + 4 * 8  # Size of the header (5 bytes of settings + 8* adc_offsets)
+    header_size = 7 + 4 * 8  # Size of the header (5 bytes of settings + 8* adc_offsets)
     # Skip the header
     file.seek(header_size)
 
@@ -435,7 +472,7 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
     # go back
     file.seek(header_size)
     # write the csv header
-    fcsv.write(generate_header(adc_channel_type) + '\r')
+    fcsv.write(generate_header(adc_channel_type, adc_channel_enabled, gpio_channel_enabled) + '\r')
 
     message_type = 1  # Start with spi_msg_1
     while True:
@@ -473,7 +510,7 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
             # adc_values = converted_adc_values[i * 8:(i + 1) * 8]  # Extract ADC values for this timestamp
             # print(f"{time_str},{','.join(map(str, adc_values))},{','.join(map(str, gpio_states))}")
         
-        csv_write(converted_adc_values, gpio_data, time_data, data_len, adc_channel_type, adc_channel_range, fcsv)
+        csv_write(converted_adc_values, gpio_data, time_data, data_len, adc_channel_type, adc_channel_range, adc_channel_enabled, gpio_channel_enabled, fcsv)
 
         print('Rows remaining:', {rows_remaining})
 
