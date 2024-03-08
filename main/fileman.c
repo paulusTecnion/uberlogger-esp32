@@ -12,6 +12,7 @@ char file_name[50];
 char filestrbuffer[4900];
 
 uint32_t file_bytes_written = 0;
+uint8_t raw_file_format_version = RAW_FILE_FORMAT_VERSION;
 
 void fileman_create_filename()
 {
@@ -386,6 +387,10 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
 esp_err_t fileman_raw_write_header()
 {
     int w = 0;
+    // Write raw format version number
+    w = fwrite(&raw_file_format_version, sizeof(uint8_t), 1, f);
+    if (w != sizeof(uint8_t))
+        return ESP_FAIL;
     // first write ranges
     w = fwrite(&(settings_get()->adc_channel_range), sizeof(uint8_t), 1, f);
     if (w != sizeof(uint8_t))
@@ -402,12 +407,18 @@ esp_err_t fileman_raw_write_header()
     w = fwrite(&(settings_get()->adc_resolution), sizeof(uint8_t), 1, f);
     if (w != sizeof(uint8_t))
         return ESP_FAIL;
-    // and finally  sample rate
+    //  sample rate
     w = fwrite(&(settings_get()->log_sample_rate), sizeof(uint8_t), 1, f);
+    if (w != sizeof(uint8_t))
+        return ESP_FAIL;
+    // Write gpio channels enabled
+    w = fwrite(&(settings_get()->gpio_channels_enabled), sizeof(uint8_t), 1, f);
     if (w != sizeof(uint8_t))
         return ESP_FAIL;
     // and don't forget the calibration data
     w = fwrite(settings_get_adc_offsets(), sizeof(int32_t), NUM_ADC_CHANNELS, f);
+    if (w != sizeof(int32_t)*NUM_ADC_CHANNELS)
+        return ESP_FAIL;  
 
     return ESP_OK;
 }

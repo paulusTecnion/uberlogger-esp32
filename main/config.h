@@ -119,5 +119,7 @@ DEBUG OUTPUT CONFIGURATION
 #define V_OFFSET_60V 126774848
 #define V_OFFSET_10V 151699029
 
+/* File format settings */
+#define RAW_FILE_FORMAT_VERSION 1
 
 #endif
