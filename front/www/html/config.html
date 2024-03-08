@@ -82,7 +82,7 @@
         >
       </p>
 
-      <table>
+      <table class="compact-table">
         <tr>
           <th>Enable</th>
           <th>Analog channel</th>
@@ -306,8 +306,43 @@
           type="button"
           onClick="setConfig()"
           value="Save channel settings"
-        />
+        />  
       </div>
+      <h3>File options</h3>
+      <span>
+        <input
+          id="log_mode"
+          name="LOG_MODE"
+          class="element radio json-as-number"
+          type="radio"
+          value="1"
+          checked="true"
+        />
+        <label class="choice" for="log_mode"
+          >CSV<br />Write CSV files directly. Recommended for low sample rates or short measurements.</label>
+
+        <input
+          id="log_mode"
+          name="LOG_MODE"
+          class="element radio json-as-number"
+          type="radio"
+          value="0"
+        />
+        <label class="choice" for="log_mode"
+          >Raw data<br />Write the raw data and convert the data to a CSV file afterwards using the Python conversion script. Download <a href="convert_raw.py">here</a>. Recommended for long measurements at high log samples</label
+        >
+
+        <div id="configuration_done">
+          <input
+            id="saveForm"
+            class="button_text"
+            type="button"
+            onClick="setConfig()"
+            value="Save"
+          />  
+        </div>
+      </span>
+
 
       <h3>Analog Calibration</h3>
       <p>

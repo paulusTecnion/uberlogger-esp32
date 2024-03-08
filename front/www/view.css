@@ -482,4 +482,32 @@ h3 {
   color: #ffffff; /* Updated to white */
 }
 
-/* ... (rest of your CSS remains unchanged) ... */
+
+table.compact-table {
+  width: 100%; /* Adjust based on your needs */
+  border-collapse: collapse; /* Remove space between borders */
+  font-size: 0.9em; /* Smaller font for compactness */
+  margin: 10px 0; /* Add some space around the table */
+}
+
+table.compact-table th, 
+table.compact-table td {
+  border: 1px solid #ddd; /* Light grey border */
+  padding: 8px; /* Reduce padding */
+  text-align: left; /* Align text to the left */
+}
+
+table.compact-table th {
+  background-color: #f2f2f2; /* Light grey background for header */
+  font-weight: bold; /* Make header text bold */
+}
+
+table.compact-table tr:nth-child(even) {
+  background-color: #f9f9f9; /* Zebra striping for rows */
+}
+
+/* table.compact-table tr:hover {
+  background-color: #f1f1f1; /* Highlight on row hover 
+} */
+
+

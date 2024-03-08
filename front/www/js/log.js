@@ -30,7 +30,7 @@ function filebrowserRefresh(filebrowserPath) {
       htmlstring += "<b>Current path: " + filebrowserPath + "</b><br/>";
     }
 
-    htmlstring += "<table width='100%'>";
+    htmlstring += "<table width='100%' class=\"compact-table\">";
     htmlstring +=
       "<tr><th width='60%'>Name</th><th width='20%'>Size</th><th width='20%'>Action</th></tr>";
 
