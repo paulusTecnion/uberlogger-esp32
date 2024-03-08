@@ -190,17 +190,29 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     cJSON_AddStringToObject(analog, "UNITS", "Volt");
     cJSON * aValues = cJSON_AddObjectToObject(analog, "VALUES");
     
-    char buf[5];
+    char buf[15];
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
-        if (settings_get_adc_channel_type(settings_get(), i))
+        if (settings_get_adc_channel_enabled(i))
         {
-            sprintf(buf,"T%d", i+1);
-             cJSON_AddNumberToObject(tValues, buf, live_data.temperatureData[i]);
-        } else {
-            sprintf(buf,"AIN%d", i+1);
-            cJSON_AddNumberToObject(aValues, buf, live_data.analogData[i]);
+            if (settings_get_adc_channel_type(settings_get(), i))
+            {
+                sprintf(buf,"T%d", i+1);
+                
+                cJSON_AddNumberToObject(tValues, buf, (double)live_data.temperatureData[i]/10.0);
+            } else {
+                sprintf(buf,"AIN%d", i+1);
+                
+                 if (settings_get_adc_channel_range(settings_get(), i))
+                {
+                    cJSON_AddNumberToObject(aValues, buf, (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_60V);
+                } else {
+                    cJSON_AddNumberToObject(aValues, buf, (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_10V);
+                // cJSON_AddStringToObject(aValues, buf, live_data.analogData[i]);
+                }
+            }
         }
+        
         
     }
       
@@ -213,12 +225,22 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
 //    cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
     cJSON * aDigital = cJSON_AddObjectToObject(digital, "VALUES");
 
-    cJSON_AddNumberToObject(aDigital, "DI1", live_data.gpioData[0]);
-    cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[1]);
-    cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[2]);
-    cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[3]);
-    cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[4]);
-    cJSON_AddNumberToObject(aDigital, "DI6", live_data.gpioData[5]);
+
+    for (int i = 0; i<6; i++)
+    {
+        if (settings_get_gpio_channel_enabled(i))
+        {
+            sprintf(buf, "DI%d", i+1);
+            cJSON_AddNumberToObject(aDigital, buf, live_data.gpioData[i]);
+        }
+            
+    }
+    
+    // cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[1]);
+    // cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[2]);
+    // cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[3]);
+    // cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[4]);
+    // cJSON_AddNumberToObject(aDigital, "DI6", live_data.gpioData[5]);
 
     // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());

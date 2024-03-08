@@ -127,8 +127,8 @@ typedef struct {
 
 typedef struct {
     uint8_t gpioData[6];    // Digital inputs
-    float   temperatureData[8]; // converted adc values to temperature
-    float   analogData[8]; // converted adc values
+    int32_t   temperatureData[8]; // converted adc values to temperature
+    int32_t   analogData[8]; // converted adc values
     uint16_t analogDataRaw[8]; // raw adc values, uncompensated for calibration
     uint64_t timestamp; // timestamp in milliseconds
 } converted_reading_t;

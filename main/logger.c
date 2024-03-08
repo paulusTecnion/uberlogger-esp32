@@ -195,25 +195,13 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
     struct tm t = {0};
     float tfloat = 0.0;
 
-    int32_t adc0, adc1; 
+    int32_t adc0, adc1, fixed_pt_val; 
 
     int32_t channel_offset, channel_range;
 
 
     for (int i =0; i < 16; i=i+2)
     {
-        // if (!msg_part)
-        // {
-        //     adc0 = spi_msg_1_ptr->adcData[i];
-        //     adc1 = spi_msg_1_ptr->adcData[i+1];
-        // } else {
-        //     adc0 = spi_msg_2_ptr->adcData[i];
-        //     adc1 = spi_msg_2_ptr->adcData[i+1];
-        // }
-
-
-
-
         adc0 = live_data_buffer.adcData[i];
         adc1 = live_data_buffer.adcData[i+1];
         int32_t adcVal = adc0 | (adc1 << 8);
@@ -240,31 +228,33 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
         channel_range = 2*channel_offset;
 
-       
-        // dataOutput->analogData[j] = Logger_convertAdcFloat(adcVal);
-        dataOutput->analogData[j] = (float)Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
-        // ESP_LOGI(TAG_LOG, "%u, %f", adcVal, dataOutput->analogData[j]);
-        if (settings_get_adc_channel_range(settings_get(), j))
-        {
-            // 60V range
-            dataOutput->analogData[j] = dataOutput->analogData[j] / (float)ADC_MULT_FACTOR_60V;
+    
+        // dataOutput->analogData[j] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
 
+
+        if (settings_get_adc_channel_type(settings_get(),j) )
+        {
+            if (settings_get_resolution() == ADC_16_BITS)
+            {
+                adcVal = adcVal >> 4;
+            } 
+            dataOutput->temperatureData[j] = NTC_ADC2Temperature(adcVal);
         } else {
-            dataOutput->analogData[j] = dataOutput->analogData[j] / (float)ADC_MULT_FACTOR_10V;
-            
-        }
+                // if range is 60V...
+                dataOutput->analogData[j] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
+
+            }
+
+        // ESP_LOGI(TAG_LOG, "%u, %f", adcVal, dataOutput->analogData[j]);
 
         // ESP_LOGI(TAG_LOG, "%f", dataOutput->analogData[j]);
         
-        if (settings_get_resolution() == ADC_16_BITS)
-        {
-            adcVal = adcVal >> 4;
-        } 
+
             
-        tfloat = (int32_t)NTC_ADC2Temperature(adcVal)/10.0F;
+        // tfloat = (int32_t)NTC_ADC2Temperature(adcVal)/10.0F;
         
         
-        dataOutput->temperatureData[j] = tfloat;
+        // dataOutput->temperatureData[j] = tfloat;
         j++;
     }
 
@@ -394,7 +384,7 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
     // Settings_t * settings = settings_get();
 
     cmd.command = STM32_CMD_SET_ADC_CHANNELS_ENABLED;
-    cmd.data0 = settings_get_adc_channel_enabled_all();
+    cmd.data0 = 0xFF; // Always for to use all channels //settings_get_adc_channel_enabled_all();
 
     spi_ctrl_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, &cmd, sizeof(spi_cmd_t));
     // spi_ctrl_print_rx_buffer();

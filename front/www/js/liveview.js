@@ -48,9 +48,16 @@ function renderValueList(){
 			htmlstring+="<tr><td>" + channel + "</td>";
 
 			if(typeof(channel_value) === "number"){
-			htmlstring+="<td align='right'>" + parseFloat(channel_value).toFixed(3) + "</td></tr>";
-			}else{
-			htmlstring+="<td align='right'>" + channel_value + "</td></tr>";
+				if (channel.startsWith("T")) {
+					// Round to one decimal place for Tx
+					htmlstring += "<td align='right'>" + channel_value.toFixed(1) + "</td></tr>";
+				} else if (channel.startsWith("DI")) {
+					// Round to zero decimal places for DI
+					htmlstring += "<td align='right'>" + channel_value.toFixed(0) + "</td></tr>";
+				} else {
+					// Default formatting for other cases
+					htmlstring += "<td align='right'>" + parseFloat(channel_value).toFixed(3) + "</td></tr>";
+				}
 			}
 
 			storeDataPoint(category, channel, valuesData["TIMESTAMP"], channel_value, category_values["UNITS"]);
