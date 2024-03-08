@@ -63,7 +63,7 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
     if (CHECK_FILE_EXTENSION(filepath, ".html")) {
         type = "text/html";
     } else if (CHECK_FILE_EXTENSION(filepath, ".js")) {
-        type = "application/javascript";
+        type = "application/javascript"; // Corrected from application/javscript
     } else if (CHECK_FILE_EXTENSION(filepath, ".css")) {
         type = "text/css";
     } else if (CHECK_FILE_EXTENSION(filepath, ".png")) {
@@ -71,10 +71,11 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
     } else if (CHECK_FILE_EXTENSION(filepath, ".ico")) {
         type = "image/x-icon";
     } else if (CHECK_FILE_EXTENSION(filepath, ".svg")) {
-        type = "text/xml";
+        type = "image/svg+xml"; // Corrected from text/xml to the more specific image/svg+xml
     } else if (CHECK_FILE_EXTENSION(filepath, ".gz")) {
-        type = "application/javscript";
-    }
+        type = "application/gzip"; // Corrected to application/gzip, noting this is for gzip compressed files
+    } 
+
     
     return httpd_resp_set_type(req, type);
 }
@@ -134,9 +135,32 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
         httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
     }
 
-    if (CHECK_FILE_EXTENSION(filepath, ".json"))
+    if (CHECK_FILE_EXTENSION(filepath, ".json")){
+            httpd_resp_set_type(req, "text/json");
+    }
+
+    if (CHECK_FILE_EXTENSION(filepath, ".py") )
     {
-        httpd_resp_set_type(req, "text/json");
+         // Extract the filename from the filepath
+        const char *filename = strrchr(filepath, '/');
+        if (filename) // Check if the '/' character was found
+        {
+            filename++; // Move past the '/' to the start of the actual filename
+        }
+        else
+        {
+            filename = filepath; // No '/' found, the whole path is the filename
+        }
+
+        // Set the HTTP headers
+        httpd_resp_set_hdr(req, "Content-Type", "application/octet-stream");
+
+        // Create a buffer for the Content-Disposition header
+        char content_disposition[256]; // Adjust size as needed
+        snprintf(content_disposition, sizeof(content_disposition), "attachment; filename=\"%s\"", filename);
+
+        // Set the Content-Disposition header with the actual filename
+        httpd_resp_set_hdr(req, "Content-Disposition", content_disposition);
     }
 
     char *chunk = rest_context->scratch;
@@ -634,7 +658,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 
     // Store old settings (only to compare old wifi settings)
     Settings_t oldSettings;
-     memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
+    memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
 
     int total_len = req->content_len;
     int cur_len = 0;
