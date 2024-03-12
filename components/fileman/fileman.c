@@ -1,6 +1,9 @@
+#include <stdio.h>
+#include <string.h>
 #include "fileman.h"
 #include "../../main/settings.h"
 #include "../../main/config.h"
+
 
 #define MOUNT_POINT "/sdcard"
 static const char *TAG_FILE = "FILEMAN";
@@ -9,10 +12,10 @@ static uint32_t file_seq_subnum=0;
 static FILE* f = NULL;
 char file_name[50];
 char filestrbuffer[4900];
-
+char _prefix[100];
 uint32_t file_bytes_written = 0;
 
-void fileman_create_filename()
+void fileman_create_filename(const char * prefix)
 {
     char filext[5];
     if (settings_get_logmode() == LOGMODE_CSV)
@@ -22,8 +25,10 @@ void fileman_create_filename()
         sprintf(filext, "%s", ".dat");
     }
 
-    sprintf(file_name, MOUNT_POINT"/log%d%s", file_seq_num, filext);
-    // ESP_LOGI(TAG_FILE, "%s", file_name);
+    sprintf(file_name, MOUNT_POINT"/%s%d%s", prefix, file_seq_num, filext);
+    #ifdef DEBUG_FILEMAN
+    ESP_LOGI(TAG_FILE, "%s", file_name);
+    #endif
 }
 
 
@@ -31,9 +36,10 @@ uint8_t fileman_check_current_file_size(size_t sizeInBytes)
 {
     if (file_bytes_written > sizeInBytes)
     {
+         #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "File size exceeded %d bytes", sizeInBytes);
+        #endif
         file_bytes_written = 0;
-        file_seq_subnum++;
         return 1;
     } else {
         return 0;
@@ -45,9 +51,29 @@ void fileman_reset_subnum(void)
     file_seq_subnum = 0;
 }
 
-// fileman_search_last_sequence_file must be called before callign this function!
-esp_err_t fileman_open_file(void)
+esp_err_t fileman_set_prefix(const char * prefix)
 {
+    if ( strlen(prefix) < sizeof(_prefix))
+    {
+        strcpy(_prefix, prefix);
+    } else {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    // Determine last index of file with prefix
+    uint32_t t= fileman_search_last_sequence_file();
+     #ifdef DEBUG_FILEMAN
+    ESP_LOGI(TAG_FILE, "Prefix set: %s with follow number %d", _prefix, t);
+    #endif
+    return ESP_OK;
+}
+    
+    
+
+// fileman_search_last_sequence_file must be called before callign this function!
+esp_err_t fileman_open_file()
+{
+    fileman_create_filename(_prefix);
     if (strcmp(file_name, "") == 0)
     {
         #ifdef DEBUG_FILEMAN
@@ -55,7 +81,7 @@ esp_err_t fileman_open_file(void)
         #endif
         return ESP_FAIL;
     }
-    fileman_create_filename();
+
     // Use POSIX and C standard library functions to work with files.
     // First create a file.
     #ifdef DEBUG_FILEMAN
@@ -89,7 +115,7 @@ esp_err_t fileman_close_file(void)
         #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "Closing file");
         #endif
-        // file_seq_num++;
+        file_seq_num++;
         return ESP_OK;
     } else {
         ESP_LOGE(TAG_FILE, "Cannot close file! f == NULL");
@@ -97,14 +123,14 @@ esp_err_t fileman_close_file(void)
     }
 }
 
-esp_err_t fileman_search_last_sequence_file(void)
+uint32_t fileman_search_last_sequence_file(void)
 {
     f = NULL;
     file_seq_num = 0;
 
     
     while (1) {
-        fileman_create_filename();
+        fileman_create_filename(_prefix);
         f = fopen(file_name, "r");
     
         if (f==NULL)
@@ -115,10 +141,11 @@ esp_err_t fileman_search_last_sequence_file(void)
         }
 
         file_seq_num++;
+        
 
     }
     #ifdef DEBUG_FILEMAN
-    ESP_LOGI(TAG_FILE, "Sequence number: %d", file_seq_num);
+    ESP_LOGI(TAG_FILE, "File name number: %d", file_seq_num);
     #endif
 
     return file_seq_num;
@@ -266,14 +293,15 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
             return 0;
         }
 
-        int len = fprintf(f, (const char*)filestrbuffer);
-        // int len = fputs((const char*)filestrbuffer, f);
+        // int len = fprintf(f, (const char*)filestrbuffer);
+        int len = fputs((const char*)filestrbuffer, f);
         // if (fputs((const char*)filestrbuffer, f) < 0)
         if (len < 0)
         {    
             return 0;
         }
-        file_bytes_written += len;
+    
+        file_bytes_written += strlen(filestrbuffer);
         writeptr = 0;
     //    }
 

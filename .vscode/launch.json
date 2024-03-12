@@ -1,0 +1,56 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      //"preLaunchTask": "preRun",
+      "name": "ESP32 OpenOCD Attach",
+      "type": "cppdbg",
+      "request": "launch",
+      "MIMode": "gdb",
+      // "cwd": "${workspaceFolder}/build",
+      "program": "${workspaceFolder}/build/uberlogger-esp32.elf",
+      "miDebuggerPath": "C:/Espressif/tools/xtensa-esp32s2-elf/esp-2022r1-11.2.0/xtensa-esp32s2-elf/bin/xtensa-esp32s2-elf-gdb.exe",
+      // "setupCommands": [
+      //   { "text": "target remote :3333" },
+      //   { "text": "set remote hardware-watchpoint-limit 2" },
+      //   { "text": "monitor reset halt" },
+      //   { "text": "flushregs" }
+      // ]
+      // "miDebuggerPath": "${command:espIdf.getXtensaGdb}",
+      // "program": "${workspaceFolder}/build/${command:espIdf.getProjectName}.elf",
+      "windows": {
+        "program": "${workspaceFolder}\\build\\${command:espIdf.getProjectName}.elf"
+      },
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        { "name": "PATH", "value": "${config:idf.customExtraPaths}" }
+      ],
+      "setupCommands": [
+        { "text": "target remote :3333" },
+        { "text": "set remote hardware-watchpoint-limit 2" },
+        { "text": "mon reset halt" },
+        { "text": "flushregs" }
+        // {
+        //   "text": "mon program_esp build/bootloader/bootloader.bin 0x1000 verify"
+        // },
+        // {
+        //   "text": "mon program_esp build/partition_table/partition-table.bin 0x8000 verify"
+        // },
+        // {
+        //   "text": "mon program_esp build/ota_data_initial.bin 0xf000 verify"
+        // },
+        // {
+        //   "text": "mon program_esp build/uberlogger-esp32.bin 0x20000 verify"
+        // },
+        // {
+        //   "text": "mon program_esp build/www.bin 0x27c000 verify"
+        // },
+        // { "text": "flushregs" }
+      ],
+      "externalConsole": false,
+      "logging": {
+        "engineLogging": true
+      }
+    }
+  ]
+}

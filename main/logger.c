@@ -1012,9 +1012,12 @@ esp_err_t Logger_flush_to_sdcard()
 
     if (fileman_check_current_file_size(MAX_FILE_SIZE))
     {
-        ESP_LOGW(TAG_LOG, "Reached max file size");
-        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
-        goto error;
+        ESP_LOGW(TAG_LOG, "Reached max file size. Closing file and reopening new...");
+        fileman_close_file();
+       
+        fileman_open_file("test");
+        //SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
+        //goto error;
     } 
 
     // Close file
@@ -1510,6 +1513,8 @@ void Logtask_calibration()
     adc_sample_rate_t last_sample_rate;
     uint8_t x = 0;
 
+    last_resolution = settings_get_resolution();
+    last_sample_rate = settings_get_samplerate();
     ESP_LOGI(TAG_LOG, "Calibration step %d", calibration);
 
     while (1)
@@ -1518,8 +1523,7 @@ void Logtask_calibration()
         {
             case 0:
                 // Switch to 12 bits mode and do single shot. Then switch to 16 bits and the same.
-                last_resolution = settings_get_resolution();
-                last_sample_rate = settings_get_samplerate();
+                
                 settings_set_resolution(ADC_12_BITS);
                 settings_set_samplerate(ADC_SAMPLE_RATE_250Hz);
                 settings_persist_settings();
@@ -1681,11 +1685,8 @@ void Logtask_logging()
             // ...
             return;
         }
-        #ifdef DEBUG_LOGTASK
-        ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
-        #endif
-
-        fileman_reset_subnum();
+       
+        fileman_set_prefix("test");
         if (fileman_open_file() != ESP_OK)
         { 
             // esp_sd_card_unmount();
@@ -1985,12 +1986,14 @@ void task_logging(void * pvParameters)
        
     // Initialize SD card
 
-    if (gpio_get_level(SDCARD_CD)  &&
+    if (esp_sd_card_check_for_card() == ESP_OK  &&
         esp_sd_card_mount() == ESP_OK)
     {
         #ifdef DEBUG_LOGTASK
-        ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+        //ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+        ESP_LOGI(TAG_LOG, "File prefix: %s", "test");
         #endif
+        
         // esp_sd_card_unmount();
     } 
     
