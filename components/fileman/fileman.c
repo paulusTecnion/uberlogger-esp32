@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "fileman.h"
 #include "../../main/settings.h"
 #include "../../main/config.h"
@@ -25,7 +26,8 @@ void fileman_create_filename(const char * prefix)
         sprintf(filext, "%s", ".dat");
     }
 
-    sprintf(file_name, MOUNT_POINT"/%s%d%s", prefix, file_seq_num, filext);
+    // sprintf(file_name, MOUNT_POINT"/%s%d%s", prefix, file_seq_num, filext);
+    sprintf(file_name, MOUNT_POINT"/%s%s", prefix, filext);
     #ifdef DEBUG_FILEMAN
     ESP_LOGI(TAG_FILE, "%s", file_name);
     #endif
@@ -51,19 +53,32 @@ void fileman_reset_subnum(void)
     file_seq_subnum = 0;
 }
 
-esp_err_t fileman_set_prefix(const char * prefix)
+esp_err_t fileman_set_prefix(const char * prefix, time_t timestamp)
 {
-    if ( strlen(prefix) < sizeof(_prefix))
+      struct tm *tm_info;
+    char time_buffer[20]; // Buffer to hold the formatted date and time
+
+    if ( strlen(prefix) > (sizeof(_prefix) - sizeof(time_buffer)))
     {
-        strcpy(_prefix, prefix);
-    } else {
         return ESP_ERR_INVALID_SIZE;
     }
 
+  
+    timestamp /= 1000;
+    // Convert Unix timestamp to local time
+    tm_info = localtime(&timestamp);
+
+    // Format the time "YYYYMMDD_HH-MM-SS" suitable for filenames
+    strftime(time_buffer, sizeof(time_buffer), "%Y%m%d_%H-%M-%S", tm_info);
+
+
+    snprintf(_prefix, sizeof(_prefix), "%s_%s",time_buffer, prefix);
+
+// fileman_search_last_sequence_file
     // Determine last index of file with prefix
-    uint32_t t= fileman_search_last_sequence_file();
+    // uint32_t t= fileman_search_last_sequence_file();
      #ifdef DEBUG_FILEMAN
-    ESP_LOGI(TAG_FILE, "Prefix set: %s with follow number %d", _prefix, t);
+    ESP_LOGI(TAG_FILE, "Prefix set: %s", _prefix);
     #endif
     return ESP_OK;
 }
