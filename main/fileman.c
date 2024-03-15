@@ -1,46 +1,55 @@
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 #include "fileman.h"
 #include "settings.h"
 #include "config.h"
 
+
 #define MOUNT_POINT "/sdcard"
-
 static const char *TAG_FILE = "FILEMAN";
-static uint32_t file_seq_num = 0;
-static uint32_t file_seq_subnum = 0;
-static FILE *f = NULL;
-char file_name[50];
+static uint32_t file_seq_num=0;
+static uint32_t file_seq_subnum=0;
+static FILE* f = NULL;
+char _file_name[105];
 char filestrbuffer[4900];
-
+char _prefix[100];
 uint32_t file_bytes_written = 0;
 uint8_t raw_file_format_version = RAW_FILE_FORMAT_VERSION;
-
-void fileman_create_filename()
+void fileman_create_filename(const char * prefix, char * file_name)
 {
     char filext[5];
     if (settings_get_logmode() == LOGMODE_CSV)
     {
         sprintf(filext, "%s", ".csv");
-    }
-    else
-    {
+    } else {
         sprintf(filext, "%s", ".dat");
     }
 
-    sprintf(file_name, MOUNT_POINT "/log%lu%s", file_seq_num, filext);
-    // ESP_LOGI(TAG_FILE, "%s", file_name);
+    // if (settings_get_file_name_mode() == FILE_NAME_MODE_SEQ_NUM)
+    // {
+    //     sprintf(file_name, MOUNT_POINT"/%s%d%s", prefix, file_seq_num, filext);
+    // } else {
+    sprintf(file_name, MOUNT_POINT"/%s%s", prefix, filext);
+    // }
+    
+    
+    #ifdef DEBUG_FILEMAN
+    ESP_LOGI(TAG_FILE, "%s", file_name);
+    #endif
 }
+
 
 uint8_t fileman_check_current_file_size(size_t sizeInBytes)
 {
     if (file_bytes_written > sizeInBytes)
     {
+         #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "File size exceeded %d bytes", sizeInBytes);
+        #endif
         file_bytes_written = 0;
-        file_seq_subnum++;
         return 1;
-    }
-    else
-    {
+    } else {
         return 0;
     }
 }
@@ -50,95 +59,146 @@ void fileman_reset_subnum(void)
     file_seq_subnum = 0;
 }
 
-// fileman_search_last_sequence_file must be called before callign this function!
-esp_err_t fileman_open_file(void)
+esp_err_t fileman_set_prefix(const char * prefix, time_t timestamp, uint8_t continueNumbering)
 {
-    if (strcmp(file_name, "") == 0)
+      struct tm *tm_info;
+    char time_buffer[20]; // Buffer to hold the formatted date and time
+
+    if ( strlen(prefix) > (sizeof(_prefix) - sizeof(time_buffer)))
     {
-#ifdef DEBUG_FILEMAN
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    if(settings_get_file_name_mode() == FILE_NAME_MODE_SEQ_NUM)
+    {
+        if (continueNumbering)
+        {
+            snprintf(_prefix, sizeof(_prefix), "%s%ld", prefix, file_seq_num);
+        } else {
+            snprintf(_prefix, sizeof(_prefix), "%s%ld", prefix, fileman_search_last_sequence_file(prefix));
+        }
+    } else {
+  
+        timestamp /= 1000;
+        // Convert Unix timestamp to local time
+        tm_info = localtime(&timestamp);
+
+        // Format the time "YYYYMMDD_HH-MM-SS" suitable for filenames
+        strftime(time_buffer, sizeof(time_buffer), "%Y%m%d_%H-%M-%S", tm_info);
+
+
+        snprintf(_prefix, sizeof(_prefix), "%s_%s",time_buffer, prefix);
+    }
+
+     #ifdef DEBUG_FILEMAN
+    ESP_LOGI(TAG_FILE, "Prefix set: %s", _prefix);
+    #endif
+    return ESP_OK;
+}
+    
+
+// fileman_search_last_sequence_file must be called before callign this function!
+esp_err_t fileman_open_file()
+{
+    // Create the file name based on the previously called fileman_set_prefix function
+    fileman_create_filename(_prefix, _file_name);
+
+    if (strcmp(_file_name, "") == 0)
+    {
+        #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "No file name specified!");
-#endif
+        #endif
         return ESP_FAIL;
     }
-    fileman_create_filename();
-// Use POSIX and C standard library functions to work with files.
-// First create a file.
-#ifdef DEBUG_FILEMAN
-    ESP_LOGI(TAG_FILE, "Opening file %s", file_name);
-#endif
 
+    // Use POSIX and C standard library functions to work with files.
+    // First create a file.
+    #ifdef DEBUG_FILEMAN
+    ESP_LOGI(TAG_FILE, "Opening file %s", _file_name);
+    #endif
+    
     // Open file
-    f = fopen(file_name, "a");
-    if (f == NULL)
-    {
+    f = fopen(_file_name, "a");
+    if (f == NULL) {
         ESP_LOGE(TAG_FILE, "Failed to open file for writing");
         return ESP_FAIL;
     }
 
+
     if (setvbuf(f, NULL, _IOFBF, 8192) != 0)
     {
         ESP_LOGE(TAG_FILE, "setvbuf failed");
-        perror("The following error occurred");
+        perror ("The following error occurred");
         return ESP_FAIL;
     }
+
+    // All good, set written bytes to 0
+    file_bytes_written = 0;
 
     return ESP_OK;
 }
 
 esp_err_t fileman_close_file(void)
 {
-    if (f != NULL)
+    if (f!=NULL)
     {
         fclose(f);
         f = NULL;
-#ifdef DEBUG_FILEMAN
+        #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "Closing file");
-#endif
-        // file_seq_num++;
+        #endif
+        if (settings_get_file_name_mode() == FILE_NAME_MODE_SEQ_NUM)
+        {
+            file_seq_num++;
+        }
         return ESP_OK;
-    }
-    else
-    {
+    } else {
         ESP_LOGE(TAG_FILE, "Cannot close file! f == NULL");
         return ESP_FAIL;
     }
 }
 
-esp_err_t fileman_search_last_sequence_file(void)
+uint32_t fileman_search_last_sequence_file(const char * prefix)
 {
     f = NULL;
     file_seq_num = 0;
 
-    while (1)
-    {
-        fileman_create_filename();
-        f = fopen(file_name, "r");
+    char tmpFileName[105];
+    char tmpPrefix[100];
 
-        if (f == NULL)
+    while (1) {
+        
+        snprintf(tmpPrefix, sizeof(tmpPrefix), "%s%ld", prefix, file_seq_num);
+        fileman_create_filename(tmpPrefix, tmpFileName);
+
+        f = fopen(tmpFileName, "r");
+    
+        if (f==NULL)
         {
             break;
-        }
-        else
-        {
-            fclose(f);
+        } else {
+            fclose(f); 
         }
 
         file_seq_num++;
+        
+
     }
-#ifdef DEBUG_FILEMAN
-    ESP_LOGI(TAG_FILE, "Sequence number: %d", file_seq_num);
-#endif
+    #ifdef DEBUG_FILEMAN
+    ESP_LOGI(TAG_FILE, "File name number: %ld", file_seq_num);
+    #endif
 
     return file_seq_num;
 }
+ 
 
-int fileman_write(const void *data, size_t len)
+int fileman_write(const void * data, size_t len)
 {
-    size_t write_result = fwrite(data, len, 1, f);
+    size_t write_result = fwrite(data,len, 1, f);
     if (write_result != 1)
     {
-        ESP_LOGE(TAG_FILE, "Error writing to backing store %d %d\n", (int)len, write_result);
-        perror("The following error occurred");
+        ESP_LOGE(TAG_FILE,"Error writing to backing store %d %d\n", (int)len, write_result);
+        perror ("The following error occurred");
         return 0;
     }
     return write_result;
@@ -191,7 +251,7 @@ int fileman_csv_write_header()
     return fprintf(f, filestrbuffer);
 }
 
-int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData)
+esp_err_t fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData)
 {
     // loop through the sdcard data and write to file
 
@@ -232,7 +292,7 @@ int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData
             
             // Abort mission when failure occured..
             if (ret < 0)
-                return ret;
+                return ESP_FAIL;
         }
 
         // if (numRemainingRows > 0)
@@ -263,15 +323,14 @@ int fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *adcData
         // }
     
 
-    return ret;
+    return ESP_OK;
 }
 
-int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const uint8_t *dataTime, size_t datarows)
+int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_date_time_t *date_time_ptr, size_t datarows)
 {
     int j = 0;
     uint32_t writeptr = 0;
 
-    s_date_time_t *date_time_ptr = (s_date_time_t *)dataTime;
     // ESP_LOGI(TAG_FILE,"Lengths: %u, %u, %u", lenAdc, lenGpio, lenTime);
 
     // for (int i = 0; i<32; i++)
@@ -343,7 +402,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
             if (settings_get_gpio_channel_enabled(x))
             {
                 writeptr = writeptr + snprintf(filestrbuffer + writeptr, 3, "%d%s",
-                                       (dataGpio[j] & (0x04 << x)) && 1,
+                                       (dataGpio[j] & (0x01 >> x)) && 1,
                                         (x == settings_get_last_enabled_GPIO_channel()) ? "" : ",");
                            
             }
@@ -375,7 +434,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const ui
         {
             return 0;
         }
-        file_bytes_written += len;
+        file_bytes_written += strlen(filestrbuffer);
         writeptr = 0;
         //    }
     }

@@ -16,7 +16,7 @@ void settings_init()
     {
         settings_set_default();
         settings_persist_settings();
-    }    
+    }
 }
 
 // Determines the last enabled channel for ADC and GPIO inputs
@@ -216,9 +216,13 @@ Settings_t settings_get_default()
     default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
     default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     default_settings.adc_channel_range = 0x00; // 10V by default
-    default_settings.gpio_channels_enabled = 0x3F; // 6 always enabled. 2 not available
+     default_settings.gpio_channels_enabled = 0x3F; // 6 always enabled. 2 not available
     default_settings.logMode = LOGMODE_CSV;
     default_settings.bootReason = 0;
+    strcpy(_settings.file_prefix, "log");
+    _settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
+    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
+    _settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
     // Get mac address
     char buffer[8];
     wifi_get_trimmed_mac(buffer);
@@ -246,16 +250,19 @@ esp_err_t settings_set_default()
     #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Setting default settings");
     #endif
-    _settings.adc_resolution = ADC_12_BITS;
+    _settings.adc_resolution = ADC_16_BITS;
 
     _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     _settings.adc_channel_range = 0x00; // 10V by default
-    _settings.gpio_channels_enabled = 0xFF;
+    _settings.gpio_channels_enabled = 0x3F;
     _settings.logMode = LOGMODE_CSV;
     _settings.bootReason = 0;
-
+    strcpy(_settings.file_prefix, "log");
+    _settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
+    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
+    _settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
     // Get mac address
     char buffer[8];
     wifi_get_trimmed_mac(buffer);
@@ -294,6 +301,94 @@ esp_err_t settings_set_gpio_channel_enabled(uint8_t channel, uint8_t value)
     return ESP_OK;
 }
 
+uint8_t settings_get_file_name_mode()
+{
+    return _settings.file_name_mode;
+}
+
+esp_err_t settings_set_file_name_mode(uint8_t mode)
+{
+    if (mode > FILE_NAME_MODE_TIMESTAMP)   
+        return ESP_ERR_INVALID_ARG;
+    _settings.file_name_mode = mode;
+    return ESP_OK;
+}
+
+
+esp_err_t settings_set_file_prefix(const char * prefix)
+{
+    if (strlen(prefix) > (MAX_FILE_PREFIX_LENGTH - 1))
+        return ESP_ERR_INVALID_SIZE;
+    
+    strcpy(_settings.file_prefix, prefix);
+    return ESP_OK;
+}
+
+char * settings_get_file_prefix()
+{
+    return _settings.file_prefix;
+}
+
+esp_err_t settings_set_file_split_size(uint32_t size)
+{
+
+    uint64_t sizeInKiB = 0;
+
+    switch (_settings.file_split_size_unit)
+    {
+        case 0:
+            // KB
+           sizeInKiB = size;
+        break;
+
+        case 1:
+            // MB
+            sizeInKiB = size * 1024;
+        break;
+
+        case 2:
+            // GB
+
+            sizeInKiB = size * 1024 * 1024; // From GB to KB
+        break;
+
+        default:
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (sizeInKiB < (200) ||
+        (sizeInKiB > (MAX_FILE_SPLIT_SIZE/1024) ))
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    
+    _settings.file_split_size = sizeInKiB*1024;
+
+    
+    return ESP_OK;
+}
+
+// Returns the file split size in BYTES
+uint32_t settings_get_file_split_size()
+{
+    return _settings.file_split_size;
+}
+
+esp_err_t settings_set_file_split_size_unit(uint8_t unit)
+{
+    if (unit > 2)
+        return ESP_ERR_INVALID_ARG;
+    _settings.file_split_size_unit = unit;    
+    return ESP_OK;
+}
+
+uint8_t settings_get_file_split_size_unit()
+{
+    return _settings.file_split_size_unit;
+}
+
+
 log_mode_t settings_get_logmode()
 {
     return _settings.logMode;
@@ -316,6 +411,30 @@ esp_err_t settings_set_logmode(log_mode_t mode)
     }
     return ESP_OK;
 }
+
+// Set system time. Timestamp in seconds
+void settings_set_system_time(time_t timestamp)
+{
+    struct timeval tv;
+    tv.tv_sec = timestamp;
+    tv.tv_usec = 0; // Set microseconds to 0, as time_t is typically accurate only to seconds.
+
+    // Set the system time
+    settimeofday(&tv, NULL);
+    ESP_LOGI(TAG_SETTINGS, "System time set ");
+
+    // Obtain and print the current system time
+    time_t now;
+    struct tm *timeinfo;
+    char buffer[64]; // Make sure this buffer is large enough for your chosen date-time format
+
+    time(&now); // Get the current time
+    timeinfo = localtime(&now); // Convert the current time to local time
+
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo); // Format the time as a string
+    ESP_LOGI(TAG_SETTINGS, "Current system time: %s", buffer);
+}
+
 
 uint8_t settings_get_wifi_channel()
 {
@@ -405,7 +524,7 @@ adc_resolution_t settings_get_resolution()
 
 esp_err_t settings_set_samplerate(adc_sample_rate_t rate)
 {
-    if (rate >= ADC_SAMPLE_RATE_EVERY_60S && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
+    if (rate >= ADC_SAMPLE_RATE_1Hz && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
     {
         #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "ADC SAMPLE RATE= %d", rate);
@@ -479,7 +598,12 @@ esp_err_t settings_print()
     ESP_LOGI(TAG_SETTINGS, "ADC Enabled: %d", _settings.adc_channels_enabled);
     ESP_LOGI(TAG_SETTINGS, "GPIO Enabled: %d", _settings.gpio_channels_enabled);
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
-    
+    ESP_LOGI(TAG_SETTINGS, "File prefix %s", _settings.file_prefix);
+    ESP_LOGI(TAG_SETTINGS, "File split size unit: %d", _settings.file_split_size_unit);
+    ESP_LOGI(TAG_SETTINGS, "File split size: %ld", _settings.file_split_size);
+
+
+
     ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);
     ESP_LOGI(TAG_SETTINGS, "Wifi AP SSID %s", _settings.wifi_ssid_ap);
     ESP_LOGI(TAG_SETTINGS, "Wifi channel %d", _settings.wifi_channel);
@@ -523,6 +647,7 @@ esp_err_t settings_set_timestamp(uint64_t timestamp)
     ESP_LOGI(TAG_SETTINGS, "Incoming timestamp: %lld, outgoing %ld", timestamp, (uint32_t)(timestamp/1000));
 
     _settings.timestamp = (uint32_t)(timestamp/1000);
+    settings_set_system_time(_settings.timestamp);
     return ESP_OK;
 }
 

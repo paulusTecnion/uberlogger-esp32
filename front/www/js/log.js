@@ -60,7 +60,9 @@ function formatSdcard() {
   if (confirm("Format SD-card, are you sure?") == true) {
     $.getJSON("./ajax/formatSdcard", (data) => {
       // to do: implement a proper response sequence
-      alert("SD-card now formatting. Please wait, this will take up to 30 seconds.");
+      alert(
+        "SD-card now formatting. Please wait, this will take up to 30 seconds."
+      );
     }).fail(function () {
       alert("Error: could not format SD-card. Are you logging?");
       console.log("Data query failed. NOK.");
@@ -122,7 +124,7 @@ function buildFileTree(data, htmlstring, depth, path) {
         "</td>";
       htmlstring +=
         "<td>" +
-        (((value["SIZE"] / BYTES_PER_MB) < 0.001)
+        (value["SIZE"] / BYTES_PER_MB < 0.001
           ? 0.001
           : value["SIZE"] / BYTES_PER_MB
         ).toFixed(3) +

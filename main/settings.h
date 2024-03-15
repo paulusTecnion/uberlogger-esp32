@@ -8,6 +8,16 @@
 #include "freertos/FreeRTOS.h"
 #include "common.h"
 
+#define MAX_FILE_PREFIX_LENGTH 70 // max number of characters
+#define MAX_FILE_SPLIT_SIZE 0xFFFFFFFF // in BYTES
+
+#define FILE_SPLIT_SIZE_UNIT_KB 0
+#define FILE_SPLIT_SIZE_UNIT_MB 1
+#define FILE_SPLIT_SIZE_UNIT_GB 2
+
+#define FILE_NAME_MODE_SEQ_NUM 0
+#define FILE_NAME_MODE_TIMESTAMP 1
+
 #define MAX_WIFI_SSID_LEN 32
 #define MAX_WIFI_PASSW_LEN 20
 
@@ -50,9 +60,9 @@ typedef enum adc_channel_enable_e {
 } adc_channel_enable_t;
 
 typedef enum adc_sample_rate_e {
-	ADC_SAMPLE_RATE_EVERY_60S = 0,
-	ADC_SAMPLE_RATE_EVERY_10S,
-    ADC_SAMPLE_RATE_1Hz,
+	// ADC_SAMPLE_RATE_EVERY_60S = 0,
+	// ADC_SAMPLE_RATE_EVERY_10S,
+    ADC_SAMPLE_RATE_1Hz = 0,
 	ADC_SAMPLE_RATE_2Hz,
 	ADC_SAMPLE_RATE_5Hz,
 	ADC_SAMPLE_RATE_10Hz,
@@ -110,6 +120,12 @@ struct Settings_t {
 	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
 	uint8_t gpio_channels_enabled;
 	uint8_t logMode;
+	uint8_t file_name_mode;  // 0 = sequential logfile, 1 = timestamp
+	char file_prefix[MAX_FILE_PREFIX_LENGTH];
+	// File split size in bytes
+	uint32_t file_split_size;
+	// File split size unit. 0 = KB, 1 = MB, 2 = GB
+	uint8_t file_split_size_unit;
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
 	char wifi_password[MAX_WIFI_PASSW_LEN];
@@ -155,6 +171,18 @@ esp_err_t settings_set_adc_offset(int32_t * offsets, adc_resolution_t resolution
 Settings_t settings_get_default();
 esp_err_t settings_set_default();
 
+uint8_t settings_get_file_name_mode();
+esp_err_t settings_set_file_name_mode(uint8_t mode);
+
+esp_err_t settings_set_file_prefix(const char * prefix);
+char * settings_get_file_prefix();
+
+esp_err_t settings_set_file_split_size(uint32_t size);
+uint32_t settings_get_file_split_size();
+
+esp_err_t settings_set_file_split_size_unit(uint8_t unit);
+uint8_t settings_get_file_split_size_unit();
+
 uint8_t settings_get_gpio_channel_enabled(uint8_t channel);
 esp_err_t settings_set_gpio_channel_enabled(uint8_t channel, uint8_t value);
 
@@ -186,6 +214,8 @@ esp_err_t settings_print();
 
 adc_resolution_t settings_get_resolution();
 esp_err_t settings_set_resolution(adc_resolution_t res);
+
+void settings_set_system_time(time_t timestamp);
 
 /// @brief Sets the current date and time based on the epoch timestamp
 /// @param timestamp 32-bit Unix epoch timestamp

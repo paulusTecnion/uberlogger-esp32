@@ -105,6 +105,7 @@ QueueHandle_t xQueueFW = NULL;
 // temporary variables to calculate fixed point numbers
 int64_t t0, t1,t2,t3;
 uint32_t _errorCode;
+static uint8_t _systemTimeSet = 0;
 
 // Handle to stm32 task
 extern TaskHandle_t xHandle_stm32;
@@ -383,22 +384,22 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
 
     // Settings_t * settings = settings_get();
 
-    cmd.command = STM32_CMD_SET_ADC_CHANNELS_ENABLED;
-    cmd.data0 = 0xFF; // Always for to use all channels //settings_get_adc_channel_enabled_all();
+    // cmd.command = STM32_CMD_SET_ADC_CHANNELS_ENABLED;
+    // cmd.data0 = 0xFF; // Always for to use all channels //settings_get_adc_channel_enabled_all();
 
-    spi_ctrl_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, &cmd, sizeof(spi_cmd_t));
-    // spi_ctrl_print_rx_buffer();
-    if (spi_buffer[0] != STM32_CMD_SET_ADC_CHANNELS_ENABLED || spi_buffer[1] != STM32_RESP_OK)
-    {
-        ESP_LOGE(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", spi_buffer[0]);
-        spi_ctrl_print_rx_buffer(spi_buffer);
-        SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
-        return ESP_FAIL;
-    }
+    // spi_ctrl_cmd(STM32_CMD_SET_ADC_CHANNELS_ENABLED, &cmd, sizeof(spi_cmd_t));
+    // // spi_ctrl_print_rx_buffer();
+    // if (spi_buffer[0] != STM32_CMD_SET_ADC_CHANNELS_ENABLED || spi_buffer[1] != STM32_RESP_OK)
+    // {
+    //     ESP_LOGE(TAG_LOG, "Unable to set STM32 ADC channels. Received %d", spi_buffer[0]);
+    //     spi_ctrl_print_rx_buffer(spi_buffer);
+    //     SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
+    //     return ESP_FAIL;
+    // }
 
-    #ifdef DEBUG_LOGGING
-    ESP_LOGI(TAG_LOG, "ADC channels set");
-    #endif
+    // #ifdef DEBUG_LOGGING
+    // ESP_LOGI(TAG_LOG, "ADC channels set");
+    // #endif
 
     cmd.command = STM32_CMD_SET_RESOLUTION;
     cmd.data0 = (uint8_t)settings_get_resolution();
@@ -725,13 +726,13 @@ size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size)
    
 }
 
-size_t Logger_flush_buffer_to_sd_card_csv(int32_t *adcData, size_t lenAdc, uint8_t *gpioData, size_t lenGpio, uint8_t *timeData, size_t lenTime, size_t datarows)
-{
-#ifdef DEBUG_SDCARD
-    ESP_LOGI(TAG_LOG, "Flusing CSV buffer to SD card");
-#endif
-    return fileman_csv_write(adcData, gpioData, timeData, datarows);
-}
+// size_t Logger_flush_buffer_to_sd_card_csv(int32_t *adcData, size_t lenAdc, uint8_t *gpioData, size_t lenGpio, uint8_t *timeData, size_t lenTime, size_t datarows)
+// {
+// #ifdef DEBUG_SDCARD
+//     ESP_LOGI(TAG_LOG, "Flusing CSV buffer to SD card");
+// #endif
+//     return fileman_csv_write(adcData, gpioData, timeData, datarows);
+// }
 
 esp_err_t Logger_calibrate()
 {
@@ -755,7 +756,7 @@ esp_err_t Logger_calibrate()
 }
 
 // uint8_t Logger_raw_to_fixedpt(uint8_t * buffer, size_t size, uint8_t log_counter)
-uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint8_t * adcData, size_t dataRows)
+uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, size_t dataRows)
 {
      
     int j,x=0;
@@ -768,13 +769,13 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint8_t * adcData, size
     #endif
     uint32_t length = 0;
     // Looping the ADC buffer is determined by dataRows as length = dataRows * 8 analog channels * 2 bytes
-    length = dataRows * 8 * 2;
+    length = dataRows * 8;
     
     if  ( settings_get()->adc_resolution == ADC_12_BITS )
     {
         
         // ESP_LOGI(TAG_LOG, "12 bits");
-        for (j = 0; j < length; j = j + 2)
+        for (j = 0; j < length; j++)
         {
             // Check for each channel what the range is (each bit in 'range' is 0 (=-10/+10V range) or 1 (=-60/+60V range) )
             // The next values are calibrated values
@@ -789,7 +790,8 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint8_t * adcData, size
 
             channel_range = 2*channel_offset;
             
-            adcVal = (int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+            // adcVal = (int32_t)((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+            adcVal = (int32_t)adcData[j];
             // Compenate offset
             adcVal = adcVal  + ( 2048 -settings_get()->adc_offsets_12b[x]);
             // Clip values
@@ -816,7 +818,7 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint8_t * adcData, size
     { // 16 bit adc
     
         // IIR filter required for these cases
-        for (j = 0; j < length; j = j + 2)
+        for (j = 0; j < length; j++)
         {
                     // The next values are calibrated values
             if (settings_get_adc_channel_range(settings_get(), x))
@@ -829,7 +831,8 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint8_t * adcData, size
             channel_range = 2*channel_offset;
             // factor = ADC_16_BITS_60V_FACTOR;
 
-            adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+            // adcVal = ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8));
+            adcVal = (int32_t)adcData[j];
             // Compenate offset
             adcVal = adcVal + ( (32760) - settings_get()->adc_offsets_16b[x]); // 32760 = 0xFFF0/2
             // Clip values
@@ -930,7 +933,7 @@ esp_err_t Logger_flush_to_sdcard()
         ESP_LOGI(TAG_LOG, "Flusing buffer");
         #endif
  ESP_LOGI(TAG_LOG, "Flusing buffer");
-        if (!fileman_csv_write_spi_msg(&sdcard_data, adc_buffer_fixed_point))
+        if (fileman_csv_write_spi_msg(&sdcard_data, adc_buffer_fixed_point) != ESP_OK)
         {
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
             goto error;
@@ -959,12 +962,16 @@ esp_err_t Logger_flush_to_sdcard()
     }
 
     // Check for file size and stop if we reached the limit
-
-    if (fileman_check_current_file_size(MAX_FILE_SIZE))
+    
+    if (fileman_check_current_file_size(settings_get_file_split_size()))
     {
-        ESP_LOGW(TAG_LOG, "Reached max file size");
-        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
-        goto error;
+        ESP_LOGI(TAG_LOG, "Reached max file size. Closing file and reopening new...");
+        fileman_close_file();
+       
+        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp, 1);
+        fileman_open_file();
+        //SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
+        //goto error;
     } 
 
     // Close file
@@ -1118,7 +1125,7 @@ esp_err_t Logger_processData()
                 spi_msg_1_t * spi_msg;
                 spi_msg = (spi_msg_1_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t));
                 sdcard_data.msgSize = sizeof(spi_msg_1_t);
-                Logger_raw_to_fixedpt(log_counter, spi_msg->adcData, spi_msg->dataLen); 
+                Logger_raw_to_fixedpt(log_counter, spi_msg->adcData16, spi_msg->dataLen); 
             }
         } else if (spi_msg_slow_freq_2_ptr->stopByte[0] == 0xFB &&
                  spi_msg_slow_freq_2_ptr->stopByte[1] == 0xFA &&
@@ -1162,7 +1169,7 @@ esp_err_t Logger_processData()
             {
                     spi_msg_2_t * spi_msg;
                     spi_msg = (spi_msg_2_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_2_t));
-                    Logger_raw_to_fixedpt(log_counter, spi_msg->adcData, spi_msg->dataLen);
+                    Logger_raw_to_fixedpt(log_counter, spi_msg->adcData16, spi_msg->dataLen);
             }
         }
     }
@@ -1498,6 +1505,8 @@ void Logtask_calibration()
     adc_sample_rate_t last_sample_rate;
     uint8_t x = 0;
 
+    last_resolution = settings_get_resolution();
+    last_sample_rate = settings_get_samplerate();
     ESP_LOGI(TAG_LOG, "Calibration step %d", calibration);
     last_resolution = settings_get_resolution();
     last_sample_rate = settings_get_samplerate();
@@ -1641,9 +1650,14 @@ void Logtask_singleShot()
 #endif
             Logger_processData();
             Logger_GetSingleConversion(&live_data);
-        }
-        else
-        {
+            // Set the system time if this is the first time we do a single shot
+            if (!_systemTimeSet)
+            {
+                settings_set_system_time(live_data.timestamp/1000);
+                _systemTimeSet = 1;
+            }
+                
+        } else {
             ESP_LOGE(TAG_LOG, "Error receiving last message");
         }
     }
@@ -1673,11 +1687,9 @@ void Logtask_logging()
             // ...
             return;
         }
-        #ifdef DEBUG_LOGTASK
-        ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
-        #endif
 
-        fileman_reset_subnum();
+        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp, 0);
+        
         if (fileman_open_file() != ESP_OK)
         { 
             // esp_sd_card_unmount();
@@ -1995,12 +2007,15 @@ void task_logging(void * pvParameters)
        
     // Initialize SD card
 
-    if (gpio_get_level(SDCARD_CD)  &&
+    if (esp_sd_card_check_for_card() == ESP_OK  &&
         esp_sd_card_mount() == ESP_OK)
     {
         #ifdef DEBUG_LOGTASK
-        ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+        // ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+        // ESP_LOGI(TAG_LOG, "File prefix: %s", "test");
         #endif
+        Logger_check_sdcard_free_space();
+        
         // esp_sd_card_unmount();
     } 
     

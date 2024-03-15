@@ -54,15 +54,15 @@ static const char *TAG_FILESERVER = "file_server";
 /* Handler to respond with an icon file embedded in flash.
  * Browsers expect to GET website icon at URI /favicon.ico.
  * This can be overridden by uploading file with same name */
-static esp_err_t favicon_get_handler(httpd_req_t *req)
-{
-    // extern const unsigned char favicon_ico_start[] asm("_binary_favicon_ico_start");
-    // extern const unsigned char favicon_ico_end[]   asm("_binary_favicon_ico_end");
-    // const size_t favicon_ico_size = (favicon_ico_end - favicon_ico_start);
-    // httpd_resp_set_type(req, "image/x-icon");
-    // httpd_resp_send(req, (const char *)favicon_ico_start, favicon_ico_size);
-    return ESP_OK;
-}
+// static esp_err_t favicon_get_handler(httpd_req_t *req)
+// {
+//     // extern const unsigned char favicon_ico_start[] asm("_binary_favicon_ico_start");
+//     // extern const unsigned char favicon_ico_end[]   asm("_binary_favicon_ico_end");
+//     // const size_t favicon_ico_size = (favicon_ico_end - favicon_ico_start);
+//     // httpd_resp_set_type(req, "image/x-icon");
+//     // httpd_resp_send(req, (const char *)favicon_ico_start, favicon_ico_size);
+//     return ESP_OK;
+// }
 
 /* Send HTTP response with a run-time generated html consisting of
  * a list of all files and folders under the requested path.
@@ -614,7 +614,7 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 
 esp_err_t fwupdate_get_handler(httpd_req_t *req)
 {
-    esp_err_t err;
+    // esp_err_t err;
 
     if (strstr(req->uri, "/fwupdate/enable") != NULL)
     {

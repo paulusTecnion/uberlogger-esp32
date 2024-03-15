@@ -34,6 +34,9 @@ build_code:
       - ota_filesystem.bin
       - firmware.bin
       - build_vars
+  only:
+    - master
+    - develop
 
 create_release:
   stage: create_release

@@ -482,15 +482,37 @@ h3 {
   color: #ffffff; /* Updated to white */
 }
 
+.split-size-container {
+  display: flex; /* This makes the children (input and select) lay out horizontally */
+}
+
+.split-size-container select {
+  margin-right: 10px; /* Adds some space between the input and select */
+  width: auto; /* Remove if you want the browser to automatically handle the width */
+}
+
+/* Adjust individual widths if necessary */
+#file_split_size {
+  width: 100px; /* Or whatever width suits your design */
+}
+
+#file_size_split_size_unit {
+  width: 100px; /* Or whatever width suits your design */
+}
+
+#file_name_prefix {
+  width: 200px;
+}
 
 table.compact-table {
-  width: 100%; /* Adjust based on your needs */
+  width: 100%;
+  max-width: 800px;
   border-collapse: collapse; /* Remove space between borders */
   font-size: 0.9em; /* Smaller font for compactness */
   margin: 10px 0; /* Add some space around the table */
 }
 
-table.compact-table th, 
+table.compact-table th,
 table.compact-table td {
   border: 1px solid #ddd; /* Light grey border */
   padding: 8px; /* Reduce padding */
@@ -509,5 +531,3 @@ table.compact-table tr:nth-child(even) {
 /* table.compact-table tr:hover {
   background-color: #f1f1f1; /* Highlight on row hover 
 } */
-
-

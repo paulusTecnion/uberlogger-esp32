@@ -99,12 +99,10 @@ function loggerStart() {
   });
 }
 
-function tryFileBrowserRefresh(){
-  try{
-    filebrowserRefresh('/');
-  }catch(error){
-
-  };
+function tryFileBrowserRefresh() {
+  try {
+    filebrowserRefresh("/");
+  } catch (error) {}
 }
 
 function loggerStop() {
@@ -123,7 +121,7 @@ function loggerStop() {
       if (response["resp"] == "ack") {
         //alert("Logger stopped.");
         setTimeout(tryFileBrowserRefresh, 2000);
-        
+
         $("#start_logging_button").attr("onclick", "loggerStart()");
       } else {
         alert(
@@ -383,6 +381,10 @@ function populateFields(parent, data) {
             $ctrl.val(Number(value).toFixed(2));
           }
 
+          break;
+
+        case "number":
+          $ctrl.val(Number(value));
           break;
 
         case "radio":

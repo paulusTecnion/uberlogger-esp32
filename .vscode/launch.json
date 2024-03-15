@@ -19,7 +19,7 @@
       // "miDebuggerPath": "${command:espIdf.getXtensaGdb}",
       // "program": "${workspaceFolder}/build/${command:espIdf.getProjectName}.elf",
       "windows": {
-        "program": "${workspaceFolder}\\build\\${command:espIdf.getProjectName}.elf"
+        "program": "${workspaceFolder}\\build\\uberlogger-esp32.elf"
       },
       "cwd": "${workspaceFolder}",
       "environment": [
