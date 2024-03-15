@@ -9,7 +9,14 @@
 #include "common.h"
 
 #define MAX_FILE_PREFIX_LENGTH 70 // max number of characters
-#define MAX_FILE_SPLIT_SIZE 4194304 // in KiB
+#define MAX_FILE_SPLIT_SIZE 0xFFFFFFFF // in BYTES
+
+#define FILE_SPLIT_SIZE_UNIT_KB 0
+#define FILE_SPLIT_SIZE_UNIT_MB 1
+#define FILE_SPLIT_SIZE_UNIT_GB 2
+
+#define FILE_NAME_MODE_SEQ_NUM 0
+#define FILE_NAME_MODE_TIMESTAMP 1
 
 #define MAX_WIFI_SSID_LEN 32
 #define MAX_WIFI_PASSW_LEN 20
@@ -110,10 +117,11 @@ struct Settings_t {
     uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
 	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
 	uint8_t logMode;
+	uint8_t file_name_mode;  // 0 = sequential logfile, 1 = timestamp
 	char file_prefix[MAX_FILE_PREFIX_LENGTH];
 	// File split size in bytes
 	uint32_t file_split_size;
-	// File split size unit. 0 = KiB, 1 = MiB, 2 = GiB
+	// File split size unit. 0 = KB, 1 = MB, 2 = GB
 	uint8_t file_split_size_unit;
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
@@ -159,6 +167,9 @@ esp_err_t settings_set_adc_offset(int32_t * offsets, adc_resolution_t resolution
 
 Settings_t settings_get_default();
 esp_err_t settings_set_default();
+
+uint8_t settings_get_file_name_mode();
+esp_err_t settings_set_file_name_mode(uint8_t mode);
 
 esp_err_t settings_set_file_prefix(const char * prefix);
 char * settings_get_file_prefix();

@@ -256,69 +256,6 @@
           value="Save channel settings"
         />
       </div>
-      <span>
-       
-       <h2>File options</h2>
-        <h3>File name and split size</h3>
-        <p>Your file name will be like YYYYMMDD_Time_File Prefix. For example in case of .csv: 20240312_14-34-34_Logfile.csv. Each split part will have a new timestamp in UTC time.</p>
-          <label for="file_name_prefix">File name prefix</label>
-          <input type="text" id="file_name_prefix" name="FILE_NAME_PREFIX" class="json-as-text" 
-          maxlength="70" 
-          class="element"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="none"
-          value=""/>
-         
-          
-          <label for="file_split_size">Max size of one log file (200 KiB min and 4 GiB max)</label>
-          <div class="split-size-container">
-          <input type="number" id="file_split_size" name="FILE_SPLIT_SIZE" class="json-as-number" max="4194304" step="1" oninput="validateIntegerInput(this)"/>
-        
-          <select name="FILE_SPLIT_SIZE_UNIT" id="file_size_split_size_unit" class="json-as-number" >
-            <option value="0">KiB</option>
-            <option value="1">MiB</option>
-            <option value="2">GiB</option>
-          </select>
-        </div>
-      </span>
-
-
-      <span>
-        <h3>File format</h3>
-        <input
-          id="log_mode"
-          name="LOG_MODE"
-          class="element radio json-as-number"
-          type="radio"
-          value="1"
-          checked="true"
-        />
-        <label class="choice" for="log_mode"
-          >CSV<br />Write CSV files directly. Recommended for low sample rates or short measurements.</label>
-
-        <input
-          id="log_mode"
-          name="LOG_MODE"
-          class="element radio json-as-number"
-          type="radio"
-          value="0"
-        />
-        <label class="choice" for="log_mode"
-          >Raw data<br />Write the raw data and convert the data to a CSV file afterwards using the Python conversion script. Download <a href="convert_raw.py">here</a>. Recommended for long measurements at high log samples</label
-        >
-
-        <div id="configuration_done">
-          <input
-            id="saveForm"
-            class="button_text"
-            type="button"
-            onClick="setConfig()"
-            value="Save file options"
-          />  
-        </div>
-      </span>
-
 
       <h3>Analog Calibration</h3>
       <p>
@@ -335,8 +272,119 @@
         <p id="calibStatus"></p>
       </div>
 
-      <!-- <h3>Digital channels</h3>
-      <p>Digital channels currently have no configuration options.</p> -->
+      <span>
+        <h2>File options</h2>
+
+        <span>
+          <h3>File format</h3>
+          <input
+            id="log_mode"
+            name="LOG_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="1"
+            checked="true"
+          />
+          <label class="choice" for="log_mode"
+            >CSV<br />Write CSV files directly. Recommended for low sample rates
+            or short measurements.</label
+          >
+
+          <input
+            id="log_mode"
+            name="LOG_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="0"
+          />
+          <label class="choice" for="log_mode"
+            >Raw data<br />Write the raw data and convert the data to a CSV file
+            afterwards using the Python conversion script. Download
+            <a href="convert_raw.py">here</a>. Recommended for long measurements
+            at high log samples</label
+          >
+        </span>
+
+        <span>
+          <h3>File name mode</h3>
+          <input
+            id="file_name_mode"
+            name="FILE_NAME_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="0"
+            checked="true"
+          />
+          <label class="choice" for="file_name_mode"
+            >Sequential<br />File names are written with prefix + sequence
+            number. Example: log0, log1 etc. Existing files will be
+            overwritten.</label
+          >
+
+          <input
+            id="file_name_mode"
+            name="FILE_NAME_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="1"
+          />
+          <label class="choice" for="file_name_mode"
+            >Timestamp<br />File name will be like YYYYMMDD_Time_File Prefix.
+            Example: 20240312_14-34-34_Logfile.csv. Each split part will have a
+            new timestamp in UTC time.
+          </label>
+        </span>
+
+        <h3>File name and split size</h3>
+        <label for="file_name_prefix">File name prefix</label>
+        <input
+          type="text"
+          id="file_name_prefix"
+          name="FILE_NAME_PREFIX"
+          class="json-as-text"
+          maxlength="70"
+          class="element"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          value=""
+        />
+
+        <label for="file_split_size"
+          >Max size of one log file (200 KB min and 4 GB max)</label
+        >
+        <div class="split-size-container">
+          <input
+            type="number"
+            id="file_split_size"
+            name="FILE_SPLIT_SIZE"
+            class="json-as-number"
+            max="4194304"
+            step="1"
+            oninput="validateIntegerInput(this)"
+          />
+
+          <select
+            name="FILE_SPLIT_SIZE_UNIT"
+            id="file_size_split_size_unit"
+            class="json-as-number"
+          >
+            <option value="0">KB</option>
+            <option value="1">MB</option>
+            <option value="2">GB</option>
+          </select>
+        </div>
+
+        <div id="configuration_done">
+          <input
+            id="saveForm"
+            class="button_text"
+            type="button"
+            onClick="setConfig()"
+            value="Save file options"
+          />
+        </div>
+      </span>
     </div>
 
     <h2>Wi-Fi configuration</h2>

@@ -392,6 +392,7 @@ const char * logger_settings_to_json(Settings_t *settings)
 
     }
 
+    cJSON_AddNumberToObject(root, "FILE_NAME_MODE", settings->file_name_mode);
     cJSON_AddStringToObject(root, "FILE_NAME_PREFIX", settings->file_prefix);
     cJSON_AddNumberToObject(root, "FILE_SPLIT_SIZE_UNIT", settings->file_split_size_unit);
 
@@ -707,6 +708,17 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
         
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_NAME_MODE");
+    if (item != NULL)
+    {
+        if (settings_set_file_name_mode(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file name mode value. Only 0=sequential and 1=timestamp possible.");
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_NAME_PREFIX");
     if (item != NULL)
@@ -743,7 +755,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_file_split_size(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size.  Min. 200 KiB and Maximum 4 GiB");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size.  Min. 200 KB and Maximum 4 GB");
             // return ESP_FAIL;
             goto error;
         }

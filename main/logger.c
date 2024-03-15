@@ -1016,7 +1016,7 @@ esp_err_t Logger_flush_to_sdcard()
         ESP_LOGI(TAG_LOG, "Reached max file size. Closing file and reopening new...");
         fileman_close_file();
        
-        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp);
+        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp, 1);
         fileman_open_file();
         //SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
         //goto error;
@@ -1694,10 +1694,8 @@ void Logtask_logging()
             return;
         }
 
-        // time to char *
+        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp, 0);
         
-        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp);
-
         if (fileman_open_file() != ESP_OK)
         { 
             // esp_sd_card_unmount();

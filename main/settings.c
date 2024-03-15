@@ -165,8 +165,9 @@ Settings_t settings_get_default()
     default_settings.logMode = LOGMODE_CSV;
     default_settings.bootReason = 0;
     strcpy(_settings.file_prefix, "log");
-    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in KiB.
-    _settings.file_split_size_unit  = 2; // 0 = KiB, 1 = MiB, 2 = GiB
+    _settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
+    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
+    _settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
     // Get mac address
     char buffer[8];
     wifi_get_trimmed_mac(buffer);
@@ -194,7 +195,7 @@ esp_err_t settings_set_default()
     #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Setting default settings");
     #endif
-    _settings.adc_resolution = ADC_12_BITS;
+    _settings.adc_resolution = ADC_16_BITS;
 
     _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
@@ -203,8 +204,9 @@ esp_err_t settings_set_default()
     _settings.logMode = LOGMODE_CSV;
     _settings.bootReason = 0;
     strcpy(_settings.file_prefix, "log");
-    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in KiB.
-    _settings.file_split_size_unit  = 2; // 0 = KiB, 1 = MiB, 2 = GiB
+    _settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
+    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
+    _settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
     // Get mac address
     char buffer[8];
     wifi_get_trimmed_mac(buffer);
@@ -224,6 +226,19 @@ esp_err_t settings_set_default()
         _settings.temp_offsets[i] = 0;
     }
 
+    return ESP_OK;
+}
+
+uint8_t settings_get_file_name_mode()
+{
+    return _settings.file_name_mode;
+}
+
+esp_err_t settings_set_file_name_mode(uint8_t mode)
+{
+    if (mode > FILE_NAME_MODE_TIMESTAMP)   
+        return ESP_ERR_INVALID_ARG;
+    _settings.file_name_mode = mode;
     return ESP_OK;
 }
 
@@ -250,19 +265,19 @@ esp_err_t settings_set_file_split_size(uint32_t size)
     switch (_settings.file_split_size_unit)
     {
         case 0:
-            // KiB
+            // KB
            sizeInKiB = size;
         break;
 
         case 1:
-            // MiB
+            // MB
             sizeInKiB = size * 1024;
         break;
 
         case 2:
-            // GiB
+            // GB
 
-            sizeInKiB = size * 1024 * 1024; // From GiB to KiB
+            sizeInKiB = size * 1024 * 1024; // From GB to KB
         break;
 
         default:
@@ -270,7 +285,7 @@ esp_err_t settings_set_file_split_size(uint32_t size)
     }
 
     if (sizeInKiB < (200) ||
-        (sizeInKiB > MAX_FILE_SPLIT_SIZE ))
+        (sizeInKiB > (MAX_FILE_SPLIT_SIZE/1024) ))
     {
         return ESP_ERR_INVALID_SIZE;
     }

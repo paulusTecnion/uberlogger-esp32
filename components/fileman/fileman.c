@@ -11,12 +11,12 @@ static const char *TAG_FILE = "FILEMAN";
 static uint32_t file_seq_num=0;
 static uint32_t file_seq_subnum=0;
 static FILE* f = NULL;
-char file_name[50];
+char _file_name[105];
 char filestrbuffer[4900];
 char _prefix[100];
 uint32_t file_bytes_written = 0;
 
-void fileman_create_filename(const char * prefix)
+void fileman_create_filename(const char * prefix, char * file_name)
 {
     char filext[5];
     if (settings_get_logmode() == LOGMODE_CSV)
@@ -26,8 +26,14 @@ void fileman_create_filename(const char * prefix)
         sprintf(filext, "%s", ".dat");
     }
 
-    // sprintf(file_name, MOUNT_POINT"/%s%d%s", prefix, file_seq_num, filext);
+    // if (settings_get_file_name_mode() == FILE_NAME_MODE_SEQ_NUM)
+    // {
+    //     sprintf(file_name, MOUNT_POINT"/%s%d%s", prefix, file_seq_num, filext);
+    // } else {
     sprintf(file_name, MOUNT_POINT"/%s%s", prefix, filext);
+    // }
+    
+    
     #ifdef DEBUG_FILEMAN
     ESP_LOGI(TAG_FILE, "%s", file_name);
     #endif
@@ -53,7 +59,7 @@ void fileman_reset_subnum(void)
     file_seq_subnum = 0;
 }
 
-esp_err_t fileman_set_prefix(const char * prefix, time_t timestamp)
+esp_err_t fileman_set_prefix(const char * prefix, time_t timestamp, uint8_t continueNumbering)
 {
       struct tm *tm_info;
     char time_buffer[20]; // Buffer to hold the formatted date and time
@@ -63,20 +69,27 @@ esp_err_t fileman_set_prefix(const char * prefix, time_t timestamp)
         return ESP_ERR_INVALID_SIZE;
     }
 
+    if(settings_get_file_name_mode() == FILE_NAME_MODE_SEQ_NUM)
+    {
+        if (continueNumbering)
+        {
+            snprintf(_prefix, sizeof(_prefix), "%s%d", prefix, file_seq_num);
+        } else {
+            snprintf(_prefix, sizeof(_prefix), "%s%d", prefix, fileman_search_last_sequence_file(prefix));
+        }
+    } else {
   
-    timestamp /= 1000;
-    // Convert Unix timestamp to local time
-    tm_info = localtime(&timestamp);
+        timestamp /= 1000;
+        // Convert Unix timestamp to local time
+        tm_info = localtime(&timestamp);
 
-    // Format the time "YYYYMMDD_HH-MM-SS" suitable for filenames
-    strftime(time_buffer, sizeof(time_buffer), "%Y%m%d_%H-%M-%S", tm_info);
+        // Format the time "YYYYMMDD_HH-MM-SS" suitable for filenames
+        strftime(time_buffer, sizeof(time_buffer), "%Y%m%d_%H-%M-%S", tm_info);
 
 
-    snprintf(_prefix, sizeof(_prefix), "%s_%s",time_buffer, prefix);
+        snprintf(_prefix, sizeof(_prefix), "%s_%s",time_buffer, prefix);
+    }
 
-// fileman_search_last_sequence_file
-    // Determine last index of file with prefix
-    // uint32_t t= fileman_search_last_sequence_file();
      #ifdef DEBUG_FILEMAN
     ESP_LOGI(TAG_FILE, "Prefix set: %s", _prefix);
     #endif
@@ -85,10 +98,12 @@ esp_err_t fileman_set_prefix(const char * prefix, time_t timestamp)
     
 
 // fileman_search_last_sequence_file must be called before callign this function!
-esp_err_t fileman_open_file(time_t timestamp)
+esp_err_t fileman_open_file()
 {
-    fileman_create_filename(_prefix);
-    if (strcmp(file_name, "") == 0)
+    // Create the file name based on the previously called fileman_set_prefix function
+    fileman_create_filename(_prefix, _file_name);
+
+    if (strcmp(_file_name, "") == 0)
     {
         #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "No file name specified!");
@@ -99,11 +114,11 @@ esp_err_t fileman_open_file(time_t timestamp)
     // Use POSIX and C standard library functions to work with files.
     // First create a file.
     #ifdef DEBUG_FILEMAN
-    ESP_LOGI(TAG_FILE, "Opening file %s", file_name);
+    ESP_LOGI(TAG_FILE, "Opening file %s", _file_name);
     #endif
     
     // Open file
-    f = fopen(file_name, "a");
+    f = fopen(_file_name, "a");
     if (f == NULL) {
         ESP_LOGE(TAG_FILE, "Failed to open file for writing");
         return ESP_FAIL;
@@ -132,7 +147,10 @@ esp_err_t fileman_close_file(void)
         #ifdef DEBUG_FILEMAN
         ESP_LOGI(TAG_FILE, "Closing file");
         #endif
-        file_seq_num++;
+        if (settings_get_file_name_mode() == FILE_NAME_MODE_SEQ_NUM)
+        {
+            file_seq_num++;
+        }
         return ESP_OK;
     } else {
         ESP_LOGE(TAG_FILE, "Cannot close file! f == NULL");
@@ -140,15 +158,20 @@ esp_err_t fileman_close_file(void)
     }
 }
 
-uint32_t fileman_search_last_sequence_file(void)
+uint32_t fileman_search_last_sequence_file(char * prefix)
 {
     f = NULL;
     file_seq_num = 0;
 
-    
+    char tmpFileName[105];
+    char tmpPrefix[100];
+
     while (1) {
-        fileman_create_filename(_prefix);
-        f = fopen(file_name, "r");
+        
+        snprintf(tmpPrefix, sizeof(tmpPrefix), "%s%d", prefix, file_seq_num);
+        fileman_create_filename(tmpPrefix, tmpFileName);
+
+        f = fopen(tmpFileName, "r");
     
         if (f==NULL)
         {
