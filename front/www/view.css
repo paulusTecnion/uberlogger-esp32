@@ -482,4 +482,27 @@ h3 {
   color: #ffffff; /* Updated to white */
 }
 
+.split-size-container {
+  display: flex; /* This makes the children (input and select) lay out horizontally */
+}
+
+.split-size-container select {
+  margin-right: 10px; /* Adds some space between the input and select */
+  width: auto; /* Remove if you want the browser to automatically handle the width */
+}
+
+/* Adjust individual widths if necessary */
+#file_split_size {
+  width: 100px; /* Or whatever width suits your design */
+}
+
+#file_size_split_size_unit {
+  width: 100px; /* Or whatever width suits your design */
+}
+
+#file_name_prefix{
+  width: 200px;
+}
+
+
 /* ... (rest of your CSS remains unchanged) ... */

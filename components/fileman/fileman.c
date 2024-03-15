@@ -83,10 +83,9 @@ esp_err_t fileman_set_prefix(const char * prefix, time_t timestamp)
     return ESP_OK;
 }
     
-    
 
 // fileman_search_last_sequence_file must be called before callign this function!
-esp_err_t fileman_open_file()
+esp_err_t fileman_open_file(time_t timestamp)
 {
     fileman_create_filename(_prefix);
     if (strcmp(file_name, "") == 0)
@@ -117,6 +116,9 @@ esp_err_t fileman_open_file()
         perror ("The following error occurred");
         return ESP_FAIL;
     }
+
+    // All good, set written bytes to 0
+    file_bytes_written = 0;
 
     return ESP_OK;
 }
@@ -321,6 +323,8 @@ int fileman_csv_write(const int32_t * dataAdc,  size_t lenAdc, const uint8_t* da
     //    }
 
     }
+
+    ESP_LOGI(TAG_FILE, "%d", file_bytes_written);
 
     // Write any remaining data
     // if (j % 35 != 0)

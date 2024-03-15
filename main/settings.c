@@ -20,13 +20,6 @@ void settings_init()
         settings_persist_settings();
     }
 
-    // Set mult_factor 
-    // adc_factor[ADC_12_BITS0][ADC_RANGE_10V] = ADC_12_BITS_10V_FACTOR;
-    // adc_factor[ADC_12_BITS0][ADC_RANGE_60V] = ADC_12_BITS_60V_FACTOR;
-    // adc_factor[ADC_16_BITS0][ADC_RANGE_10V] = ADC_16_BITS_10V_FACTOR;
-    // adc_factor[ADC_16_BITS0][ADC_RANGE_60V] = ADC_16_BITS_60V_FACTOR;
-    // adc_mult_factor[ADC_RANGE_10V] = ADC_MULT_FACTOR_10V;
-    // adc_mult_factor[ADC_RANGE_60V] = ADC_MULT_FACTOR_60V;
 }
 
 uint8_t settings_get_adc_channel_enabled(Settings_t *settings, adc_channel_t channel)
@@ -171,6 +164,9 @@ Settings_t settings_get_default()
     default_settings.adc_channel_range = 0x00; // 10V by default
     default_settings.logMode = LOGMODE_CSV;
     default_settings.bootReason = 0;
+    strcpy(_settings.file_prefix, "log");
+    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in KiB.
+    _settings.file_split_size_unit  = 2; // 0 = KiB, 1 = MiB, 2 = GiB
     // Get mac address
     char buffer[8];
     wifi_get_trimmed_mac(buffer);
@@ -206,7 +202,9 @@ esp_err_t settings_set_default()
     _settings.adc_channel_range = 0x00; // 10V by default
     _settings.logMode = LOGMODE_CSV;
     _settings.bootReason = 0;
-
+    strcpy(_settings.file_prefix, "log");
+    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in KiB.
+    _settings.file_split_size_unit  = 2; // 0 = KiB, 1 = MiB, 2 = GiB
     // Get mac address
     char buffer[8];
     wifi_get_trimmed_mac(buffer);
@@ -227,6 +225,80 @@ esp_err_t settings_set_default()
     }
 
     return ESP_OK;
+}
+
+
+esp_err_t settings_set_file_prefix(const char * prefix)
+{
+    if (strlen(prefix) > (MAX_FILE_PREFIX_LENGTH - 1))
+        return ESP_ERR_INVALID_SIZE;
+    
+    strcpy(_settings.file_prefix, prefix);
+    return ESP_OK;
+}
+
+char * settings_get_file_prefix()
+{
+    return _settings.file_prefix;
+}
+
+esp_err_t settings_set_file_split_size(uint32_t size)
+{
+
+    uint64_t sizeInKiB = 0;
+
+    switch (_settings.file_split_size_unit)
+    {
+        case 0:
+            // KiB
+           sizeInKiB = size;
+        break;
+
+        case 1:
+            // MiB
+            sizeInKiB = size * 1024;
+        break;
+
+        case 2:
+            // GiB
+
+            sizeInKiB = size * 1024 * 1024; // From GiB to KiB
+        break;
+
+        default:
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (sizeInKiB < (200) ||
+        (sizeInKiB > MAX_FILE_SPLIT_SIZE ))
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    
+    _settings.file_split_size = sizeInKiB*1024;
+
+    
+    return ESP_OK;
+}
+
+// Returns the file split size in BYTES
+uint32_t settings_get_file_split_size()
+{
+    return _settings.file_split_size;
+}
+
+esp_err_t settings_set_file_split_size_unit(uint8_t unit)
+{
+    if (unit > 2)
+        return ESP_ERR_INVALID_ARG;
+    _settings.file_split_size_unit = unit;    
+    return ESP_OK;
+}
+
+uint8_t settings_get_file_split_size_unit()
+{
+    return _settings.file_split_size_unit;
 }
 
 
@@ -252,6 +324,30 @@ esp_err_t settings_set_logmode(log_mode_t mode)
     }
     return ESP_OK;
 }
+
+// Set system time. Timestamp in seconds
+void settings_set_system_time(time_t timestamp)
+{
+    struct timeval tv;
+    tv.tv_sec = timestamp;
+    tv.tv_usec = 0; // Set microseconds to 0, as time_t is typically accurate only to seconds.
+
+    // Set the system time
+    settimeofday(&tv, NULL);
+    ESP_LOGI(TAG_SETTINGS, "System time set ");
+
+    // Obtain and print the current system time
+    time_t now;
+    struct tm *timeinfo;
+    char buffer[64]; // Make sure this buffer is large enough for your chosen date-time format
+
+    time(&now); // Get the current time
+    timeinfo = localtime(&now); // Convert the current time to local time
+
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo); // Format the time as a string
+    ESP_LOGI(TAG_SETTINGS, "Current system time: %s", buffer);
+}
+
 
 uint8_t settings_get_wifi_channel()
 {
@@ -412,7 +508,12 @@ esp_err_t settings_print()
     }
 
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
-    
+    ESP_LOGI(TAG_SETTINGS, "File prefix %s", _settings.file_prefix);
+    ESP_LOGI(TAG_SETTINGS, "File split size unit: %d", _settings.file_split_size_unit);
+    ESP_LOGI(TAG_SETTINGS, "File split size: %ld", _settings.file_split_size);
+
+
+
     ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);
     ESP_LOGI(TAG_SETTINGS, "Wifi AP SSID %s", _settings.wifi_ssid_ap);
     ESP_LOGI(TAG_SETTINGS, "Wifi channel %d", _settings.wifi_channel);
@@ -457,6 +558,7 @@ esp_err_t settings_set_timestamp(uint64_t timestamp)
     ESP_LOGI(TAG_SETTINGS, "Incoming timestamp: %lld, outgoing %ld", timestamp, (uint32_t)(timestamp/1000));
 
     _settings.timestamp = (uint32_t)(timestamp/1000);
+    settings_set_system_time(_settings.timestamp);
     return ESP_OK;
 }
 

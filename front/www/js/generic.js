@@ -385,6 +385,10 @@ function populateFields(parent, data) {
 
           break;
 
+        case "number":
+          $ctrl.val(Number(value));
+          break;
+
         case "radio":
           $ctrl.each(function () {
             if ($(this).attr("value") == value) {

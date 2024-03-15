@@ -193,17 +193,17 @@ static void register_stm32_sync(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
 
-static void register_singleshot(void)
-{
+// static void register_singleshot(void)
+// {
 
-    const esp_console_cmd_t cmd = {
-        .command = "ss",
-        .help = "Single shot measurment",
-        .hint = NULL,
-        .func = &Logger_singleShot
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
+//     const esp_console_cmd_t cmd = {
+//         .command = "ss",
+//         .help = "Single shot measurment",
+//         .hint = NULL,
+//         .func = &Logger_singleShot
+//     };
+//     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+// }
 
 static void register_update_stm32(){
     const esp_console_cmd_t cmd = {

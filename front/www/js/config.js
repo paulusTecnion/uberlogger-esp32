@@ -142,6 +142,7 @@ function getStatus() {
 
     // populate form
     populateFields(parent, data);
+    
   }).fail(function () {
     alert("Error: could not update status.");
     console.log("Data query failed.");
@@ -206,7 +207,21 @@ function startCalibration() {
   }
 }
 
+function validateIntegerInput(element) {
+  // Remove any non-digits or leading zeros
+  element.value = element.value.replace(/[^\d]/g, '').replace(/^0+/g, '');
+  
+  // Convert the cleaned input back to a number and round down if necessary
+  const intValue = parseInt(element.value, 10);
+  if (!isNaN(intValue)) {
+      element.value = intValue;
+  } else {
+      element.value = ''; // Clear the field if the result is not a number
+  }
+}
+
 function setConfig() {
+
   let input_all = getFormDataAsJsonObject($("#configuration"));
   let input_numbers = getFormDataAsJsonObject(
     $("#configuration .json-as-number")
@@ -215,15 +230,54 @@ function setConfig() {
 
   input = fixInputFieldNumbers(input_all, input_numbers, input_bools);
 
+      // Validate file name prefix
+      var fileNamePrefix = input_all["FILE_NAME_PREFIX"];
+      if (fileNamePrefix.length > 70) {
+          alert("File name prefix cannot be longer than 70 characters.");
+          return ;
+      }
+      if (!/^[a-zA-Z0-9_-]*$/.test(fileNamePrefix)) {
+          alert("File name prefix should not contain spaces or special characters.");
+          return ;
+      }
+  
+      // Validate file split size
+      var fileSplitSize = input_all["FILE_SPLIT_SIZE"];
+      var sizeUnit = input_all["FILE_SIZE_SPLIT_SIZE_UNIT"];
+  
+      // Convert file size to GiB based on the selected unit
+      var maxSizeKiB = 4194304; // Maximum size in GiB
+      var fileSizeInKiB;
+      if (sizeUnit === "0") { // KiB
+          fileSizeInKiB = fileSplitSize;
+      } else if (sizeUnit === "1") { // MiB
+          fileSizeInKiB = fileSplitSize * 1024;
+      } else if (sizeUnit === "2") { // GiB
+          fileSizeInKiB = fileSplitSize * 1024 * 1024;
+      }
+  
+      if (fileSizeInKiB < 200)
+      {
+        alert("File split size should be minimum of 200 KiB.");
+        return;
+      }
+
+      if (fileSizeInKiB > maxSizeKiB) {
+          alert("File split size should not exceed 4 GiB.");
+          return;
+      }
+  
+
+
   // merge input to config struct
   let config = {
-    WIFI_SSID: input["WIFI_SSID"],
-    WIFI_PASSWORD: input["WIFI_PASSWORD"],
-    WIFI_MODE: input["WIFI_MODE"],
+    
     LOG_SAMPLE_RATE: input["LOG_SAMPLE_RATE"],
     ADC_RESOLUTION: input["ADC_RESOLUTION"],
     LOG_MODE: input["LOG_MODE"],
-    WIFI_CHANNEL: input["WIFI_CHANNEL"],
+    FILE_NAME_PREFIX: input["FILE_NAME_PREFIX"],
+    FILE_SPLIT_SIZE: input["FILE_SPLIT_SIZE"],
+    FILE_SPLIT_SIZE_UNIT: input["FILE_SPLIT_SIZE_UNIT"],
     NTC_SELECT: {
       NTC1: input["NTC1"],
       NTC2: input["NTC2"],
@@ -244,6 +298,10 @@ function setConfig() {
       AIN7: input["AIN7"],
       AIN8: input["AIN8"],
     },
+    WIFI_CHANNEL: input["WIFI_CHANNEL"],
+    WIFI_MODE: input["WIFI_MODE"],
+    WIFI_PASSWORD: input["WIFI_PASSWORD"],
+    WIFI_SSID: input["WIFI_SSID"],
     TIMESTAMP: Number(new Date()),
   };
 

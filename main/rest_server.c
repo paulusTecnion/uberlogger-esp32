@@ -391,6 +391,29 @@ const char * logger_settings_to_json(Settings_t *settings)
              cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
 
     }
+
+    cJSON_AddStringToObject(root, "FILE_NAME_PREFIX", settings->file_prefix);
+    cJSON_AddNumberToObject(root, "FILE_SPLIT_SIZE_UNIT", settings->file_split_size_unit);
+
+    uint32_t file_split_size;
+
+    switch (settings->file_split_size_unit)
+    {
+        default:
+        case 0:
+            file_split_size = settings->file_split_size / 1024;
+        break;
+
+        case 1:
+            file_split_size = settings->file_split_size / (1024*1024);
+        break;
+
+        case 2:
+            file_split_size = settings->file_split_size / (1024 * 1024 * 1024);
+        break;
+    }
+    cJSON_AddNumberToObject(root, "FILE_SPLIT_SIZE", file_split_size );
+
     
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
@@ -684,6 +707,48 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
         
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_NAME_PREFIX");
+    if (item != NULL)
+    {
+        if (strcmp(item->valuestring, "") == 0)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Filename prefix cannot be empty");
+        }
+        if (settings_set_file_prefix(item->valuestring) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Filename prefix cannot be larger than 70 characters");
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    // split size unit must be called beofer set_file_split_size
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_SPLIT_SIZE_UNIT");
+    if (item != NULL)
+    {
+        if (settings_set_file_split_size_unit(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size unit value.");
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_SPLIT_SIZE");
+    if (item != NULL)
+    {
+        if (settings_set_file_split_size(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size.  Min. 200 KiB and Maximum 4 GiB");
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID");
     if (item != NULL)

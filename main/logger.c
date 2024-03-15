@@ -93,6 +93,7 @@ QueueHandle_t xQueueFW = NULL;
 // temporary variables to calculate fixed point numbers
 int64_t t0, t1,t2,t3;
 uint32_t _errorCode;
+static uint8_t _systemTimeSet = 0;
 
 // Handle to stm32 task
 extern TaskHandle_t xHandle_stm32;
@@ -1009,13 +1010,13 @@ esp_err_t Logger_flush_to_sdcard()
     }
 
     // Check for file size and stop if we reached the limit
-
-    if (fileman_check_current_file_size(MAX_FILE_SIZE))
+    
+    if (fileman_check_current_file_size(settings_get_file_split_size()))
     {
-        ESP_LOGW(TAG_LOG, "Reached max file size. Closing file and reopening new...");
+        ESP_LOGI(TAG_LOG, "Reached max file size. Closing file and reopening new...");
         fileman_close_file();
        
-        fileman_set_prefix("test", live_data.timestamp);
+        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp);
         fileman_open_file();
         //SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
         //goto error;
@@ -1656,6 +1657,12 @@ void Logtask_singleShot()
             #endif
             Logger_processData();
             Logger_GetSingleConversion(&live_data);
+            // Set the system time if this is the first time we do a single shot
+            if (!_systemTimeSet)
+            {
+                settings_set_system_time(live_data.timestamp/1000);
+                _systemTimeSet = 1;
+            }
                 
         } else {
             ESP_LOGE(TAG_LOG, "Error receiving last message");
@@ -1689,7 +1696,7 @@ void Logtask_logging()
 
         // time to char *
         
-        fileman_set_prefix("test", live_data.timestamp);
+        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp);
 
         if (fileman_open_file() != ESP_OK)
         { 
@@ -1994,9 +2001,10 @@ void task_logging(void * pvParameters)
         esp_sd_card_mount() == ESP_OK)
     {
         #ifdef DEBUG_LOGTASK
-        //ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
-        ESP_LOGI(TAG_LOG, "File prefix: %s", "test");
+        // ESP_LOGI(TAG_LOG, "File seq nr: %d", fileman_search_last_sequence_file());
+        // ESP_LOGI(TAG_LOG, "File prefix: %s", "test");
         #endif
+        Logger_check_sdcard_free_space();
         
         // esp_sd_card_unmount();
     } 
