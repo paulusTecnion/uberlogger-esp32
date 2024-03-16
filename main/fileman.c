@@ -331,15 +331,6 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
     int j = 0;
     uint32_t writeptr = 0;
 
-    // ESP_LOGI(TAG_FILE,"Lengths: %u, %u, %u", lenAdc, lenGpio, lenTime);
-
-    // for (int i = 0; i<32; i++)
-    // {
-    //     ESP_LOGI(TAG_FILE, "ADC fp: %ld", *(dataAdc+i*sizeof(int32_t)));
-    // }
-
-    // ESP_LOGI(TAG_FILE, "Writing %u rows", datarows);
-
     for (int i = 0; i < datarows; i++)
     {
         // Print time stamp
@@ -467,7 +458,7 @@ esp_err_t fileman_raw_write_header()
     if (w != sizeof(uint8_t))
         return ESP_FAIL;
     //  sample rate
-    w = fwrite(&(settings_get()->log_sample_rate), sizeof(uint8_t), 1, f);
+    w = fwrite(&(settings_get()->adc_log_sample_rate), sizeof(uint8_t), 1, f);
     if (w != sizeof(uint8_t))
         return ESP_FAIL;
     // Write gpio channels enabled

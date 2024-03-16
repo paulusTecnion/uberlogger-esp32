@@ -9,7 +9,7 @@
 #include "common.h"
 
 #define MAX_FILE_PREFIX_LENGTH 70 // max number of characters
-#define MAX_FILE_SPLIT_SIZE 0xFFFFFFFF // in BYTES
+#define MAX_FILE_SPLIT_SIZE 0x80000000 // in BYTES
 
 #define FILE_SPLIT_SIZE_UNIT_KB 0
 #define FILE_SPLIT_SIZE_UNIT_MB 1
@@ -114,18 +114,41 @@ typedef struct {
 
 struct Settings_t {
     adc_resolution_t adc_resolution;
-    adc_sample_rate_t log_sample_rate; // can make this one out of fixed options
+    adc_sample_rate_t adc_log_sample_rate; // can make this one out of fixed options
     uint8_t adc_channel_type; // indicate whether channel 0..7 are normal ADC (bit = 0) or NTC (bit = 1). LSB = channel 0, MSB = channel 7
     uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
 	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
-	uint8_t gpio_channels_enabled;
 	uint8_t logMode;
+	char wifi_ssid[MAX_WIFI_SSID_LEN];
+	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
+	char wifi_password[MAX_WIFI_PASSW_LEN];
+	uint8_t wifi_channel;
+	uint8_t wifi_mode;
+	uint32_t timestamp; // time in BCD format
+	// ADC 12 bit offset value in absolute value
+	int32_t adc_offsets_12b[NUM_ADC_CHANNELS];
+	// ADC 16 bit offset value in absolute value
+	int32_t adc_offsets_16b[NUM_ADC_CHANNELS];
+	// ADC temp offset value in absolute value
+	int16_t temp_offsets[NUM_ADC_CHANNELS];
+	uint8_t bootReason;
+	/* NEW SETTINGS */
+	uint8_t gpio_channels_enabled;
 	uint8_t file_name_mode;  // 0 = sequential logfile, 1 = timestamp
 	char file_prefix[MAX_FILE_PREFIX_LENGTH];
 	// File split size in bytes
 	uint32_t file_split_size;
 	// File split size unit. 0 = KB, 1 = MB, 2 = GB
 	uint8_t file_split_size_unit;
+};
+
+struct Settings_old_t {
+    adc_resolution_t adc_resolution;
+    adc_sample_rate_t log_sample_rate; // can make this one out of fixed options
+    uint8_t adc_channel_type; // indicate whether channel 0..7 are normal ADC (bit = 0) or NTC (bit = 1). LSB = channel 0, MSB = channel 7
+    uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
+	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
+	uint8_t logMode;
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
 	char wifi_password[MAX_WIFI_PASSW_LEN];
@@ -140,6 +163,8 @@ struct Settings_t {
 	int16_t temp_offsets[NUM_ADC_CHANNELS];
 	uint8_t bootReason;
 };
+
+typedef struct Settings_old_t Settings_old_t;
 
 typedef struct Settings_t Settings_t;
 
@@ -209,6 +234,11 @@ esp_err_t settings_set_samplerate(adc_sample_rate_t rate);
 
 esp_err_t settings_load_persisted_settings();
 esp_err_t settings_persist_settings();
+
+/// @brief Converts the settings to a JSON string. Requires to manually free the string from memory afterwards!
+/// @param settings Pointer to settings struct
+/// @return A string of the JSON output. NULL pointer on failure. 
+char * settings_to_json(Settings_t *settings);
 
 esp_err_t settings_print();
 

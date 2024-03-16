@@ -4,7 +4,9 @@
 #include "esp_wifi_types.h"
 #include "wifi.h"
 static const char* TAG_SETTINGS = "SETTINGS";
-const char * settings_filename = "settings.json";
+const char * settings_filename_old = "settings.json";
+const char * settings_filename = "settings_new.json";
+
 Settings_t _settings;
 
 static int8_t lastEnabledADC = -1;
@@ -85,7 +87,7 @@ uint8_t settings_get_adc_channel_enabled_all()
 
 uint8_t settings_get_adc_channel_type(Settings_t *settings, adc_channel_t channel)
 {
-    return settings->adc_channel_type & (0x01 << channel);
+    return _settings.adc_channel_type & (0x01 << channel);
 }
 
 uint8_t settings_get_adc_channel_type_all()
@@ -108,7 +110,7 @@ Settings_t* settings_get(){
 
 uint8_t settings_get_adc_channel_range(Settings_t * settings, adc_channel_t channel)
 {
-    return settings->adc_channel_range & (0x01 << channel);
+    return _settings.adc_channel_range & (0x01 << channel);
 }
 
 uint8_t settings_get_adc_channel_range_all()
@@ -212,7 +214,7 @@ Settings_t settings_get_default()
     Settings_t default_settings;
 
     default_settings.adc_resolution = ADC_12_BITS;
-    default_settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
+    default_settings.adc_log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
     default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     default_settings.adc_channel_range = 0x00; // 10V by default
@@ -252,7 +254,7 @@ esp_err_t settings_set_default()
     #endif
     _settings.adc_resolution = ADC_16_BITS;
 
-    _settings.log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
+    _settings.adc_log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     _settings.adc_channel_range = 0x00; // 10V by default
@@ -349,7 +351,7 @@ esp_err_t settings_set_file_split_size(uint32_t size)
         case 2:
             // GB
 
-            sizeInKiB = size * 1024 * 1024; // From GB to KB
+            sizeInKiB = (size * 1024 * 1024); // From GB to KB. Subtract 1, else we get an overflow
         break;
 
         default:
@@ -363,7 +365,8 @@ esp_err_t settings_set_file_split_size(uint32_t size)
     }
 
     
-    _settings.file_split_size = sizeInKiB*1024;
+    _settings.file_split_size =  (sizeInKiB*1024);
+    ESP_LOGI(TAG_SETTINGS, "%llu, %lu", sizeInKiB, _settings.file_split_size);
 
     
     return ESP_OK;
@@ -529,7 +532,7 @@ esp_err_t settings_set_samplerate(adc_sample_rate_t rate)
         #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "ADC SAMPLE RATE= %d", rate);
         #endif
-        _settings.log_sample_rate = rate;
+        _settings.adc_log_sample_rate = rate;
         return ESP_OK;
     } else {
         return ESP_FAIL;
@@ -539,7 +542,181 @@ esp_err_t settings_set_samplerate(adc_sample_rate_t rate)
 
 adc_sample_rate_t settings_get_samplerate()
 {
-    return _settings.log_sample_rate;
+    return _settings.adc_log_sample_rate;
+}
+
+
+char* settings_read_json_file(FILE* f) {
+   
+    fseek(f, 0, SEEK_END);
+    long length = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char* buffer = (char*)malloc(length + 1);
+    if (buffer == NULL) {
+        ESP_LOGE("FILE", "Failed to allocate memory for file content");
+        fclose(f);
+        return NULL;
+    }
+
+    fread(buffer, 1, length, f);
+    fclose(f);
+    buffer[length] = '\0'; // Null-terminate the string
+    return buffer;
+}
+
+
+esp_err_t settings_load_json(FILE* f)
+{
+
+    char * json = settings_read_json_file(f);
+
+    ESP_LOGI(TAG_SETTINGS, "%s", json);
+
+    if (json == NULL)
+    {
+        ESP_LOGE(TAG_SETTINGS, "Error parsing JSON setting file.");
+        return ESP_FAIL;
+    }
+
+    cJSON* root = cJSON_Parse(json);
+    if (root == NULL) {
+        const char* error_ptr = cJSON_GetErrorPtr();
+        if (error_ptr != NULL) {
+            ESP_LOGE("JSON", "Error before: %s", error_ptr);
+        }
+        return ESP_FAIL;
+    }
+
+
+   const cJSON* adc_channel_type = cJSON_GetObjectItemCaseSensitive(root, "adc_channel_type");
+    if (cJSON_IsNumber(adc_channel_type)) {
+        _settings.adc_channel_type = adc_channel_type->valueint;
+    }
+
+    const cJSON* adc_channels_enabled = cJSON_GetObjectItemCaseSensitive(root, "adc_channels_enabled");
+    if (cJSON_IsNumber(adc_channels_enabled)) {
+        _settings.adc_channels_enabled = adc_channels_enabled->valueint;
+    }
+
+    const cJSON* adc_channel_range = cJSON_GetObjectItemCaseSensitive(root, "adc_channel_range");
+    if (cJSON_IsNumber(adc_channel_range)) {
+        _settings.adc_channel_range = adc_channel_range->valueint;
+    }
+
+    const cJSON* adc_log_sample_rate = cJSON_GetObjectItemCaseSensitive(root, "adc_log_sample_rate");
+    if (cJSON_IsNumber(adc_log_sample_rate)) {
+        _settings.adc_log_sample_rate = adc_log_sample_rate->valueint;
+    }
+
+    const cJSON* adc_resolution = cJSON_GetObjectItemCaseSensitive(root, "adc_resolution");
+    if (cJSON_IsNumber(adc_resolution)) {
+        _settings.adc_channel_type = adc_resolution->valueint;
+    }
+
+    const cJSON* gpio_channels_enabled = cJSON_GetObjectItemCaseSensitive(root, "gpio_channels_enabled");
+    if (cJSON_IsNumber(gpio_channels_enabled)) {
+        _settings.gpio_channels_enabled = gpio_channels_enabled->valueint;
+    }
+
+    const cJSON* logMode = cJSON_GetObjectItemCaseSensitive(root, "log_mode");
+    if (cJSON_IsNumber(logMode)) {
+        _settings.logMode = logMode->valueint;
+    }
+
+    const cJSON* file_name_mode = cJSON_GetObjectItemCaseSensitive(root, "file_name_mode");
+    if (cJSON_IsNumber(file_name_mode)) {
+        _settings.file_name_mode = file_name_mode->valueint;
+    }
+
+    const cJSON* file_prefix = cJSON_GetObjectItemCaseSensitive(root, "file_name_prefix");
+    if (cJSON_IsString(file_prefix) && file_prefix->valuestring != NULL) {
+        strncpy(_settings.file_prefix, file_prefix->valuestring, sizeof(_settings.file_prefix) - 1);
+        _settings.file_prefix[sizeof(_settings.file_prefix) - 1] = '\0'; // Ensure null-terminated
+    }
+
+    const cJSON* file_split_size = cJSON_GetObjectItemCaseSensitive(root, "file_split_size");
+    if (cJSON_IsNumber(file_split_size)) {
+        _settings.file_split_size = file_split_size->valueint;
+    }
+
+    const cJSON* file_split_size_unit = cJSON_GetObjectItemCaseSensitive(root, "file_split_size_unit");
+    if (cJSON_IsNumber(file_split_size_unit)) {
+        _settings.file_split_size_unit = file_split_size_unit->valueint;
+    }
+
+    const cJSON* wifi_ssid = cJSON_GetObjectItemCaseSensitive(root, "wifi_ssid");
+    if (cJSON_IsString(wifi_ssid) && wifi_ssid->valuestring != NULL) {
+        strncpy(_settings.wifi_ssid, wifi_ssid->valuestring, sizeof(_settings.wifi_ssid) - 1);
+        _settings.wifi_ssid[sizeof(_settings.wifi_ssid) - 1] = '\0'; // Ensure null-terminated
+    }
+
+    const cJSON* wifi_ssid_ap = cJSON_GetObjectItemCaseSensitive(root, "wifi_ssid_ap");
+    if (cJSON_IsString(wifi_ssid_ap) && wifi_ssid_ap->valuestring != NULL) {
+        strncpy(_settings.wifi_ssid_ap, wifi_ssid_ap->valuestring, sizeof(_settings.wifi_ssid_ap) - 1);
+        _settings.wifi_ssid_ap[sizeof(_settings.wifi_ssid_ap) - 1] = '\0'; // Ensure null-terminated
+    }
+
+    const cJSON* wifi_password = cJSON_GetObjectItemCaseSensitive(root, "wifi_password");
+    if (cJSON_IsString(wifi_password) && wifi_password->valuestring != NULL) {
+        strncpy(_settings.wifi_password, wifi_password->valuestring, sizeof(_settings.wifi_password) - 1);
+        _settings.wifi_password[sizeof(_settings.wifi_password) - 1] = '\0'; // Ensure null-terminated
+    }
+
+    const cJSON* wifi_channel = cJSON_GetObjectItemCaseSensitive(root, "wifi_channel");
+    if (cJSON_IsNumber(wifi_channel)) {
+        _settings.wifi_channel = wifi_channel->valueint;
+    }
+
+    const cJSON* wifi_mode = cJSON_GetObjectItemCaseSensitive(root, "wifi_mode");
+    if (cJSON_IsNumber(wifi_mode)) {
+        _settings.wifi_mode = wifi_mode->valueint;
+    }
+
+    const cJSON* timestamp = cJSON_GetObjectItemCaseSensitive(root, "timestamp");
+    if (cJSON_IsNumber(timestamp)) {
+        _settings.timestamp = timestamp->valuedouble; // Assuming timestamp is stored as a double
+    }
+
+    const cJSON* offsets_12b = cJSON_GetObjectItemCaseSensitive(root, "adc_offsets_12b");
+    if (cJSON_IsArray(offsets_12b)) {
+        for (int i = 0; i < cJSON_GetArraySize(offsets_12b) && i < NUM_ADC_CHANNELS; i++) {
+            cJSON* item = cJSON_GetArrayItem(offsets_12b, i);
+            if (cJSON_IsNumber(item)) {
+                _settings.adc_offsets_12b[i] = item->valueint;
+            }
+        }
+    }
+
+    const cJSON* offsets_16b = cJSON_GetObjectItemCaseSensitive(root, "adc_offsets_16b");
+    if (cJSON_IsArray(offsets_16b)) {
+        for (int i = 0; i < cJSON_GetArraySize(offsets_16b) && i < NUM_ADC_CHANNELS; i++) {
+            cJSON* item = cJSON_GetArrayItem(offsets_16b, i);
+            if (cJSON_IsNumber(item)) {
+                _settings.adc_offsets_16b[i] = item->valueint;
+            }
+        }
+    }
+
+    const cJSON* temp_offsets = cJSON_GetObjectItemCaseSensitive(root, "temp_offsets");
+    if (cJSON_IsArray(temp_offsets)) {
+        for (int i = 0; i < cJSON_GetArraySize(temp_offsets) && i < NUM_ADC_CHANNELS; i++) {
+            cJSON* item = cJSON_GetArrayItem(temp_offsets, i);
+            if (cJSON_IsNumber(item)) {
+                _settings.temp_offsets[i] = item->valueint;
+            }
+        }
+    }
+
+    const cJSON* bootReason = cJSON_GetObjectItemCaseSensitive(root, "boot_reason");
+    if (cJSON_IsNumber(bootReason)) {
+        _settings.bootReason = bootReason->valueint;
+    }
+
+
+    cJSON_Delete(root);
+    free((void*) json);
+
+    return ESP_OK;
 }
 
 esp_err_t settings_load_persisted_settings()
@@ -547,23 +724,51 @@ esp_err_t settings_load_persisted_settings()
     #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Loading persisted settings");
     #endif
-    if (spiffs_init(settings_filename) == ESP_OK)
-    {
-        if (spiffs_read((char*)&_settings, sizeof(_settings)) == ESP_OK)
+    
+    // By default load all settings into the new settings struct
+    settings_set_default();
+    // First check if there is an old settings.json file on the spiffs drive. 
+    if (spiffs_init() == ESP_OK)
+    {  
+        // If old settings exist on spiffs, load them into the settings struct. 
+        if (spiffs_read((char*)&_settings, sizeof(Settings_old_t), settings_filename_old) == ESP_OK)
         {
             #ifdef DEBUG_SETTINGS
-            ESP_LOGI(TAG_SETTINGS, "Persisted settings loaded succesfully");
+            ESP_LOGI(TAG_SETTINGS, "Old settings.json of spiffs exists. Settings loaded succesfully");
             #endif
             settings_determine_last_enabled_channel();
-            return ESP_OK;     
-        } else {
-            ESP_LOGE(TAG_SETTINGS, "Error reading settings file, setting and persisting defaults");
-            settings_set_default();
+            // Remove existing /www/settings.json
+            unlink("/www/settings.json");
+            // remove old /spiffs/settings.json
+            spiffs_delete(settings_filename_old);
+            // Store settings onto /spiffs/settings.json as an actual json file
             settings_persist_settings();
-        }
+            return ESP_OK;     
+        } 
+    } else {
+        return ESP_FAIL;
     }
-    ESP_LOGE(TAG_SETTINGS, "Loading persisted settings FAILED");
-    return ESP_FAIL;
+
+    // Old settings don't exist
+    char buf[30];
+    sprintf(buf, "/spiffs/%s", settings_filename);
+    // Check if new settings file exists
+    FILE *fsetting = fopen(buf, "r");
+    if (fsetting != NULL)  // Check if new settings.json exists.
+    { 
+        // read the json file and load the settings
+        ESP_LOGI(TAG_SETTINGS, "Found new settings file. Loading settings");
+        settings_load_json(fsetting);
+    } else {
+        // Both old and new settings don't exist, so this is a new device (or file corrupt). Store settings.
+        ESP_LOGW(TAG_SETTINGS, "Error reading settings file, setting and persisting defaults");
+        settings_persist_settings();
+    }
+
+    settings_determine_last_enabled_channel();
+    return ESP_OK;
+    
+   
 }
 
 esp_err_t settings_print()
@@ -571,7 +776,7 @@ esp_err_t settings_print()
     int i =0;
     
     ESP_LOGI(TAG_SETTINGS, "ADC Resolution %d", _settings.adc_resolution);
-    ESP_LOGI(TAG_SETTINGS, "ADC Sample rate %d", _settings.log_sample_rate);
+    ESP_LOGI(TAG_SETTINGS, "ADC Sample rate %d", _settings.adc_log_sample_rate);
     
 
     for (i=0; i<8; i++)
@@ -613,19 +818,10 @@ esp_err_t settings_print()
 
 esp_err_t settings_persist_settings()
 {
-    const char * json = logger_settings_to_json(&_settings);
+    const char * json = settings_to_json(&_settings);
     settings_determine_last_enabled_channel();
-    FILE * f = fopen("/www/settings.json", "w");
-    if (f == NULL)
-    {
-        ESP_LOGE(TAG_SETTINGS, "Failed to open file for writing");
-        return ESP_FAIL;
-    }
-    fprintf(f, "%s", json);
-    fclose(f);
 
-
-    if ( spiffs_write((const char*)&_settings, sizeof(_settings)) == ESP_OK)
+    if ( spiffs_write(json, strlen(json), settings_filename) == ESP_OK)
     {
         #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "Settings persisted");
@@ -633,8 +829,83 @@ esp_err_t settings_persist_settings()
         return ESP_OK;     
     }
 
+
+    // FILE * f = fopen("/www/settings.json", "w");
+    // if (f == NULL)
+    // {
+    //     ESP_LOGE(TAG_SETTINGS, "Failed to open file for writing");
+    //     return ESP_FAIL;
+    // }
+    // if (!fputs(json, f))
+    // {
+    //     fclose(f);
+    // }
+    
+    free((void *)json);
+
+    /* We don't store data on spiffs anymore */
+   
+
     ESP_LOGE(TAG_SETTINGS, "Persisting settings FAILED");
     return ESP_FAIL;
+}
+
+
+char * settings_to_json(Settings_t *settings)
+{
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+        ESP_LOGE("JSON", "Failed to create cJSON object");
+        return NULL;;
+    }
+
+     // Add data to the cJSON object
+    cJSON_AddNumberToObject(root, "adc_channel_type", _settings.adc_channel_type);
+    cJSON_AddNumberToObject(root, "adc_channels_enabled", _settings.adc_channels_enabled);
+    cJSON_AddNumberToObject(root, "adc_channel_range", _settings.adc_channel_range);
+    cJSON_AddNumberToObject(root, "adc_log_sample_rate", _settings.adc_log_sample_rate);
+    cJSON_AddNumberToObject(root, "adc_resolution", _settings.adc_resolution);
+    cJSON_AddNumberToObject(root, "gpio_channels_enabled", _settings.gpio_channels_enabled);
+    cJSON_AddNumberToObject(root, "log_mode", _settings.logMode);
+    cJSON_AddNumberToObject(root, "file_name_mode", _settings.file_name_mode);
+    cJSON_AddStringToObject(root, "file_name_prefix", _settings.file_prefix);
+    cJSON_AddNumberToObject(root, "file_split_size", _settings.file_split_size);
+    cJSON_AddNumberToObject(root, "file_split_size_unit", _settings.file_split_size_unit);
+    cJSON_AddNumberToObject(root, "wifi_channel", _settings.wifi_channel);
+    cJSON_AddNumberToObject(root, "wifi_mode", _settings.wifi_mode);
+    cJSON_AddStringToObject(root, "wifi_ssid", _settings.wifi_ssid);
+    cJSON_AddStringToObject(root, "wifi_ssid_ap", _settings.wifi_ssid_ap);
+    cJSON_AddStringToObject(root, "wifi_password", _settings.wifi_password); 
+    cJSON_AddNumberToObject(root, "timestamp", _settings.timestamp);
+    cJSON_AddNumberToObject(root, "boot_reason", _settings.bootReason);
+
+    // Create JSON arrays for the offset values
+    cJSON *adc_offsets_12b_array = cJSON_CreateArray();
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++) {
+        cJSON_AddItemToArray(adc_offsets_12b_array, cJSON_CreateNumber(_settings.adc_offsets_12b[i]));
+    }
+
+    cJSON *adc_offsets_16b_array = cJSON_CreateArray();
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++) {
+        cJSON_AddItemToArray(adc_offsets_16b_array, cJSON_CreateNumber(_settings.adc_offsets_16b[i]));
+    }
+
+    // For temp_offsets, since it's an int16_t array, we need to create the JSON array manually
+    cJSON *temp_offsets_array = cJSON_CreateArray();
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++) {
+        cJSON_AddItemToArray(temp_offsets_array, cJSON_CreateNumber(_settings.temp_offsets[i]));
+    }
+
+    // Add the arrays to the root object
+    cJSON_AddItemToObject(root, "adc_offsets_12b", adc_offsets_12b_array);
+    cJSON_AddItemToObject(root, "adc_offsets_16b", adc_offsets_16b_array);
+    cJSON_AddItemToObject(root, "temp_offsets", temp_offsets_array);
+
+    // Convert cJSON object to string (same as before)
+    char *json_string = cJSON_Print(root);
+    cJSON_Delete(root); // Cleanup
+
+    return json_string;
 }
 
 esp_err_t settings_set_timestamp(uint64_t timestamp)

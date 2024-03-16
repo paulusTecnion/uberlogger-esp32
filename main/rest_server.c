@@ -483,7 +483,7 @@ const char * logger_settings_to_json(Settings_t *settings)
     
 
     cJSON_AddNumberToObject(root, "ADC_RESOLUTION", settings->adc_resolution);
-    cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->log_sample_rate);
+    cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->adc_log_sample_rate);
     cJSON_AddNumberToObject(root, "LOG_MODE", settings->logMode);
 
 
@@ -819,7 +819,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_file_split_size(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size.  Min. 200 KB and Maximum 4 GB");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size.  Min. 200 KB and Maximum 2 GB");
             // return ESP_FAIL;
             goto error;
         }

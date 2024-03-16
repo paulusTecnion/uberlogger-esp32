@@ -12,9 +12,9 @@ static const char *TAG = "SPIFFS";
 FILE * f;
 char _filename[30];
 
-esp_err_t spiffs_init(const char * filename_settings)
+esp_err_t spiffs_init()
 {
-    ESP_LOGI(TAG, "Initializing SPIFFS using %s", filename_settings);
+    ESP_LOGI(TAG, "Initializing SPIFFS using");
 
     esp_vfs_spiffs_conf_t conf = {
       .base_path = "/spiffs",
@@ -73,23 +73,23 @@ esp_err_t spiffs_init(const char * filename_settings)
         }
     }
 
-    if (strlen(filename_settings) < 22)
-    {
-        strcpy(_filename, filename_settings);        
-    } else {
-        return ESP_FAIL;
-    }
+    // if (strlen(filename_settings) < 22)
+    // {
+    //     strcpy(_filename, filename_settings);        
+    // } else {
+    //     return ESP_FAIL;
+    // }
 
 
     return ESP_OK;   
 }
 
 
-esp_err_t spiffs_write(const char* data, size_t length)
+esp_err_t spiffs_write(const char* data, size_t length, const char * filename)
 {
     size_t writeSize = 0;
     char buffer[30];
-    sprintf(buffer, "/spiffs/%s" ,_filename);
+    sprintf(buffer, "/spiffs/%s" ,filename);
     
     //  esp_vfs_spiffs_conf_t conf = {
     //   .base_path = SETTINGS_BASE_PATH,
@@ -122,11 +122,11 @@ esp_err_t spiffs_write(const char* data, size_t length)
     return ESP_OK;
 }
 
-esp_err_t spiffs_read(char* data, size_t length)
+esp_err_t spiffs_read(char* data, size_t length, const char * filename)
 {
     size_t readSize = 0;
     char buffer[30];
-    sprintf(buffer, "/spiffs/%s", _filename);
+    sprintf(buffer, "/spiffs/%s", filename);
     
     //  esp_vfs_spiffs_conf_t conf = {
     //   .base_path = SETTINGS_BASE_PATH,
@@ -159,3 +159,17 @@ esp_err_t spiffs_read(char* data, size_t length)
     return ESP_OK;
 }
 
+
+esp_err_t spiffs_delete(const char * filename)
+{
+    char buffer[50];
+    sprintf(buffer, "/spiffs/%s", filename);
+
+    if (unlink(filename) == 0) {
+        ESP_LOGI("SPIFFS", "File deleted successfully");
+        return ESP_OK;
+    } else {
+        ESP_LOGE("SPIFFS", "Failed to delete file");
+        return ESP_FAIL;
+    }
+}
