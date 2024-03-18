@@ -435,7 +435,7 @@ void settings_set_system_time(time_t timestamp)
     timeinfo = localtime(&now); // Convert the current time to local time
 
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo); // Format the time as a string
-    ESP_LOGI(TAG_SETTINGS, "Current system time: %s", buffer);
+    ESP_LOGI(TAG_SETTINGS, "Current system time: %llu, %s", timestamp, buffer);
 }
 
 
@@ -820,6 +820,9 @@ esp_err_t settings_persist_settings()
 {
     const char * json = settings_to_json(&_settings);
     settings_determine_last_enabled_channel();
+    #ifdef DEBUG_SETTINGS
+    ESP_LOGI(TAG_SETTINGS, "Persisting:\n\r %s", json);
+    #endif
 
     if ( spiffs_write(json, strlen(json), settings_filename) == ESP_OK)
     {
