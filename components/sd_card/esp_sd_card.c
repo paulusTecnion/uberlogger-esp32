@@ -190,7 +190,7 @@ esp_err_t esp_sd_card_init(void)
     gpio_set_drive_capability(PIN_NUM_MOSI, GPIO_DRIVE_CAP_3);
     gpio_set_drive_capability(PIN_NUM_CLK, GPIO_DRIVE_CAP_3);
     
-    host.max_freq_khz = 50000;
+    host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
     
     ret = spi_bus_initialize(host.slot, &bus_cfg, SDCARD_SPI_HOST);
     if (ret != ESP_OK) {
