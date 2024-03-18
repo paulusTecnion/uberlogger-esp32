@@ -610,7 +610,7 @@ esp_err_t settings_load_json(FILE* f)
 
     const cJSON* adc_resolution = cJSON_GetObjectItemCaseSensitive(root, "adc_resolution");
     if (cJSON_IsNumber(adc_resolution)) {
-        _settings.adc_channel_type = adc_resolution->valueint;
+        _settings.adc_resolution = adc_resolution->valueint;
     }
 
     const cJSON* gpio_channels_enabled = cJSON_GetObjectItemCaseSensitive(root, "gpio_channels_enabled");
