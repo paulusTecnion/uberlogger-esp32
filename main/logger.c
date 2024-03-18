@@ -665,9 +665,10 @@ esp_err_t Logger_format_sdcard()
 esp_err_t LogTask_start()
 {
     CLEAR_ERRORS(_errorCode);
-    if (_currentLogTaskState == LOGTASK_IDLE ||
+    if ((_currentLogTaskState == LOGTASK_IDLE ||
         _currentLogTaskState == LOGTASK_ERROR_OCCURED || 
-        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT) && 
+        xQueue != NULL)
     {
         // gpio_set_level(GPIO_ADC_EN, 1);
         // _nextLogTaskState = LOGTASK_LOGGING;
@@ -1089,7 +1090,9 @@ esp_err_t Logger_processData()
           
 
             // Straight copy the data into the sdcard buffer
-            if (spi_msg_slow_freq_1_ptr->dataLen < 70 && (settings_get_logmode() == LOGMODE_RAW))
+            if (spi_msg_slow_freq_1_ptr->dataLen >0 &&
+                spi_msg_slow_freq_1_ptr->dataLen < 70 && 
+                (settings_get_logmode() == LOGMODE_RAW))
             {
                 // Copy startbytes and length
                 memcpy(sdcard_data.spi_data + msgSize*log_counter, spi_msg_slow_freq_1_ptr->startByte, 2); 
@@ -1134,7 +1137,10 @@ esp_err_t Logger_processData()
             msg_part = 1;
             expected_msg_part = 0;
 
-            if (spi_msg_slow_freq_2_ptr->dataLen < 70 && (settings_get_logmode() == LOGMODE_RAW))
+            if (
+                spi_msg_slow_freq_1_ptr->dataLen >0 &&
+                spi_msg_slow_freq_2_ptr->dataLen < 70 && 
+                (settings_get_logmode() == LOGMODE_RAW))
             {
                 size_t msgSize = 4 + spi_msg_slow_freq_2_ptr->dataLen*sizeof(s_date_time_t) + spi_msg_slow_freq_2_ptr->dataLen + spi_msg_slow_freq_2_ptr->dataLen*2*8;
                 size_t baseOffset = msgSize * log_counter; 
