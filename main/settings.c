@@ -804,8 +804,8 @@ esp_err_t settings_print()
     ESP_LOGI(TAG_SETTINGS, "GPIO Enabled: %d", _settings.gpio_channels_enabled);
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
     ESP_LOGI(TAG_SETTINGS, "File prefix %s", _settings.file_prefix);
-    ESP_LOGI(TAG_SETTINGS, "File split size unit: %d", _settings.file_split_size_unit);
-    ESP_LOGI(TAG_SETTINGS, "File split size: %ld", _settings.file_split_size);
+    ESP_LOGI(TAG_SETTINGS, "File split size unit: %u", _settings.file_split_size_unit);
+    ESP_LOGI(TAG_SETTINGS, "File split size: %lu", _settings.file_split_size);
 
 
 
