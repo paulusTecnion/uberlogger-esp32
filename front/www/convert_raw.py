@@ -215,7 +215,7 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
         channel = i % 8  # Determine the channel number (0-7)
         adc_value = adc_data[i]
         # Define range and offset based on adc_channel_range
-        if adc_channel_range & channel:
+        if adc_channel_range & (1 << channel):
             offset = 126774848
             range_value = 2*offset
             
@@ -426,7 +426,7 @@ def read_spi_msg_2(file, data_len, rows_remaining):
 
 
 # File path to your .dat file
-file_path = 'C:/Users/ppott/Downloads/20240319_09-03-01_log.dat'  # Replace with the actual file path
+file_path = 'C:/Users/ppott/Downloads/20240319_09-22-24_log.dat'  # Replace with the actual file path
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
 # Read and decode the file header
