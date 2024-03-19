@@ -237,7 +237,7 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
             converted_values.append(temperature/10.0)
         else:  # Voltage input
             t1 = adc_value * (-1 * range_value)  # Note the minus for inverted input
-            if settings[3] == 12:  # ADC_12_BITS
+            if settings[4] == 12:  # ADC_12_BITS
                 t2 = (t1+(2048-adc_offsets[channel])) / 4095  
             else:  # ADC_16_BITS
                 # 65520 is ADC max for 16 bits
@@ -426,7 +426,7 @@ def read_spi_msg_2(file, data_len, rows_remaining):
 
 
 # File path to your .dat file
-file_path = 'C:/Users/ppott/Downloads/log0.dat'  # Replace with the actual file path
+file_path = 'C:/Users/ppott/Downloads/20240319_09-03-01_log.dat'  # Replace with the actual file path
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
 # Read and decode the file header
