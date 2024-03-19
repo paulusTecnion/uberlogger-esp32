@@ -1511,15 +1511,16 @@ void Logtask_calibration()
     uint8_t x = 0;
 
     ESP_LOGI(TAG_LOG, "Calibration step %d", calibration);
+    // Switch to 12 bits mode and do single shot. Then switch to 16 bits and the same.
+    last_resolution = settings_get_resolution();
+    last_sample_rate = settings_get_samplerate();
 
     while (1)
     {
         switch (calibration)
         {
             case 0:
-                // Switch to 12 bits mode and do single shot. Then switch to 16 bits and the same.
-                last_resolution = settings_get_resolution();
-                last_sample_rate = settings_get_samplerate();
+               
                 settings_set_resolution(ADC_12_BITS);
                 settings_set_samplerate(ADC_SAMPLE_RATE_250Hz);
                 settings_persist_settings();
@@ -1967,8 +1968,13 @@ void task_logging(void * pvParameters)
     gpio_set_level(GPIO_ADC_EN, 0);
 
     gpio_set_direction(GPIO_STM32_BOOT0, GPIO_MODE_OUTPUT);
+    
+    gpio_set_direction(SDCARD_POWER_EN, GPIO_MODE_OUTPUT);
     // boot STM32 normally
     gpio_set_level(GPIO_STM32_BOOT0, 0);
+    // Enable power of sd card
+    gpio_set_level(SDCARD_POWER_EN, 0);
+
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     gpio_config_t nreset_conf={
