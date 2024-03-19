@@ -165,7 +165,7 @@ esp_err_t spiffs_delete(const char * filename)
     char buffer[50];
     sprintf(buffer, "/spiffs/%s", filename);
 
-    if (unlink(filename) == 0) {
+    if (unlink(buffer) == 0) {
         ESP_LOGI("SPIFFS", "File deleted successfully");
         return ESP_OK;
     } else {
