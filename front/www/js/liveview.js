@@ -93,7 +93,7 @@ function renderValueList() {
 }
 
 function storeDataPoint(category, channel, timestamp, value, unit) {
-  var maxTimeDifference = 5 * 1000; // 24 hours in milliseconds
+  var maxTimeDifference = 15 * 1000; // 24 hours in milliseconds
   var currentTime = new Date().getTime(); // Get current time in milliseconds
   var inputTime = new Date(timestamp).getTime(); // Convert input timestamp to milliseconds
 
