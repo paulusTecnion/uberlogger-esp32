@@ -201,6 +201,7 @@ int fileman_write(const void * data, size_t len)
         perror ("The following error occurred");
         return 0;
     }
+    file_bytes_written = file_bytes_written + len;
     return write_result;
 }
 
