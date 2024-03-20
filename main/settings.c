@@ -783,7 +783,7 @@ esp_err_t settings_load_persisted_settings()
         // strcpy(tmpOldSettings.wifi_ssid, "UBLOG");
         // strcpy(tmpOldSettings.wifi_ssid_ap, "UBLOG-AP");
 
-        spiffs_write((char*)&tmpOldSettings, sizeof(tmpOldSettings), settings_filename_old);
+        // spiffs_write((char*)&tmpOldSettings, sizeof(tmpOldSettings), settings_filename_old);
         // If old settings exist on spiffs, load them into the settings struct. 
         if (spiffs_read((char*)&tmpOldSettings, sizeof(Settings_old_t), settings_filename_old) == ESP_OK)
         {
