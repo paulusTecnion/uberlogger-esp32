@@ -52,6 +52,7 @@ DEBUG OUTPUT CONFIGURATION
 #define SDCARD_SPI_CLK  36
 #define SDCARD_SPI_CS   34
 #define SDCARD_CD       33
+#define SDCARD_POWER_EN 2
 
 
 // ADC enable
