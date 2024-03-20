@@ -636,7 +636,7 @@ esp_err_t settings_load_json(FILE* f)
 
     const cJSON* file_split_size = cJSON_GetObjectItemCaseSensitive(root, "file_split_size");
     if (cJSON_IsNumber(file_split_size)) {
-        _settings.file_split_size = file_split_size->valueint;
+        _settings.file_split_size = file_split_size->valuedouble; // valueint returns the incorrect value. 
     }
 
     const cJSON* file_split_size_unit = cJSON_GetObjectItemCaseSensitive(root, "file_split_size_unit");
