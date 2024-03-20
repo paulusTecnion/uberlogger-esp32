@@ -139,7 +139,7 @@ esp_err_t spiffs_read(char* data, size_t length, const char * filename)
     f = fopen(buffer, "r");
     if (!f)
     {
-        ESP_LOGE(TAG, "Cannot open file for read");
+        ESP_LOGW(TAG, "Cannot open file %s for read. File doesn't exist? Exiting...", filename);
         return ESP_FAIL;
     }
 

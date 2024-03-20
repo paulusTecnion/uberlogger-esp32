@@ -719,23 +719,78 @@ esp_err_t settings_load_json(FILE* f)
     return ESP_OK;
 }
 
+esp_err_t settings_migrate(Settings_old_t * oldSettings)
+{
+
+    _settings.bootReason = oldSettings->bootReason;
+    _settings.adc_resolution = oldSettings->adc_resolution;
+    _settings.adc_log_sample_rate = oldSettings->log_sample_rate; // 10Hz 
+    _settings.adc_channel_type = oldSettings->adc_channel_type; // all channels normal ADC by default
+    _settings.adc_channels_enabled = oldSettings->adc_channels_enabled; // all channels are enabled by default
+    _settings.adc_channel_range = oldSettings->adc_channel_range; // 10V by default
+    _settings.timestamp = oldSettings->timestamp;
+    _settings.logMode = oldSettings->logMode;
+    
+    // strcpy(_settings.file_prefix, "log");
+    // _settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
+    // _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
+    // _settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB  
+    
+    strcpy(_settings.wifi_ssid, oldSettings->wifi_ssid);
+    strcpy(_settings.wifi_ssid_ap, oldSettings->wifi_ssid_ap);
+    strcpy(_settings.wifi_password, oldSettings->wifi_password);
+    _settings.wifi_mode = oldSettings->wifi_mode;
+    _settings.wifi_channel = oldSettings->wifi_channel;
+
+    for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+    {
+        _settings.adc_offsets_12b[i] = oldSettings->adc_offsets_12b[i];
+        _settings.adc_offsets_16b[i] = oldSettings->adc_offsets_16b[i];
+        _settings.temp_offsets[i] = oldSettings->temp_offsets[i];
+    }
+
+    settings_print();
+
+    return ESP_OK;
+}
+
 esp_err_t settings_load_persisted_settings()
 {
     #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Loading persisted settings");
     #endif
     
+
+
     // By default load all settings into the new settings struct
     settings_set_default();
     // First check if there is an old settings.json file on the spiffs drive. 
     if (spiffs_init() == ESP_OK)
     {  
+        // Settings_old_t tmpOldSettings;
+        // tmpOldSettings.adc_channel_range = ADC_RANGE_10V;
+        // tmpOldSettings.adc_channel_type = (1 << 2) | (1<<4) | (1<<6);
+        // tmpOldSettings.adc_channels_enabled = 255;
+        // tmpOldSettings.adc_resolution = ADC_16_BITS;
+        // for (int i = 0; i < 8; i++)
+        // {
+        //     tmpOldSettings.adc_offsets_12b[i] = 2024;
+        //     tmpOldSettings.adc_offsets_16b[i] = 32343;
+        //     tmpOldSettings.temp_offsets[i] = 0;
+        // }
+        // tmpOldSettings.wifi_channel = 1;
+        // strcpy(tmpOldSettings.wifi_password, "");
+        // strcpy(tmpOldSettings.wifi_ssid, "UBLOG");
+        // strcpy(tmpOldSettings.wifi_ssid_ap, "UBLOG-AP");
+
+        spiffs_write((char*)&tmpOldSettings, sizeof(tmpOldSettings), settings_filename_old);
         // If old settings exist on spiffs, load them into the settings struct. 
-        if (spiffs_read((char*)&_settings, sizeof(Settings_old_t), settings_filename_old) == ESP_OK)
+        if (spiffs_read((char*)&tmpOldSettings, sizeof(Settings_old_t), settings_filename_old) == ESP_OK)
         {
             #ifdef DEBUG_SETTINGS
             ESP_LOGI(TAG_SETTINGS, "Old settings.json of spiffs exists. Settings loaded succesfully");
             #endif
+            settings_migrate(&tmpOldSettings);
             settings_determine_last_enabled_channel();
             // Remove existing /www/settings.json
             unlink("/www/settings.json");
