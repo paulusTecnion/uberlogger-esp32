@@ -767,7 +767,7 @@ esp_err_t settings_load_persisted_settings()
     // First check if there is an old settings.json file on the spiffs drive. 
     if (spiffs_init() == ESP_OK)
     {  
-        // Settings_old_t tmpOldSettings;
+        Settings_old_t tmpOldSettings;
         // tmpOldSettings.adc_channel_range = ADC_RANGE_10V;
         // tmpOldSettings.adc_channel_type = (1 << 2) | (1<<4) | (1<<6);
         // tmpOldSettings.adc_channels_enabled = 255;
