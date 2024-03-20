@@ -1,4 +1,4 @@
-image: espressif/idf:v5.0.1
+image: espressif/idf:v5.0.5
 
 stages:
   - build
