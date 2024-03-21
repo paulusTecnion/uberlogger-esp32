@@ -210,7 +210,8 @@ int fileman_csv_write_header()
     // first write entire string into buffer
     char filestrbuffer[200];
     int writeptr = 0;
-    writeptr = writeptr + sprintf(filestrbuffer + writeptr, "time(utc),");
+    const char *separator_char = (settings_get_file_separator_char() == FILE_SEPARATOR_CHAR_COMMA) ? "," : ";";
+    writeptr = writeptr + sprintf(filestrbuffer + writeptr, "time(utc)%s", separator_char);
     // Print ADC or NTC, depending on settings
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
@@ -221,11 +222,11 @@ int fileman_csv_write_header()
 
         if ((settings_get()->adc_channel_type & (1 << i)))
         {
-            writeptr = writeptr + sprintf(filestrbuffer + writeptr, "NTC%d%s", i + 1, (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : ",");
+            writeptr = writeptr + sprintf(filestrbuffer + writeptr, "NTC%d%s", i + 1, (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : separator_char);
         }
         else
         {
-            writeptr = writeptr + sprintf(filestrbuffer + writeptr, "AIN%d%s", i + 1, (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : ",");
+            writeptr = writeptr + sprintf(filestrbuffer + writeptr, "AIN%d%s", i + 1, (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : separator_char);
         }
     }
 
@@ -237,7 +238,7 @@ int fileman_csv_write_header()
             // Assuming MAX_LENGTH is the total size of filestrbuffer.
             // Replace MAX_LENGTH with the actual size of filestrbuffer.
             int remaining_space = 200 - writeptr;
-            writeptr += snprintf(filestrbuffer + writeptr, remaining_space, "DI%d%s", x+1, (x == settings_get_last_enabled_GPIO_channel()) ? "" : ",");
+            writeptr += snprintf(filestrbuffer + writeptr, remaining_space, "DI%d%s", x+1, (x == settings_get_last_enabled_GPIO_channel()) ? "" : separator_char);
         }
     }
 
@@ -258,28 +259,12 @@ esp_err_t fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *a
 
     int32_t ret = 0;
     uint16_t i = 0;
-    // Determine how many spi_msg_t data we have
-    // int numSpiMsgs = sdcard_data->datarows / DATA_LINES_PER_SPI_TRANSACTION;
-
 
     spi_msg_1_t *t_spi_msg_1;// = (spi_msg_1_t *)(sdcard_data->spi_data);
     spi_msg_2_t *t_spi_msg_2;// = (spi_msg_2_t *)(sdcard_data->spi_data);
     // ret = fileman_csv_write(adcData,  spi_msg->gpioData,  spi_msg->timeData, spi_msg->dataLen);
         for (i = 0; i < sdcard_data->numSpiMessages; i++)
         {
-            // Depending on which data we are writing, we need to use a different pointer
-            // if (i % 2 != 0)
-            // {
-            //     // ESP_LOGI(TAG_FILE, "Writing SPI msg 2");
-            //     spi_msg_2_adc_only_t *spi_msg = (spi_msg_2_adc_only_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_2_adc_only_t));
-            //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-            // }
-            // else
-            // {
-            //     //  ESP_LOGI(TAG_FILE, "Writing SPI msg 1, i: %u, numSpiMsgs: %d, ", i, numSpiMsgs);
-            //     spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_1_adc_only_t));
-            //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_VALUES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-            // }
             if (i % 2 != 0 )
             {
                 t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_2_t));
@@ -296,34 +281,6 @@ esp_err_t fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *a
                 return ESP_FAIL;
         }
 
-        // if (numRemainingRows > 0)
-        // {
-        //     // Depending on which data we are writing, we need to use a different pointer
-        //     // if ((i % 2) != 0)
-        //     // {
-        //     //     // ESP_LOGI(TAG_FILE, "Writing remaining rows 2");
-        //     //     spi_msg_2_adc_only_t *spi_msg = (spi_msg_2_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_2_adc_only_t));
-        //     //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-        //     // }
-        //     // else
-        //     // {
-        //     //     //  ESP_LOGI(TAG_FILE, "Writing remaining rows 1");
-        //     //     spi_msg_1_adc_only_t *spi_msg = (spi_msg_1_adc_only_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_adc_only_t));
-        //     //     ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, ADC_BYTES_PER_SPI_TRANSACTION, spi_msg->dataLen);
-        //     // }
-        //     if ((i == 0) || (i % 2 != 0))
-        //     {
-        //         t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_1_t));
-        //         ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_1->gpioData, t_spi_msg_1->timeData, t_spi_msg_1->dataLen);
-        //     } else {
-        //         t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data + (i) * sizeof(spi_msg_2_t));
-        //         ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_2->gpioData, t_spi_msg_2->timeData, t_spi_msg_2->dataLen); 
-        //     }
-            
-           
-        // }
-    
-
     return ESP_OK;
 }
 
@@ -332,17 +289,21 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
     int j = 0;
     uint32_t writeptr = 0;
 
+    const char *decimal_char = (settings_get_file_decimal_char() == FILE_DECIMAL_CHAR_COMMA) ? "," : ".";
+    const char *separator_char = (settings_get_file_separator_char() == FILE_SEPARATOR_CHAR_COMMA) ? "," : ";";
+
     for (int i = 0; i < datarows; i++)
     {
         // Print time stamp
-        writeptr = writeptr + sprintf(filestrbuffer + writeptr, "20%02d-%02d-%02d %02d:%02d:%02d.%03lu,",
+        writeptr = writeptr + sprintf(filestrbuffer + writeptr, "20%02d-%02d-%02d %02d:%02d:%02d.%03lu%s",
                                       date_time_ptr[j].year,
                                       date_time_ptr[j].month,
                                       date_time_ptr[j].date,
                                       date_time_ptr[j].hours,
                                       date_time_ptr[j].minutes,
                                       date_time_ptr[j].seconds,
-                                      date_time_ptr[j].subseconds);
+                                      date_time_ptr[j].subseconds,
+                                      separator_char);
 
         // Print ADC
         for (int x = 0; x < NUM_ADC_CHANNELS; x++)
@@ -354,16 +315,18 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
             }
 
              // Determine comma
-            const char * comma = (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : ",";
+            const char * comma = (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : separator_char;
 
             // If temperature sensor and 16 bits we need to multiply input with 100 (or divide with factor 100 less which is ADC_MULT_FACTOR_16B_TEMP)
             if ((settings_get()->adc_channel_type & (1 << x)))
             {
                 // Only 2 digits after decimal point for temperature
-                writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d.%01d%s",
+                writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d%s%01d%s",
                                                (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",
                                                abs(dataAdc[i * NUM_ADC_CHANNELS + x] / (ADC_MULT_FACTOR_16B_TEMP)),
-                                               abs((dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_16B_TEMP) / (ADC_MULT_FACTOR_16B_TEMP / 1000)), comma);
+                                               decimal_char,
+                                               abs((dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_16B_TEMP) / (ADC_MULT_FACTOR_16B_TEMP / 1000)), 
+                                               comma);
             }
             else
             {
@@ -372,18 +335,22 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
                 if ((settings_get()->adc_channel_range & (1 << x)))
                 {
                     // We need 6 digits after comma for +/-60V
-                    writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d.%06d%s",
+                    writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d%s%06d%s",
                                                    (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",
                                                    abs(dataAdc[i * NUM_ADC_CHANNELS + x] / (ADC_MULT_FACTOR_60V)),
-                                                   abs(dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_60V), comma);
+                                                   decimal_char,
+                                                   abs(dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_60V), 
+                                                   comma);
                 }
                 else
                 {
                     // We need 7 digits after comma for +/-10V
-                    writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d.%07d%s",
+                    writeptr = writeptr + snprintf(filestrbuffer + writeptr, 14, "%s%d%s%07d%s",
                                                    (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",
                                                    abs(dataAdc[i * NUM_ADC_CHANNELS + x] / (ADC_MULT_FACTOR_10V)),
-                                                   abs(dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_10V), comma);
+                                                   decimal_char,
+                                                   abs(dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_10V), 
+                                                   comma);
                 }
             }
         }
@@ -395,7 +362,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
             {
                 writeptr = writeptr + snprintf(filestrbuffer + writeptr, 3, "%d%s",
                                        (dataGpio[j] & (0x01 >> x)) && 1,
-                                        (x == settings_get_last_enabled_GPIO_channel()) ? "" : ",");
+                                        (x == settings_get_last_enabled_GPIO_channel()) ? "" : separator_char);
                            
             }
         }
@@ -464,6 +431,14 @@ esp_err_t fileman_raw_write_header()
         return ESP_FAIL;
     // Write gpio channels enabled
     w = fwrite(&(settings_get()->gpio_channels_enabled), sizeof(uint8_t), 1, f);
+    if (w != sizeof(uint8_t))
+        return ESP_FAIL;
+    // Write csv decimal character option
+    w = fwrite(&(settings_get()->file_decimal_char), sizeof(uint8_t), 1, f);
+    if (w != sizeof(uint8_t))
+        return ESP_FAIL;
+    // Write csv separator option
+    w = fwrite(&(settings_get()->file_separator_char), sizeof(uint8_t), 1, f);
     if (w != sizeof(uint8_t))
         return ESP_FAIL;
     // and don't forget the calibration data

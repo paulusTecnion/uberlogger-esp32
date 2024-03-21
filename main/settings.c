@@ -261,8 +261,10 @@ esp_err_t settings_set_default()
     _settings.gpio_channels_enabled = 0x3F;
     _settings.logMode = LOGMODE_CSV;
     _settings.bootReason = 0;
+    _settings.file_decimal_char = FILE_DECIMAL_CHAR_DOT;
     strcpy(_settings.file_prefix, "log");
     _settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
+    _settings.file_separator_char = FILE_SEPARATOR_CHAR_COMMA;
     _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
     _settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
     // Get mac address
@@ -285,6 +287,38 @@ esp_err_t settings_set_default()
     }
 
     return ESP_OK;
+}
+
+file_decimal_character_t settings_get_file_decimal_char()
+{
+    return _settings.file_decimal_char;
+}
+
+esp_err_t settings_set_file_decimal_char(file_decimal_character_t decimal_character)
+{
+    if ((decimal_character == FILE_DECIMAL_CHAR_DOT) ||  (decimal_character == FILE_DECIMAL_CHAR_COMMA))
+    {
+        _settings.file_decimal_char = decimal_character;
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
+}
+
+file_separator_char_t settings_get_file_separator_char()
+{
+    return _settings.file_separator_char;
+}
+
+esp_err_t settings_set_file_separator(file_separator_char_t separator_character)
+{
+    if ((separator_character == FILE_SEPARATOR_CHAR_COMMA) ||  (separator_character == FILE_SEPARATOR_CHAR_SEMICOLON))
+    {
+        _settings.file_separator_char = separator_character;
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
 }
 
 uint8_t settings_get_gpio_channel_enabled(uint8_t channel)
@@ -623,6 +657,11 @@ esp_err_t settings_load_json(FILE* f)
         _settings.logMode = logMode->valueint;
     }
 
+    const cJSON* file_decimal_char = cJSON_GetObjectItemCaseSensitive(root, "file_decimal_char");
+    if (cJSON_IsNumber(file_decimal_char)) {
+        _settings.file_decimal_char = file_decimal_char->valueint;
+    }
+
     const cJSON* file_name_mode = cJSON_GetObjectItemCaseSensitive(root, "file_name_mode");
     if (cJSON_IsNumber(file_name_mode)) {
         _settings.file_name_mode = file_name_mode->valueint;
@@ -632,6 +671,11 @@ esp_err_t settings_load_json(FILE* f)
     if (cJSON_IsString(file_prefix) && file_prefix->valuestring != NULL) {
         strncpy(_settings.file_prefix, file_prefix->valuestring, sizeof(_settings.file_prefix) - 1);
         _settings.file_prefix[sizeof(_settings.file_prefix) - 1] = '\0'; // Ensure null-terminated
+    }
+
+    const cJSON* file_separator_char = cJSON_GetObjectItemCaseSensitive(root, "file_separator_char");
+    if (cJSON_IsNumber(file_separator_char)) {
+        _settings.file_separator_char = file_separator_char->valueint;
     }
 
     const cJSON* file_split_size = cJSON_GetObjectItemCaseSensitive(root, "file_split_size");
@@ -749,7 +793,7 @@ esp_err_t settings_migrate(Settings_old_t * oldSettings)
         _settings.temp_offsets[i] = oldSettings->temp_offsets[i];
     }
 
-    settings_print();
+    // settings_print();
 
     return ESP_OK;
 }
@@ -858,7 +902,9 @@ esp_err_t settings_print()
     ESP_LOGI(TAG_SETTINGS, "ADC Enabled: %d", _settings.adc_channels_enabled);
     ESP_LOGI(TAG_SETTINGS, "GPIO Enabled: %d", _settings.gpio_channels_enabled);
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
+    ESP_LOGI(TAG_SETTINGS, "File decimal character %u (%s)", _settings.file_decimal_char, ((settings_get_file_decimal_char() == FILE_DECIMAL_CHAR_COMMA) ? "," : ".") );
     ESP_LOGI(TAG_SETTINGS, "File prefix %s", _settings.file_prefix);
+    ESP_LOGI(TAG_SETTINGS, "File separator character %u (%s)", _settings.file_separator_char, ((settings_get_file_separator_char() == FILE_SEPARATOR_CHAR_COMMA) ? "," : ";") );
     ESP_LOGI(TAG_SETTINGS, "File split size unit: %u", _settings.file_split_size_unit);
     ESP_LOGI(TAG_SETTINGS, "File split size: %lu", _settings.file_split_size);
 
@@ -925,8 +971,10 @@ char * settings_to_json(Settings_t *settings)
     cJSON_AddNumberToObject(root, "adc_resolution", _settings.adc_resolution);
     cJSON_AddNumberToObject(root, "gpio_channels_enabled", _settings.gpio_channels_enabled);
     cJSON_AddNumberToObject(root, "log_mode", _settings.logMode);
+    cJSON_AddNumberToObject(root, "file_decimal_char", _settings.file_decimal_char);
     cJSON_AddNumberToObject(root, "file_name_mode", _settings.file_name_mode);
     cJSON_AddStringToObject(root, "file_name_prefix", _settings.file_prefix);
+    cJSON_AddNumberToObject(root, "file_separator_char", _settings.file_separator_char);
     cJSON_AddNumberToObject(root, "file_split_size", _settings.file_split_size);
     cJSON_AddNumberToObject(root, "file_split_size_unit", _settings.file_split_size_unit);
     cJSON_AddNumberToObject(root, "wifi_channel", _settings.wifi_channel);

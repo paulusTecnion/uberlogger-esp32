@@ -86,6 +86,18 @@ typedef enum int32 {
 	ADC_16_BITS_60V_FACTOR = 18310	
 } adc_factors_t;
 
+
+typedef enum file_separator_char_e {
+	FILE_SEPARATOR_CHAR_COMMA = 0,
+	FILE_SEPARATOR_CHAR_SEMICOLON
+} file_separator_char_t;
+
+typedef enum file_decimal_character_e
+{
+	FILE_DECIMAL_CHAR_DOT = 0,
+	FILE_DECIMAL_CHAR_COMMA = 1
+} file_decimal_character_t;
+
 typedef enum int64 {
 	ADC_MULT_FACTOR_10V =	  	10000000LL,
 	ADC_MULT_FACTOR_60V = 		1000000LL,
@@ -134,8 +146,10 @@ struct Settings_t {
 	uint8_t bootReason;
 	/* NEW SETTINGS */
 	uint8_t gpio_channels_enabled;
+	file_decimal_character_t file_decimal_char; // character for decimal notation in CSVs. 0 = dot, 1 = comma
 	uint8_t file_name_mode;  // 0 = sequential logfile, 1 = timestamp
 	char file_prefix[MAX_FILE_PREFIX_LENGTH];
+	file_separator_char_t file_separator_char; // 0 = comma, 1 = semicolon
 	// File split size in bytes
 	uint32_t file_split_size;
 	// File split size unit. 0 = KB, 1 = MB, 2 = GB
@@ -195,6 +209,12 @@ esp_err_t settings_set_adc_offset(int32_t * offsets, adc_resolution_t resolution
 
 Settings_t settings_get_default();
 esp_err_t settings_set_default();
+
+file_decimal_character_t settings_get_file_decimal_char();
+esp_err_t settings_set_file_decimal_char(file_decimal_character_t decimal_character);
+
+file_separator_char_t settings_get_file_separator_char();
+esp_err_t settings_set_file_separator(file_separator_char_t separator_character);
 
 uint8_t settings_get_file_name_mode();
 esp_err_t settings_set_file_name_mode(uint8_t mode);

@@ -446,8 +446,10 @@ const char * logger_settings_to_json(Settings_t *settings)
 
     }
 
+    cJSON_AddNumberToObject(root, "FILE_DECIMAL_CHAR", settings->file_decimal_char);
     cJSON_AddNumberToObject(root, "FILE_NAME_MODE", settings->file_name_mode);
     cJSON_AddStringToObject(root, "FILE_NAME_PREFIX", settings->file_prefix);
+    cJSON_AddNumberToObject(root, "FILE_SEPARATOR_CHAR", settings->file_separator_char);
     cJSON_AddNumberToObject(root, "FILE_SPLIT_SIZE_UNIT", settings->file_split_size_unit);
 
     uint32_t file_split_size;
@@ -751,9 +753,9 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                 if (subItem != NULL)
                 {
                     if (j == 0) {
-                        // #ifdef DEBUG_REST_SERVER
+                        #ifdef DEBUG_REST_SERVER
                         ESP_LOGI("REST: ", "NTC%d %d", i, (subItem->valueint));
-                        // #endif
+                        #endif
                         settings_set_adc_channel_type(i, subItem->valueint);
                     } else if (j == 1) {
                         // #ifdef DEBUG_REST_SERVER
@@ -771,6 +773,18 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             }        
         }
     }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_DECIMAL_CHAR");
+    if (item != NULL)
+    {
+        if (settings_set_file_decimal_char(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file decimal char value. Only 0=dot and 1=comma possible.");
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
         
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_NAME_MODE");
     if (item != NULL)
@@ -784,6 +798,8 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
 
+    
+
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_NAME_PREFIX");
     if (item != NULL)
     {
@@ -795,6 +811,17 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         {
             
             json_send_resp(req, ENDPOINT_RESP_NACK, "Filename prefix cannot be larger than 70 characters");
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_SEPARATOR_CHAR");
+    if (item != NULL)
+    {
+        if (settings_set_file_separator(item->valueint) != ESP_OK)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file separator char value. Only 0=comma and 1=semicolon possible.");
             // return ESP_FAIL;
             goto error;
         }

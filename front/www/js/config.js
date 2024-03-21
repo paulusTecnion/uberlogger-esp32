@@ -10,7 +10,7 @@ function importConfigfile() {
 
 function disableAIN(x) {
   var ntcSelect = document.getElementById("NTC" + x);
-  var ainSelect = document.getElementById("AIN"+ x + "_RANGE");
+  var ainSelect = document.getElementById("AIN" + x + "_RANGE");
 
   // Get the selected value of NTCx dropdown
   var selectedValue = ntcSelect.options[ntcSelect.selectedIndex].value;
@@ -274,8 +274,10 @@ function setConfig() {
     LOG_SAMPLE_RATE: input["LOG_SAMPLE_RATE"],
     ADC_RESOLUTION: input["ADC_RESOLUTION"],
     LOG_MODE: input["LOG_MODE"],
+    FILE_DECIMAL_CHAR: input["FILE_DECIMAL_CHAR"],
     FILE_NAME_MODE: input["FILE_NAME_MODE"],
     FILE_NAME_PREFIX: input["FILE_NAME_PREFIX"],
+    FILE_SEPARATOR_CHAR: input["FILE_SEPARATOR_CHAR"],
     FILE_SPLIT_SIZE: input["FILE_SPLIT_SIZE"],
     FILE_SPLIT_SIZE_UNIT: input["FILE_SPLIT_SIZE_UNIT"],
     NTC_SELECT: {
@@ -298,8 +300,7 @@ function setConfig() {
       AIN7_RANGE: input["AIN7_RANGE"],
       AIN8_RANGE: input["AIN8_RANGE"],
     },
-    AIN_ENABLED:
-    {
+    AIN_ENABLED: {
       AIN1_ENABLE: input["AIN1_ENABLE"],
       AIN2_ENABLE: input["AIN2_ENABLE"],
       AIN3_ENABLE: input["AIN3_ENABLE"],
@@ -309,8 +310,7 @@ function setConfig() {
       AIN7_ENABLE: input["AIN7_ENABLE"],
       AIN8_ENABLE: input["AIN8_ENABLE"],
     },
-    DIN_ENABLED:
-    {
+    DIN_ENABLED: {
       DIN1_ENABLE: input["DIN1_ENABLE"],
       DIN2_ENABLE: input["DIN2_ENABLE"],
       DIN3_ENABLE: input["DIN3_ENABLE"],
@@ -357,23 +357,24 @@ function setConfig() {
 function getFormDataAsJsonObject(form) {
   let jsonObject = {};
   // Handle regular input fields, unchecked checkboxes, and numeric conversions
-  form.find('input, select, textarea').each(function() {
-      let value = this.value;
-      
-      // Check if value is numeric and convert if so
-      if (!isNaN(value) && value.trim() !== '') {
-          value = +value; // Unary plus operator converts string to number if possible
+  form.find("input, select, textarea").each(function () {
+    let value = this.value;
+
+    // Check if value is numeric and convert if so
+    if (!isNaN(value) && value.trim() !== "") {
+      value = +value; // Unary plus operator converts string to number if possible
+    }
+
+    if (this.type === "checkbox") {
+      jsonObject[this.name] = this.checked; // Directly set boolean value for checkboxes
+    } else if (this.type === "radio") {
+      if (this.checked) {
+        // Only add if the radio button is checked
+        jsonObject[this.name] = value;
       }
-      
-      if (this.type === "checkbox") {
-          jsonObject[this.name] = this.checked; // Directly set boolean value for checkboxes
-      }  else if (this.type === "radio") {
-        if (this.checked) { // Only add if the radio button is checked
-            jsonObject[this.name] = value;
-        }
-      } else {
-          jsonObject[this.name] = value; // Set converted numeric value or original value
-      }
+    } else {
+      jsonObject[this.name] = value; // Set converted numeric value or original value
+    }
   });
   return jsonObject;
 }
