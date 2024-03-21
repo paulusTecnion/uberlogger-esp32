@@ -7,12 +7,14 @@ function renderLogStatus() {
   populateFields("#log", valuesData);
 }
 
-function filebrowserRefresh(filebrowserPath) {
+function filebrowserRefresh(filebrowserPath, page = 999) {
+  // Add page parameter with default value
   parent = "#filelist";
 
   console.log(filebrowserPath);
 
-  query = "getFileList" + filebrowserPath;
+  // Include the page number in the query
+  query = "getFileList" + filebrowserPath + "?filepage=" + page;
   let pathmatch = filebrowserPath.match(/(.*[\/])[^\/]+[\/]?$/);
   let parentPath = [];
 
@@ -42,8 +44,27 @@ function filebrowserRefresh(filebrowserPath) {
     }
 
     htmlstring = buildFileTree(data["root"], htmlstring, 1, filebrowserPath);
+
+    // Close the file list table
     htmlstring += "</table>";
 
+    // Add pagination controls
+    if (data.pagination) {
+      htmlstring += "<div class='pagination'>";
+      for (let i = 1; i <= data.pagination.total_pages; i++) {
+        if (i == data.pagination.current_page) {
+          htmlstring += `<span class='current-page'>${i}</span>`;
+        } else {
+          htmlstring += `<a href='javascript:void(0);' onClick='return filebrowserRefresh("${filebrowserPath}", ${i});'>${i}</a>`;
+        }
+        if (i < data.pagination.total_pages) {
+          htmlstring += " | ";
+        }
+      }
+      htmlstring += "</div>";
+    }
+
+    // Update the HTML of the file list
     $("#filelist").html(htmlstring);
   }).fail(function (response) {
     // alert(

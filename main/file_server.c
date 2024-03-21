@@ -81,8 +81,8 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
     struct stat entry_stat;
 
     // Default values for pagination
-    int page = 1;// default page number
-    int limit = 10; // maximum number of files per page
+    int page = 999;// default page number. 999 = last page
+    int limit = 25; // maximum number of files per page
     int skip = 0; // counter for files to be skipped
     int processed = 0; // counter for files that are processed within a page
 
@@ -125,13 +125,9 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
     dir = opendir(dirpath);
     // Calculate total pages
     int total_pages = (total_entries + limit - 1) / limit;  // This ensures rounding up
-
+   
     /* Iterate over all files / folders and fetch their names and sizes */
     int i = 1;
-    
-    // Skip the files that are not on the current page
-    int current_index = 0;  // Tracks the index of the current file
-    int listed_entries = 0;  // Tracks the number of listed entries
 
     httpd_resp_set_type(req, "application/json");
     
@@ -152,6 +148,8 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
         page = atoi(page_param);
         free(page_param);
     }
+    
+    if (page > total_pages) page = total_pages; // By default go to last page in order to see latest files. 
     // if (limit_param) {
     //     limit = atoi(limit_param);
     //     free(limit_param);
@@ -161,7 +159,7 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
     skip = (page - 1) * limit;
 
     while ((entry = readdir(dir)) != NULL ) {
-        // if (current_index >= skip) {
+        
             if (processed >= limit) break; // Stop if the limit is reached
             if (skip > 0) {
                 skip--;  // Skip this entry, decrease the skip count
@@ -193,8 +191,6 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
             cJSON_AddStringToObject(item, "SIZE", entrysize);
             i++;
             processed++;
-        // }
-        // current_index++;
     }
     closedir(dir);
 
@@ -206,7 +202,9 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
     cJSON_AddNumberToObject(pagination_info, "entries_per_page", limit);
 
     char* json_resp = cJSON_Print(main);
+    #ifdef DEBUG_FILEMAN
     ESP_LOGI(TAG_FILESERVER, "%s", json_resp);
+    #endif
     // Send cJSON
     httpd_resp_send(req, json_resp, strlen(json_resp));
     free(json_resp);
