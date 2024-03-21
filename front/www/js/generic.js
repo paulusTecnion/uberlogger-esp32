@@ -152,7 +152,9 @@ function getValues() {
     let datetimestr = new Date(Number(valuesData["TIMESTAMP"]));
     // valuesData["TIMESTAMPSTR"] = formatDate(datetimestr);
     // Set the timestampstr to local time zone
-    valuesData["TIMESTAMPSTR"] = datetimestr.toLocaleString();
+    valuesData["TIMESTAMPSTR"] = datetimestr.toLocaleString([], {
+      hour12: false,
+    });
     valuesData["SD_CARD_FREE_SPACE"] =
       (valuesData["SD_CARD_FREE_SPACE"] / BYTES_PER_MB).toFixed(3) + " MB";
 
