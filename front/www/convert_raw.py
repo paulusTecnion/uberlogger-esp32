@@ -180,7 +180,7 @@ def read_struct(file):
         gpio_data_raw = file.read(data_len + 2)
         if not gpio_data_raw:
             return -1  # End of file reached
-        gpio_data = decode_gpio_data(gpio_data_raw[0:70])
+        gpio_data = decode_gpio_data(gpio_data_raw[0:data_len])
 
         # Read ADC data
         adc_data_raw = file.read(2 * 8 * data_len)  # 2 bytes per channel, 8 channels, data_len entries
