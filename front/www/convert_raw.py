@@ -1,3 +1,4 @@
+import sys
 import struct 
 
 RAW_FORMAT_VERSION = 1
@@ -281,11 +282,11 @@ def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type,
                 # Determine if a comma should follow based on whether this is the last item overall
                 add_comma = x != last_enabled_adc or last_enabled_gpio != -1
                 if adc_channel_type & (1 << x):  # Temperature sensor
-                    filestrbuffer += f"{adc_value}{',' if add_comma else ''}"
+                    filestrbuffer += f"{adc_value}{separator_char if add_comma else ''}"
                 elif adc_channel_range & (1 << x):  # Range is 60V
-                    filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_60V:.6f}{',' if add_comma else ''}"
+                    filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_60V:.6f}{separator_char if add_comma else ''}"
                 else:  # Range is 10V
-                    filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_10V:.7f}{',' if add_comma else ''}"
+                    filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_10V:.7f}{separator_char if add_comma else ''}"
 
         # Print GPIO values
         for x in range(6):  # Assuming 6 GPIO channels
@@ -297,7 +298,7 @@ def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type,
         filestrbuffer += "\n"  # End of line for this record
 
         # Print and write the constructed CSV line
-        print(filestrbuffer)
+        # print(filestrbuffer)
         if f is not None:  # If a file object is provided, write to it
             len_written = f.write(filestrbuffer)
             if len_written < 0:
@@ -428,8 +429,13 @@ def read_spi_msg_2(file, data_len, rows_remaining):
 
 
 
+print("*** Uberlogger raw data conversion tool. Tecnion Technologies 2024 (C) ***\r\n")
+if len(sys.argv) < 2:
+    print("Usage: python convert_raw.py <file_path>")
+    sys.exit(1)  # Exit the script if no file path is provided
+
+file_path = sys.argv[1]  # Use the file path from the command line argument
 # File path to your .dat file
-file_path = 'C:/Users/ppott/Downloads/20240321_10-40-56_for-your-dat.dat'  # Replace with the actual file path
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
 # Read and decode the file header
@@ -461,7 +467,7 @@ gpio_channel_enabled = decoded_settings[6]
 file_decimal_char = "." if decoded_settings[7] == 0 else ","
 file_separator_char = "." if decoded_settings[8] == 0 else ";"
 
-print(generate_header(adc_channel_type, adc_channel_enabled, gpio_channel_enabled, file_separator_char))  # Print the dynamically generated header
+# print(generate_header(adc_channel_type, adc_channel_enabled, gpio_channel_enabled, file_separator_char))  # Print the dynamically generated header
 
 
 with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
@@ -474,6 +480,7 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
     # Read the last 4 bytes
     total_number_rows = file.read(4)
     rows_remaining = struct.unpack('<I', total_number_rows)[0]
+    total_rows_int = rows_remaining
     # go back
     file.seek(header_size)
     # write the csv header
@@ -508,19 +515,16 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
         # Convert ADC data
         converted_adc_values = convert_adc(decoded_settings, decoded_adc_offsets, adc_data, data_len)
         
-        # Process and print each line of data
-        # for i in range(data_len):
-            # time_str = format_time_data(time_data[i])
-            # gpio_states = format_gpio_data(gpio_data[i])
-            # adc_values = converted_adc_values[i * 8:(i + 1) * 8]  # Extract ADC values for this timestamp
-            # print(f"{time_str},{','.join(map(str, adc_values))},{','.join(map(str, gpio_states))}")
-        
+        # Process and print each line of data        
         csv_write(converted_adc_values, gpio_data, time_data, data_len, adc_channel_type, adc_channel_range, 
                   adc_channel_enabled, gpio_channel_enabled, file_decimal_char, file_separator_char, fcsv)
 
-        print('Rows remaining:', {rows_remaining})
+        # print('Rows remaining:', {rows_remaining})
 
+        progress = (total_rows_int - rows_remaining) / total_rows_int * 100  # Calculate progress percentage
+        print(f'\rProgress: {progress:.2f}%', end='')
         if (rows_remaining == 0):
-            print('No rows remaining. Done')
+            print("\r\nConversion complete!          ")  # Extra spaces to overwrite any remaining characters from the progress update
+            print(f"File stored as {csv_file_path}")
             break
 
