@@ -19,7 +19,7 @@
 #include "settings.h"
 #include "spi_control.h"
 #include "tempsensor.h"
-#include "time.h"
+#include <time.h>
 #include "wifi.h"
 
 static const char* TAG_LOG = "LOGGER";
@@ -194,7 +194,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 {
     int j =0;
     struct tm t = {0};
-    float tfloat = 0.0;
+    // float tfloat = 0.0;
 
     int32_t adc0, adc1, fixed_pt_val; 
 
@@ -933,7 +933,7 @@ esp_err_t Logger_flush_to_sdcard()
         #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG_LOG, "Flusing buffer");
         #endif
- ESP_LOGI(TAG_LOG, "Flusing buffer");
+        ESP_LOGI(TAG_LOG, "Flusing buffer");
         if (fileman_csv_write_spi_msg(&sdcard_data, adc_buffer_fixed_point) != ESP_OK)
         {
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
@@ -1802,34 +1802,6 @@ void Logtask_logging()
 #endif
                 _dataReceived = 0;
             }
-    //         else
-    //         {
-    //             // Wait for STM to stop ADC and go to idle mode
-    //             vTaskDelay(600 / portTICK_PERIOD_MS);
-
-    //             // only retrieve last bytes in case we have faster log rates (ugly!!)
-    //             if (settings_get_samplerate() > ADC_SAMPLE_RATE_2Hz)
-    //             {
-    //                 spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
-    //                 // Retrieve any remaining ADC bytes
-
-    //                 if (spi_ctrl_cmd(STM32_CMD_SEND_LAST_ADC_BYTES, &spi_cmd, sizeof(spi_msg_1_t)) == ESP_OK)
-    //                 {
-    // #ifdef DEBUG_LOGTASK_RX
-    //                     ESP_LOGI(TAG_LOG, "Last ADC data received");
-    // #endif
-
-    //                     // Add check if last number bytes equals number of data lines. If so, we should discard that
-    //                     Logger_processData();
-    //                 }
-    //                 else
-    //                 {
-    //                     ESP_LOGE(TAG_LOG, "Error receiving last message");
-    //                     SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
-    //                 }
-    //             }
-                
-    //         }
             // Flush the data to SD card
             finalwrite = 1;
             

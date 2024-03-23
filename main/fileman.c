@@ -11,9 +11,9 @@ static const char *TAG_FILE = "FILEMAN";
 static uint32_t file_seq_num=0;
 static uint32_t file_seq_subnum=0;
 static FILE* f = NULL;
-char _file_name[105];
+char _file_name[120];
 char filestrbuffer[4900];
-char _prefix[100];
+char _prefix[105];
 uint32_t file_bytes_written = 0;
 uint8_t raw_file_format_version = RAW_FILE_FORMAT_VERSION;
 void fileman_create_filename(const char * prefix, char * file_name)
@@ -163,8 +163,8 @@ uint32_t fileman_search_last_sequence_file(const char * prefix)
     f = NULL;
     file_seq_num = 0;
 
-    char tmpFileName[105];
-    char tmpPrefix[100];
+    char tmpFileName[120];
+    char tmpPrefix[105];
 
     while (1) {
         
@@ -368,18 +368,8 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
         }
 
         writeptr = writeptr + snprintf(filestrbuffer + writeptr, 3, "\r\n");
-        
-        // ESP_LOGI(TAG_FILE, "%d %ld", j, writeptr);
-
-        // writeptr = 0;
 
         j++;
-
-        //    if (j % 35 == 0)
-        //    {
-        // replace by put function. Much faster
-
-        // filestrbuffer[writeptr] = '\0';
 
         if (f == NULL)
         {
@@ -391,7 +381,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
         // if (fputs((const char*)filestrbuffer, f) < 0)
         if (len < 0)
         {
-            return 0;
+            return len;
         }
         file_bytes_written += strlen(filestrbuffer);
         writeptr = 0;
