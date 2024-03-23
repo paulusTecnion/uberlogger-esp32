@@ -378,6 +378,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
 
         // int len = fprintf(f, (const char *)filestrbuffer);
         int len = fputs((const char*)filestrbuffer, f);
+        vTaskDelay(pdTICKS_TO_MS(0));
         // if (fputs((const char*)filestrbuffer, f) < 0)
         if (len < 0)
         {

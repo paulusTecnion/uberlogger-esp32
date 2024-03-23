@@ -354,8 +354,9 @@ esp_err_t download_get_handler(httpd_req_t *req)
     size_t chunksize;
     do {
         /* Read file in chunks into the scratch buffer */
-        chunksize = fread(chunk, 1, SCRATCH_BUFSIZE, fd);
-
+        chunksize = fread(chunk, 1, 8192, fd);
+        // Yield to the scheduler to allow higher priority tasks to run
+        vTaskDelay(pdMS_TO_TICKS(0));
         if (chunksize > 0) {
             /* Send the buffer contents as HTTP response chunk */
             if (httpd_resp_send_chunk(req, chunk, chunksize) != ESP_OK) {
@@ -368,7 +369,9 @@ esp_err_t download_get_handler(httpd_req_t *req)
                return ESP_FAIL;
            }
         }
-
+        // Yield to the scheduler to allow higher priority tasks to run
+        vTaskDelay(pdMS_TO_TICKS(0));
+        
         /* Keep looping till the whole file is sent */
     } while (chunksize != 0);
 
