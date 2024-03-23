@@ -435,6 +435,7 @@ if len(sys.argv) < 2:
     sys.exit(1)  # Exit the script if no file path is provided
 
 file_path = sys.argv[1]  # Use the file path from the command line argument
+# file_path = '20240323_13-03-21_log.dat'
 # File path to your .dat file
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
@@ -465,7 +466,7 @@ adc_channel_type = decoded_settings[2]  # Extract adc_channel_type from settings
 adc_channel_enabled = decoded_settings[3]
 gpio_channel_enabled = decoded_settings[6]
 file_decimal_char = "." if decoded_settings[7] == 0 else ","
-file_separator_char = "." if decoded_settings[8] == 0 else ";"
+file_separator_char = "," if decoded_settings[8] == 0 else ";"
 
 # print(generate_header(adc_channel_type, adc_channel_enabled, gpio_channel_enabled, file_separator_char))  # Print the dynamically generated header
 
