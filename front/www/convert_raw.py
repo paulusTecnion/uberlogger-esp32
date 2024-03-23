@@ -455,7 +455,7 @@ settings_names = ["File format version", "adc_channel_range", "adc_channel_type"
 for i, setting in enumerate(decoded_settings):
     print(f"{i+1}. {settings_names[i]}: {setting}")
     if (i==0 and (setting != RAW_FORMAT_VERSION)):
-        print("ERROR: cannot convert %s. This data file is made with an older and incompatible Uberlogger firmware version.", file_path)
+        print("ERROR: cannot convert {file_path}. This data file is made with an older and incompatible Uberlogger firmware version.")
         exit()
 
 
@@ -476,10 +476,10 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
     file.seek(header_size)
 
     # Seek to 4 bytes from the end of the file
-    file.seek(-4, 2)  # The '2' argument means 'seek relative to file's end'
+    file.seek(-8, 2)  # The '2' argument means 'seek relative to file's end'
     # Read the last 4 bytes
-    total_number_rows = file.read(4)
-    rows_remaining = struct.unpack('<I', total_number_rows)[0]
+    total_number_rows = file.read(8)
+    rows_remaining = struct.unpack('<Q', total_number_rows)[0]
     total_rows_int = rows_remaining
     # go back
     file.seek(header_size)

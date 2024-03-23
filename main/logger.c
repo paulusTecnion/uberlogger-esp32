@@ -967,10 +967,15 @@ esp_err_t Logger_flush_to_sdcard()
     if (fileman_check_current_file_size(settings_get_file_split_size()))
     {
         ESP_LOGI(TAG_LOG, "Reached max file size. Closing file and reopening new...");
+        // write final row data bytes to partial files
+        fileman_write(&(sdcard_data.total_datarows), sizeof(sdcard_data.total_datarows));
         fileman_close_file();
        
         fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp, 1);
+        // Set the total_datarows to 0.
+        sdcard_data.total_datarows = 0;
         fileman_open_file();
+        fileman_raw_write_header();
         //SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
         //goto error;
     } 
