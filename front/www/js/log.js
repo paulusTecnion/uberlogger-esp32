@@ -115,15 +115,15 @@ function promptDelete(file, filepath) {
           setTimeout(filebrowserRefresh(parentPath), 1000);
         } else {
           alert("Error: could not delete file.");
-          console.log("Failed, response=" + JSON.stringify(response));
+          console.log("Failed, response=" + response["responseText"]);
         }
       },
 
       error: function (response) {
         alert(
-          "Error: could not delete file, response=" + JSON.stringify(response)
+          "Error: could not delete file, response=" + response["responseText"]
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       },
     });
 

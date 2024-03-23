@@ -43,7 +43,7 @@ function ejectCard() {
     success: function (response) {
       if (response["resp"] == "ack") {
         alert("SD card unmounted. You can eject the card now.");
-        console.log("Card unmounted, response=" + JSON.stringify(response));
+        console.log("Card unmounted, response=" + response["responseText"]);
       } else {
         alert(
           "Error: cannot eject card while logger. Response: " +
@@ -51,16 +51,16 @@ function ejectCard() {
             "."
         );
         console.log(
-          "SDCARD Ejection failed, response=" + JSON.stringify(response)
+          "SDCARD Ejection failed, response=" + response["responseText"]
         );
       }
     },
 
     error: function (response) {
       alert(
-        "Error: could not eject SD card, response=" + JSON.stringify(response)
+        "Error: could not eject SD card, response=" + response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }
@@ -86,15 +86,15 @@ function loggerStart() {
         alert(
           "Error: could not start logger, response=" + response["reason"] + "."
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       }
     },
 
     error: function (response) {
       alert(
-        "Error: could not start logger, response=" + JSON.stringify(response)
+        "Error: could not start logger, response=" + response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }
@@ -127,15 +127,15 @@ function loggerStop() {
         alert(
           "Error: could not stop logger, response=" + response["reason"] + "."
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       }
     },
 
     error: function (response) {
       alert(
-        "Error: could not stop logger, response=" + JSON.stringify(response)
+        "Error: could not stop logger, response=" + response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }

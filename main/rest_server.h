@@ -19,7 +19,7 @@ typedef enum
 } endpoint_response_t;
 
 const char * logger_settings_to_json(Settings_t *settings);
-esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reason);
+esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reason, httpd_err_code_t status_code);
 esp_err_t start_rest_server(const char *base_path);
 esp_err_t stop_rest_server(void);
 

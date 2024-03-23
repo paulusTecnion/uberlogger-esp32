@@ -169,21 +169,24 @@ function syncTime() {
             new Date(input["TIMESTAMP"]) +
             "."
         );
-        console.log("Time synchronized, response=" + JSON.stringify(response));
+        console.log("Time synchronized, response=" + response["responseText"]);
       } else {
         alert(
-          "Error: could not synchronize time, error=" + response["reason"] + "."
+          "Error: could not synchronize time, error=" +
+            response["responseText"] +
+            "."
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       }
     },
 
     error: function (response) {
       alert(
         "Error: could not synchronize time, response=" +
-          JSON.stringify(response)
+          //response["responseText"]
+          response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }
@@ -200,10 +203,10 @@ function startCalibration() {
       if (data["resp"] == "ack") {
         alert("Calibration in progress...");
       } else {
-        alert("Error: calibration failed: " + data["reason"]);
+        alert("Error: calibration failed: " + response["responseText"]);
       }
     }).fail(function (response) {
-      alert("Error: calibration failed: " + response);
+      alert("Error: calibration failed: " + response["responseText"]);
     });
   }
 }
@@ -341,15 +344,15 @@ function setConfig() {
         alert(
           "Error: could not save settings, response=" + response["reason"] + "."
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       }
     },
 
     error: function (response) {
       alert(
-        "Error: could not save settings, response=" + JSON.stringify(response)
+        "Error: could not save settings, response=" + response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }

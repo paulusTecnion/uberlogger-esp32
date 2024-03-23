@@ -300,7 +300,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
     if (!filename) {
         ESP_LOGE(TAG_FILESERVER, "Filename is too long");
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Filename too long");
         return ESP_FAIL;
     }
 
@@ -394,7 +394,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
 esp_err_t upload_post_handler(httpd_req_t *req)
 {
       if (Logger_getState() == LOGTASK_LOGGING ){
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot upload files while logging");
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Cannot upload files while logging");
         return ESP_FAIL;
     }
     char filepath[FILE_PATH_MAX];
@@ -408,14 +408,14 @@ esp_err_t upload_post_handler(httpd_req_t *req)
                                              req->uri + sizeof("/upload") - 1, sizeof(filepath));
     if (!filename) {
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Filename too long");
         goto error;
     }
 
     /* Filename cannot have a trailing '/' */
     if (filename[strlen(filename) - 1] == '/') {
         ESP_LOGE(TAG_FILESERVER, "Invalid filename : %s", filename);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid filename");
         goto error;
     }
 
@@ -539,7 +539,7 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 {
   
       if (Logger_getState() == LOGTASK_LOGGING){
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot delete files while logging");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Cannot delete files while logging");
         return ESP_FAIL;
     }
 
@@ -576,21 +576,21 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 
     if (!filename) {
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Filename too long");
         return ESP_FAIL;
     }
 
     /* Filename cannot have a trailing '/' */
     if (filename[strlen(filename) - 1] == '/') {
         ESP_LOGE(TAG_FILESERVER, "Invalid filename : %s", filename);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid filename");
         return ESP_FAIL;
     }
 
     if (stat(filepath, &file_stat) == -1) {
         ESP_LOGE(TAG_FILESERVER, "File does not exist : %s", filename);
         /* Respond with 400 Bad Request */
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File does not exist");
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File does not exist");
         return ESP_FAIL;
     }
 
@@ -631,7 +631,7 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         if (Logger_startFWupdate() != ESP_OK)
         {
             ESP_LOGE(TAG_FILESERVER, "Failed to start firmware update");
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Logger not idle, cannot update firwmare");
+            httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Logger not idle, cannot update firwmare");
             return ESP_FAIL;
         } else {
             httpd_resp_set_status(req, HTTPD_200);
@@ -654,62 +654,9 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         httpd_resp_sendstr_chunk(req, "<p>Starting firmware upgrade...</p>");
         
         Logger_startFWflash();
-        // httpd_resp_sendstr_chunk(req, "<p>Flashing support chip ...(1/6)</p>");
-
-
-       
-        /* Start firmware upgrade */
-        // if (flash_stm32() != ESP_OK) {
-        //     ESP_LOGE(TAG_FILESERVER, "Support chip  failed!");
-        //     httpd_resp_sendstr_chunk(req, "<p>Support chip  failed!</p>");
-        //     goto error;
-        // } else {
-        //     #ifdef DEBUG_FILESERVER
-        //     ESP_LOGI(TAG_FILESERVER, "Support chip flashed (2 / 6)");
-        //     #endif
-        //     httpd_resp_sendstr_chunk(req, "<p>Support chip flashed (2 / 6)</p>");
-        // }
-
-        // httpd_resp_sendstr_chunk(req, "<p>Flashing file system ...(3 / 6)</p>");
-        // if (update_www() != ESP_OK) {
-        //     ESP_LOGE(TAG_FILESERVER, "File system flash failed");
-        //     httpd_resp_sendstr_chunk(req, "<p>File system flash failed!</p>");
-        //     goto error;
-        // } else {
-        //     #ifdef DEBUG_FILESERVER
-        //     ESP_LOGI(TAG_FILESERVER, "File system flashed (4 / 6)");
-        //     #endif
-        //     httpd_resp_sendstr_chunk(req, "<p>File system flashed (4 / 6)</p>");
-        // }
-        
-        // httpd_resp_sendstr_chunk(req, "<p>Flashing main chip ...(5 / 6)</p>");
-        // httpd_resp_sendstr_chunk(req, "<p>WiFi will be disabled and should re-enable again. If upgrade failed it will be shown here.</p>");
-        
-        
-        // if (updateESP32() != ESP_OK) {
-        //     ESP_LOGE(TAG_FILESERVER, "Main chip flash failed");
-        //     httpd_resp_sendstr_chunk(req, "<p>Main chip flash failed! Please don't reset your Uberlogger and try again</p>");
-        //     httpd_resp_send_chunk(req, NULL, 0);
-        //     goto error;
-        // } else {
-        //     #ifdef DEBUG_FILESERVER
-        //     ESP_LOGI(TAG_FILESERVER, "Main flash chip flashed (6 / 6)");
-        //     #endif
-        //     httpd_resp_sendstr_chunk(req, "<p>Main flash chip flashed (6 / 6)</p>");
-        // }
-
-        // httpd_resp_sendstr_chunk(req, "succesfull");
-        // httpd_resp_send_chunk(req, NULL, 0);
 
         // error:
         httpd_resp_send_chunk(req, NULL, 0);
-
-        
-        // Reboot to apply firmware update
-        // Logging_restartSystem();
-        // xSemaphoreGive(idle_state);
-
-
      
         return ESP_OK;
     

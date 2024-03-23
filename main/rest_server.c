@@ -501,24 +501,24 @@ static esp_err_t logger_calibrate_handler(httpd_req_t *req)
     httpd_resp_set_type(req, "application/json");
     if (Logger_getState() == LOGTASK_LOGGING)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started while logging."); 
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started while logging.", HTTPD_403_FORBIDDEN); 
         return ESP_FAIL;
     } 
     else if (Logger_getState() == LOGTASK_CALIBRATION) 
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration already started."); 
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration already started.", HTTPD_403_FORBIDDEN); 
         return ESP_FAIL;
     } else if ((Logger_getState() != LOGTASK_IDLE) && (Logger_getState() !=LOGTASK_SINGLE_SHOT))
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not idle. Are you updating firmware?"); 
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not idle. Are you updating firmware?", HTTPD_403_FORBIDDEN); 
         return ESP_FAIL;
     }
 
     if (Logger_calibrate() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, "Calibration started...");
+        json_send_resp(req, ENDPOINT_RESP_ACK, "Calibration started...", 0);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started. Are you logging?");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started. Are you logging?", HTTPD_403_FORBIDDEN);
         return ESP_FAIL;
     }
 
@@ -532,9 +532,9 @@ static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 
     if (Logger_format_sdcard() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, "Formt started...");
+        json_send_resp(req, ENDPOINT_RESP_ACK, "Formt started...", 0);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Could not start format. Do you have an sd card inserted or are you logging?");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Could not start format. Do you have an sd card inserted or are you logging?", HTTPD_403_FORBIDDEN);
     }
 
     return ESP_OK;
@@ -585,7 +585,7 @@ static esp_err_t logger_setTime_handler(httpd_req_t *req)
     cJSON *settings_in = NULL;
     if (Logger_getState() == LOGTASK_LOGGING)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging", HTTPD_403_FORBIDDEN);
         
         return ESP_OK;
     }
@@ -631,7 +631,7 @@ static esp_err_t logger_setTime_handler(httpd_req_t *req)
         if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -641,14 +641,14 @@ static esp_err_t logger_setTime_handler(httpd_req_t *req)
 
     if (Logtask_sync_time() == ESP_FAIL)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings", HTTPD_500_INTERNAL_SERVER_ERROR);
         // return ESP_FAIL;
         goto error;
     }
 
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
-    json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+    json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
     
 
     
@@ -671,7 +671,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     cJSON *settings_in = NULL;
     if (Logger_getState() == LOGTASK_LOGGING)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging", HTTPD_403_FORBIDDEN);
         
         return ESP_OK;
     }
@@ -780,7 +780,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_file_decimal_char(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file decimal char value. Only 0=dot and 1=comma possible.");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file decimal char value. Only 0=dot and 1=comma possible.", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -792,7 +792,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_file_name_mode(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file name mode value. Only 0=sequential and 1=timestamp possible.");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file name mode value. Only 0=sequential and 1=timestamp possible.", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -805,12 +805,12 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (strcmp(item->valuestring, "") == 0)
         {
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Filename prefix cannot be empty");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Filename prefix cannot be empty", HTTPD_400_BAD_REQUEST);
         }
         if (settings_set_file_prefix(item->valuestring) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Filename prefix cannot be larger than 70 characters");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Filename prefix cannot be larger than 70 characters", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -821,7 +821,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_file_separator(item->valueint) != ESP_OK)
         {
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file separator char value. Only 0=comma and 1=semicolon possible.");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file separator char value. Only 0=comma and 1=semicolon possible.", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -834,7 +834,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_file_split_size_unit(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size unit value.");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size unit value.", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -846,7 +846,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_file_split_size(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size.  Min. 200 KB and Maximum 2 GB");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size.  Min. 200 KB and Maximum 2 GB", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -859,7 +859,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_wifi_ssid(item->valuestring) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -886,7 +886,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_wifi_channel(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -898,7 +898,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_wifi_password(item->valuestring) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -911,7 +911,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_resolution(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "ADC resolution missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "ADC resolution missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -923,7 +923,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_samplerate(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Log sample rate missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Log sample rate missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -935,7 +935,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_logmode(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Log mode missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Log mode missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -949,7 +949,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -959,7 +959,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 
     if (Logtask_sync_settings() == ESP_FAIL)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings", HTTPD_400_BAD_REQUEST);
         // return ESP_FAIL;
         goto error;
     }
@@ -995,7 +995,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     }
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
-    json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+    json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
     
 
 error:
@@ -1021,9 +1021,9 @@ static esp_err_t Logger_start_handler(httpd_req_t *req)
     
     if (LogTask_start() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL, HTTPD_403_FORBIDDEN);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger already logging");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger already logging", HTTPD_403_FORBIDDEN);
     }
 
     
@@ -1034,9 +1034,9 @@ static esp_err_t Logger_stop_handler(httpd_req_t *req)
 {
     if (LogTask_stop() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not logging");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not logging", HTTPD_403_FORBIDDEN);
     }
     
     return ESP_OK;
@@ -1046,9 +1046,9 @@ esp_err_t  Logger_sdcard_unmount_handler(httpd_req_t *req)
 {
     if(Logger_user_unmount_sdcard() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
     }   else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger logging or sd card not inserted");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger logging or sd card not inserted", HTTPD_403_FORBIDDEN);
     }
 
     return ESP_OK;
@@ -1071,42 +1071,48 @@ esp_err_t  Logger_sdcard_unmount_handler(httpd_req_t *req)
 //     return ESP_OK;
 // }
 
-esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reason)
+esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reason, httpd_err_code_t status_code)
 {
 
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
 
-    char str[6];
-
-    switch (type)
+    if (type == ENDPOINT_RESP_NACK)
     {
-        case ENDPOINT_RESP_ACK:
-            strcpy(str, "ack");
-        break;
+        httpd_resp_send_err(req, status_code, reason);
+    } else {
+        httpd_resp_set_type(req, "application/json");
+        cJSON *root = cJSON_CreateObject();
 
-        case ENDPOINT_RESP_NACK:
-            strcpy(str, "nack");
-        break;
+        char str[6];
 
+        switch (type)
+        {
+            case ENDPOINT_RESP_ACK:
+                strcpy(str, "ack");
+            break;
+
+            case ENDPOINT_RESP_NACK:
+                strcpy(str, "nack");
+            break;
+
+            
+            case ENDPOINT_RESP_ERROR:
+            default:
+                strcpy(str, "error");
+            break;
+
+        }
         
-        case ENDPOINT_RESP_ERROR:
-        default:
-            strcpy(str, "error");
-        break;
-
+        cJSON_AddStringToObject(root, (const char*)"resp", str);
+        
+        if (type == ENDPOINT_RESP_NACK && reason != NULL)
+        {
+            cJSON_AddStringToObject(root, (const char*)"reason", reason);
+        }
+        const char *sys_info = cJSON_Print(root);
+        httpd_resp_sendstr(req, sys_info);
+        free((void *)sys_info);
+        cJSON_Delete(root);
     }
-    
-    cJSON_AddStringToObject(root, (const char*)"resp", str);
-    
-    if (type == ENDPOINT_RESP_NACK && reason != NULL)
-    {
-        cJSON_AddStringToObject(root, (const char*)"reason", reason);
-    }
-    const char *sys_info = cJSON_Print(root);
-    httpd_resp_sendstr(req, sys_info);
-    free((void *)sys_info);
-    cJSON_Delete(root);
 
     return ESP_OK;
 }
