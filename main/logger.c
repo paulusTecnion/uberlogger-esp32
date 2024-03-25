@@ -311,6 +311,8 @@ esp_err_t Logger_singleShot()
             
             // Reset the STM in case it's stuck (workaround)
             Logger_resetSTM32();
+            vTaskDelay(300 / portTICK_PERIOD_MS);
+            Logger_syncSettings(0);
             return ESP_FAIL;
         }
         return ESP_OK;        
