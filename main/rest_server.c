@@ -562,19 +562,29 @@ static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
 static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "application/json");
- 
+    
+    // Check if the query parameter for download is present and set to 'true'
+    char query_param[20];  // Adjust size according to your expected query length
+    if (httpd_req_get_url_query_str(req, query_param, sizeof(query_param)) == ESP_OK) {
+        char param_value[5];  // Assuming the value is 'true' or 'false'
+        if (httpd_query_key_value(query_param, "download", param_value, sizeof(param_value)) == ESP_OK) {
+            if (strcasecmp(param_value, "true") == 0) {
+                // The client wants to download the file, set the Content-Disposition header
+                httpd_resp_set_hdr(req, "Content-Disposition", "attachment; filename=\"settings.json\"");
+            }
+        }
+    }
+
     Settings_t *settings = settings_get();
-    const char * settings_json = NULL;
+    const char *settings_json = NULL;
     settings_json = logger_settings_to_json(settings);
-    if (settings_json == NULL)
-    {
+    if (settings_json == NULL) {
         return ESP_FAIL;
     }
 
     httpd_resp_sendstr(req, settings_json);
     httpd_resp_sendstr_chunk(req, NULL);
     free((void *)settings_json);
-    
     
     return ESP_OK;
 }
