@@ -1144,7 +1144,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     httpd_uri_t logger_calibrate_uri = {
         .uri = "/ajax/calibrate",
-        .method = HTTP_GET,
+        .method = HTTP_POST,
         .handler = logger_calibrate_handler,
         .user_ctx = rest_context
     };

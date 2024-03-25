@@ -199,14 +199,26 @@ function startCalibration() {
   if (ret == true) {
     query = "calibrate";
 
-    $.getJSON("./ajax/" + query, (data) => {
-      if (data["resp"] == "ack") {
-        alert("Calibration in progress...");
-      } else {
+    $.ajax({
+      method: "POST",
+      url: "ajax/calibrate",
+      processData: false,
+      dataType: "json",
+      contentType: "application/json",
+
+      success: function (response) {
+        if (response["resp"] == "ack") {
+          alert("Calibration in progress...");
+        } else {
+          alert("Error: calibration failed: " + response["responseText"]);
+          console.log("Failed, response=" + response["responseText"]);
+        }
+      },
+
+      error: function (response) {
         alert("Error: calibration failed: " + response["responseText"]);
-      }
-    }).fail(function (response) {
-      alert("Error: calibration failed: " + response["responseText"]);
+        console.log("Failed, response=" + response["responseText"]);
+      },
     });
   }
 }
