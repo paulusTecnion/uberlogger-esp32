@@ -325,7 +325,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
                                                (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",
                                                abs(dataAdc[i * NUM_ADC_CHANNELS + x] / (ADC_MULT_FACTOR_16B_TEMP)),
                                                decimal_char,
-                                               abs((dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_16B_TEMP) / (ADC_MULT_FACTOR_16B_TEMP / 1000)), 
+                                               abs((dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_16B_TEMP)), 
                                                comma);
             }
             else

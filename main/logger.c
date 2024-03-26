@@ -765,7 +765,7 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, siz
     int j,x=0;
     uint32_t writeptr = 0;
     int64_t channel_range=0, channel_offset=0;
-    int32_t filtered_value=0, unfiltered_value=0;
+    int32_t filtered_value=0;
     int32_t adcVal = 0;
     #ifdef DEBUG_SDCARD
     ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
@@ -804,7 +804,7 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, siz
             // Detect type of sensor and conver accordingly
             if (settings_get_adc_channel_type(settings_get(), x))
             {
-                int32_t temp = NTC_ADC2Temperature(adcVal)*100000L;
+                int32_t temp = NTC_ADC2Temperature(adcVal);
                 // ESP_LOGI(TAG_LOG,"temp %d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
                 adc_buffer_fixed_point[writeptr+(log_counter*ADC_VALUES_PER_SPI_TRANSACTION)] = temp;
             } else {
@@ -846,12 +846,10 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, siz
             // Detect type of sensor and conver accordingly
             if (settings_get_adc_channel_type(settings_get(), x))
             {
-                // No lookup table for 16 bit!! So we down covert it to 12 bit and use the LUT
-                filtered_value = (int32_t)NTC_ADC2Temperature(adcVal >> 4)*100000L;
+                // No lookup table for 16 bit! So we down covert it to 12 bit and use the LUT
+                filtered_value = NTC_ADC2Temperature(adcVal >> 4);
             } else {
-                // 4884 is 1000000*20/4095
-                unfiltered_value = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);   
-                filtered_value = unfiltered_value;    
+                filtered_value = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);    
             }
             
             adc_buffer_fixed_point[writeptr+(log_counter*ADC_VALUES_PER_SPI_TRANSACTION)] = filtered_value;
