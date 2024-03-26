@@ -40,7 +40,7 @@ void settings_determine_last_enabled_channel()
 
     for (int i = 5; i >= 0; i--) // Assuming 6 DI channels
     {
-        if (settings_get_gpio_channel_enabled(i))
+        if (settings_get_gpio_channel_enabled(&_settings, i))
         {
             lastEnabledGPIO = i;
             break; // Found the last enabled GPIO, exit the loop
@@ -218,7 +218,7 @@ Settings_t settings_get_default()
     default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
     default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     default_settings.adc_channel_range = 0x00; // 10V by default
-     default_settings.gpio_channels_enabled = 0x3F; // 6 always enabled. 2 not available
+    default_settings.gpio_channels_enabled = 0x3F; // 6 always enabled. 2 not available
     default_settings.logMode = LOGMODE_CSV;
     default_settings.bootReason = 0;
     strcpy(default_settings.file_prefix, "log");
@@ -321,9 +321,9 @@ esp_err_t settings_set_file_separator(file_separator_char_t separator_character)
     }
 }
 
-uint8_t settings_get_gpio_channel_enabled(uint8_t channel)
+uint8_t settings_get_gpio_channel_enabled(Settings_t *settings, uint8_t channel)
 {
-    return _settings.gpio_channels_enabled & (0x01 << channel);
+    return settings->gpio_channels_enabled & (0x01 << channel);
 }
 
 esp_err_t settings_set_gpio_channel_enabled(uint8_t channel, uint8_t value)

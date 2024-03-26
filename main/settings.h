@@ -228,7 +228,7 @@ uint32_t settings_get_file_split_size();
 esp_err_t settings_set_file_split_size_unit(uint8_t unit);
 uint8_t settings_get_file_split_size_unit();
 
-uint8_t settings_get_gpio_channel_enabled(uint8_t channel);
+uint8_t settings_get_gpio_channel_enabled(Settings_t *settings, uint8_t channel);
 esp_err_t settings_set_gpio_channel_enabled(uint8_t channel, uint8_t value);
 
 

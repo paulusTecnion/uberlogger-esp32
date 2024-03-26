@@ -233,7 +233,7 @@ int fileman_csv_write_header()
      // Finally the IOs
     for (int x = 0; x < 6; x++)
     {
-        if (settings_get_gpio_channel_enabled(x))
+        if (settings_get_gpio_channel_enabled(settings_get(), x))
         {
             // Assuming MAX_LENGTH is the total size of filestrbuffer.
             // Replace MAX_LENGTH with the actual size of filestrbuffer.
@@ -358,7 +358,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
         // Finally the IOs
         for (int x = 0; x < 6; x++)
         {
-            if (settings_get_gpio_channel_enabled(x))
+            if (settings_get_gpio_channel_enabled(settings_get(), x))
             {
                 writeptr = writeptr + snprintf(filestrbuffer + writeptr, 3, "%d%s",
                                        (dataGpio[j] & (0x04 << x)) && 1,

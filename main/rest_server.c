@@ -252,7 +252,7 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
 
     for (int i = 0; i<6; i++)
     {
-        if (settings_get_gpio_channel_enabled(i))
+        if (settings_get_gpio_channel_enabled(settings_get(), i))
         {
             sprintf(buf, "DI%d", i+1);
             cJSON_AddNumberToObject(aDigital, buf, live_data.gpioData[i]);
@@ -436,14 +436,16 @@ const char * logger_settings_to_json(Settings_t *settings)
             cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(settings, i));
 
             sprintf(buf,"AIN%d_RANGE", i+1);
-             cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
+            cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
             
             sprintf(buf,"AIN%d_ENABLE", i+1);
-             cJSON_AddBoolToObject(ain_enabled, buf, settings_get_adc_channel_enabled(i));
-
-             sprintf(buf,"DIN%d_ENABLE", i+1);
-             cJSON_AddBoolToObject(din_enabled, buf, settings_get_gpio_channel_enabled(i));
-
+            cJSON_AddBoolToObject(ain_enabled, buf, settings_get_adc_channel_enabled(i));
+            
+            if (i<6)
+            {
+                sprintf(buf,"DIN%d_ENABLE", i+1);
+                cJSON_AddBoolToObject(din_enabled, buf, settings_get_gpio_channel_enabled(settings, i));
+            }
     }
 
     cJSON_AddNumberToObject(root, "FILE_DECIMAL_CHAR", settings->file_decimal_char);
@@ -748,10 +750,13 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                     sprintf(buf2, "AIN%d_ENABLE", i+1);
                 }
             } else if (j == 3) {
-                item = cJSON_GetObjectItemCaseSensitive(settings_in, "DIN_ENABLED");
-                if (item != NULL)
+                if (i < 6)
                 {
-                    sprintf(buf2, "DIN%d_ENABLE", i+1);
+                    item = cJSON_GetObjectItemCaseSensitive(settings_in, "DIN_ENABLED");
+                    if (item != NULL)
+                    {
+                        sprintf(buf2, "DIN%d_ENABLE", i+1);
+                    }
                 }
             } else {
                 item = NULL;
