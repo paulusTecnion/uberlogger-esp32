@@ -87,7 +87,7 @@ uint8_t settings_get_adc_channel_enabled_all()
 
 uint8_t settings_get_adc_channel_type(Settings_t *settings, adc_channel_t channel)
 {
-    return _settings.adc_channel_type & (0x01 << channel);
+    return settings->adc_channel_type & (0x01 << channel);
 }
 
 uint8_t settings_get_adc_channel_type_all()
@@ -110,7 +110,7 @@ Settings_t* settings_get(){
 
 uint8_t settings_get_adc_channel_range(Settings_t * settings, adc_channel_t channel)
 {
-    return _settings.adc_channel_range & (0x01 << channel);
+    return settings->adc_channel_range & (0x01 << channel);
 }
 
 uint8_t settings_get_adc_channel_range_all()
@@ -221,10 +221,10 @@ Settings_t settings_get_default()
      default_settings.gpio_channels_enabled = 0x3F; // 6 always enabled. 2 not available
     default_settings.logMode = LOGMODE_CSV;
     default_settings.bootReason = 0;
-    strcpy(_settings.file_prefix, "log");
-    _settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
-    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
-    _settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
+    strcpy(default_settings.file_prefix, "log");
+    default_settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
+    default_settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
+    default_settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
     // Get mac address
     char buffer[8];
     wifi_get_trimmed_mac(buffer);
