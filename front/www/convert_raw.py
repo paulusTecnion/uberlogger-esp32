@@ -291,7 +291,7 @@ def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type,
         # Print GPIO values
         for x in range(6):  # Assuming 6 GPIO channels
             if gpio_channel_enable & (1 << x):  # Check if the GPIO channel is enabled
-                gpio_val = (dataGpio[j] & (1 << x)) >> x
+                gpio_val = int(bool(((dataGpio[j] & (4 << x)))))
                 add_comma = x != last_enabled_gpio  # Add a comma only if this isn't the last enabled GPIO
                 filestrbuffer += f"{gpio_val}{separator_char if add_comma else ''}"
 
@@ -430,12 +430,12 @@ def read_spi_msg_2(file, data_len, rows_remaining):
 
 
 print("*** Uberlogger raw data conversion tool. Tecnion Technologies 2024 (C) ***\r\n")
-if len(sys.argv) < 2:
-    print("Usage: python convert_raw.py <file_path>")
-    sys.exit(1)  # Exit the script if no file path is provided
+# if len(sys.argv) < 2:
+#     print("Usage: python convert_raw.py <file_path>")
+#     sys.exit(1)  # Exit the script if no file path is provided
 
-file_path = sys.argv[1]  # Use the file path from the command line argument
-# file_path = '20240323_13-03-21_log.dat'
+# file_path = sys.argv[1]  # Use the file path from the command line argument
+file_path = 'c:\\Users\\ppott\\Downloads\\20240326_09-34-11_log.dat'
 # File path to your .dat file
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
