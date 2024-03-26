@@ -354,7 +354,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
     size_t chunksize;
     do {
         /* Read file in chunks into the scratch buffer */
-        chunksize = fread(chunk, 1, 8192, fd);
+        chunksize = fread(chunk, 1, SCRATCH_BUFSIZE, fd);
         // Yield to the scheduler to allow higher priority tasks to run
         vTaskDelay(pdMS_TO_TICKS(0));
         if (chunksize > 0) {
