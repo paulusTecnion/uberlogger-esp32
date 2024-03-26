@@ -7,12 +7,14 @@ function renderLogStatus() {
   populateFields("#log", valuesData);
 }
 
-function filebrowserRefresh(filebrowserPath) {
+function filebrowserRefresh(filebrowserPath, page = 999) {
+  // Add page parameter with default value
   parent = "#filelist";
 
   console.log(filebrowserPath);
 
-  query = "getFileList" + filebrowserPath;
+  // Include the page number in the query
+  query = "getFileList" + filebrowserPath + "?filepage=" + page;
   let pathmatch = filebrowserPath.match(/(.*[\/])[^\/]+[\/]?$/);
   let parentPath = [];
 
@@ -30,7 +32,7 @@ function filebrowserRefresh(filebrowserPath) {
       htmlstring += "<b>Current path: " + filebrowserPath + "</b><br/>";
     }
 
-    htmlstring += "<table width='100%'>";
+    htmlstring += "<table width='100%' class=\"compact-table\">";
     htmlstring +=
       "<tr><th width='60%'>Name</th><th width='20%'>Size</th><th width='20%'>Action</th></tr>";
 
@@ -42,8 +44,27 @@ function filebrowserRefresh(filebrowserPath) {
     }
 
     htmlstring = buildFileTree(data["root"], htmlstring, 1, filebrowserPath);
+
+    // Close the file list table
     htmlstring += "</table>";
 
+    // Add pagination controls
+    if (data.pagination) {
+      htmlstring += "<div class='pagination'>";
+      for (let i = 1; i <= data.pagination.total_pages; i++) {
+        if (i == data.pagination.current_page) {
+          htmlstring += `<span class='current-page'>${i}</span>`;
+        } else {
+          htmlstring += `<a href='javascript:void(0);' onClick='return filebrowserRefresh("${filebrowserPath}", ${i});'>${i}</a>`;
+        }
+        if (i < data.pagination.total_pages) {
+          htmlstring += " | ";
+        }
+      }
+      htmlstring += "</div>";
+    }
+
+    // Update the HTML of the file list
     $("#filelist").html(htmlstring);
   }).fail(function (response) {
     // alert(
@@ -60,7 +81,9 @@ function formatSdcard() {
   if (confirm("Format SD-card, are you sure?") == true) {
     $.getJSON("./ajax/formatSdcard", (data) => {
       // to do: implement a proper response sequence
-      alert("SD-card now formatting. Please wait, this will take up to 30 seconds.");
+      alert(
+        "SD-card now formatting. Please wait, this will take up to 30 seconds."
+      );
     }).fail(function () {
       alert("Error: could not format SD-card. Are you logging?");
       console.log("Data query failed. NOK.");
@@ -92,15 +115,15 @@ function promptDelete(file, filepath) {
           setTimeout(filebrowserRefresh(parentPath), 1000);
         } else {
           alert("Error: could not delete file.");
-          console.log("Failed, response=" + JSON.stringify(response));
+          console.log("Failed, response=" + response["responseText"]);
         }
       },
 
       error: function (response) {
         alert(
-          "Error: could not delete file, response=" + JSON.stringify(response)
+          "Error: could not delete file, response=" + response["responseText"]
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       },
     });
 
@@ -122,7 +145,7 @@ function buildFileTree(data, htmlstring, depth, path) {
         "</td>";
       htmlstring +=
         "<td>" +
-        (((value["SIZE"] / BYTES_PER_MB) < 0.001)
+        (value["SIZE"] / BYTES_PER_MB < 0.001
           ? 0.001
           : value["SIZE"] / BYTES_PER_MB
         ).toFixed(3) +

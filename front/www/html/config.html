@@ -39,6 +39,8 @@
           id="LOG_SAMPLE_RATE"
           class="json-as-number"
         >
+          <!-- <option value="0">Once per minute</option>
+          <option value="1">Once per 10 seconds</option> -->
           <option value="0">1 Sample/s</option>
           <option value="1">2 Samples/s</option>
           <option value="2">5 Samples/s</option>
@@ -70,7 +72,7 @@
     </div>
 
     <div class="group" id="channel_configuration">
-      <h3>Analog channels</h3>
+      <h3>Analog & digital channels</h3>
       <p>Select the mode used for the analog channels.</p>
       <p>
         <i
@@ -79,14 +81,23 @@
         >
       </p>
 
-      <table>
+      <table class="compact-table" width="100%">
         <tr>
+          <th>Enable</th>
           <th>Analog channel</th>
           <th>Mode</th>
           <th>Range</th>
         </tr>
         <tr>
-          <td>Channel 1</td>
+          <td>
+            <input
+              type="checkbox"
+              name="AIN1_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Analog Input 1</td>
           <td>
             <select
               name="NTC1"
@@ -99,14 +110,22 @@
             </select>
           </td>
           <td>
-            <select name="AIN1" id="AIN1" class="json-as-bool">
+            <select name="AIN1_RANGE" id="AIN1_RANGE" class="json-as-bool">
               <option value="0">+/-10 V</option>
               <option value="1">+/-60 V</option>
             </select>
           </td>
         </tr>
         <tr>
-          <td>Channel 2</td>
+          <td>
+            <input
+              type="checkbox"
+              name="AIN2_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Analog Input 2</td>
           <td>
             <select
               name="NTC2"
@@ -119,14 +138,22 @@
             </select>
           </td>
           <td>
-            <select name="AIN2" id="AIN2" class="json-as-bool">
+            <select name="AIN2_RANGE" id="AIN2_RANGE" class="json-as-bool">
               <option value="0">+/-10 V</option>
               <option value="1">+/-60 V</option>
             </select>
           </td>
         </tr>
         <tr>
-          <td>Channel 3</td>
+          <td>
+            <input
+              type="checkbox"
+              name="AIN3_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Analog Input 3</td>
           <td>
             <select
               name="NTC3"
@@ -139,14 +166,22 @@
             </select>
           </td>
           <td>
-            <select name="AIN3" id="AIN3" class="json-as-bool">
+            <select name="AIN3_RANGE" id="AIN3_RANGE" class="json-as-bool">
               <option value="0">+/-10 V</option>
               <option value="1">+/-60 V</option>
             </select>
           </td>
         </tr>
         <tr>
-          <td>Channel 4</td>
+          <td>
+            <input
+              type="checkbox"
+              name="AIN4_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Analog Input 4</td>
           <td>
             <select
               name="NTC4"
@@ -159,14 +194,22 @@
             </select>
           </td>
           <td>
-            <select name="AIN4" id="AIN4" class="json-as-bool">
+            <select name="AIN4_RANGE" id="AIN4_RANGE" class="json-as-bool">
               <option value="0">+/-10 V</option>
               <option value="1">+/-60 V</option>
             </select>
           </td>
         </tr>
         <tr>
-          <td>Channel 5</td>
+          <td>
+            <input
+              type="checkbox"
+              name="AIN5_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Analog Input 5</td>
           <td>
             <select
               name="NTC5"
@@ -179,14 +222,22 @@
             </select>
           </td>
           <td>
-            <select name="AIN5" id="AIN5" class="json-as-bool">
+            <select name="AIN5_RANGE" id="AIN5_RANGE" class="json-as-bool">
               <option value="0">+/-10 V</option>
               <option value="1">+/-60 V</option>
             </select>
           </td>
         </tr>
         <tr>
-          <td>Channel 6</td>
+          <td>
+            <input
+              type="checkbox"
+              name="AIN6_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Analog Input 6</td>
           <td>
             <select
               name="NTC6"
@@ -199,14 +250,22 @@
             </select>
           </td>
           <td>
-            <select name="AIN6" id="AIN6" class="json-as-bool">
+            <select name="AIN6_RANGE" id="AIN6_RANGE" class="json-as-bool">
               <option value="0">+/-10 V</option>
               <option value="1">+/-60 V</option>
             </select>
           </td>
         </tr>
         <tr>
-          <td>Channel 7</td>
+          <td>
+            <input
+              type="checkbox"
+              name="AIN7_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Analog Input 7</td>
           <td>
             <select
               name="NTC7"
@@ -219,14 +278,22 @@
             </select>
           </td>
           <td>
-            <select name="AIN7" id="AIN7" class="json-as-bool">
+            <select name="AIN7_RANGE" id="AIN7_RANGE" class="json-as-bool">
               <option value="0">+/-10 V</option>
               <option value="1">+/-60 V</option>
             </select>
           </td>
         </tr>
         <tr>
-          <td>Channel 8</td>
+          <td>
+            <input
+              type="checkbox"
+              name="AIN8_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Analog Input 8</td>
           <td>
             <select
               name="NTC8"
@@ -239,11 +306,95 @@
             </select>
           </td>
           <td>
-            <select name="AIN8" id="AIN8" class="json-as-bool">
+            <select name="AIN8_RANGE" id="AIN8_RANGE" class="json-as-bool">
               <option value="0">+/-10 V</option>
               <option value="1">+/-60 V</option>
             </select>
           </td>
+        </tr>
+
+        <!-- Digital Inputs Rows -->
+        <tr>
+          <td>
+            <input
+              type="checkbox"
+              name="DIN1_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Digital Input 1</td>
+          <td></td>
+          <!-- Mode column left empty for digital inputs -->
+          <td></td>
+          <!-- Range column can be left empty or repurposed if needed -->
+        </tr>
+        <!-- Repeat for DI2 to DI6 with onchange added -->
+        <tr>
+          <td>
+            <input
+              type="checkbox"
+              name="DIN2_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Digital Input 2</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <!-- Continue adding similar blocks for DI3 to DI6, changing the numbers accordingly -->
+        <tr>
+          <td>
+            <input
+              type="checkbox"
+              name="DIN3_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Digital Input 3</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>
+            <input
+              type="checkbox"
+              name="DIN4_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Digital Input 4</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>
+            <input
+              type="checkbox"
+              name="DIN5_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Digital Input 5</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>
+            <input
+              type="checkbox"
+              name="DIN6_ENABLE"
+              value="1"
+              class="json-as-bool"
+            />
+          </td>
+          <td>Digital Input 6</td>
+          <td></td>
+          <td></td>
         </tr>
       </table>
 
@@ -259,7 +410,8 @@
 
       <h3>Analog Calibration</h3>
       <p>
-        Hit the calibration button below to start calibration of the channels
+        Hit the calibration button below to start zero calibration of the
+        channels
       </p>
       <div id="calibration">
         <input
@@ -272,8 +424,152 @@
         <p id="calibStatus"></p>
       </div>
 
-      <!-- <h3>Digital channels</h3>
-      <p>Digital channels currently have no configuration options.</p> -->
+      <span>
+        <h2>File options</h2>
+
+        <span>
+          <h3>File format</h3>
+          <input
+            id="log_mode"
+            name="LOG_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="1"
+            checked="true"
+          />
+          <label class="choice" for="log_mode"
+            >CSV<br />Write CSV files directly. Recommended for low sample rates
+            or short measurements.</label
+          >
+
+          <input
+            id="log_mode"
+            name="LOG_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="0"
+          />
+          <label class="choice" for="log_mode"
+            >Raw data<br />Write the raw data and convert the data to a CSV file
+            afterwards. This option is recommended for long measurements. You
+            can use the Python conversion script or Windows exe tool to convert
+            the .dat files to .csv. Download the Python
+            <a href="convert_raw.py">here</a> or check the Uberlogger website
+            for the Windows tool in the download section.
+          </label>
+        </span>
+
+        <span>
+          <h3>File name mode</h3>
+          <input
+            id="file_name_mode"
+            name="FILE_NAME_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="0"
+            checked="true"
+          />
+          <label class="choice" for="file_name_mode"
+            >Sequential<br />File names are written with prefix + sequence
+            number. Example: log0, log1 etc. Existing files will be
+            overwritten.</label
+          >
+
+          <input
+            id="file_name_mode"
+            name="FILE_NAME_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="1"
+          />
+          <label class="choice" for="file_name_mode"
+            >Timestamp<br />File name will be like YYYYMMDD_Time_File Prefix.
+            Example: 20240312_14-34-34_Logfile.csv. Each split part will have a
+            new timestamp in UTC time.
+          </label>
+        </span>
+
+        <span>
+          <h3>CSV options</h3>
+          <div>
+            <label for="file_separator_char"
+              >CSV separator character. Semicolon is recommended for
+              Excel.</label
+            >
+            <select
+              name="FILE_SEPARATOR_CHAR"
+              id="file_separator_char"
+              class="json-as-number"
+            >
+              <option value="0">Comma (,)</option>
+              <option value="1">Semicolon (;)</option>
+            </select>
+            <label for="file_decimal_char"
+              >Decimal notation character. Note: this option does not have
+              effect when using RAW data file format. The conversion script will
+              use the system's default decimal character.</label
+            >
+            <select
+              name="FILE_DECIMAL_CHAR"
+              id="file_decimal_char"
+              class="json-as-number"
+            >
+              <option value="0">Dot (.)</option>
+              <option value="1">Comma (,)</option>
+            </select>
+          </div>
+        </span>
+
+        <h3>File name and split size</h3>
+        <label for="file_name_prefix">File name prefix</label>
+        <input
+          type="text"
+          id="file_name_prefix"
+          name="FILE_NAME_PREFIX"
+          class="json-as-text"
+          maxlength="70"
+          class="element"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          value=""
+        />
+
+        <label for="file_split_size"
+          >Max size of one log file (200 KB min and 2 GB max)</label
+        >
+        <div class="split-size-container">
+          <input
+            type="number"
+            id="file_split_size"
+            name="FILE_SPLIT_SIZE"
+            class="json-as-number"
+            max="4194304"
+            step="1"
+            oninput="validateIntegerInput(this)"
+          />
+
+          <select
+            name="FILE_SPLIT_SIZE_UNIT"
+            id="file_size_split_size_unit"
+            class="json-as-number"
+          >
+            <option value="0">KB</option>
+            <option value="1">MB</option>
+            <option value="2">GB</option>
+          </select>
+        </div>
+
+        <div id="configuration_done">
+          <input
+            id="saveForm"
+            class="button_text"
+            type="button"
+            onClick="setConfig()"
+            value="Save file options"
+          />
+        </div>
+      </span>
     </div>
 
     <h2>Wi-Fi configuration</h2>
@@ -464,7 +760,7 @@
         accept=".json"
         style="visibility: hidden; display: none"
       />
-      <a href="settings.json" target="_blank"
+      <a href="/ajax/getConfig?download=true" target="_blank"
         ><button class="button" type="button">
           Download current settings
         </button></a

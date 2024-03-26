@@ -41,28 +41,31 @@ struct file_server_data {
 extern SemaphoreHandle_t idle_state;
 static const char *TAG_FILESERVER = "file_server";
 
-/* Handler to redirect incoming GET request for /index.html to /
- * This can be overridden by uploading file with same name */
-// static esp_err_t index_html_get_handler(httpd_req_t *req)
-// {
-//     httpd_resp_set_status(req, "307 Temporary Redirect");
-//     httpd_resp_set_hdr(req, "Location", "/");
-//     httpd_resp_send(req, NULL, 0);  // Response body can be empty
-//     return ESP_OK;
-// }
+// Helper function to get query parameter value from a request
+static char* get_query_param_value(httpd_req_t *req, const char *param_name) {
+    size_t buf_len = httpd_req_get_url_query_len(req) + 1;
+    if (buf_len <= 1) {
+        return NULL;
+    }
 
-/* Handler to respond with an icon file embedded in flash.
- * Browsers expect to GET website icon at URI /favicon.ico.
- * This can be overridden by uploading file with same name */
-static esp_err_t favicon_get_handler(httpd_req_t *req)
-{
-    // extern const unsigned char favicon_ico_start[] asm("_binary_favicon_ico_start");
-    // extern const unsigned char favicon_ico_end[]   asm("_binary_favicon_ico_end");
-    // const size_t favicon_ico_size = (favicon_ico_end - favicon_ico_start);
-    // httpd_resp_set_type(req, "image/x-icon");
-    // httpd_resp_send(req, (const char *)favicon_ico_start, favicon_ico_size);
-    return ESP_OK;
+    char* buf = malloc(buf_len);
+    if (!buf) {
+        return NULL;
+    }
+
+    if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+        char* param_value = NULL;
+        if (httpd_query_key_value(buf, param_name, buf, buf_len) == ESP_OK) {
+            param_value = strdup(buf);
+        }
+        free(buf);
+        return param_value;
+    } else {
+        free(buf);
+        return NULL;
+    }
 }
+
 
 /* Send HTTP response with a run-time generated html consisting of
  * a list of all files and folders under the requested path.
@@ -76,6 +79,12 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
 
     struct dirent *entry;
     struct stat entry_stat;
+
+    // Default values for pagination
+    int page = 999;// default page number. 999 = last page
+    int limit = 25; // maximum number of files per page
+    int skip = 0; // counter for files to be skipped
+    int processed = 0; // counter for files that are processed within a page
 
     if (esp_sd_card_mount() != ESP_OK) {
         ESP_LOGE(TAG_FILESERVER, "Cannot mount SD card");
@@ -106,29 +115,23 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
         return ESP_FAIL;
     }
 
-    // /* Send HTML file header */
-    // httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
-
-    // /* Get handle to embedded file upload script */
-    // extern const unsigned char upload_script_start[] asm("_binary_upload_script_html_start");
-    // extern const unsigned char upload_script_end[]   asm("_binary_upload_script_html_end");
-    // const size_t upload_script_size = (upload_script_end - upload_script_start);
-
-    // /* Add file upload form and script which on execution sends a POST request to /upload */
-    // httpd_resp_send_chunk(req, (const char *)upload_script_start, upload_script_size);
-
-    // /* Send file-list table definition and column labels */
-    // httpd_resp_sendstr_chunk(req,
-    //     "<table class=\"fixed\" border=\"1\">"
-    //     "<col width=\"800px\" /><col width=\"300px\" /><col width=\"300px\" /><col width=\"100px\" />"
-    //     "<thead><tr><th>Name</th><th>Type</th><th>Size (Bytes)</th><th>Delete</th></tr></thead>"
-    //     "<tbody>");
-
+     // Count all files/directories
+    int total_entries = 0;
+    // struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        total_entries++;
+    }
+    closedir(dir);  // Close the directory after counting
+    dir = opendir(dirpath);
+    // Calculate total pages
+    int total_pages = (total_entries + limit - 1) / limit;  // This ensures rounding up
+   
     /* Iterate over all files / folders and fetch their names and sizes */
     int i = 1;
-    // create new root cjson
-    
+
     httpd_resp_set_type(req, "application/json");
+    
+    // create new root cjson
     cJSON * main = cJSON_CreateObject();
     if (main == NULL)
     {
@@ -138,71 +141,75 @@ esp_err_t http_resp_dir_html(httpd_req_t *req, const char *dirpath)
     cJSON * root = cJSON_AddObjectToObject(main, "root");
     char int2str[11];
 
-    while ((entry = readdir(dir)) != NULL) {
-        entrytype = (entry->d_type == DT_DIR ? "DIRECTORY" : "FILE");
-        // Filter out directory with .Trash in it
-        if (entry->d_type == DT_DIR && strstr(entry->d_name, ".Trash") != NULL)
-        {
-            continue;
-        }
+    // Parse page and limit from request
+    char *page_param = get_query_param_value(req, "filepage");
+    // char *limit_param = get_query_param_value(req, "limit");
+    if (page_param) {
+        page = atoi(page_param);
+        free(page_param);
+    }
+    
+    if (page > total_pages) page = total_pages; // By default go to last page in order to see latest files. 
+    // if (limit_param) {
+    //     limit = atoi(limit_param);
+    //     free(limit_param);
+    // }
+    if (page < 1) page = 1;
+    // if (limit < 1) limit = 10;
+    skip = (page - 1) * limit;
 
-        strlcpy(entrypath + dirpath_len, entry->d_name, sizeof(entrypath) - dirpath_len);
-        if (stat(entrypath, &entry_stat) == -1) {
-            ESP_LOGE(TAG_FILESERVER, "Failed to stat %s : %s", entrytype, entry->d_name);
-            continue;
-        }
-        sprintf(entrysize, "%ld", entry_stat.st_size);
-        #ifdef DEBUG_FILESERVER
-        ESP_LOGI(TAG_FILESERVER, "Found %s : %s (%s bytes)", entrytype, entry->d_name, entrysize);
-        #endif
-        /* Send chunk of HTML file containing table entries with file name and size */
+    while ((entry = readdir(dir)) != NULL ) {
+        
+            if (processed >= limit) break; // Stop if the limit is reached
+            if (skip > 0) {
+                skip--;  // Skip this entry, decrease the skip count
+                continue; // Go to the next iteration of the loop
+            }
+            entrytype = (entry->d_type == DT_DIR ? "DIRECTORY" : "FILE");
+            // Filter out directory with .Trash in it
+            if (entry->d_type == DT_DIR && strstr(entry->d_name, ".Trash") != NULL)
+            {
+                continue;
+            }
 
-        // Add entry to cJSON
-        sprintf(int2str, "%d", i);
-        cJSON * item = cJSON_AddObjectToObject(root, int2str);
-        cJSON_AddStringToObject(item, "NAME", entry->d_name);
-        cJSON_AddStringToObject(item, "TYPE", entrytype);
-        cJSON_AddStringToObject(item, "SIZE", entrysize);
-        i++;
+            strlcpy(entrypath + dirpath_len, entry->d_name, sizeof(entrypath) - dirpath_len);
+            if (stat(entrypath, &entry_stat) == -1) {
+                ESP_LOGE(TAG_FILESERVER, "Failed to stat %s : %s", entrytype, entry->d_name);
+                continue;
+            }
+            sprintf(entrysize, "%ld", entry_stat.st_size);
+            #ifdef DEBUG_FILESERVER
+            ESP_LOGI(TAG_FILESERVER, "Found %s : %s (%s bytes)", entrytype, entry->d_name, entrysize);
+            #endif
+            /* Send chunk of HTML file containing table entries with file name and size */
 
-        // httpd_resp_sendstr_chunk(req, "<tr><td><a href=\"");
-        // httpd_resp_sendstr_chunk(req, req->uri);
-        // httpd_resp_sendstr_chunk(req, entry->d_name);
-        // if (entry->d_type == DT_DIR) {
-        //     httpd_resp_sendstr_chunk(req, "/");
-        // }
-        // httpd_resp_sendstr_chunk(req, "\">");
-        // httpd_resp_sendstr_chunk(req, entry->d_name);
-        // httpd_resp_sendstr_chunk(req, "</a></td><td>");
-        // httpd_resp_sendstr_chunk(req, entrytype);
-        // httpd_resp_sendstr_chunk(req, "</td><td>");
-        // httpd_resp_sendstr_chunk(req, entrysize);
-        // httpd_resp_sendstr_chunk(req, "</td><td>");
-        // httpd_resp_sendstr_chunk(req, "<form method=\"post\" action=\"/delete");
-        // httpd_resp_sendstr_chunk(req, req->uri);
-        // httpd_resp_sendstr_chunk(req, entry->d_name);
-        // httpd_resp_sendstr_chunk(req, "\"><button type=\"submit\">Delete</button></form>");
-        // httpd_resp_sendstr_chunk(req, "</td></tr>\n");
-
-
+            // Add entry to cJSON
+            sprintf(int2str, "%d", i);
+            cJSON * item = cJSON_AddObjectToObject(root, int2str);
+            cJSON_AddStringToObject(item, "NAME", entry->d_name);
+            cJSON_AddStringToObject(item, "TYPE", entrytype);
+            cJSON_AddStringToObject(item, "SIZE", entrysize);
+            i++;
+            processed++;
     }
     closedir(dir);
 
+     // Create and add pagination info to JSON
+    cJSON *pagination_info = cJSON_AddObjectToObject(main, "pagination");
+    cJSON_AddNumberToObject(pagination_info, "current_page", page);
+    cJSON_AddNumberToObject(pagination_info, "total_pages", total_pages);
+    cJSON_AddNumberToObject(pagination_info, "total_entries", total_entries);
+    cJSON_AddNumberToObject(pagination_info, "entries_per_page", limit);
+
     char* json_resp = cJSON_Print(main);
+    #ifdef DEBUG_FILEMAN
+    ESP_LOGI(TAG_FILESERVER, "%s", json_resp);
+    #endif
     // Send cJSON
     httpd_resp_send(req, json_resp, strlen(json_resp));
-
     free(json_resp);
     cJSON_Delete(main);
 
-    // /* Finish the file list table */
-    // httpd_resp_sendstr_chunk(req, "</tbody></table>");
-
-    // /* Send remaining chunk of HTML file to complete it */
-    // httpd_resp_sendstr_chunk(req, "</body></html>");
-
-    // /* Send empty chunk to signal HTTP response completion */
-    // httpd_resp_sendstr_chunk(req, NULL);
     return ESP_OK;
 }
 
@@ -293,7 +300,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
     if (!filename) {
         ESP_LOGE(TAG_FILESERVER, "Filename is too long");
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Filename too long");
         return ESP_FAIL;
     }
 
@@ -348,7 +355,8 @@ esp_err_t download_get_handler(httpd_req_t *req)
     do {
         /* Read file in chunks into the scratch buffer */
         chunksize = fread(chunk, 1, SCRATCH_BUFSIZE, fd);
-
+        // Yield to the scheduler to allow higher priority tasks to run
+        vTaskDelay(pdMS_TO_TICKS(0));
         if (chunksize > 0) {
             /* Send the buffer contents as HTTP response chunk */
             if (httpd_resp_send_chunk(req, chunk, chunksize) != ESP_OK) {
@@ -361,7 +369,9 @@ esp_err_t download_get_handler(httpd_req_t *req)
                return ESP_FAIL;
            }
         }
-
+        // Yield to the scheduler to allow higher priority tasks to run
+        vTaskDelay(pdMS_TO_TICKS(0));
+        
         /* Keep looping till the whole file is sent */
     } while (chunksize != 0);
 
@@ -384,7 +394,7 @@ esp_err_t download_get_handler(httpd_req_t *req)
 esp_err_t upload_post_handler(httpd_req_t *req)
 {
       if (Logger_getState() == LOGTASK_LOGGING ){
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot upload files while logging");
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Cannot upload files while logging");
         return ESP_FAIL;
     }
     char filepath[FILE_PATH_MAX];
@@ -398,14 +408,14 @@ esp_err_t upload_post_handler(httpd_req_t *req)
                                              req->uri + sizeof("/upload") - 1, sizeof(filepath));
     if (!filename) {
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Filename too long");
         goto error;
     }
 
     /* Filename cannot have a trailing '/' */
     if (filename[strlen(filename) - 1] == '/') {
         ESP_LOGE(TAG_FILESERVER, "Invalid filename : %s", filename);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid filename");
         goto error;
     }
 
@@ -529,7 +539,7 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 {
   
       if (Logger_getState() == LOGTASK_LOGGING){
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot delete files while logging");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Cannot delete files while logging");
         return ESP_FAIL;
     }
 
@@ -566,21 +576,21 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 
     if (!filename) {
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Filename too long");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Filename too long");
         return ESP_FAIL;
     }
 
     /* Filename cannot have a trailing '/' */
     if (filename[strlen(filename) - 1] == '/') {
         ESP_LOGE(TAG_FILESERVER, "Invalid filename : %s", filename);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Invalid filename");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid filename");
         return ESP_FAIL;
     }
 
     if (stat(filepath, &file_stat) == -1) {
         ESP_LOGE(TAG_FILESERVER, "File does not exist : %s", filename);
         /* Respond with 400 Bad Request */
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File does not exist");
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File does not exist");
         return ESP_FAIL;
     }
 
@@ -614,14 +624,14 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 
 esp_err_t fwupdate_get_handler(httpd_req_t *req)
 {
-    esp_err_t err;
+    // esp_err_t err;
 
     if (strstr(req->uri, "/fwupdate/enable") != NULL)
     {
         if (Logger_startFWupdate() != ESP_OK)
         {
             ESP_LOGE(TAG_FILESERVER, "Failed to start firmware update");
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Logger not idle, cannot update firwmare");
+            httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Logger not idle, cannot update firwmare");
             return ESP_FAIL;
         } else {
             httpd_resp_set_status(req, HTTPD_200);
@@ -644,62 +654,9 @@ esp_err_t fwupdate_get_handler(httpd_req_t *req)
         httpd_resp_sendstr_chunk(req, "<p>Starting firmware upgrade...</p>");
         
         Logger_startFWflash();
-        // httpd_resp_sendstr_chunk(req, "<p>Flashing support chip ...(1/6)</p>");
-
-
-       
-        /* Start firmware upgrade */
-        // if (flash_stm32() != ESP_OK) {
-        //     ESP_LOGE(TAG_FILESERVER, "Support chip  failed!");
-        //     httpd_resp_sendstr_chunk(req, "<p>Support chip  failed!</p>");
-        //     goto error;
-        // } else {
-        //     #ifdef DEBUG_FILESERVER
-        //     ESP_LOGI(TAG_FILESERVER, "Support chip flashed (2 / 6)");
-        //     #endif
-        //     httpd_resp_sendstr_chunk(req, "<p>Support chip flashed (2 / 6)</p>");
-        // }
-
-        // httpd_resp_sendstr_chunk(req, "<p>Flashing file system ...(3 / 6)</p>");
-        // if (update_www() != ESP_OK) {
-        //     ESP_LOGE(TAG_FILESERVER, "File system flash failed");
-        //     httpd_resp_sendstr_chunk(req, "<p>File system flash failed!</p>");
-        //     goto error;
-        // } else {
-        //     #ifdef DEBUG_FILESERVER
-        //     ESP_LOGI(TAG_FILESERVER, "File system flashed (4 / 6)");
-        //     #endif
-        //     httpd_resp_sendstr_chunk(req, "<p>File system flashed (4 / 6)</p>");
-        // }
-        
-        // httpd_resp_sendstr_chunk(req, "<p>Flashing main chip ...(5 / 6)</p>");
-        // httpd_resp_sendstr_chunk(req, "<p>WiFi will be disabled and should re-enable again. If upgrade failed it will be shown here.</p>");
-        
-        
-        // if (updateESP32() != ESP_OK) {
-        //     ESP_LOGE(TAG_FILESERVER, "Main chip flash failed");
-        //     httpd_resp_sendstr_chunk(req, "<p>Main chip flash failed! Please don't reset your Uberlogger and try again</p>");
-        //     httpd_resp_send_chunk(req, NULL, 0);
-        //     goto error;
-        // } else {
-        //     #ifdef DEBUG_FILESERVER
-        //     ESP_LOGI(TAG_FILESERVER, "Main flash chip flashed (6 / 6)");
-        //     #endif
-        //     httpd_resp_sendstr_chunk(req, "<p>Main flash chip flashed (6 / 6)</p>");
-        // }
-
-        // httpd_resp_sendstr_chunk(req, "succesfull");
-        // httpd_resp_send_chunk(req, NULL, 0);
 
         // error:
         httpd_resp_send_chunk(req, NULL, 0);
-
-        
-        // Reboot to apply firmware update
-        // Logging_restartSystem();
-        // xSemaphoreGive(idle_state);
-
-
      
         return ESP_OK;
     

@@ -17,13 +17,13 @@
     "NTC8": true
   },
   "AIN_RANGE_SELECT": {
-    "AIN1": false,
-    "AIN2": false,
-    "AIN3": false,
-    "AIN4": true,
-    "AIN5": true,
-    "AIN6": false,
-    "AIN7": false,
-    "AIN8": true
+    "AIN1_RANGE": false,
+    "AIN2_RANGE": false,
+    "AIN3_RANGE": false,
+    "AIN4_RANGE": true,
+    "AIN5_RANGE": true,
+    "AIN6_RANGE": false,
+    "AIN7_RANGE": false,
+    "AIN8_RANGE": true
   }
 }

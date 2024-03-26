@@ -35,30 +35,100 @@
 typedef struct {
     uint8_t startByte[START_STOP_NUM_BYTES]; // 2
     uint16_t dataLen;
+    uint8_t padding0[12];
     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
-    uint8_t padding3;
-    uint8_t padding4;
     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
-    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
-} spi_msg_1_t ;
+    uint8_t padding1[2];
+    union 
+    {
+        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
+        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
+    };
+    
+} spi_msg_1_t;
+
+// int i = sizeof(spi_msg_1_t);
 
 typedef struct {
-    uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
+    union {
+        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
+        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
+    };    
+    uint8_t padding1[2];
     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
-    uint8_t padding1;
-    uint8_t padding2;
     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
+    uint8_t padding0[12];
     uint16_t dataLen;
     uint8_t stopByte[START_STOP_NUM_BYTES];
 } spi_msg_2_t;
+
+// int j = sizeof(spi_msg_2_t);
+
+// This should align with 4 bytes FIFO. Alternatively, one could use __attribute__((aligned(4))) spi_msg_1_t;
+// Since the size of this struct is 2048 it can quickly flush the data to the sd card. 
+// typedef struct   __attribute__((aligned(4)))  {
+//     uint8_t msg_no;
+// 	uint16_t dataLen;
+//     uint8_t padding1[11];
+//     s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
+//     uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
+//     union
+//     {
+//         uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
+//         uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION]; // 560
+//     };
+//     // uint16_t crc;
+// } spi_msg_slow_freq_t;
+
+
+
+typedef struct {
+    uint8_t startByte[START_STOP_NUM_BYTES]; // 2 bytes
+    uint16_t dataLen; // 2 bytes
+    uint8_t padding0;
+    uint8_t padding1[10];
+    union 
+    {
+        uint8_t adcData[2032]; // Increased size to match the total size of spi_msg_1_t
+        uint16_t adcData16[1016]; // Corresponding increase for the 16-bit representation
+    };
+    // uint16_t crc; // 2 bytes
+} spi_msg_1_adc_only_t;
+
+
+typedef struct {
+    union 
+    {
+        uint8_t adcData[2032]; // Increased size to match the total size of spi_msg_1_t
+        uint16_t adcData16[1016]; // Corresponding increase for the 16-bit representation
+    };  
+    uint16_t dataLen; // 2 bytes
+    uint8_t stopByte[START_STOP_NUM_BYTES]; // 2 bytes
+    // The next 3 padding bytes makes the total size of spi_msg_2_t 2048 bytes. The sd card buffer will be 4*2048 bytes.
+    // This is ideal for flushing data to the SD card.
+    uint8_t padding0;
+    uint8_t padding1[10];
+    // uint16_t crc; // 2 bytes
+} spi_msg_2_adc_only_t;
+
+
 // END OF NO TOUCH
 // *********************************************************************************************************************
+
+typedef struct {
+    uint8_t spi_data[sizeof(spi_msg_1_adc_only_t)*4];
+    uint32_t datarows;
+    uint8_t numSpiMessages;
+    uint32_t msgSize;
+    uint64_t total_datarows;
+} sdcard_data_t;
+
 
 
 typedef struct {
     uint8_t gpioData[6];    // Digital inputs
-    float   temperatureData[8]; // converted adc values to temperature
-    float   analogData[8]; // converted adc values
+    int32_t   temperatureData[8]; // converted adc values to temperature
+    int32_t   analogData[8]; // converted adc values
     uint16_t analogDataRaw[8]; // raw adc values, uncompensated for calibration
     uint64_t timestamp; // timestamp in milliseconds
 } converted_reading_t;
@@ -166,7 +236,7 @@ esp_err_t Logger_format_sdcard();
 
 // uint8_t Logger_flush_buffer_to_sd_card();
 size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size);
-size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdcBytes, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime, size_t datarows);
+// size_t Logger_flush_buffer_to_sd_card_csv(int32_t * adcData, size_t lenAdcBytes, uint8_t * gpioData, size_t lenGpio, uint8_t * timeData, size_t lenTime, size_t datarows);
 
 uint8_t Logger_isLogging(void);
 

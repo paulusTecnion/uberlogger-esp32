@@ -1,6 +1,7 @@
 idf_component_register(SRCS 
                             "console.c"
                             "file_server.c"
+                            "fileman.c"
                             "firmwareESP32.c"
                             "firmwareSTM32.c"
                             "firmware-www.c"

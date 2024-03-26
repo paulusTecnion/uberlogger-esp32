@@ -181,7 +181,7 @@ int NTC_table[1025] = {
 -704, -774, -844
 };
 
-void calculateTemperatureLUT(int32_t * T, int32_t adc_out, int32_t adc_in);
+// void calculateTemperatureLUT(int32_t * T, int32_t adc_out, int32_t adc_in);
 
 // int main() {
     
@@ -239,7 +239,7 @@ int32_t interp( lut_t * c, int32_t x, int n ){
 }
 
 
-void calculateTemperatureLUT(int32_t * T, int32_t adc_out, int32_t adc_in){
+// void calculateTemperatureLUT(int32_t * T, int32_t adc_out, int32_t adc_in){
   /* calculate temperature with NTC and pull-up
    * result is T in Q-notation, divide by 2^Q to get the actual value
    *
@@ -252,23 +252,23 @@ void calculateTemperatureLUT(int32_t * T, int32_t adc_out, int32_t adc_in){
   
 
 
-  int32_t R, result;
+//   int32_t R, result;
   
-  if((adc_out < 0.93*adc_in)&&(adc_out > 0.039*adc_in)){ // sensor has valid range (between -20 deg C and +120 deg C)
+//   if((adc_out < 0.93*adc_in)&&(adc_out > 0.039*adc_in)){ // sensor has valid range (between -20 deg C and +120 deg C)
     
-    R = q_mul((int32_t) (NTC_R_PULLUP_INT << Q), q_div(adc_out, adc_in - adc_out)) >> Q;  
-    result=interp(NTC_LUT, R, NTC_LUT_SIZE);
+//     R = q_mul((int32_t) (NTC_R_PULLUP_INT << Q), q_div(adc_out, adc_in - adc_out)) >> Q;  
+//     result=interp(NTC_LUT, R, NTC_LUT_SIZE);
 
-    // if(result > (*T + 100)){ // detect re-connection of temperature sensor, initialize
-    //   *T = result;
-    // }else{
-    //   *T = (1 - TEMPERATURE_FILTER_COEFF) * (*T) + TEMPERATURE_FILTER_COEFF * result;
-    // }
-    *T = result;
-  } else {
-    *T = -1000 << Q; // sensor has invalid reading
-  }
-}
+//     // if(result > (*T + 100)){ // detect re-connection of temperature sensor, initialize
+//     //   *T = result;
+//     // }else{
+//     //   *T = (1 - TEMPERATURE_FILTER_COEFF) * (*T) + TEMPERATURE_FILTER_COEFF * result;
+//     // }
+//     *T = result;
+//   } else {
+//     *T = -1000 << Q; // sensor has invalid reading
+//   }
+// }
 
 int NTC_ADC2Temperature(unsigned int adc_value){
  

@@ -63,7 +63,7 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
     if (CHECK_FILE_EXTENSION(filepath, ".html")) {
         type = "text/html";
     } else if (CHECK_FILE_EXTENSION(filepath, ".js")) {
-        type = "application/javascript";
+        type = "application/javascript"; // Corrected from application/javscript
     } else if (CHECK_FILE_EXTENSION(filepath, ".css")) {
         type = "text/css";
     } else if (CHECK_FILE_EXTENSION(filepath, ".png")) {
@@ -71,10 +71,11 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
     } else if (CHECK_FILE_EXTENSION(filepath, ".ico")) {
         type = "image/x-icon";
     } else if (CHECK_FILE_EXTENSION(filepath, ".svg")) {
-        type = "text/xml";
+        type = "image/svg+xml"; // Corrected from text/xml to the more specific image/svg+xml
     } else if (CHECK_FILE_EXTENSION(filepath, ".gz")) {
-        type = "application/javscript";
-    }
+        type = "application/gzip"; // Corrected to application/gzip, noting this is for gzip compressed files
+    } 
+
     
     return httpd_resp_set_type(req, type);
 }
@@ -134,9 +135,32 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
         httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
     }
 
-    if (CHECK_FILE_EXTENSION(filepath, ".json"))
+    if (CHECK_FILE_EXTENSION(filepath, ".json")){
+            httpd_resp_set_type(req, "text/json");
+    }
+
+    if (CHECK_FILE_EXTENSION(filepath, ".py") )
     {
-        httpd_resp_set_type(req, "text/json");
+         // Extract the filename from the filepath
+        const char *filename = strrchr(filepath, '/');
+        if (filename) // Check if the '/' character was found
+        {
+            filename++; // Move past the '/' to the start of the actual filename
+        }
+        else
+        {
+            filename = filepath; // No '/' found, the whole path is the filename
+        }
+
+        // Set the HTTP headers
+        httpd_resp_set_hdr(req, "Content-Type", "application/octet-stream");
+
+        // Create a buffer for the Content-Disposition header
+        char content_disposition[256]; // Adjust size as needed
+        snprintf(content_disposition, sizeof(content_disposition), "attachment; filename=\"%s\"", filename);
+
+        // Set the Content-Disposition header with the actual filename
+        httpd_resp_set_hdr(req, "Content-Disposition", content_disposition);
     }
 
     char *chunk = rest_context->scratch;
@@ -190,17 +214,29 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     cJSON_AddStringToObject(analog, "UNITS", "Volt");
     cJSON * aValues = cJSON_AddObjectToObject(analog, "VALUES");
     
-    char buf[5];
+    char buf[15];
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
-        if (settings_get_adc_channel_type(settings_get(), i))
+        if (settings_get_adc_channel_enabled(i))
         {
-            sprintf(buf,"T%d", i+1);
-             cJSON_AddNumberToObject(tValues, buf, live_data.temperatureData[i]);
-        } else {
-            sprintf(buf,"AIN%d", i+1);
-            cJSON_AddNumberToObject(aValues, buf, live_data.analogData[i]);
+            if (settings_get_adc_channel_type(settings_get(), i))
+            {
+                sprintf(buf,"T%d", i+1);
+                
+                cJSON_AddNumberToObject(tValues, buf, (double)live_data.temperatureData[i]/10.0);
+            } else {
+                sprintf(buf,"AIN%d", i+1);
+                
+                 if (settings_get_adc_channel_range(settings_get(), i))
+                {
+                    cJSON_AddNumberToObject(aValues, buf, (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_60V);
+                } else {
+                    cJSON_AddNumberToObject(aValues, buf, (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_10V);
+                // cJSON_AddStringToObject(aValues, buf, live_data.analogData[i]);
+                }
+            }
         }
+        
         
     }
       
@@ -213,12 +249,22 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
 //    cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
     cJSON * aDigital = cJSON_AddObjectToObject(digital, "VALUES");
 
-    cJSON_AddNumberToObject(aDigital, "DI1", live_data.gpioData[0]);
-    cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[1]);
-    cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[2]);
-    cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[3]);
-    cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[4]);
-    cJSON_AddNumberToObject(aDigital, "DI6", live_data.gpioData[5]);
+
+    for (int i = 0; i<6; i++)
+    {
+        if (settings_get_gpio_channel_enabled(settings_get(), i))
+        {
+            sprintf(buf, "DI%d", i+1);
+            cJSON_AddNumberToObject(aDigital, buf, live_data.gpioData[i]);
+        }
+            
+    }
+    
+    // cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[1]);
+    // cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[2]);
+    // cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[3]);
+    // cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[4]);
+    // cJSON_AddNumberToObject(aDigital, "DI6", live_data.gpioData[5]);
 
     // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
@@ -379,7 +425,9 @@ const char * logger_settings_to_json(Settings_t *settings)
     
     cJSON *range_select = cJSON_AddObjectToObject(root, "AIN_RANGE_SELECT");
     cJSON *ntc_select = cJSON_AddObjectToObject(root, "NTC_SELECT");
-    char buf[5];
+    cJSON *ain_enabled = cJSON_AddObjectToObject(root, "AIN_ENABLED");
+    cJSON *din_enabled = cJSON_AddObjectToObject(root, "DIN_ENABLED");
+    char buf[15];
 
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
@@ -387,10 +435,44 @@ const char * logger_settings_to_json(Settings_t *settings)
             sprintf(buf,"NTC%d", i+1);
             cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(settings, i));
 
-            sprintf(buf,"AIN%d", i+1);
-             cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
-
+            sprintf(buf,"AIN%d_RANGE", i+1);
+            cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
+            
+            sprintf(buf,"AIN%d_ENABLE", i+1);
+            cJSON_AddBoolToObject(ain_enabled, buf, settings_get_adc_channel_enabled(i));
+            
+            if (i<6)
+            {
+                sprintf(buf,"DIN%d_ENABLE", i+1);
+                cJSON_AddBoolToObject(din_enabled, buf, settings_get_gpio_channel_enabled(settings, i));
+            }
     }
+
+    cJSON_AddNumberToObject(root, "FILE_DECIMAL_CHAR", settings->file_decimal_char);
+    cJSON_AddNumberToObject(root, "FILE_NAME_MODE", settings->file_name_mode);
+    cJSON_AddStringToObject(root, "FILE_NAME_PREFIX", settings->file_prefix);
+    cJSON_AddNumberToObject(root, "FILE_SEPARATOR_CHAR", settings->file_separator_char);
+    cJSON_AddNumberToObject(root, "FILE_SPLIT_SIZE_UNIT", settings->file_split_size_unit);
+
+    uint32_t file_split_size;
+
+    switch (settings->file_split_size_unit)
+    {
+        default:
+        case 0:
+            file_split_size = settings->file_split_size / 1024;
+        break;
+
+        case 1:
+            file_split_size = settings->file_split_size / (1024*1024);
+        break;
+
+        case 2:
+            file_split_size = settings->file_split_size / (1024 * 1024 * 1024);
+        break;
+    }
+    cJSON_AddNumberToObject(root, "FILE_SPLIT_SIZE", file_split_size );
+
     
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
@@ -405,7 +487,7 @@ const char * logger_settings_to_json(Settings_t *settings)
     
 
     cJSON_AddNumberToObject(root, "ADC_RESOLUTION", settings->adc_resolution);
-    cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->log_sample_rate);
+    cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->adc_log_sample_rate);
     cJSON_AddNumberToObject(root, "LOG_MODE", settings->logMode);
 
 
@@ -421,24 +503,24 @@ static esp_err_t logger_calibrate_handler(httpd_req_t *req)
     httpd_resp_set_type(req, "application/json");
     if (Logger_getState() == LOGTASK_LOGGING)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started while logging."); 
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started while logging.", HTTPD_403_FORBIDDEN); 
         return ESP_FAIL;
     } 
     else if (Logger_getState() == LOGTASK_CALIBRATION) 
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration already started."); 
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration already started.", HTTPD_403_FORBIDDEN); 
         return ESP_FAIL;
     } else if ((Logger_getState() != LOGTASK_IDLE) && (Logger_getState() !=LOGTASK_SINGLE_SHOT))
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not idle. Are you updating firmware?"); 
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not idle. Are you updating firmware?", HTTPD_403_FORBIDDEN); 
         return ESP_FAIL;
     }
 
     if (Logger_calibrate() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, "Calibration started...");
+        json_send_resp(req, ENDPOINT_RESP_ACK, "Calibration started...", 0);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started. Are you logging?");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Calibration cannot be started. Are you logging?", HTTPD_403_FORBIDDEN);
         return ESP_FAIL;
     }
 
@@ -452,9 +534,9 @@ static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 
     if (Logger_format_sdcard() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, "Formt started...");
+        json_send_resp(req, ENDPOINT_RESP_ACK, "Formt started...", 0);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Could not start format. Do you have an sd card inserted or are you logging?");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Could not start format. Do you have an sd card inserted or are you logging?", HTTPD_403_FORBIDDEN);
     }
 
     return ESP_OK;
@@ -482,19 +564,29 @@ static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
 static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "application/json");
- 
+    
+    // Check if the query parameter for download is present and set to 'true'
+    char query_param[20];  // Adjust size according to your expected query length
+    if (httpd_req_get_url_query_str(req, query_param, sizeof(query_param)) == ESP_OK) {
+        char param_value[5];  // Assuming the value is 'true' or 'false'
+        if (httpd_query_key_value(query_param, "download", param_value, sizeof(param_value)) == ESP_OK) {
+            if (strcasecmp(param_value, "true") == 0) {
+                // The client wants to download the file, set the Content-Disposition header
+                httpd_resp_set_hdr(req, "Content-Disposition", "attachment; filename=\"settings.json\"");
+            }
+        }
+    }
+
     Settings_t *settings = settings_get();
-    const char * settings_json = NULL;
+    const char *settings_json = NULL;
     settings_json = logger_settings_to_json(settings);
-    if (settings_json == NULL)
-    {
+    if (settings_json == NULL) {
         return ESP_FAIL;
     }
 
     httpd_resp_sendstr(req, settings_json);
     httpd_resp_sendstr_chunk(req, NULL);
     free((void *)settings_json);
-    
     
     return ESP_OK;
 }
@@ -505,7 +597,7 @@ static esp_err_t logger_setTime_handler(httpd_req_t *req)
     cJSON *settings_in = NULL;
     if (Logger_getState() == LOGTASK_LOGGING)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging", HTTPD_403_FORBIDDEN);
         
         return ESP_OK;
     }
@@ -551,7 +643,7 @@ static esp_err_t logger_setTime_handler(httpd_req_t *req)
         if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -561,14 +653,14 @@ static esp_err_t logger_setTime_handler(httpd_req_t *req)
 
     if (Logtask_sync_time() == ESP_FAIL)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings", HTTPD_500_INTERNAL_SERVER_ERROR);
         // return ESP_FAIL;
         goto error;
     }
 
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
-    json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+    json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
     
 
     
@@ -591,7 +683,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     cJSON *settings_in = NULL;
     if (Logger_getState() == LOGTASK_LOGGING)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging", HTTPD_403_FORBIDDEN);
         
         return ESP_OK;
     }
@@ -604,7 +696,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 
     // Store old settings (only to compare old wifi settings)
     Settings_t oldSettings;
-     memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
+    memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
 
     int total_len = req->content_len;
     int cur_len = 0;
@@ -629,61 +721,152 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     buf[total_len] = '\0';
 
     settings_in = cJSON_Parse(buf);
-    cJSON * item;
+    cJSON * item = NULL;
 
     
     char buf2[30];
-    for (int j = 0; j<2; j++)
+    for (int j = 0; j<4; j++)
     {
         for (int i = 0; i<8; i++)
         {
-            if (j ==0)
+            if (j == 0)
             {
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTC_SELECT");
                 if (item != NULL)
                 {
                     sprintf(buf2, "NTC%d", i+1);
-                    // json_send_resp(req, ENDPOINT_RESP_ERROR);
-                    // return ESP_FAIL;
                 }
 
-                
-            } else {
+            } else if (j == 1) {
                 item = cJSON_GetObjectItemCaseSensitive(settings_in, "AIN_RANGE_SELECT");
                 if (item != NULL)
                 {
-                    sprintf(buf2, "AIN%d", i+1);
-                    // json_send_resp(req, ENDPOINT_RESP_ERROR);
-                    // return ESP_FAIL;
+                    sprintf(buf2, "AIN%d_RANGE", i+1);
                 }
-                
+            } else if (j == 2) {
+                item = cJSON_GetObjectItemCaseSensitive(settings_in, "AIN_ENABLED");
+                if (item != NULL)
+                {
+                    sprintf(buf2, "AIN%d_ENABLE", i+1);
+                }
+            } else if (j == 3) {
+                if (i < 6)
+                {
+                    item = cJSON_GetObjectItemCaseSensitive(settings_in, "DIN_ENABLED");
+                    if (item != NULL)
+                    {
+                        sprintf(buf2, "DIN%d_ENABLE", i+1);
+                    }
+                }
+            } else {
+                item = NULL;
             }
                 
-            cJSON * subItem = cJSON_GetObjectItemCaseSensitive(item, buf2);
-            if (subItem != NULL)
+            if (item!=NULL)
             {
-                if (j==0)
+                cJSON * subItem = cJSON_GetObjectItemCaseSensitive(item, buf2);
+                if (subItem != NULL)
                 {
-                    #ifdef DEBUG_REST_SERVER
-                    ESP_LOGI("REST: ", "NTC%d %d", i, (subItem->valueint));
-                    #endif
-                    settings_set_adc_channel_type(i, subItem->valueint);
-                } else {
-                    #ifdef DEBUG_REST_SERVER
-                    ESP_LOGI("REST: ", "AIN%d %d", i, (subItem->valueint));
-                    #endif
-                    settings_set_adc_channel_range(i, subItem->valueint);
+                    if (j == 0) {
+                        #ifdef DEBUG_REST_SERVER
+                        ESP_LOGI("REST: ", "NTC%d %d", i, (subItem->valueint));
+                        #endif
+                        settings_set_adc_channel_type(i, subItem->valueint);
+                    } else if (j == 1) {
+                        // #ifdef DEBUG_REST_SERVER
+                        ESP_LOGI("REST: ", "AIN%d %d", i, (subItem->valueint));
+                        // #endif
+                        settings_set_adc_channel_range(i, subItem->valueint);
+                    } else if (j == 2) {
+                        ESP_LOGI("REST: ", "AIN ENABLE AIN%d %d", i, (subItem->valueint));
+                        settings_set_adc_channel_enabled(i, subItem->valueint);
+                    } else if (j == 3 ) {
+                        ESP_LOGI("REST: ", "DIO ENABLE DI%d %d", i, (subItem->valueint));
+                        settings_set_gpio_channel_enabled(i, subItem->valueint);
+                    } 
                 }
-                
-            } 
-            // else {
-            //     json_send_resp(req, ENDPOINT_RESP_ERROR);
-            //     return ESP_FAIL;
-            // }
-        
+            }        
+        }
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_DECIMAL_CHAR");
+    if (item != NULL)
+    {
+        if (settings_set_file_decimal_char(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file decimal char value. Only 0=dot and 1=comma possible.", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
         }
     }
         
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_NAME_MODE");
+    if (item != NULL)
+    {
+        if (settings_set_file_name_mode(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file name mode value. Only 0=sequential and 1=timestamp possible.", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_NAME_PREFIX");
+    if (item != NULL)
+    {
+        if (strcmp(item->valuestring, "") == 0)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Filename prefix cannot be empty", HTTPD_400_BAD_REQUEST);
+        }
+        if (settings_set_file_prefix(item->valuestring) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Filename prefix cannot be larger than 70 characters", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_SEPARATOR_CHAR");
+    if (item != NULL)
+    {
+        if (settings_set_file_separator(item->valueint) != ESP_OK)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file separator char value. Only 0=comma and 1=semicolon possible.", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    // split size unit must be called beofer set_file_split_size
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_SPLIT_SIZE_UNIT");
+    if (item != NULL)
+    {
+        if (settings_set_file_split_size_unit(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size unit value.", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "FILE_SPLIT_SIZE");
+    if (item != NULL)
+    {
+        if (settings_set_file_split_size(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid file split size.  Min. 200 KB and Maximum 2 GB", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID");
     if (item != NULL)
@@ -691,7 +874,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_wifi_ssid(item->valuestring) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -718,7 +901,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_wifi_channel(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -730,7 +913,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_wifi_password(item->valuestring) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -743,7 +926,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_resolution(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "ADC resolution missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "ADC resolution missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -755,7 +938,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_samplerate(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Log sample rate missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Log sample rate missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -767,7 +950,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_logmode(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Log mode missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Log mode missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -781,7 +964,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_timestamp((uint64_t)item->valuedouble) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value");
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Timestamp missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -791,7 +974,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 
     if (Logtask_sync_settings() == ESP_FAIL)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings", HTTPD_400_BAD_REQUEST);
         // return ESP_FAIL;
         goto error;
     }
@@ -827,7 +1010,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     }
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
-    json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+    json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
     
 
 error:
@@ -853,9 +1036,9 @@ static esp_err_t Logger_start_handler(httpd_req_t *req)
     
     if (LogTask_start() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL, HTTPD_403_FORBIDDEN);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger already logging");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger already logging", HTTPD_403_FORBIDDEN);
     }
 
     
@@ -866,9 +1049,9 @@ static esp_err_t Logger_stop_handler(httpd_req_t *req)
 {
     if (LogTask_stop() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
     } else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not logging");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger not logging", HTTPD_403_FORBIDDEN);
     }
     
     return ESP_OK;
@@ -878,9 +1061,9 @@ esp_err_t  Logger_sdcard_unmount_handler(httpd_req_t *req)
 {
     if(Logger_user_unmount_sdcard() == ESP_OK)
     {
-        json_send_resp(req, ENDPOINT_RESP_ACK, NULL);
+        json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
     }   else {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger logging or sd card not inserted");
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Logger logging or sd card not inserted", HTTPD_403_FORBIDDEN);
     }
 
     return ESP_OK;
@@ -903,42 +1086,48 @@ esp_err_t  Logger_sdcard_unmount_handler(httpd_req_t *req)
 //     return ESP_OK;
 // }
 
-esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reason)
+esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reason, httpd_err_code_t status_code)
 {
 
-    httpd_resp_set_type(req, "application/json");
-    cJSON *root = cJSON_CreateObject();
 
-    char str[6];
-
-    switch (type)
+    if (type == ENDPOINT_RESP_NACK)
     {
-        case ENDPOINT_RESP_ACK:
-            strcpy(str, "ack");
-        break;
+        httpd_resp_send_err(req, status_code, reason);
+    } else {
+        httpd_resp_set_type(req, "application/json");
+        cJSON *root = cJSON_CreateObject();
 
-        case ENDPOINT_RESP_NACK:
-            strcpy(str, "nack");
-        break;
+        char str[6];
 
+        switch (type)
+        {
+            case ENDPOINT_RESP_ACK:
+                strcpy(str, "ack");
+            break;
+
+            case ENDPOINT_RESP_NACK:
+                strcpy(str, "nack");
+            break;
+
+            
+            case ENDPOINT_RESP_ERROR:
+            default:
+                strcpy(str, "error");
+            break;
+
+        }
         
-        case ENDPOINT_RESP_ERROR:
-        default:
-            strcpy(str, "error");
-        break;
-
+        cJSON_AddStringToObject(root, (const char*)"resp", str);
+        
+        if (type == ENDPOINT_RESP_NACK && reason != NULL)
+        {
+            cJSON_AddStringToObject(root, (const char*)"reason", reason);
+        }
+        const char *sys_info = cJSON_Print(root);
+        httpd_resp_sendstr(req, sys_info);
+        free((void *)sys_info);
+        cJSON_Delete(root);
     }
-    
-    cJSON_AddStringToObject(root, (const char*)"resp", str);
-    
-    if (type == ENDPOINT_RESP_NACK && reason != NULL)
-    {
-        cJSON_AddStringToObject(root, (const char*)"reason", reason);
-    }
-    const char *sys_info = cJSON_Print(root);
-    httpd_resp_sendstr(req, sys_info);
-    free((void *)sys_info);
-    cJSON_Delete(root);
 
     return ESP_OK;
 }
@@ -970,7 +1159,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     httpd_uri_t logger_calibrate_uri = {
         .uri = "/ajax/calibrate",
-        .method = HTTP_GET,
+        .method = HTTP_POST,
         .handler = logger_calibrate_handler,
         .user_ctx = rest_context
     };

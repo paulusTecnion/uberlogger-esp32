@@ -14,6 +14,7 @@
 #define STM_SPI_BUFFERSIZE_CMD_TX 2
 // Receiving buffersize when in configuration mode. Value in bytes
 #define STM_SPI_BUFFERSIZE_CMD_RX 2
+#define STM_SPI_MAX_BUFFERSIZE 2048
 // One line of the spi buffer depends on at what stage of sending it is. For the first half of the ADC conversion we have:
 // [start bytes][39*(1 year byte, 1 month byte, 1 date byte, 1 hour, 1 second byte, 4 subsecondsTime bytes) Time bytes][60*GPIO bytes][60*8channels*2 ADC bytes]
 // For the second half we have :
@@ -30,7 +31,7 @@ static const char* TAG_SPI_CTRL = "SPI_CTRL";
 // Buffer for sending data to the STM
 DMA_ATTR uint8_t sendbuf[STM_SPI_BUFFERSIZE_CMD_TX];
 // Buffer for receiving data from the STM
-DMA_ATTR uint8_t recvbuf0[sizeof(spi_msg_1_t)];
+DMA_ATTR uint8_t recvbuf0[STM_SPI_MAX_BUFFERSIZE];
 
 // handle to spi device
 spi_device_handle_t stm_spi_handle;
@@ -304,6 +305,10 @@ rxdata_state_t spi_ctrl_rxstate()
 
 esp_err_t spi_ctrl_queue_msg(uint8_t * txData, size_t length)
 {
+    if (length > STM_SPI_MAX_BUFFERSIZE)
+    {
+        return ESP_ERR_INVALID_SIZE;
+    }
     _spi_transaction_rx0.length = length*8;
     _spi_transaction_rx0.rxlength= length*8;
     _spi_transaction_rx0.tx_buffer = txData;                 

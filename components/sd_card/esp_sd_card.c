@@ -38,7 +38,7 @@ static const char *TAG = "SDCARD";
 #define USE_SPI_MODE
 #endif // USE_SPI_MODE
 // on ESP32-S2, DMA channel must be the same as host id
-#define SPI_DMA_CHAN    SPI3_HOST
+#define SPI_DMA_CHAN    SDCARD_SPI_HOST
 #endif //CONFIG_IDF_TARGET_ESP32S2
 
 // DMA channel to be used by the SPI peripheral
@@ -49,17 +49,6 @@ static const char *TAG = "SDCARD";
 // When testing SD and SPI modes, keep in mind that once the card has been
 // initialized in SPI mode, it can not be reinitialized in SD mode without
 // toggling power to the card.
-
-#ifdef USE_SPI_MODE
-// Pin mapping when using SPI mode.
-// With this mapping, SD card can be used both in SPI and 1-line SD mode.
-// Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO SDCARD_SPI_MISO
-#define PIN_NUM_MOSI SDCARD_SPI_MOSI
-#define PIN_NUM_CLK  SDCARD_SPI_CLK
-#define PIN_NUM_CS   SDCARD_SPI_CS
-#define PIN_SD_CD    SDCARD_CD
-#endif //USE_SPI_MODE
 
 
 static sdmmc_card_t* card;
@@ -186,7 +175,7 @@ esp_err_t esp_sd_card_init(void)
     host.slot = SDCARD_SPI_HOST;
 
     // probe max speed
-    host.max_freq_khz = SDMMC_FREQ_DEFAULT;
+    // host.max_freq_khz = SDMMC_FREQ_DEFAULT;
 
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_NUM_MOSI,
@@ -201,7 +190,7 @@ esp_err_t esp_sd_card_init(void)
     gpio_set_drive_capability(PIN_NUM_MOSI, GPIO_DRIVE_CAP_3);
     gpio_set_drive_capability(PIN_NUM_CLK, GPIO_DRIVE_CAP_3);
     
-    // host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+    host.max_freq_khz = SDMMC_FREQ_DEFAULT;
     
     ret = spi_bus_initialize(host.slot, &bus_cfg, SDCARD_SPI_HOST);
     if (ret != ESP_OK) {

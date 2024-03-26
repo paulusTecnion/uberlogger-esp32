@@ -43,7 +43,7 @@ function ejectCard() {
     success: function (response) {
       if (response["resp"] == "ack") {
         alert("SD card unmounted. You can eject the card now.");
-        console.log("Card unmounted, response=" + JSON.stringify(response));
+        console.log("Card unmounted, response=" + response["responseText"]);
       } else {
         alert(
           "Error: cannot eject card while logger. Response: " +
@@ -51,16 +51,16 @@ function ejectCard() {
             "."
         );
         console.log(
-          "SDCARD Ejection failed, response=" + JSON.stringify(response)
+          "SDCARD Ejection failed, response=" + response["responseText"]
         );
       }
     },
 
     error: function (response) {
       alert(
-        "Error: could not eject SD card, response=" + JSON.stringify(response)
+        "Error: could not eject SD card, response=" + response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }
@@ -86,25 +86,23 @@ function loggerStart() {
         alert(
           "Error: could not start logger, response=" + response["reason"] + "."
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       }
     },
 
     error: function (response) {
       alert(
-        "Error: could not start logger, response=" + JSON.stringify(response)
+        "Error: could not start logger, response=" + response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }
 
-function tryFileBrowserRefresh(){
-  try{
-    filebrowserRefresh('/');
-  }catch(error){
-
-  };
+function tryFileBrowserRefresh() {
+  try {
+    filebrowserRefresh("/");
+  } catch (error) {}
 }
 
 function loggerStop() {
@@ -123,21 +121,21 @@ function loggerStop() {
       if (response["resp"] == "ack") {
         //alert("Logger stopped.");
         setTimeout(tryFileBrowserRefresh, 2000);
-        
+
         $("#start_logging_button").attr("onclick", "loggerStart()");
       } else {
         alert(
           "Error: could not stop logger, response=" + response["reason"] + "."
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       }
     },
 
     error: function (response) {
       alert(
-        "Error: could not stop logger, response=" + JSON.stringify(response)
+        "Error: could not stop logger, response=" + response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }
@@ -154,7 +152,9 @@ function getValues() {
     let datetimestr = new Date(Number(valuesData["TIMESTAMP"]));
     // valuesData["TIMESTAMPSTR"] = formatDate(datetimestr);
     // Set the timestampstr to local time zone
-    valuesData["TIMESTAMPSTR"] = datetimestr.toLocaleString();
+    valuesData["TIMESTAMPSTR"] = datetimestr.toLocaleString([], {
+      hour12: false,
+    });
     valuesData["SD_CARD_FREE_SPACE"] =
       (valuesData["SD_CARD_FREE_SPACE"] / BYTES_PER_MB).toFixed(3) + " MB";
 
@@ -383,6 +383,10 @@ function populateFields(parent, data) {
             $ctrl.val(Number(value).toFixed(2));
           }
 
+          break;
+
+        case "number":
+          $ctrl.val(Number(value));
           break;
 
         case "radio":

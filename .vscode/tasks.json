@@ -1,0 +1,14 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "preRun",
+      "type": "shell",
+      "windows": {
+        "command": "clear; openocd -c 'set ESP_RTOS none' -f board/esp32s2-kaluga-1.cfg "
+      }
+    }
+  ]
+}

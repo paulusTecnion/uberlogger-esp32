@@ -10,7 +10,7 @@ function importConfigfile() {
 
 function disableAIN(x) {
   var ntcSelect = document.getElementById("NTC" + x);
-  var ainSelect = document.getElementById("AIN" + x);
+  var ainSelect = document.getElementById("AIN" + x + "_RANGE");
 
   // Get the selected value of NTCx dropdown
   var selectedValue = ntcSelect.options[ntcSelect.selectedIndex].value;
@@ -84,6 +84,8 @@ function parseConfig(data) {
   populateFields("#configuration", data);
   populateFields("#channel_configuration", data["NTC_SELECT"]);
   populateFields("#channel_configuration", data["AIN_RANGE_SELECT"]);
+  populateFields("#channel_configuration", data["AIN_ENABLED"]);
+  populateFields("#channel_configuration", data["DIN_ENABLED"]);
 }
 
 function testWifiNetwork() {
@@ -167,21 +169,24 @@ function syncTime() {
             new Date(input["TIMESTAMP"]) +
             "."
         );
-        console.log("Time synchronized, response=" + JSON.stringify(response));
+        console.log("Time synchronized, response=" + response["responseText"]);
       } else {
         alert(
-          "Error: could not synchronize time, error=" + response["reason"] + "."
+          "Error: could not synchronize time, error=" +
+            response["responseText"] +
+            "."
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       }
     },
 
     error: function (response) {
       alert(
         "Error: could not synchronize time, response=" +
-          JSON.stringify(response)
+          //response["responseText"]
+          response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }
@@ -194,15 +199,40 @@ function startCalibration() {
   if (ret == true) {
     query = "calibrate";
 
-    $.getJSON("./ajax/" + query, (data) => {
-      if (data["resp"] == "ack") {
-        alert("Calibration in progress...");
-      } else {
-        alert("Error: calibration failed: " + data["reason"]);
-      }
-    }).fail(function (response) {
-      alert("Error: calibration failed: " + response);
+    $.ajax({
+      method: "POST",
+      url: "ajax/calibrate",
+      processData: false,
+      dataType: "json",
+      contentType: "application/json",
+
+      success: function (response) {
+        if (response["resp"] == "ack") {
+          alert("Calibration in progress...");
+        } else {
+          alert("Error: calibration failed: " + response["responseText"]);
+          console.log("Failed, response=" + response["responseText"]);
+        }
+      },
+
+      error: function (response) {
+        alert("Error: calibration failed: " + response["responseText"]);
+        console.log("Failed, response=" + response["responseText"]);
+      },
     });
+  }
+}
+
+function validateIntegerInput(element) {
+  // Remove any non-digits or leading zeros
+  element.value = element.value.replace(/[^\d]/g, "").replace(/^0+/g, "");
+
+  // Convert the cleaned input back to a number and round down if necessary
+  const intValue = parseInt(element.value, 10);
+  if (!isNaN(intValue)) {
+    element.value = intValue;
+  } else {
+    element.value = ""; // Clear the field if the result is not a number
   }
 }
 
@@ -215,15 +245,56 @@ function setConfig() {
 
   input = fixInputFieldNumbers(input_all, input_numbers, input_bools);
 
+  // Validate file name prefix
+  var fileNamePrefix = input_all["FILE_NAME_PREFIX"];
+  if (fileNamePrefix.length > 70) {
+    alert("File name prefix cannot be longer than 70 characters.");
+    return;
+  }
+  if (!/^[a-zA-Z0-9_-]*$/.test(fileNamePrefix)) {
+    alert("File name prefix should not contain spaces or special characters.");
+    return;
+  }
+
+  // Validate file split size
+  var fileSplitSize = input_all["FILE_SPLIT_SIZE"];
+  var sizeUnit = input_all["FILE_SIZE_SPLIT_SIZE_UNIT"];
+
+  // Convert file size to GiB based on the selected unit
+  var maxSizeKiB = 4194304; // Maximum size in GiB
+  var fileSizeInKiB;
+  if (sizeUnit === "0") {
+    // KiB
+    fileSizeInKiB = fileSplitSize;
+  } else if (sizeUnit === "1") {
+    // MiB
+    fileSizeInKiB = fileSplitSize * 1024;
+  } else if (sizeUnit === "2") {
+    // GiB
+    fileSizeInKiB = fileSplitSize * 1024 * 1024;
+  }
+
+  if (fileSizeInKiB < 200) {
+    alert("File split size should be minimum of 200 KB.");
+    return;
+  }
+
+  if (fileSizeInKiB > maxSizeKiB) {
+    alert("File split size should not exceed 4 GB.");
+    return;
+  }
+
   // merge input to config struct
   let config = {
-    WIFI_SSID: input["WIFI_SSID"],
-    WIFI_PASSWORD: input["WIFI_PASSWORD"],
-    WIFI_MODE: input["WIFI_MODE"],
     LOG_SAMPLE_RATE: input["LOG_SAMPLE_RATE"],
     ADC_RESOLUTION: input["ADC_RESOLUTION"],
     LOG_MODE: input["LOG_MODE"],
-    WIFI_CHANNEL: input["WIFI_CHANNEL"],
+    FILE_DECIMAL_CHAR: input["FILE_DECIMAL_CHAR"],
+    FILE_NAME_MODE: input["FILE_NAME_MODE"],
+    FILE_NAME_PREFIX: input["FILE_NAME_PREFIX"],
+    FILE_SEPARATOR_CHAR: input["FILE_SEPARATOR_CHAR"],
+    FILE_SPLIT_SIZE: input["FILE_SPLIT_SIZE"],
+    FILE_SPLIT_SIZE_UNIT: input["FILE_SPLIT_SIZE_UNIT"],
     NTC_SELECT: {
       NTC1: input["NTC1"],
       NTC2: input["NTC2"],
@@ -235,15 +306,37 @@ function setConfig() {
       NTC8: input["NTC8"],
     },
     AIN_RANGE_SELECT: {
-      AIN1: input["AIN1"],
-      AIN2: input["AIN2"],
-      AIN3: input["AIN3"],
-      AIN4: input["AIN4"],
-      AIN5: input["AIN5"],
-      AIN6: input["AIN6"],
-      AIN7: input["AIN7"],
-      AIN8: input["AIN8"],
+      AIN1_RANGE: input["AIN1_RANGE"],
+      AIN2_RANGE: input["AIN2_RANGE"],
+      AIN3_RANGE: input["AIN3_RANGE"],
+      AIN4_RANGE: input["AIN4_RANGE"],
+      AIN5_RANGE: input["AIN5_RANGE"],
+      AIN6_RANGE: input["AIN6_RANGE"],
+      AIN7_RANGE: input["AIN7_RANGE"],
+      AIN8_RANGE: input["AIN8_RANGE"],
     },
+    AIN_ENABLED: {
+      AIN1_ENABLE: input["AIN1_ENABLE"],
+      AIN2_ENABLE: input["AIN2_ENABLE"],
+      AIN3_ENABLE: input["AIN3_ENABLE"],
+      AIN4_ENABLE: input["AIN4_ENABLE"],
+      AIN5_ENABLE: input["AIN5_ENABLE"],
+      AIN6_ENABLE: input["AIN6_ENABLE"],
+      AIN7_ENABLE: input["AIN7_ENABLE"],
+      AIN8_ENABLE: input["AIN8_ENABLE"],
+    },
+    DIN_ENABLED: {
+      DIN1_ENABLE: input["DIN1_ENABLE"],
+      DIN2_ENABLE: input["DIN2_ENABLE"],
+      DIN3_ENABLE: input["DIN3_ENABLE"],
+      DIN4_ENABLE: input["DIN4_ENABLE"],
+      DIN5_ENABLE: input["DIN5_ENABLE"],
+      DIN6_ENABLE: input["DIN6_ENABLE"],
+    },
+    WIFI_CHANNEL: input["WIFI_CHANNEL"],
+    WIFI_MODE: input["WIFI_MODE"],
+    WIFI_PASSWORD: input["WIFI_PASSWORD"],
+    WIFI_SSID: input["WIFI_SSID"],
     TIMESTAMP: Number(new Date()),
   };
 
@@ -263,26 +356,40 @@ function setConfig() {
         alert(
           "Error: could not save settings, response=" + response["reason"] + "."
         );
-        console.log("Failed, response=" + JSON.stringify(response));
+        console.log("Failed, response=" + response["responseText"]);
       }
     },
 
     error: function (response) {
       alert(
-        "Error: could not save settings, response=" + JSON.stringify(response)
+        "Error: could not save settings, response=" + response["responseText"]
       );
-      console.log("Failed, response=" + JSON.stringify(response));
+      console.log("Failed, response=" + response["responseText"]);
     },
   });
 }
 
-function getFormDataAsJsonObject(object) {
-  let array = {};
-  let data = object.serializeArray();
+function getFormDataAsJsonObject(form) {
+  let jsonObject = {};
+  // Handle regular input fields, unchecked checkboxes, and numeric conversions
+  form.find("input, select, textarea").each(function () {
+    let value = this.value;
 
-  $.map(data, function (x) {
-    array[x["name"]] = x["value"];
+    // Check if value is numeric and convert if so
+    if (!isNaN(value) && value.trim() !== "") {
+      value = +value; // Unary plus operator converts string to number if possible
+    }
+
+    if (this.type === "checkbox") {
+      jsonObject[this.name] = this.checked; // Directly set boolean value for checkboxes
+    } else if (this.type === "radio") {
+      if (this.checked) {
+        // Only add if the radio button is checked
+        jsonObject[this.name] = value;
+      }
+    } else {
+      jsonObject[this.name] = value; // Set converted numeric value or original value
+    }
   });
-
-  return array;
+  return jsonObject;
 }
