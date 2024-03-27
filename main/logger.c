@@ -18,6 +18,7 @@
 #include "config.h"
 #include "settings.h"
 #include "spi_control.h"
+#include "sysinfo.h"
 #include "tempsensor.h"
 #include <time.h>
 #include "wifi.h"
@@ -1978,6 +1979,8 @@ void task_logging(void * pvParameters)
     gpio_set_level(GPIO_STM32_BOOT0, 0);
     // Enable power of sd card
     gpio_set_level(SDCARD_POWER_EN, 0);
+    // Sysinfo init
+    sysinfo_init();
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
