@@ -15,10 +15,6 @@ IF "%~1"=="" (
     GOTO :EOF
 )
 
-:: Set variables
-SET COMPORT=%~1
-SET STM32_BIN_FILE=your_stm32_firmware.bin
-
 :: Flash STM32
 echo Flashing STM32...
 :: Set nBOOT_SEL to 0 here, modify based on your tool or method
@@ -30,12 +26,8 @@ echo Flashing STM32...
 
 :: Flash ESP32-S2
 echo Flashing ESP32-S2...
-:: Ensure you're in the ESP32 code repository directory before executing this script
-idf.py flash -p %COMPORT% 
-IF %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Failed to flash ESP32-S2. Please check your setup and try again.
-    GOTO :EOF
-)
+.\esptool.exe --chip esp32s2 --baud 921600 --port %COMPORT% --before usb_reset --after hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 4MB 0x0000 .\firmware.bin
+GOTO DONE
 
 :: End of script
 echo Flashing complete.
