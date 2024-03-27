@@ -786,14 +786,17 @@ esp_err_t settings_migrate(Settings_old_t * oldSettings)
     _settings.wifi_mode = oldSettings->wifi_mode;
     _settings.wifi_channel = oldSettings->wifi_channel;
 
+
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
         _settings.adc_offsets_12b[i] = oldSettings->adc_offsets_12b[i];
         _settings.adc_offsets_16b[i] = oldSettings->adc_offsets_16b[i];
         _settings.temp_offsets[i] = oldSettings->temp_offsets[i];
+        ESP_LOGI(TAG_SETTINGS, "oldSettings->ad_offsets_12 %ld", oldSettings->adc_offsets_12b[i]);
+        ESP_LOGI(TAG_SETTINGS, "oldSettings->ad_offsets_16 %ld", oldSettings->adc_offsets_16b[i]);
     }
 
-    // settings_print();
+    settings_print();
 
     return ESP_OK;
 }
