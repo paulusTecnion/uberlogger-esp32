@@ -7,17 +7,16 @@ SET CUBE_PROGRAMMER_PATH="C:\Program Files\STMicroelectronics\STM32Cube\STM32Cub
 SETLOCAL
 
 :: Welcome text
-echo Welcome to the Uberlogger programmer script
+echo ======== Welcome to the Uberlogger programmer script ========
+echo This tool requires esptool in the root and the ota_support.bin and firmware.bin files as well.
+echo Next to that, make sure that the path to STM32_Programmer_CLI is in %CUBE_PROGRAMMER_PATH%
+echo =============================================================
 
 :: Check if COM port is provided
 IF "%~1"=="" (
-    echo No COM port provided. Usage: flash_devices.bat COMPORT
+    echo No COM port provided. Usage: uberlogger-prog.bat COMPORT
     GOTO :EOF
 )
-
-:: Set variables
-SET COMPORT=%~1
-SET STM32_BIN_FILE=your_stm32_firmware.bin
 
 :: Flash STM32
 echo Flashing STM32...
@@ -30,12 +29,8 @@ echo Flashing STM32...
 
 :: Flash ESP32-S2
 echo Flashing ESP32-S2...
-:: Ensure you're in the ESP32 code repository directory before executing this script
-idf.py flash -p %COMPORT% 
-IF %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Failed to flash ESP32-S2. Please check your setup and try again.
-    GOTO :EOF
-)
+.\esptool.exe --chip esp32s2 --baud 921600 --port %COMPORT% --before usb_reset --after hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 4MB 0x0000 .\firmware.bin
+GOTO DONE
 
 :: End of script
 echo Flashing complete.
