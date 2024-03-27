@@ -15,3 +15,4 @@ front/www/ajax/getFileList/dir_1/dir_1_dir_1/.htaccess
 front/www/ajax/getFileList/dir_1/index.json
 log.txt
 firmware.bin
+ota_support.bin
