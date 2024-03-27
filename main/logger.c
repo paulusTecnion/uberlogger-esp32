@@ -1648,8 +1648,13 @@ void Logtask_singleShot()
     if (Logger_singleShot() == ESP_OK)
     {
         // Wait for the STM32 to acquire data. Takes about 40 ms.
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-
+        if (settings_get_samplerate() == ADC_SAMPLE_RATE_1Hz)
+        {
+            vTaskDelay(400 / portTICK_PERIOD_MS);
+        } else {
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
+        
         // Wait a bit before requesting the data
         spi_cmd.command = STM32_CMD_SEND_LAST_ADC_BYTES;
 

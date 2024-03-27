@@ -93,9 +93,8 @@ function renderValueList() {
 }
 
 function storeDataPoint(category, channel, timestamp, value, unit) {
-  var maxTimeDifference = 15 * 1000; // 24 hours in milliseconds
-  var currentTime = new Date().getTime(); // Get current time in milliseconds
-  var inputTime = new Date(timestamp).getTime(); // Convert input timestamp to milliseconds
+  var inputTime = new Date(timestamp); // Convert input timestamp to date object
+  var inputYear = inputTime.getFullYear(); // Get the year from the input timestamp
 
   if (typeof dataPoints[category + "." + channel] == "undefined") {
     // add channel
@@ -107,9 +106,13 @@ function storeDataPoint(category, channel, timestamp, value, unit) {
     };
   }
 
-  if (Math.abs(currentTime - inputTime) <= maxTimeDifference) {
-    dataPoints[category + "." + channel]["x"].push(new Date(timestamp));
+  // Only store data if the year is 2000 or later
+  if (inputYear >= 2000) {
+    dataPoints[category + "." + channel]["x"].push(inputTime); // Use the Date object directly
     dataPoints[category + "." + channel]["y"].push(value);
+  } else {
+    // You can log something here or take other actions if the year is before 2000
+    console.log("Ignored data point from year: " + inputYear);
   }
 }
 
