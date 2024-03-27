@@ -261,7 +261,7 @@ esp_err_t Logger_startFWflash();
 
 uint8_t Logger_getFWState();
 void  Logger_resetSTM32();
-void Logging_restartSystem();
+esp_err_t Logging_restartSystem();
 
 esp_err_t Logger_user_unmount_sdcard();
 

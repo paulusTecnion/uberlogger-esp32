@@ -1023,6 +1023,31 @@ error2:
    
 }
 
+esp_err_t reboot_post_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "application/json");
+
+   if (Logging_restartSystem() != ESP_OK)
+   {
+    json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot reboot system", HTTPD_500_INTERNAL_SERVER_ERROR);
+    return ESP_FAIL;
+   }
+
+    json_send_resp(req, ENDPOINT_RESP_ACK, "Rebooting in 3 seconds. Logging stopping if not done already.", 0); 
+    json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
+    
+    if (Logger_getState() == LOGTASK_LOGGING)
+    {
+        LogTask_stop();
+    }
+
+    ESP_LOGI("REST: ", "Going to reboot") ;
+
+    
+
+    return ESP_OK;
+}
+
 esp_err_t upload_form_handler(httpd_req_t *req)
 {
 // Send the HTML form as the response
@@ -1284,6 +1309,14 @@ esp_err_t start_rest_server(const char *base_path)
     };
     httpd_register_uri_handler(server, &file_fwupdate);
 
+    
+    httpd_uri_t reboot = {
+        .uri       = "/ajax/reboot",  // Match all URIs of type /path/to/file
+        .method    = HTTP_POST,
+        .handler   = reboot_post_handler,
+        .user_ctx  = rest_context    // Pass server data as context
+    };
+    httpd_register_uri_handler(server, &reboot);
 
     /* URI handler for uploading files to server */
     httpd_uri_t file_upload = {
