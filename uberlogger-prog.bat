@@ -7,11 +7,14 @@ SET CUBE_PROGRAMMER_PATH="C:\Program Files\STMicroelectronics\STM32Cube\STM32Cub
 SETLOCAL
 
 :: Welcome text
-echo Welcome to the Uberlogger programmer script
+echo ======== Welcome to the Uberlogger programmer script ========
+echo This tool requires esptool in the root and the ota_support.bin and firmware.bin files as well.
+echo Next to that, make sure that the path to STM32_Programmer_CLI is in %CUBE_PROGRAMMER_PATH%
+echo =============================================================
 
 :: Check if COM port is provided
 IF "%~1"=="" (
-    echo No COM port provided. Usage: flash_devices.bat COMPORT
+    echo No COM port provided. Usage: uberlogger-prog.bat COMPORT
     GOTO :EOF
 )
 
