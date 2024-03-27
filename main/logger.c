@@ -1296,9 +1296,16 @@ void Logging_reset()
     _nextLoggingState = LOGGING_IDLE;
 }
 
-void Logging_restartSystem()
+esp_err_t Logging_restartSystem()
 {
-    _nextLogTaskState = LOGTASK_REBOOT_SYSTEM;
+     LoggingState_t t = LOGTASK_REBOOT_SYSTEM;
+    if (xQueueSend(xQueue, &t, 0) != pdTRUE)
+    {
+        ESP_LOGE(TAG_LOG, "Unable to send sync settings command to queue");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
 }
 
 esp_err_t Logger_user_unmount_sdcard()
