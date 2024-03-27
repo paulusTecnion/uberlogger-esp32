@@ -202,7 +202,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
 {
 
     // spi_cmd_t spi_cmd;
-    uint8_t timeout = 0;
+    uint16_t timeout = 0;
     
     // spi_cmd.command = cmd;
     // spi_cmd.data = cmd_data;    
@@ -227,7 +227,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout >= 200)
+        if (timeout >= 500)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 has data rdy still high, expected low 1/3", cmd);
             
@@ -252,7 +252,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout >= 200)
+        if (timeout >= 500)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 was LOW, expected HIGH 2/3", cmd);
             return ESP_FAIL;
@@ -277,7 +277,7 @@ esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_lengt
     {
         vTaskDelay( 10 / portTICK_PERIOD_MS);
         timeout++;
-        if (timeout >= 200)
+        if (timeout >= 500)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Command %d failed. STM32 was HIGH, expected LOW 3/3", cmd);
             return ESP_FAIL;
