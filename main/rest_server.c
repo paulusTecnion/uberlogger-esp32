@@ -1178,6 +1178,7 @@ esp_err_t start_rest_server(const char *base_path)
     config.max_uri_handlers = 18;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
+    config.lru_purge_enable = true;
 
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);

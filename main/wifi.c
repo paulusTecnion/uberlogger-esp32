@@ -313,8 +313,8 @@ esp_err_t wifi_start()
     #endif
 
 
-    // esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
-
+    esp_wifi_set_ps(WIFI_PS_NONE);
+    
 	ESP_ERROR_CHECK( esp_wifi_start() );
 
     wifi_enabled = 1;
