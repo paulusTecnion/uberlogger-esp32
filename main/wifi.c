@@ -313,7 +313,11 @@ esp_err_t wifi_start()
     #endif
 
 
-    // esp_wifi_set_max_tx_power(60); // corresponding to 15 dBi
+    // Don't touch the next lines! First one is to make sure SoftAP does not interfere
+    // with other wifis or makes connected devices having distored signals
+    esp_wifi_set_max_tx_power(44); // corresponding to 11 dBi
+    // This second line is to prevent the http server from not responding sometimes. 
+    esp_wifi_set_ps(WIFI_PS_NONE);
 
 	ESP_ERROR_CHECK( esp_wifi_start() );
 
