@@ -976,7 +976,14 @@ esp_err_t Logger_flush_to_sdcard()
         // Set the total_datarows to 0.
         sdcard_data.total_datarows = 0;
         fileman_open_file();
-        fileman_raw_write_header();
+        if (settings_get_logmode() == LOGMODE_CSV)
+        {
+            fileman_csv_write_header();
+        } else 
+        {
+            fileman_raw_write_header();
+        }
+        
         //SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
         //goto error;
     } 
