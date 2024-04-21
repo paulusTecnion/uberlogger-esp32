@@ -213,7 +213,7 @@ Settings_t settings_get_default()
 {
     Settings_t default_settings;
 
-    default_settings.adc_resolution = ADC_12_BITS;
+    default_settings.adc_resolution = ADC_16_BITS;
     default_settings.adc_log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
     default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
     default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
