@@ -16,6 +16,7 @@
 #include "esp_sd_card.h"
 #include "esp_wifi_types.h"
 #include "config.h"
+#include "iirfilter.h"
 #include "settings.h"
 #include "spi_control.h"
 #include "sysinfo.h"
@@ -33,7 +34,7 @@ static bool shouldLogRaw(size_t dataLen);
 static void copyDataToSdCard(const void *msg, size_t msgSize, int type);
 static esp_err_t asyncCopyDataToSdCard(const void *src, size_t size);
 static void updateSdCardData(size_t dataLen, int logCounter, uint16_t *adcData16);
-static void updateLogCountersAndLiveBuffer(void);
+static void updateLiveBuffer(void);
 static void setExpectedMessagePart(uint8_t part);
 static void updateSdCardRows(size_t dataLen);
 static bool isValidStartByte(uint8_t *bytes, uint8_t byte1, uint8_t byte2);
@@ -106,6 +107,7 @@ int32_t adc_calibration_values[NUM_ADC_CHANNELS];
 
 char strbuffer[16];
 
+uint16_t y_state[NUM_ADC_CHANNELS] = {0};
 
 LoggerFWState_t _currentFWState = LOGGER_FW_IDLE;
 LoggerFWState_t _nextFWState = LOGGER_FW_EMPTY_STATE;
@@ -135,6 +137,10 @@ extern TaskHandle_t xHandle_stm32;
 
 
 static uint8_t log_counter = 0;
+static uint16_t sharedBuffer[8][25] = {0};
+static uint16_t sharedBufferLen[8] = {0};
+
+uint32_t iirFilterSecondsCounter = 0;
 
 
 /* PRIVATE HELPER FUNCTIONS */
@@ -177,15 +183,16 @@ static bool shouldLogRaw(size_t dataLen)
 static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
 {
     const uint8_t *src = (const uint8_t *)msg;
-    memcpy(sdcard_data.spi_data + msgSize * log_counter, src, msgSize);
+    size_t spiMsgSize = sizeof(spi_msg_1_t);
+    // memcpy(sdcard_data.spi_data + spiMsgSize * log_counter, src, msgSize);
 
-    if (type == 1)
+    if (type == 0)
     {
         // Copy startbytes and length
-        memcpy(sdcard_data.spi_data + msgSize*log_counter, spi_msg_slow_freq_1_ptr->startByte, 2); 
-        memcpy(sdcard_data.spi_data + msgSize*log_counter + 2, &(spi_msg_slow_freq_1_ptr->dataLen), 2);
+        memcpy(sdcard_data.spi_data + spiMsgSize*log_counter, spi_msg_slow_freq_1_ptr->startByte, 2); 
+        memcpy(sdcard_data.spi_data + spiMsgSize*log_counter + 2, &(spi_msg_slow_freq_1_ptr->dataLen), 2);
         // Calculate the base offset for the current log entry
-        size_t baseOffset = msgSize * log_counter + 4; // +4 to skip over the startBytes and dataLen which have already been copied
+        size_t baseOffset = spiMsgSize * log_counter + 4; // +4 to skip over the startBytes and dataLen which have already been copied
 
         // Copy time data block
         memcpy(sdcard_data.spi_data + baseOffset, spi_msg_slow_freq_1_ptr->timeData, sizeof(s_date_time_t) * spi_msg_slow_freq_1_ptr->dataLen);
@@ -200,9 +207,9 @@ static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
         memcpy(sdcard_data.spi_data + adcDataOffset, spi_msg_slow_freq_1_ptr->adcData, spi_msg_slow_freq_1_ptr->dataLen * 2 * 8);
         
     }
-    else if (type == 2)
+    else if (type == 1)
     {
-        size_t baseOffset = msgSize * log_counter; 
+        size_t baseOffset = spiMsgSize * log_counter; 
 
             // Copy adc data block
         memcpy(sdcard_data.spi_data + baseOffset, spi_msg_slow_freq_2_ptr->adcData, spi_msg_slow_freq_2_ptr->dataLen * 2 * 8);
@@ -221,14 +228,14 @@ static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
         memcpy(sdcard_data.spi_data + dataLenOffset + 2, spi_msg_slow_freq_2_ptr->stopByte, 2); 
     }
 
-    sdcard_data.msgSize = msgSize;
+    sdcard_data.msgSize = spiMsgSize;
 }
 
 static esp_err_t asyncCopyDataToSdCard(const void *src, size_t size)
 {
-    ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * size, (void*)src, size, async_memcpy_cb, NULL));
+    ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t), (void*)src, size, async_memcpy_cb, NULL));
+    sdcard_data.msgSize = sizeof(spi_msg_1_t);
     xSemaphoreTake(copy_done_sem, portMAX_DELAY);
-    sdcard_data.msgSize = size;
 
     return ESP_OK;
 }
@@ -236,18 +243,14 @@ static esp_err_t asyncCopyDataToSdCard(const void *src, size_t size)
 static void updateSdCardData(size_t dataLen, int logCounter, uint16_t *adcData16)
 {
     sdcard_data.datarows += dataLen;
-
     if (settings_get_logmode() == LOGMODE_CSV)
     {
         Logger_raw_to_fixedpt(logCounter, adcData16, dataLen);
     }
 }
 
-static void updateLogCountersAndLiveBuffer(void)
+static void updateLiveBuffer(void)
 {
-    log_counter++; // Increment log counter
-    sdcard_data.numSpiMessages = log_counter;
-
     if (!msg_part)
     {
         memcpy(live_data_buffer.adcData16, spi_msg_slow_freq_1_ptr->adcData16, sizeof(live_data_buffer.adcData16));
@@ -274,50 +277,168 @@ static void updateSdCardRows(size_t dataLen)
 }
 
 
-static esp_err_t processSlowFrequencyMessage()
-{
-    if (isValidStartByte(spi_msg_slow_freq_1_ptr->startByte, 0xFA, 0xFB) && expected_msg_part == 0)
-    {
+// Helper function to apply the filter
+static void applyFilter(uint16_t *adcData16, uint16_t dataLen, void (*iir_filter_func)(uint16_t*, uint16_t*, uint8_t)) {
+    for (int ch = 0; ch < 8; ch++) {
+        uint16_t *channelData = &adcData16[ch];
+        uint16_t samplesPerChannel = dataLen;
+
+        // Process full sets of 25 samples
+        while (samplesPerChannel >= 25) {
+            for (int i = 0; i < 25; i++) {
+                // sharedBuffer[ch][i] = channelData[i * 8];
+                iir_filter_func(&channelData[i * 8], &y_state[ch], ch);
+            }
+           
+            channelData += 25 * 8;
+            samplesPerChannel -= 25;
+            if (ch == 0) {
+                iirFilterSecondsCounter++;
+            }
+        }
+
+        // Handle remaining samples
+        if (samplesPerChannel > 0) {
+            for (int i = 0; i < samplesPerChannel; i++) {
+                sharedBuffer[ch][i] = channelData[i * 8];
+            }
+            sharedBufferLen[ch] = samplesPerChannel;
+        }
+    }
+
+    ESP_LOGI("MAIN", "%s: Number of seconds processed: %lu.", __func__, iirFilterSecondsCounter);
+}
+
+// Main filtering function
+static uint16_t filterSlowData(uint8_t msgType) {
+    uint16_t dataLen;
+    uint16_t *adcData16;
+
+    // Select data based on msgType
+    if (msgType == 0) {
+        dataLen = spi_msg_slow_freq_1_ptr->dataLen;
+        adcData16 = spi_msg_slow_freq_1_ptr->adcData16;
+    } else {
+        dataLen = spi_msg_slow_freq_2_ptr->dataLen;
+        adcData16 = spi_msg_slow_freq_2_ptr->adcData16;
+    }
+
+    if (settings_get_resolution() == ADC_12_BITS) {
+        applyFilter(adcData16, dataLen, iir_filter_12b);
+    } else {
+        applyFilter(adcData16, dataLen, iir_filter_16b);
+    }
+
+    return iirFilterSecondsCounter;
+}
+
+// Helper function to handle filtering and SD card updates
+static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg, uint16_t *adcData16) {
+    uint8_t sampleRate = settings_get_samplerate();
+    size_t dataLen;
+
+    // If sample rate is < 1 Hz, apply IIR filtering first
+    if (sampleRate < ADC_SAMPLE_RATE_1Hz) {
+        filterSlowData(msgType);
+
+
+        if ((sampleRate == ADC_SAMPLE_RATE_EVERY_3600S && iirFilterSecondsCounter >= 3600) || 
+            (sampleRate == ADC_SAMPLE_RATE_EVERY_600S && iirFilterSecondsCounter >= 600) || 
+            (sampleRate == ADC_SAMPLE_RATE_EVERY_300S && iirFilterSecondsCounter >= 300) || 
+            (sampleRate == ADC_SAMPLE_RATE_EVERY_60S && iirFilterSecondsCounter >= 60) || 
+            (sampleRate == ADC_SAMPLE_RATE_EVERY_10S && iirFilterSecondsCounter >= 10))
+            {
+               
+                spi_msg_2_t *msg2 = (spi_msg_2_t *)msg;
+                    
+                // Create a new spi_msg_slow_freq_1_t structure
+                spi_msg_1_t tempMsg1;
+
+                // Now we need to create a message and copy it into the sdcard buffer if the msgType = 1 (spi_msg_2_t)
+                if (msgType == 1)
+                {
+                    // copy data from msgType 2 to msgType 1. 
+                    // Assuming msg is of type spi_msg_slow_freq_2_t
+                    tempMsg1.startByte[0] = 0xFA;
+                    tempMsg1.startByte[1] = 0xFB;
+                    tempMsg1.dataLen = 1;
+                    tempMsg1.timeData[0] = msg2->timeData[msg2->dataLen-1];
+                    // Either we take the sampled point or the filtered value (average) from the iir filter
+                    memcpy(tempMsg1.adcData16, y_state, sizeof(y_state));
+                    tempMsg1.gpioData[0] = msg2->gpioData[msg2->dataLen-1];
+                    // Update msg pointer to the new tempMsg1
+                    msg = &tempMsg1;
+                    msgSize = sizeof(tempMsg1);
+                    msgType = 0; // Update msgType to reflect the change
+                }
+
+                
+                if (shouldLogRaw(msgSize)) {
+                    copyDataToSdCard((void*)&tempMsg1, msgSize, msgType);
+                } else {
+                    if (asyncCopyDataToSdCard((void*)&tempMsg1, msgSize) != ESP_OK) {
+                        ESP_LOGE("LOGGER", "Failed to copy data to SD card asynchronously");
+                        return;
+                    }
+                }
+                
+                updateSdCardData(tempMsg1.dataLen, log_counter, y_state);
+                log_counter++;
+                sdcard_data.numSpiMessages = log_counter;
+                
+                ESP_LOGI("MAIN", "%s: %ld seconds passed.", __func__, iirFilterSecondsCounter);
+                iirFilterSecondsCounter = 0;
+            }
+        
+    } else {
+        
+
+      
+    if (msgType == 0) {
+        spi_msg_1_t* msgT = (spi_msg_1_t*)msg;
+        dataLen = msgT->dataLen;
+        adcData16 = msgT->adcData16;
+    } else {
+        spi_msg_2_t* msgT = (spi_msg_2_t*)msg;
+        dataLen = msgT->dataLen;
+        adcData16 = msgT->adcData16;
+    }
+
+    // Log raw or asynchronously copy data to SD card
+    if (shouldLogRaw(dataLen)) {
+        copyDataToSdCard(msg, msgSize, msgType);
+    } else {
+        if (asyncCopyDataToSdCard(msg, msgSize) != ESP_OK) {
+            ESP_LOGE("LOGGER", "Failed to copy data to SD card asynchronously");
+            return;
+        }
+    }
+
+    updateSdCardData(dataLen, log_counter, adcData16);
+    log_counter++; // Increment log counter
+    sdcard_data.numSpiMessages = log_counter;
+    }
+    
+}
+
+    
+
+static esp_err_t processSlowFrequencyMessage() {
+    if (isValidStartByte(spi_msg_slow_freq_1_ptr->startByte, 0xFA, 0xFB) && expected_msg_part == 0) {
         size_t msgSize = calculateMessageSizeForMsg1(spi_msg_slow_freq_1_ptr);
         msg_part = 0;
         setExpectedMessagePart(1);
 
-        if (shouldLogRaw(spi_msg_slow_freq_1_ptr->dataLen))
-        {
-            copyDataToSdCard(spi_msg_slow_freq_1_ptr, msgSize, 1);
-        }
-        else
-        {
-            if (asyncCopyDataToSdCard(spi_msg_slow_freq_1_ptr, sizeof(spi_msg_1_t)) != ESP_OK)
-            {
-                return ESP_FAIL;
-            }
-        }
-
-        updateSdCardData(spi_msg_slow_freq_1_ptr->dataLen, log_counter, spi_msg_slow_freq_1_ptr->adcData16);
+        handleFilteringAndLogging(msg_part, msgSize, spi_msg_slow_freq_1_ptr, spi_msg_slow_freq_1_ptr->adcData16);
     }
-    else if (isValidStopByte(spi_msg_slow_freq_2_ptr->stopByte, 0xFB, 0xFA) && expected_msg_part == 1)
-    {
+    else if (isValidStopByte(spi_msg_slow_freq_2_ptr->stopByte, 0xFB, 0xFA) && expected_msg_part == 1) {
         size_t msgSize = calculateMessageSizeForMsg2(spi_msg_slow_freq_2_ptr);
         msg_part = 1;
         setExpectedMessagePart(0);
 
-        if (shouldLogRaw(spi_msg_slow_freq_2_ptr->dataLen))
-        {
-            copyDataToSdCard(spi_msg_slow_freq_2_ptr, msgSize, 2);
-        }
-        else
-        {
-            if (asyncCopyDataToSdCard(spi_msg_slow_freq_2_ptr, sizeof(spi_msg_2_t)) != ESP_OK)
-            {
-                return ESP_FAIL;
-            }
-        }
-
-        updateSdCardData(spi_msg_slow_freq_2_ptr->dataLen, log_counter, spi_msg_slow_freq_2_ptr->adcData16);
+        handleFilteringAndLogging(msg_part, msgSize, spi_msg_slow_freq_2_ptr, spi_msg_slow_freq_2_ptr->adcData16);
     }
-    else
-    {
+    else {
         ESP_LOGE("LOGGER", "Invalid slow frequency message format");
         return ESP_FAIL;
     }
@@ -370,7 +491,6 @@ int32_t Logger_convertAdcFixedPoint(int32_t adcVal, int64_t range, int64_t offse
     // t0 = ((int32_t)adcData0 | ((int32_t)adcData1 << 8));
     t0 = (int64_t)adcVal;
             
-    // In one buffer of STM_TXLENGTH bytes, there are only STM_TXLENGTH/2 16 bit ADC values. So divide by 2
     t1 = t0 * (-1LL*range); // note the minus for inverted input!
     if (settings_get_resolution() == ADC_12_BITS)
     {
@@ -394,25 +514,6 @@ uint32_t LogTaskGetError()
 {
     return _errorCode;
 }
-
-
-
-// uint8_t Logger_exitSettingsMode()
-// {
-//      // Typical usage, go to settings mode, set settings, sync settings, exit settings mode
-//     if (_currentLogTaskState == LOGTASK_SETTINGS)
-//     {
-//         if (Logger_syncSettings() == ESP_OK)
-//         {
-//             _nextLogTaskState = LOGTASK_IDLE;
-//             return RET_OK;
-//         } else {
-//             return RET_NOK;
-//         }
-//     } else {
-//         return RET_NOK;
-//     }
-// }
 
 uint8_t Logger_isLogging(void)
 {
@@ -1304,6 +1405,14 @@ void LogTask_resetCounter()
     sdcard_data.total_datarows = 0;
     expected_msg_part = 0;
     msg_part = 0;
+    iirFilterSecondsCounter = 0;
+    
+
+    for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++)
+    {
+        y_state[i] = 0;
+        sharedBufferLen[i] = 0;
+    }
 }
 
 void LogTask_reset()
@@ -1334,7 +1443,7 @@ esp_err_t Logger_processData()
         }
     }
 
-    updateLogCountersAndLiveBuffer(); // Update log counter and live data buffer
+    updateLiveBuffer(); // Update log counter and live data buffer
 
     return ESP_OK;
 }
@@ -1826,11 +1935,8 @@ void Logtask_logging()
             ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
             #endif
             
-            // ESP_LOGI(TAG_LOG, "Time to process data: %lld", esp_timer_get_time() - first_tick2);
-            // first_tick2 = esp_timer_get_time();
             ret = Logger_processData();
-        
-            
+   
             if (ret != ESP_OK)
             {
                 LogTask_stop();
@@ -1846,7 +1952,8 @@ void Logtask_logging()
         }
         
         // do we need to flush the data? 
-        if(log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH)
+        if( log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH || 
+            (log_counter == 1 && (settings_get_samplerate() < ADC_SAMPLE_RATE_1Hz)))
         {
             if (Logger_flush_to_sdcard() != ESP_OK)
             {
@@ -1856,7 +1963,6 @@ void Logtask_logging()
             } 
  
             log_counter = 0;
-    
             sdcard_data.datarows = 0;
         }
 
@@ -2095,16 +2201,21 @@ void task_logging(void * pvParameters)
     ESP_LOGI(TAG_LOG, "Logger task started");
     #endif
 
-    
+    // Init iir filter coefficients.
+    iir_init();
+    iir_set_samplefreq(settings_get_samplerate());
+
     if (spi_ctrl_init(STM32_SPI_HOST, GPIO_DATA_RDY_PIN) != ESP_OK)
     {
         // throw error
         ESP_LOGE(TAG_LOG, "Unable to initialize the SPI data controller!");
-        while(1);
+        SET_ERROR(_errorCode, ERR_LOGGER_SPI_CTRL_ERROR);
+        vTaskSuspend(xHandle_stm32);
     }
 
     // Reset the STM32
     Logger_resetSTM32();
+    
 
      if (Logger_syncSettings(0) != ESP_OK)
         {
@@ -2158,7 +2269,9 @@ void task_logging(void * pvParameters)
             case LOGTASK_IDLE:   /* not-a-thing, noppa, nada */                 break;
             case LOGTASK_CALIBRATION:       Logtask_calibration();              break;
             case LOGTASK_SINGLE_SHOT:       Logtask_singleShot();               break;
-            case LOGTASK_PERSIST_SETTINGS:  settings_persist_settings();        break;
+            case LOGTASK_PERSIST_SETTINGS:  
+                settings_persist_settings();        
+                iir_set_samplefreq(settings_get_samplerate());                  break;
             case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings(0);             break;
             case LOGTASK_SYNC_TIME:         Logger_syncSettings(1);             break;
             case LOGTASK_LOGGING:           Logtask_logging();                  break;

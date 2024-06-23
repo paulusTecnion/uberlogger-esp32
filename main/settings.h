@@ -60,9 +60,12 @@ typedef enum adc_channel_enable_e {
 } adc_channel_enable_t;
 
 typedef enum adc_sample_rate_e {
-	// ADC_SAMPLE_RATE_EVERY_60S = 0,
-	// ADC_SAMPLE_RATE_EVERY_10S,
-    ADC_SAMPLE_RATE_1Hz = 0,
+	ADC_SAMPLE_RATE_EVERY_3600S = 0, // once per hour
+	ADC_SAMPLE_RATE_EVERY_600S, // once per 10 min
+	ADC_SAMPLE_RATE_EVERY_300S, // once per 5 min
+	ADC_SAMPLE_RATE_EVERY_60S, // once per 1 min
+	ADC_SAMPLE_RATE_EVERY_10S, // once per 10 sec
+    ADC_SAMPLE_RATE_1Hz,
 	ADC_SAMPLE_RATE_2Hz,
 	ADC_SAMPLE_RATE_5Hz,
 	ADC_SAMPLE_RATE_10Hz,
@@ -130,6 +133,7 @@ struct Settings_t {
     uint8_t adc_channel_type; // indicate whether channel 0..7 are normal ADC (bit = 0) or NTC (bit = 1). LSB = channel 0, MSB = channel 7
     uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
 	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
+	uint8_t averageSamples; // whether to average samples using iir filter or not (for sample rate < 1 Hz)
 	uint8_t logMode;
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
