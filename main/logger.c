@@ -1970,6 +1970,7 @@ void Logtask_logging()
  
             log_counter = 0;
             sdcard_data.datarows = 0;
+            sdcard_data.numSpiMessages = 0;
         }
 
         // Keep in mind we are talking about _currentLoggingState here, not _CurrentLogTaskState!
@@ -2006,6 +2007,7 @@ void Logtask_logging()
             
         }
 
+        // If we received SPI data and are sampling normally (no averaging or slow sampling) then write the final data
         if (finalwrite)
         {
             Logger_flush_to_sdcard();
