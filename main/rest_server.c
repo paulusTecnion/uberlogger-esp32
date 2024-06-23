@@ -488,6 +488,7 @@ const char * logger_settings_to_json(Settings_t *settings)
 
     cJSON_AddNumberToObject(root, "ADC_RESOLUTION", settings->adc_resolution);
     cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->adc_log_sample_rate);
+    cJSON_AddNumberToObject(root, "AVERAGE_SAMPLES", settings->averageSamples);
     cJSON_AddNumberToObject(root, "LOG_MODE", settings->logMode);
 
 
@@ -939,6 +940,18 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         {
             
             json_send_resp(req, ENDPOINT_RESP_NACK, "Log sample rate missing or wrong value", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "AVERAGE_SAMPLES");
+    if (item != NULL)
+    {
+        if (settings_set_averageSamples(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Wrong value for averaging samples", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }

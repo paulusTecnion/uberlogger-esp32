@@ -2,7 +2,22 @@ document.querySelector("#configuration").onkeypress = checkEnter; // don't submi
 
 $(document).ready(function () {
   loadForm();
+  document
+    .getElementById("LOG_SAMPLE_RATE")
+    .addEventListener("change", updateAverageSamplesField);
+  updateAverageSamplesField(); // Call initially to set the correct state on load
 });
+
+function updateAverageSamplesField() {
+  const logSampleRate = document.getElementById("LOG_SAMPLE_RATE").value;
+  const averageSamplesField = document.getElementById("AVERAGE_SAMPLES");
+
+  if (logSampleRate >= 0 && logSampleRate <= 4) {
+    averageSamplesField.disabled = false;
+  } else {
+    averageSamplesField.disabled = true;
+  }
+}
 
 function importConfigfile() {
   $("#file_import_config").click();
@@ -288,6 +303,7 @@ function setConfig() {
   let config = {
     LOG_SAMPLE_RATE: input["LOG_SAMPLE_RATE"],
     ADC_RESOLUTION: input["ADC_RESOLUTION"],
+    AVERAGE_SAMPLES: input["AVERAGE_SAMPLES"],
     LOG_MODE: input["LOG_MODE"],
     FILE_DECIMAL_CHAR: input["FILE_DECIMAL_CHAR"],
     FILE_NAME_MODE: input["FILE_NAME_MODE"],

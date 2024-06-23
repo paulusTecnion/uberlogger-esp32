@@ -19,6 +19,7 @@ void settings_init()
         settings_set_default();
         settings_persist_settings();
     }
+
 }
 
 // Determines the last enabled channel for ADC and GPIO inputs
@@ -209,6 +210,20 @@ esp_err_t settings_set_adc_offset(int32_t * offsets, adc_resolution_t resolution
     return ESP_OK;
 }
 
+esp_err_t settings_set_averageSamples(uint8_t value)
+{
+    if (value > 1)
+    {
+        return ESP_FAIL;  
+    } 
+    _settings.averageSamples = value;
+    return ESP_OK;
+}
+
+uint8_t settings_get_averageSample(){
+    return _settings.averageSamples;
+}
+
 Settings_t settings_get_default()
 {
     Settings_t default_settings;
@@ -218,6 +233,7 @@ Settings_t settings_get_default()
     default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
     default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     default_settings.adc_channel_range = 0x00; // 10V by default
+    default_settings.averageSamples = 0;    // Don't average samples by default
     default_settings.gpio_channels_enabled = 0x3F; // 6 always enabled. 2 not available
     default_settings.logMode = LOGMODE_CSV;
     default_settings.bootReason = 0;
@@ -258,6 +274,7 @@ esp_err_t settings_set_default()
     _settings.adc_channel_type = 0x00; // all channels normal ADC by default
     _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
     _settings.adc_channel_range = 0x00; // 10V by default
+    _settings.averageSamples = 0;
     _settings.gpio_channels_enabled = 0x3F;
     _settings.logMode = LOGMODE_CSV;
     _settings.bootReason = 0;
@@ -561,7 +578,7 @@ adc_resolution_t settings_get_resolution()
 
 esp_err_t settings_set_samplerate(adc_sample_rate_t rate)
 {
-    if (rate >= ADC_SAMPLE_RATE_1Hz && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
+    if (rate >= ADC_SAMPLE_RATE_EVERY_3600S && rate < ADC_SAMPLE_RATE_NUM_ITEMS)
     {
         #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "ADC SAMPLE RATE= %d", rate);
@@ -646,6 +663,11 @@ esp_err_t settings_load_json(FILE* f)
     if (cJSON_IsNumber(adc_resolution)) {
         _settings.adc_resolution = adc_resolution->valueint;
     }
+
+        const cJSON* averageSamples = cJSON_GetObjectItemCaseSensitive(root, "averageSamples");
+    if (cJSON_IsNumber(averageSamples)) {
+        _settings.averageSamples = averageSamples->valueint;
+    } 
 
     const cJSON* gpio_channels_enabled = cJSON_GetObjectItemCaseSensitive(root, "gpio_channels_enabled");
     if (cJSON_IsNumber(gpio_channels_enabled)) {
@@ -904,14 +926,13 @@ esp_err_t settings_print()
 
     ESP_LOGI(TAG_SETTINGS, "ADC Enabled: %d", _settings.adc_channels_enabled);
     ESP_LOGI(TAG_SETTINGS, "GPIO Enabled: %d", _settings.gpio_channels_enabled);
+    ESP_LOGI(TAG_SETTINGS, "Average samples: %d", _settings.averageSamples);
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
     ESP_LOGI(TAG_SETTINGS, "File decimal character %u (%s)", _settings.file_decimal_char, ((settings_get_file_decimal_char() == FILE_DECIMAL_CHAR_COMMA) ? "," : ".") );
     ESP_LOGI(TAG_SETTINGS, "File prefix %s", _settings.file_prefix);
     ESP_LOGI(TAG_SETTINGS, "File separator character %u (%s)", _settings.file_separator_char, ((settings_get_file_separator_char() == FILE_SEPARATOR_CHAR_COMMA) ? "," : ";") );
     ESP_LOGI(TAG_SETTINGS, "File split size unit: %u", _settings.file_split_size_unit);
     ESP_LOGI(TAG_SETTINGS, "File split size: %lu", _settings.file_split_size);
-
-
 
     ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);
     ESP_LOGI(TAG_SETTINGS, "Wifi AP SSID %s", _settings.wifi_ssid_ap);
@@ -972,6 +993,7 @@ char * settings_to_json(Settings_t *settings)
     cJSON_AddNumberToObject(root, "adc_channel_range", _settings.adc_channel_range);
     cJSON_AddNumberToObject(root, "adc_log_sample_rate", _settings.adc_log_sample_rate);
     cJSON_AddNumberToObject(root, "adc_resolution", _settings.adc_resolution);
+    cJSON_AddNumberToObject(root, "averageSamples", _settings.averageSamples);
     cJSON_AddNumberToObject(root, "gpio_channels_enabled", _settings.gpio_channels_enabled);
     cJSON_AddNumberToObject(root, "log_mode", _settings.logMode);
     cJSON_AddNumberToObject(root, "file_decimal_char", _settings.file_decimal_char);

@@ -201,6 +201,9 @@ uint8_t settings_get_adc_channel_range(Settings_t *settings, adc_channel_t chann
 uint8_t settings_get_adc_channel_range_all();
 esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value);
 
+esp_err_t settings_set_averageSamples(uint8_t value);
+uint8_t settings_get_averageSample();
+
 esp_err_t settings_clear_bootreason();
 uint8_t settings_get_boot_reason();
 uint8_t settings_set_boot_reason(uint8_t reason);

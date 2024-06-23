@@ -31,7 +31,7 @@
 
     <h2>Channel configuration</h2>
     <div class="group" id="sampling_configuration">
-      <h3>Sampling</h3>
+      <h3>Sampling rate and resolution</h3>
       <p>
         Select the desired sample rate:
         <select
@@ -41,34 +41,58 @@
         >
           <!-- <option value="0">Once per minute</option>
           <option value="1">Once per 10 seconds</option> -->
-          <option value="0">1 Sample/s</option>
-          <option value="1">2 Samples/s</option>
-          <option value="2">5 Samples/s</option>
-          <option value="3">10 Samples/s</option>
-          <option value="4">25 Samples/s</option>
-          <option value="5">50 Samples/s</option>
-          <option value="6">100 Samples/s</option>
-          <option value="7">250 Samples/s</option>
+          <option value="0">1 Sample/hour</option>
+          <option value="1">1 Sample/10 minutes</option>
+          <option value="2">1 Sample/5 minutes</option>
+          <option value="3">1 Sample/minute</option>
+          <option value="4">1 Sample/10 seconds</option>
+          <option value="5">1 Sample/s</option>
+          <option value="6">1 Sample/s</option>
+          <option value="7">2 Samples/s</option>
+          <option value="8">5 Samples/s</option>
+          <option value="9">10 Samples/s</option>
+          <option value="10">25 Samples/s</option>
+          <option value="11">50 Samples/s</option>
+          <option value="12">100 Samples/s</option>
+          <option value="13">250 Samples/s</option>
         </select>
+
+        <p>
+          Select the desired analog resolution:
+          <select
+            name="ADC_RESOLUTION"
+            id="ADC_RESOLUTION"
+            class="json-as-number"
+          >
+            <option value="12">12 bits</option>
+            <option value="16">16 bits</option>
+          </select>
+        </p>
+        <p>
+          <i
+            ><b>Note:</b>16-bits will not improve resolution for temperature
+            sensors, since these channels will be scaled down to 12-bits.</i
+          >
+        </p>
+
+        <h4>Averaging</h4>
+        <p>For the sample frequencies below 1 Hz, you can choose to average the samples over the desired sample frequency or only take one sample at the desired sample rate. For example, if you enable this option with a sample frequency of 1 Sample/minute, the average will be taken over 1 minute of samples using an IIR filter. After 1 minute, the average will be output to the file.</p>
+        <p>
+          <i><b>Note:</b>averaging is done by sampling at 25 Hz and using an IIR low pass filter with -3 dB cut-off frequencies at 1/(sample frequency).</i>
+        </p>
+        <select  name="AVERAGE_SAMPLES"
+        id="AVERAGE_SAMPLES"
+        class="json-as-number">
+          <option value="0">Normal sampling (default)</option>
+          <option value="1">Average samples over time</option>
+        </select>
+
+
       </p>
 
-      <p>
-        Select the desired analog resolution:
-        <select
-          name="ADC_RESOLUTION"
-          id="ADC_RESOLUTION"
-          class="json-as-number"
-        >
-          <option value="12">12 bits</option>
-          <option value="16">16 bits</option>
-        </select>
-      </p>
-      <p>
-        <i
-          ><b>Note:</b>16-bits will not improve resolution for temperature
-          sensors, since these channels will be scaled down to 12-bits.</i
-        >
-      </p>
+      
+
+      
     </div>
 
     <div class="group" id="channel_configuration">

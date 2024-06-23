@@ -363,8 +363,14 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
                     tempMsg1.startByte[1] = 0xFB;
                     tempMsg1.dataLen = 1;
                     tempMsg1.timeData[0] = msg2->timeData[msg2->dataLen-1];
-                    // Either we take the sampled point or the filtered value (average) from the iir filter
-                    memcpy(tempMsg1.adcData16, y_state, sizeof(y_state));
+                    // Either we take the sampled point or the filtered value (average) from the iir filter depending on the user setting
+                    if (settings_get_averageSample())
+                    {
+                        memcpy(tempMsg1.adcData16, y_state, sizeof(y_state));
+                    } else {
+                        memcpy(tempMsg1.adcData16, msg2->adcData+((msg2->dataLen - 1)*8*2), 8*2);
+                    }
+
                     tempMsg1.gpioData[0] = msg2->gpioData[msg2->dataLen-1];
                     // Update msg pointer to the new tempMsg1
                     msg = &tempMsg1;
