@@ -435,7 +435,7 @@ if len(sys.argv) < 2:
     sys.exit(1)  # Exit the script if no file path is provided
 
 file_path = sys.argv[1]  # Use the file path from the command line argument
-# file_path = 'test_log.dat'
+file_path = '20240624_06_47-46_log.dat'
 # File path to your .dat file
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
@@ -464,6 +464,7 @@ print("ADC Offsets:", decoded_adc_offsets)
 adc_channel_range = decoded_settings[1]
 adc_channel_type = decoded_settings[2]  # Extract adc_channel_type from settings
 adc_channel_enabled = decoded_settings[3]
+adc_sample_rate = decoded_settings[5]
 gpio_channel_enabled = decoded_settings[6]
 file_decimal_char = "." if decoded_settings[7] == 0 else ","
 file_separator_char = "," if decoded_settings[8] == 0 else ";"
@@ -497,7 +498,8 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
             elif isinstance(result, str):
                 print(result)  # Error message
                 break
-            message_type = 2  # Switch to spi_msg_2 for the next iteration
+            if adc_sample_rate > 4:
+                message_type = 2  # Switch to spi_msg_2 for the next iteration
         else:
             result = read_spi_msg_2(file, data_len, rows_remaining) # this is under the condition that read_spi_msg_1 is always called before read_spi_msg_2
             if result == -1:
