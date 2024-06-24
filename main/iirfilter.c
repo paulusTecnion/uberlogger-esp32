@@ -63,8 +63,8 @@ void iir_filter_12b(uint16_t * input, uint16_t * output, uint8_t channel)
     temp[channel] =  temp[channel] + cfp*(input_fp-output_fp);
 	
 	fixedptu t;
-    t= round_value_12b(temp[channel] >> 3);
-	*output = (uint16_t)t;// Need to shift 3 to right, else we don't get the correct conversion to ints again. 
+    t= round_value_12b(temp[channel] >> 3); // Need to shift 3 to right, else we don't get the correct conversion to ints again. 
+	*output = (uint16_t)t;
 }
 
 // void iir_reset()

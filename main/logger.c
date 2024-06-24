@@ -183,48 +183,50 @@ static bool shouldLogRaw(size_t dataLen)
 static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
 {
     const uint8_t *src = (const uint8_t *)msg;
-    size_t spiMsgSize = sizeof(spi_msg_1_t);
+    size_t spiMsgSize = msgSize;
     // memcpy(sdcard_data.spi_data + spiMsgSize * log_counter, src, msgSize);
 
     if (type == 0)
     {
+        spi_msg_1_t * msgT = (spi_msg_1_t*)msg;
         // Copy startbytes and length
-        memcpy(sdcard_data.spi_data + spiMsgSize*log_counter, spi_msg_slow_freq_1_ptr->startByte, 2); 
-        memcpy(sdcard_data.spi_data + spiMsgSize*log_counter + 2, &(spi_msg_slow_freq_1_ptr->dataLen), 2);
+        memcpy(sdcard_data.spi_data + spiMsgSize*log_counter, msgT->startByte, 2); 
+        memcpy(sdcard_data.spi_data + spiMsgSize*log_counter + 2, &(msgT->dataLen), 2);
         // Calculate the base offset for the current log entry
         size_t baseOffset = spiMsgSize * log_counter + 4; // +4 to skip over the startBytes and dataLen which have already been copied
 
         // Copy time data block
-        memcpy(sdcard_data.spi_data + baseOffset, spi_msg_slow_freq_1_ptr->timeData, sizeof(s_date_time_t) * spi_msg_slow_freq_1_ptr->dataLen);
+        memcpy(sdcard_data.spi_data + baseOffset, msgT->timeData, sizeof(s_date_time_t) * msgT->dataLen);
         
         //ESP_LOGI("SPI MSG 1", "Time %d %d", spi_msg_slow_freq_1_ptr->timeData->minutes, spi_msg_slow_freq_1_ptr->timeData->seconds);
         // Copy gpio data block
-        size_t gpioDataOffset = baseOffset + sizeof(s_date_time_t) * spi_msg_slow_freq_1_ptr->dataLen;
-        memcpy(sdcard_data.spi_data + gpioDataOffset, spi_msg_slow_freq_1_ptr->gpioData, spi_msg_slow_freq_1_ptr->dataLen);
+        size_t gpioDataOffset = baseOffset + sizeof(s_date_time_t) * msgT->dataLen;
+        memcpy(sdcard_data.spi_data + gpioDataOffset, msgT->gpioData, msgT->dataLen);
 
         // Copy adc data block
-        size_t adcDataOffset = gpioDataOffset + spi_msg_slow_freq_1_ptr->dataLen;
-        memcpy(sdcard_data.spi_data + adcDataOffset, spi_msg_slow_freq_1_ptr->adcData, spi_msg_slow_freq_1_ptr->dataLen * 2 * 8);
+        size_t adcDataOffset = gpioDataOffset + msgT->dataLen;
+        memcpy(sdcard_data.spi_data + adcDataOffset, msgT->adcData, msgT->dataLen * 2 * 8);
         
     }
     else if (type == 1)
     {
+        spi_msg_2_t * msgT = (spi_msg_2_t*)msg;
         size_t baseOffset = spiMsgSize * log_counter; 
 
             // Copy adc data block
-        memcpy(sdcard_data.spi_data + baseOffset, spi_msg_slow_freq_2_ptr->adcData, spi_msg_slow_freq_2_ptr->dataLen * 2 * 8);
+        memcpy(sdcard_data.spi_data + baseOffset, msgT->adcData, msgT->dataLen * 2 * 8);
 
             // Copy gpio data block
-        size_t gpioDataOffset = baseOffset + spi_msg_slow_freq_2_ptr->dataLen * 2 * 8;
-        memcpy(sdcard_data.spi_data + gpioDataOffset, spi_msg_slow_freq_2_ptr->gpioData, spi_msg_slow_freq_2_ptr->dataLen);
+        size_t gpioDataOffset = baseOffset + msgT->dataLen * 2 * 8;
+        memcpy(sdcard_data.spi_data + gpioDataOffset, msgT->gpioData, msgT->dataLen);
         
-        size_t timeDataOffset = gpioDataOffset + spi_msg_slow_freq_2_ptr->dataLen;
+        size_t timeDataOffset = gpioDataOffset + msgT->dataLen;
         // Copy time data block
-        memcpy(sdcard_data.spi_data + timeDataOffset, spi_msg_slow_freq_2_ptr->timeData, sizeof(s_date_time_t) * spi_msg_slow_freq_2_ptr->dataLen);
+        memcpy(sdcard_data.spi_data + timeDataOffset, msgT->timeData, sizeof(s_date_time_t) * msgT->dataLen);
         //ESP_LOGI("SPI MSG 2", "Time %d %d", spi_msg_slow_freq_2_ptr->timeData->minutes, spi_msg_slow_freq_2_ptr->timeData->seconds);
-        size_t dataLenOffset = timeDataOffset + sizeof(s_date_time_t) * spi_msg_slow_freq_2_ptr->dataLen;
+        size_t dataLenOffset = timeDataOffset + sizeof(s_date_time_t) * msgT->dataLen;
         // Copy stopbytes and length
-        memcpy(sdcard_data.spi_data + dataLenOffset, &(spi_msg_slow_freq_2_ptr->dataLen), 2);
+        memcpy(sdcard_data.spi_data + dataLenOffset, &(msgT->dataLen), 2);
         memcpy(sdcard_data.spi_data + dataLenOffset + 2, spi_msg_slow_freq_2_ptr->stopByte, 2); 
     }
 
@@ -374,7 +376,7 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
                     tempMsg1.gpioData[0] = msg2->gpioData[msg2->dataLen-1];
                     // Update msg pointer to the new tempMsg1
                     msg = &tempMsg1;
-                    msgSize = sizeof(tempMsg1);
+                    msgSize = calculateMessageSizeForMsg1(&tempMsg1);
                     msgType = 0; // Update msgType to reflect the change
                 }
 
