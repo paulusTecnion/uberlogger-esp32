@@ -430,12 +430,12 @@ def read_spi_msg_2(file, data_len, rows_remaining):
 
 
 print("*** Uberlogger raw data conversion tool. Tecnion Technologies 2024 (C) ***\r\n")
-# if len(sys.argv) < 2:
-#     print("Usage: python convert_raw.py <file_path>")
-#     sys.exit(1)  # Exit the script if no file path is provided
+if len(sys.argv) < 2:
+    print("Usage: python convert_raw.py <file_path>")
+    sys.exit(1)  # Exit the script if no file path is provided
 
-# file_path = sys.argv[1]  # Use the file path from the command line argument
-file_path = 'C:\\Users\\ppott\\dev\\uberlogger-esp32\\front\www\\20240624_11-55-39_log.dat'
+file_path = sys.argv[1]  # Use the file path from the command line argument
+# file_path = 'C:\\Users\\ppott\\dev\\uberlogger-esp32\\front\www\\20240625_10-53-39_log.dat'
 # File path to your .dat file
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
