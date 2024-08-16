@@ -435,7 +435,7 @@ if len(sys.argv) < 2:
     sys.exit(1)  # Exit the script if no file path is provided
 
 file_path = sys.argv[1]  # Use the file path from the command line argument
-# file_path = 'C:\\Users\\ppott\\dev\\uberlogger-esp32\\front\www\\20240625_10-53-39_log.dat'
+
 # File path to your .dat file
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
