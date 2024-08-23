@@ -7,7 +7,7 @@
       "label": "preRun",
       "type": "shell",
       "windows": {
-        "command": "clear; openocd -c 'set ESP_RTOS none' -f board/esp32s2-kaluga-1.cfg "
+        "command": "openocd -c \"set ESP_RTOS none\" -f board/esp32s2-kaluga-1.cfg "
       }
     }
   ]
