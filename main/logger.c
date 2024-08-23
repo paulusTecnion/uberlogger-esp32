@@ -399,32 +399,32 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
             }
         
     } else {
-        
-
-      
-    if (msgType == 0) {
-        spi_msg_1_t* msgT = (spi_msg_1_t*)msg;
-        dataLen = msgT->dataLen;
-        adcData16 = msgT->adcData16;
-    } else {
-        spi_msg_2_t* msgT = (spi_msg_2_t*)msg;
-        dataLen = msgT->dataLen;
-        adcData16 = msgT->adcData16;
-    }
-
-    // Log raw or asynchronously copy data to SD card
-    if (shouldLogRaw(dataLen)) {
-        copyDataToSdCard(msg, msgSize, msgType);
-    } else {
-        if (asyncCopyDataToSdCard(msg, msgSize) != ESP_OK) {
-            ESP_LOGE("LOGGER", "Failed to copy data to SD card asynchronously");
-            return;
+          
+        if (msgType == 0) {
+            spi_msg_1_t* msgT = (spi_msg_1_t*)msg;
+            dataLen = msgT->dataLen;
+            adcData16 = msgT->adcData16;
+        } else {
+            spi_msg_2_t* msgT = (spi_msg_2_t*)msg;
+            dataLen = msgT->dataLen;
+            adcData16 = msgT->adcData16;
         }
-    }
 
-    updateSdCardData(dataLen, log_counter, adcData16);
-    log_counter++; // Increment log counter
-    sdcard_data.numSpiMessages = log_counter;
+        // Log raw or asynchronously copy data to SD card
+        if (shouldLogRaw(dataLen)) {
+            copyDataToSdCard(msg, msgSize, msgType);
+        } else {
+            // That we override msgSize here with sizeof(spi_msg_1_t) (which is == sizeof(spi_msg_2_t)) is ugly, but it is because with asyncCopyDataToSdCard we will copy the whole struct variable including padding bytes for fastness.
+            // need to make this nicer. 
+            if (asyncCopyDataToSdCard(msg, sizeof(spi_msg_1_t)) != ESP_OK) {
+                ESP_LOGE("LOGGER", "Failed to copy data to SD card asynchronously");
+                return;
+            }
+        }
+
+        updateSdCardData(dataLen, log_counter, adcData16);
+        log_counter++; // Increment log counter
+        sdcard_data.numSpiMessages = log_counter;
     }
     
 }
@@ -870,7 +870,7 @@ esp_err_t Logtask_sync_settings()
 {
     if (_currentLogTaskState != LOGTASK_IDLE && _currentLogTaskState != LOGTASK_SINGLE_SHOT)
     {
-        ESP_LOGE(TAG_LOG, "Cannot sync settings while logging or calibration");
+        ESP_LOGE(TAG_LOG, "Cannot sync settings while logging or calibration. State = %u", _currentLogTaskState);
         return ESP_FAIL;
     }
     LoggingState_t t = LOGTASK_PERSIST_SETTINGS;
