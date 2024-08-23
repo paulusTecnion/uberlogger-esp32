@@ -987,7 +987,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 
     if (Logtask_sync_settings() == ESP_FAIL)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings", HTTPD_400_BAD_REQUEST);
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings. STM busy", HTTPD_400_BAD_REQUEST);
         // return ESP_FAIL;
         goto error;
     }
