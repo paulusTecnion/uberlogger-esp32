@@ -1,6 +1,7 @@
 import sys
 import struct 
 
+VERSION_STRING = "V1.1"
 RAW_FORMAT_VERSION = 2
 NUM_ADC_CHANNELS = 8
 ADC_MULT_FACTOR_16B_TEMP = 1000000
@@ -429,7 +430,7 @@ def read_spi_msg_2(file, data_len, rows_remaining):
 
 
 
-print("*** Uberlogger raw data conversion tool. Tecnion Technologies 2024 (C) ***\r\n")
+print(f"*** Uberlogger raw data conversion tool {VERSION_STRING}. Tecnion Technologies 2024 (C) ***\r\n")
 if len(sys.argv) < 2:
     print("Usage: python convert_raw.py <file_path>")
     sys.exit(1)  # Exit the script if no file path is provided
