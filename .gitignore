@@ -2,6 +2,7 @@
 /front/archive
 /front/sample/build
 /front/sample/node_modules
+/production-tools/fat/downloaded_files
 ota_main.bin
 ota_filesystem.bin
 front/www/ajax/getFileList/.htaccess
@@ -16,3 +17,4 @@ front/www/ajax/getFileList/dir_1/index.json
 log.txt
 firmware.bin
 ota_support.bin
+*.pyc

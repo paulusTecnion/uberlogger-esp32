@@ -409,7 +409,7 @@ def read_spi_msg_2(file, data_len, rows_remaining):
         return -1  # End of file or error in reading
         
     if not (stopByte0 == 0xFB and stopByte1 == 0xFA):
-        return "Unexpected start bytes for spi_msg_2."
+        return "Unexpected stop bytes for spi_msg_2."
     if not ( data_len<=70):
         return "Unexpected data length for spi_msg_2"
     
@@ -497,7 +497,7 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
                 break  # End of file reached
             elif isinstance(result, str):
                 print(result)  # Error message
-                break
+                sys.exit(1)
             if adc_sample_rate > 4:
                 message_type = 2  # Switch to spi_msg_2 for the next iteration
         else:
@@ -506,7 +506,7 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
                 break  # End of file reached
             elif isinstance(result, str):
                 print(result)  # Error message
-                break
+                sys.exit(1)
             message_type = 1  # Switch back to spi_msg_1 for the next iteration
 
         if result == -1:
@@ -531,3 +531,4 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
             print(f"File stored as {csv_file_path}")
             break
 
+sys.exit(0)
