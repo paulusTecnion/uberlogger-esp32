@@ -4,6 +4,7 @@ import time
 from datetime import datetime  # Import datetime module
 from config_params import AIN_THRESHOLDS
 from file_operations import *
+from config import test_retrieve_and_set_settings
 
 def test_validate_csv(csv_file, resolution_bits):
     expected_header = [
@@ -100,6 +101,8 @@ def test_for_12_bit_csv():
     print("Setting up logger for 12-bit configuration...")
 
     # Modify logger configuration for 12-bit ADC resolution here
+    test_retrieve_and_set_settings(11, 12)
+
     # This would involve setting the ADC_RESOLUTION to 12 and updating the settings
 
     last_file = test_logging_and_retrieve_file()

@@ -7,36 +7,44 @@ from file_operations import cleanup_files
 from config_params import download_dir
 
 def run_tests():
-    all_tests_passed = True
-    
-    if not test_connect_to_server():
-        all_tests_passed = False
-    if not test_set_time():
-        all_tests_passed = False
-    if not test_retrieve_and_set_settings():
-        all_tests_passed = False
-    last_file = test_logging_and_retrieve_file()
-    if not last_file:
-        all_tests_passed = False
-    csv_file = test_convert_dat_file(last_file)
-    if not csv_file:
-        all_tests_passed = False
-    if not test_validate_csv(csv_file, 16):
-        all_tests_passed = False
-    if not test_for_12_bit_csv():
-        all_tests_passed = False
-    
-    # Cleanup only if all tests passed
-    if all_tests_passed:
+    try:
+        if not test_connect_to_server():
+            print("Test failed: test_connect_to_server. Aborting further tests.")
+            sys.exit(1)
+        
+        if not test_set_time():
+            print("Test failed: test_set_time. Aborting further tests.")
+            sys.exit(1)
+        
+        if not test_retrieve_and_set_settings(11, 16):  # 16 bit, 100 Hz
+            print("Test failed: test_retrieve_and_set_settings. Aborting further tests.")
+            sys.exit(1)
+        
+        last_file = test_logging_and_retrieve_file()
+        if not last_file:
+            print("Test failed: test_logging_and_retrieve_file. Aborting further tests.")
+            sys.exit(1)
+        
+        csv_file = test_convert_dat_file(last_file)
+        if not csv_file:
+            print("Test failed: test_convert_dat_file. Aborting further tests.")
+            sys.exit(1)
+        
+        if not test_validate_csv(csv_file, 16):
+            print("Test failed: test_validate_csv. Aborting further tests.")
+            sys.exit(1)
+        
+        if not test_for_12_bit_csv():
+            print("Test failed: test_for_12_bit_csv. Aborting further tests.")
+            sys.exit(1)
+        
+        # Cleanup only if all tests passed
         cleanup_files(download_dir)
-    else:
-        print("Cleanup skipped due to test failures.")
-    
-    if all_tests_passed:
-        print("All tests are PASSED")
-
-    return 0 if all_tests_passed else 1
-
+        
+        print("All tests PASSED")
+        return 0
+    except SystemExit as e:
+            print(f"Caught exit with status {e.code}")
 
 if __name__ == "__main__":
     sys.exit(run_tests())

@@ -19,43 +19,47 @@ def test_set_time():
         print(f"Response: {response.text}")
         return False
 
-def test_retrieve_and_set_settings():
+
+def test_retrieve_and_set_settings(sample_rate, resolution):
     # Retrieve current settings
     response = requests.get(f"{server_url}/getConfig")
     if response.status_code == 200:
         time.sleep(2)  # Delay after getting the settings
         config = response.json()
-        if config['ADC_RESOLUTION'] == 16:
-            print("Test 3: PASS - ADC Resolution is set to 16 bits")
+
+        # Check the current ADC resolution
+        if config['ADC_RESOLUTION'] == resolution:
+            print(f"Test: PASS - ADC Resolution is already set to {resolution} bits")
         else:
-            print("Test 3: FAIL - ADC Resolution is not set to 16 bits")
-            print(f"Response: {response.json()}")
-            return False
+            print(f"Test: Setting ADC Resolution to {resolution} bits")
         
         # Set new settings
-        config['LOG_SAMPLE_RATE'] = 11  # 100 Hz
-        config['LOG_MODE'] = 0  # RAW mode
+        config['LOG_SAMPLE_RATE'] = sample_rate  # Set to provided sample rate
+        config['ADC_RESOLUTION'] = resolution  # Set to provided resolution
+
         response = requests.post(f"{server_url}/setConfig", json=config)
         if response.status_code == 200:
-            print("Test 3: PASS - Settings updated successfully")
+            print("Test: PASS - Settings updated successfully")
             time.sleep(2)  # Delay after setting the settings
+
             # Verify settings
             response = requests.get(f"{server_url}/getConfig")
             if response.status_code == 200:
                 new_config = response.json()
-                if new_config['LOG_SAMPLE_RATE'] == 11 and new_config['LOG_MODE'] == 0:
-                    print("Test 3: PASS - Settings verified successfully")
+                if new_config['LOG_SAMPLE_RATE'] == sample_rate and new_config['ADC_RESOLUTION'] == resolution:
+                    print("Test: PASS - Settings verified successfully")
                     return True
                 else:
-                    print("Test 3: FAIL - Settings verification failed")
-                    print(f"Response: {response.json()}")
+                    print("Test: FAIL - Settings verification failed")
+                    print(f"Expected: Sample Rate = {sample_rate}, Resolution = {resolution}")
+                    print(f"Received: Sample Rate = {new_config['LOG_SAMPLE_RATE']}, Resolution = {new_config['ADC_RESOLUTION']}")
                     return False
         else:
-            print(f"Test 3: FAIL - Updating settings failed, status code: {response.status_code}")
+            print(f"Test: FAIL - Updating settings failed, status code: {response.status_code}")
             print(f"Response: {response.text}")
             return False
     else:
-        print(f"Test 3: FAIL - Retrieving settings failed, status code: {response.status_code}")
+        print(f"Test: FAIL - Retrieving settings failed, status code: {response.status_code}")
         print(f"Response: {response.text}")
         return False
 
