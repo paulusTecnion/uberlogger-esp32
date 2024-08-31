@@ -816,7 +816,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                         ESP_LOGI("REST: ", "AIN CHAN LABEL AIN%d %s", i, (subItem->valuestring));
                         if (settings_set_ain_chan_label(i, subItem->valuestring) != ESP_OK)
                         {
-                            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid AIN channel name. Max length = 20", HTTPD_400_BAD_REQUEST);
+                            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid AIN channel name. Max length = " + MAX_CHANNEL_NAME_LEN, HTTPD_400_BAD_REQUEST);
                         }
                     } else if (j == 5) {
                         if (i < 6)

@@ -213,6 +213,7 @@ int fileman_csv_write_header()
     const char *separator_char = (settings_get_file_separator_char() == FILE_SEPARATOR_CHAR_COMMA) ? "," : ";";
     writeptr = writeptr + sprintf(filestrbuffer + writeptr, "time(utc)%s", separator_char);
     // Print ADC or NTC, depending on settings
+    char buff[22];
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
         if (!settings_get_adc_channel_enabled(i))
@@ -220,25 +221,27 @@ int fileman_csv_write_header()
             continue;
         }   
 
-        if ((settings_get()->adc_channel_type & (1 << i)))
-        {
-            writeptr = writeptr + sprintf(filestrbuffer + writeptr, "NTC%d%s", i + 1, (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : separator_char);
-        }
-        else
-        {
-            writeptr = writeptr + sprintf(filestrbuffer + writeptr, "AIN%d%s", i + 1, (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : separator_char);
-        }
+        // if ((settings_get()->adc_channel_type & (1 << i)))
+        // {
+        //     writeptr = writeptr + sprintf(filestrbuffer + writeptr, "NTC%d%s", i + 1, (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : separator_char);
+        // }
+        // else
+        // {
+        settings_get_ain_chan_label(i, buff);
+        writeptr = writeptr + sprintf(filestrbuffer + writeptr, "%s%s", buff, (i == settings_get_last_enabled_ADC_channel() && (settings_get_last_enabled_GPIO_channel() == -1)) ? "" : separator_char);
+        // }
     }
 
      // Finally the IOs
-    for (int x = 0; x < 6; x++)
+    for (int x = 0; x < NUM_DIO_CHANNELS; x++)
     {
         if (settings_get_gpio_channel_enabled(settings_get(), x))
         {
             // Assuming MAX_LENGTH is the total size of filestrbuffer.
             // Replace MAX_LENGTH with the actual size of filestrbuffer.
             int remaining_space = 200 - writeptr;
-            writeptr += snprintf(filestrbuffer + writeptr, remaining_space, "DI%d%s", x+1, (x == settings_get_last_enabled_GPIO_channel()) ? "" : separator_char);
+            settings_get_dio_chan_label(x, buff);
+            writeptr += snprintf(filestrbuffer + writeptr, remaining_space, "%s%s", buff, (x == settings_get_last_enabled_GPIO_channel()) ? "" : separator_char);
         }
     }
 
@@ -393,49 +396,180 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
 }
 
 
-esp_err_t fileman_raw_write_header()
+esp_err_t fileman_raw_write_header(void)
 {
     int w = 0;
+    char channel_label[MAX_CHANNEL_NAME_LEN]; // Assuming MAX_CHANNEL_NAME_LEN is defined elsewhere
+    uint32_t header_length = 0;
+    long start_position = ftell(f);
+
+    // Placeholder for the header length (we'll come back to this later)
+    w = fwrite(&header_length, sizeof(uint32_t), 1, f);
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing header length %lu of size %zu while w = %d", header_length, sizeof(uint32_t), w);
+        return ESP_FAIL;
+    }
+
     // Write raw format version number
+    header_length += sizeof(uint8_t);
     w = fwrite(&raw_file_format_version, sizeof(uint8_t), 1, f);
-    if (w != sizeof(uint8_t))
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing file format version");
         return ESP_FAIL;
-    // first write ranges
+    }
+
+    // First write ranges
+    header_length += sizeof(uint8_t);
     w = fwrite(&(settings_get()->adc_channel_range), sizeof(uint8_t), 1, f);
-    if (w != sizeof(uint8_t))
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing channel range");
         return ESP_FAIL;
-    // then write ADC modes
+    }
+
+    // Then write ADC modes
+    header_length += sizeof(uint8_t);
     w = fwrite(&(settings_get()->adc_channel_type), sizeof(uint8_t), 1, f);
-    if (w != sizeof(uint8_t))
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing channel type");
         return ESP_FAIL;
-    // which channels are enabled
+    }
+
+    // Which channels are enabled
+    header_length += sizeof(uint8_t);
     w = fwrite(&(settings_get()->adc_channels_enabled), sizeof(uint8_t), 1, f);
-    if (w != sizeof(uint8_t))
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing channel enabled");
         return ESP_FAIL;
-    // then resolution
+    }
+
+    // Then resolution
+    header_length += sizeof(uint8_t);
     w = fwrite(&(settings_get()->adc_resolution), sizeof(uint8_t), 1, f);
-    if (w != sizeof(uint8_t))
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing adc resolution");
         return ESP_FAIL;
-    //  sample rate
+    }
+
+    // Sample rate
+    header_length += sizeof(uint8_t);
     w = fwrite(&(settings_get()->adc_log_sample_rate), sizeof(uint8_t), 1, f);
-    if (w != sizeof(uint8_t))
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing sample rate");
         return ESP_FAIL;
-    // Write gpio channels enabled
+    }
+
+    // Write GPIO channels enabled
+    header_length += sizeof(uint8_t);
     w = fwrite(&(settings_get()->gpio_channels_enabled), sizeof(uint8_t), 1, f);
-    if (w != sizeof(uint8_t))
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing gpio enabled");
         return ESP_FAIL;
-    // Write csv decimal character option
+    }
+
+    // Write CSV decimal character option
+    header_length += sizeof(uint8_t);
     w = fwrite(&(settings_get()->file_decimal_char), sizeof(uint8_t), 1, f);
-    if (w != sizeof(uint8_t))
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing file decimal char");
         return ESP_FAIL;
-    // Write csv separator option
+    }
+
+    // Write CSV separator option
+    header_length += sizeof(uint8_t);
     w = fwrite(&(settings_get()->file_separator_char), sizeof(uint8_t), 1, f);
-    if (w != sizeof(uint8_t))
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing file separator");
         return ESP_FAIL;
-    // and don't forget the calibration data
+    }
+
+    // Write the calibration data
+    header_length += sizeof(int32_t) * NUM_ADC_CHANNELS;
     w = fwrite(settings_get_adc_offsets(), sizeof(int32_t), NUM_ADC_CHANNELS, f);
-    if (w != sizeof(int32_t)*NUM_ADC_CHANNELS)
-        return ESP_FAIL;  
+    if (w != NUM_ADC_CHANNELS)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing adc offsets");
+        return ESP_FAIL;
+    }
+
+    // Write the ADC channel labels
+    for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++) {
+        esp_err_t err = settings_get_ain_chan_label(i, channel_label);
+        if (err != ESP_OK)
+            return err;
+
+        uint8_t label_len = strlen(channel_label);
+        header_length += sizeof(uint8_t) + label_len;
+        w = fwrite(&label_len, sizeof(uint8_t), 1, f);
+        if (w != 1)
+        {
+            ESP_LOGE(TAG_FILE, "Error writing label length for %u", i);
+            return ESP_FAIL;
+        }
+
+        w = fwrite(channel_label, 1, label_len, f);  // Corrected here
+        if (w != label_len)
+        {
+            ESP_LOGE(TAG_FILE, "Error writing ADC label %u %s", i, channel_label);
+            return ESP_FAIL;
+        }
+    }
+
+    // Write the DIO channel labels
+    for (uint8_t i = 0; i < NUM_DIO_CHANNELS; i++) {
+        esp_err_t err = settings_get_dio_chan_label(i, channel_label);
+        if (err != ESP_OK)
+            return err;
+
+        uint8_t label_len = strlen(channel_label);
+        header_length += sizeof(uint8_t) + label_len;
+        w = fwrite(&label_len, sizeof(uint8_t), 1, f);
+        if (w != 1)
+        {
+            ESP_LOGE(TAG_FILE, "Error writing label length for %u", i);
+            return ESP_FAIL;
+        }
+
+        w = fwrite(channel_label, 1, label_len, f);  // Corrected here
+        if (w != label_len)
+        {
+            ESP_LOGE(TAG_FILE, "Error writing DIO label %u %s", i, channel_label);
+            return ESP_FAIL;
+        }
+    }
+
+    // Go back and write the header length at the beginning of the file
+    long end_position = ftell(f);
+    ESP_LOGI(TAG_FILE, "Start %lu End %lu Length %lu", start_position, end_position, header_length);
+
+    w = fseek(f, start_position, SEEK_SET);
+    if (w)
+    {
+        ESP_LOGE(TAG_FILE, "Error seeking position %lu", start_position);
+        return ESP_FAIL;
+    }
+
+    w = fwrite(&header_length, sizeof(uint32_t), 1, f);
+    if (w != 1)
+    {
+        ESP_LOGE(TAG_FILE, "Error writing header length %lu", header_length);
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG_FILE, "Written header size: %lu", header_length);
+    // Force the file buffer to flush to the disk
+    fsync(fileno(f));
+    // Go back to the end of the file to continue writing data
+    fseek(f, end_position, SEEK_SET);
+    // fflush(f);
 
     return ESP_OK;
 }

@@ -59,7 +59,7 @@
       "program": "${workspaceFolder}/front/www/convert_raw.py", // Replace with your script path
       "console": "integratedTerminal", // or "externalTerminal"
       "args": [
-        "${workspaceFolder}/production-tools/fat/downloaded_files/20240823_08-37-18_log.dat"
+        "${workspaceFolder}/production-tools/fat/downloaded_files/20240831_13-53-00_log.dat"
       ],
       "justMyCode": true
     },

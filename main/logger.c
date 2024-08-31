@@ -1915,7 +1915,10 @@ void Logtask_logging()
             fileman_csv_write_header();
         } else {
             // write the ADC settings to the file when writing a raw file
-            fileman_raw_write_header();
+            if (fileman_raw_write_header() != ESP_OK)
+            {
+                ESP_LOGE(TAG_LOG, "Error writing header!");
+            }
         }
                       
         // Reset and start the logging statemachine
