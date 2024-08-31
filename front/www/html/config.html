@@ -100,38 +100,30 @@
 
     <div class="group" id="channel_configuration">
       <h3>Analog & digital channels</h3>
-      <p>Select the mode used for the analog channels.</p>
+      <p>Select the mode used for the analog channels and adjust channel names if necessary.</p>
       <p>
-        <i
-          ><b>Important:</b> ensure the hardware configuration (DIP-switch
-          setting) is equal to the settings below.</i
-        >
+        <i><b>Important:</b> ensure the hardware configuration (DIP-switch setting) is equal to the settings below.</i>
       </p>
-
+    
       <table class="compact-table" width="100%">
         <tr>
           <th>Enable</th>
-          <th>Analog channel</th>
+          <th>Channel</th>
+          <th>Channel label</th>
           <th>Mode</th>
           <th>Range</th>
         </tr>
+        <!-- Analog Channels -->
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="AIN1_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="AIN1_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Analog Input 1</td>
+          <td>AIN1</td>
           <td>
-            <select
-              name="NTC1"
-              id="NTC1"
-              class="json-as-bool"
-              onchange="disableAIN('1')"
-            >
+            <input type="text" name="AIN_CHAN_LABEL1" maxlength="20" autocomplete="off" />
+          </td>
+          <td>
+            <select name="NTC1" id="NTC1" class="json-as-bool" onchange="disableAIN('1')">
               <option value="0">Analog in</option>
               <option value="1">NTC</option>
             </select>
@@ -145,21 +137,14 @@
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="AIN2_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="AIN2_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Analog Input 2</td>
+          <td>AIN2</td>
           <td>
-            <select
-              name="NTC2"
-              id="NTC2"
-              class="json-as-bool"
-              onchange="disableAIN('2')"
-            >
+            <input type="text" name="AIN_CHAN_LABEL2" maxlength="20" autocomplete="off" />
+          </td>
+          <td>
+            <select name="NTC2" id="NTC2" class="json-as-bool" onchange="disableAIN('2')">
               <option value="0">Analog in</option>
               <option value="1">NTC</option>
             </select>
@@ -173,21 +158,14 @@
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="AIN3_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="AIN3_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Analog Input 3</td>
+          <td>AIN3</td>
           <td>
-            <select
-              name="NTC3"
-              id="NTC3"
-              class="json-as-bool"
-              onchange="disableAIN('3')"
-            >
+            <input type="text" name="AIN_CHAN_LABEL3" maxlength="20" autocomplete="off" />
+          </td>
+          <td>
+            <select name="NTC3" id="NTC3" class="json-as-bool" onchange="disableAIN('3')">
               <option value="0">Analog in</option>
               <option value="1">NTC</option>
             </select>
@@ -201,21 +179,14 @@
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="AIN4_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="AIN4_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Analog Input 4</td>
+          <td>AIN4</td>
           <td>
-            <select
-              name="NTC4"
-              id="NTC4"
-              class="json-as-bool"
-              onchange="disableAIN('4')"
-            >
+            <input type="text" name="AIN_CHAN_LABEL4" maxlength="20" autocomplete="off" />
+          </td>
+          <td>
+            <select name="NTC4" id="NTC4" class="json-as-bool" onchange="disableAIN('4')">
               <option value="0">Analog in</option>
               <option value="1">NTC</option>
             </select>
@@ -229,21 +200,14 @@
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="AIN5_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="AIN5_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Analog Input 5</td>
+          <td>AIN5</td>
           <td>
-            <select
-              name="NTC5"
-              id="NTC5"
-              class="json-as-bool"
-              onchange="disableAIN('5')"
-            >
+            <input type="text" name="AIN_CHAN_LABEL5" maxlength="20" autocomplete="off" />
+          </td>
+          <td>
+            <select name="NTC5" id="NTC5" class="json-as-bool" onchange="disableAIN('5')">
               <option value="0">Analog in</option>
               <option value="1">NTC</option>
             </select>
@@ -257,21 +221,14 @@
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="AIN6_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="AIN6_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Analog Input 6</td>
+          <td>AIN6</td>
           <td>
-            <select
-              name="NTC6"
-              id="NTC6"
-              class="json-as-bool"
-              onchange="disableAIN('6')"
-            >
+            <input type="text" name="AIN_CHAN_LABEL6" maxlength="20" autocomplete="off" />
+          </td>
+          <td>
+            <select name="NTC6" id="NTC6" class="json-as-bool" onchange="disableAIN('6')">
               <option value="0">Analog in</option>
               <option value="1">NTC</option>
             </select>
@@ -285,21 +242,14 @@
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="AIN7_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="AIN7_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Analog Input 7</td>
+          <td>AIN7</td>
           <td>
-            <select
-              name="NTC7"
-              id="NTC7"
-              class="json-as-bool"
-              onchange="disableAIN('7')"
-            >
+            <input type="text" name="AIN_CHAN_LABEL7" maxlength="20" autocomplete="off" />
+          </td>
+          <td>
+            <select name="NTC7" id="NTC7" class="json-as-bool" onchange="disableAIN('7')">
               <option value="0">Analog in</option>
               <option value="1">NTC</option>
             </select>
@@ -313,21 +263,14 @@
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="AIN8_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="AIN8_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Analog Input 8</td>
+          <td>AIN8</td>
           <td>
-            <select
-              name="NTC8"
-              id="NTC8"
-              class="json-as-bool"
-              onchange="disableAIN('8')"
-            >
+            <input type="text" name="AIN_CHAN_LABEL8" maxlength="20" autocomplete="off" />
+          </td>
+          <td>
+            <select name="NTC8" id="NTC8" class="json-as-bool" onchange="disableAIN('8')">
               <option value="0">Analog in</option>
               <option value="1">NTC</option>
             </select>
@@ -339,101 +282,80 @@
             </select>
           </td>
         </tr>
-
         <!-- Digital Inputs Rows -->
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="DIN1_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="DIN1_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Digital Input 1</td>
-          <td></td>
-          <!-- Mode column left empty for digital inputs -->
-          <td></td>
-          <!-- Range column can be left empty or repurposed if needed -->
-        </tr>
-        <!-- Repeat for DI2 to DI6 with onchange added -->
-        <tr>
+          <td>DIO1</td>
           <td>
-            <input
-              type="checkbox"
-              name="DIN2_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="text" name="DIO_CHAN_LABEL1" maxlength="20" autocomplete="off" />
           </td>
-          <td>Digital Input 2</td>
-          <td></td>
-          <td></td>
-        </tr>
-        <!-- Continue adding similar blocks for DI3 to DI6, changing the numbers accordingly -->
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="DIN3_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>Digital Input 3</td>
           <td></td>
           <td></td>
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="DIN4_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="DIN2_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Digital Input 4</td>
+          <td>DIO2</td>
+          <td>
+            <input type="text" name="DIO_CHAN_LABEL2" maxlength="20" autocomplete="off" />
+          </td>
           <td></td>
           <td></td>
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="DIN5_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="DIN3_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Digital Input 5</td>
+          <td>DIO3</td>
+          <td>
+            <input type="text" name="DIO_CHAN_LABEL3" maxlength="20" autocomplete="off" />
+          </td>
           <td></td>
           <td></td>
         </tr>
         <tr>
           <td>
-            <input
-              type="checkbox"
-              name="DIN6_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
+            <input type="checkbox" name="DIN4_ENABLE" value="1" class="json-as-bool" />
           </td>
-          <td>Digital Input 6</td>
+          <td>DIO4</td>
+          <td>
+            <input type="text" name="DIO_CHAN_LABEL4" maxlength="20" autocomplete="off" />
+          </td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>
+            <input type="checkbox" name="DIN5_ENABLE" value="1" class="json-as-bool" />
+          </td>
+          <td>DIO5</td>
+          <td>
+            <input type="text" name="DIO_CHAN_LABEL5" maxlength="20" autocomplete="off" />
+          </td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>
+            <input type="checkbox" name="DIN6_ENABLE" value="1" class="json-as-bool" />
+          </td>
+          <td>DIO6</td>
+          <td>
+            <input type="text" name="DIO_CHAN_LABEL6" maxlength="20" autocomplete="off" />
+          </td>
           <td></td>
           <td></td>
         </tr>
       </table>
-
+    
       <div id="configuration_done">
-        <input
-          id="saveForm"
-          class="button_text"
-          type="button"
-          onClick="setConfig()"
-          value="Save channel settings"
-        />
+        <input id="saveForm" class="button_text" type="button" onClick="setConfig()" value="Save channel settings" />
       </div>
+    </div>
+    
 
       <h3>Analog Calibration</h3>
       <p>

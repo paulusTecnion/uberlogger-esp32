@@ -214,18 +214,20 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     cJSON_AddStringToObject(analog, "UNITS", "Volt");
     cJSON * aValues = cJSON_AddObjectToObject(analog, "VALUES");
     
-    char buf[15];
+    char buf[25];
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
         if (settings_get_adc_channel_enabled(i))
         {
             if (settings_get_adc_channel_type(settings_get(), i))
             {
-                sprintf(buf,"T%d", i+1);
+                settings_get_ain_chan_label(i, buf);
+                // sprintf(buf,"%s", );
                 
                 cJSON_AddNumberToObject(tValues, buf, (double)live_data.temperatureData[i]/10.0);
             } else {
-                sprintf(buf,"AIN%d", i+1);
+                // sprintf(buf,"AIN%d", i+1);
+                settings_get_ain_chan_label(i, buf);
                 
                  if (settings_get_adc_channel_range(settings_get(), i))
                 {
@@ -254,7 +256,8 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     {
         if (settings_get_gpio_channel_enabled(settings_get(), i))
         {
-            sprintf(buf, "DI%d", i+1);
+            // sprintf(buf, "DI%d", i+1);
+            settings_get_dio_chan_label(i, buf);
             cJSON_AddNumberToObject(aDigital, buf, live_data.gpioData[i]);
         }
             
@@ -421,19 +424,25 @@ const char * logger_settings_to_json(Settings_t *settings)
     {
         return strptr;
     }
-  
     
+    cJSON_AddNumberToObject(root, "AVERAGE_SAMPLES", settings->averageSamples);
+    cJSON_AddNumberToObject(root, "ADC_RESOLUTION", settings->adc_resolution);
     cJSON *range_select = cJSON_AddObjectToObject(root, "AIN_RANGE_SELECT");
     cJSON *ntc_select = cJSON_AddObjectToObject(root, "NTC_SELECT");
     cJSON *ain_enabled = cJSON_AddObjectToObject(root, "AIN_ENABLED");
     cJSON *din_enabled = cJSON_AddObjectToObject(root, "DIN_ENABLED");
-    char buf[15];
+    cJSON *ain_chan_labels = cJSON_AddObjectToObject(root, "AIN_CHANNEL_LABELS");
+    cJSON *dio_chan_labels = cJSON_AddObjectToObject(root, "DIO_CHANNEL_LABELS");
+    char buf[22];
 
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
 
             sprintf(buf,"NTC%d", i+1);
             cJSON_AddBoolToObject(ntc_select, buf, settings_get_adc_channel_type(settings, i));
+
+            sprintf(buf, "AIN_CHAN_LABEL%d", i+1);
+            cJSON_AddStringToObject(ain_chan_labels, buf, settings->adc_channel_labels[i]);
 
             sprintf(buf,"AIN%d_RANGE", i+1);
             cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
@@ -446,6 +455,13 @@ const char * logger_settings_to_json(Settings_t *settings)
                 sprintf(buf,"DIN%d_ENABLE", i+1);
                 cJSON_AddBoolToObject(din_enabled, buf, settings_get_gpio_channel_enabled(settings, i));
             }
+    }
+
+    // Add DIO names
+    for (int i=ADC_CHANNEL_0; i<NUM_DIO_CHANNELS; i++)
+    {
+        sprintf(buf, "DIO_CHAN_LABEL%d", i+1);
+        cJSON_AddStringToObject(dio_chan_labels, buf, settings->dio_channel_labels[i]);
     }
 
     cJSON_AddNumberToObject(root, "FILE_DECIMAL_CHAR", settings->file_decimal_char);
@@ -472,7 +488,8 @@ const char * logger_settings_to_json(Settings_t *settings)
         break;
     }
     cJSON_AddNumberToObject(root, "FILE_SPLIT_SIZE", file_split_size );
-
+    cJSON_AddNumberToObject(root, "LOG_MODE", settings->logMode);
+    cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->adc_log_sample_rate);
     
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
@@ -484,13 +501,6 @@ const char * logger_settings_to_json(Settings_t *settings)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 1);
     }
-    
-
-    cJSON_AddNumberToObject(root, "ADC_RESOLUTION", settings->adc_resolution);
-    cJSON_AddNumberToObject(root, "LOG_SAMPLE_RATE", settings->adc_log_sample_rate);
-    cJSON_AddNumberToObject(root, "AVERAGE_SAMPLES", settings->averageSamples);
-    cJSON_AddNumberToObject(root, "LOG_MODE", settings->logMode);
-
 
     
     strptr = cJSON_Print(root);
@@ -547,7 +557,8 @@ static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "application/json");
-    Settings_t settings = settings_get_default();
+    Settings_t settings;
+    settings_set_default(&settings);
     const char * settings_json = NULL;
     settings_json = logger_settings_to_json(&settings);
     if (settings_json == NULL)
@@ -726,7 +737,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 
     
     char buf2[30];
-    for (int j = 0; j<4; j++)
+    for (int j = 0; j<6; j++)
     {
         for (int i = 0; i<8; i++)
         {
@@ -759,6 +770,23 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                         sprintf(buf2, "DIN%d_ENABLE", i+1);
                     }
                 }
+            } else if (j == 4) {
+                
+                item = cJSON_GetObjectItemCaseSensitive(settings_in, "AIN_CHANNEL_LABELS");
+                if (item != NULL)
+                {
+                    sprintf(buf2, "AIN%d", i+1);
+                }
+                
+            } else if (j == 5) {
+                if (i < 6)
+                {
+                    item = cJSON_GetObjectItemCaseSensitive(settings_in, "DIO_CHANNEL_LABELS");
+                    if (item != NULL)
+                    {
+                        sprintf(buf2, "DIO%d", i+1);
+                    }
+                }
             } else {
                 item = NULL;
             }
@@ -784,7 +812,22 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                     } else if (j == 3 ) {
                         ESP_LOGI("REST: ", "DIO ENABLE DI%d %d", i, (subItem->valueint));
                         settings_set_gpio_channel_enabled(i, subItem->valueint);
-                    } 
+                    } else if (j == 4) {
+                        ESP_LOGI("REST: ", "AIN CHAN LABEL AIN%d %s", i, (subItem->valuestring));
+                        if (settings_set_ain_chan_label(i, subItem->valuestring) != ESP_OK)
+                        {
+                            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid AIN channel name. Max length = 20", HTTPD_400_BAD_REQUEST);
+                        }
+                    } else if (j == 5) {
+                        if (i < 6)
+                        {
+                            ESP_LOGI("REST: ", "DIO CHAN LABEL DIO%d %s", i+1, (subItem->valuestring));
+                            if (settings_set_dio_chan_label(i, subItem->valuestring) != ESP_OK)
+                            {
+                                json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid DIO channel number or name. Max length of name = 20", HTTPD_400_BAD_REQUEST);
+                            }
+                        }
+                    }
                 }
             }        
         }

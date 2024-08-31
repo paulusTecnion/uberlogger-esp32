@@ -16,7 +16,7 @@ void settings_init()
 {
     if (settings_load_persisted_settings() != ESP_OK)
     {
-        settings_set_default();
+        settings_set_default(&_settings);
         settings_persist_settings();
     }
 
@@ -224,84 +224,149 @@ uint8_t settings_get_averageSample(){
     return _settings.averageSamples;
 }
 
-Settings_t settings_get_default()
-{
-    Settings_t default_settings;
+// Settings_t settings_get_default()
+// {
+//     Settings_t default_settings;
 
-    default_settings.adc_resolution = ADC_16_BITS;
-    default_settings.adc_log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
-    default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
-    default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
-    default_settings.adc_channel_range = 0x00; // 10V by default
-    default_settings.averageSamples = 0;    // Don't average samples by default
-    default_settings.gpio_channels_enabled = 0x3F; // 6 always enabled. 2 not available
-    default_settings.logMode = LOGMODE_CSV;
-    default_settings.bootReason = 0;
-    strcpy(default_settings.file_prefix, "log");
-    default_settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
-    default_settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
-    default_settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
-    // Get mac address
-    char buffer[8];
-    wifi_get_trimmed_mac(buffer);
+//     default_settings.adc_resolution = ADC_16_BITS;
+//     default_settings.adc_log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
+//     default_settings.adc_channel_type = 0x00; // all channels normal ADC by default
+//     default_settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
+//     default_settings.adc_channel_range = 0x00; // 10V by default
+//     default_settings.averageSamples = 0;    // Don't average samples by default
+//     default_settings.gpio_channels_enabled = 0x3F; // 6 always enabled. 2 not available
+//     default_settings.logMode = LOGMODE_CSV;
+//     default_settings.bootReason = 0;
+//     strcpy(default_settings.file_prefix, "log");
+//     default_settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
+//     default_settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
+//     default_settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
+//     // Get mac address
+//     char buffer[8];
+//     wifi_get_trimmed_mac(buffer);
     
-    sprintf(default_settings.wifi_ssid_ap, "Uberlogger-%s", buffer);
+//     sprintf(default_settings.wifi_ssid_ap, "Uberlogger-%s", buffer);
     
     
-    strcpy(default_settings.wifi_ssid, default_settings.wifi_ssid_ap);
-    strcpy(default_settings.wifi_password, "");
-    default_settings.wifi_mode = WIFI_MODE_AP;
-    default_settings.wifi_channel = 1;
+//     strcpy(default_settings.wifi_ssid, default_settings.wifi_ssid_ap);
+//     strcpy(default_settings.wifi_password, "");
+//     default_settings.wifi_mode = WIFI_MODE_AP;
+//     default_settings.wifi_channel = 1;
 
-    for (int i = 0; i < NUM_ADC_CHANNELS; i++)
-    {
-        default_settings.adc_offsets_12b[i] = (1<<11);
-        default_settings.adc_offsets_16b[i] = (1<<15);
-        default_settings.temp_offsets[i] = 0;
-    }
+//     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
+//     {
+//         default_settings.adc_offsets_12b[i] = (1<<11);
+//         default_settings.adc_offsets_16b[i] = (1<<15);
+//         default_settings.temp_offsets[i] = 0;
+//     }
 
-    return default_settings;
-}
+//     return default_settings;
+// }
 
-esp_err_t settings_set_default()
+esp_err_t settings_set_default(Settings_t * _inSettings)
 {
     #ifdef DEBUG_SETTINGS
     ESP_LOGI(TAG_SETTINGS, "Setting default settings");
     #endif
-    _settings.adc_resolution = ADC_16_BITS;
+    _inSettings->adc_resolution = ADC_16_BITS;
 
-    _settings.adc_log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
-    _settings.adc_channel_type = 0x00; // all channels normal ADC by default
-    _settings.adc_channels_enabled = 0xFF; // all channels are enabled by default
-    _settings.adc_channel_range = 0x00; // 10V by default
-    _settings.averageSamples = 0;
-    _settings.gpio_channels_enabled = 0x3F;
-    _settings.logMode = LOGMODE_CSV;
-    _settings.bootReason = 0;
-    _settings.file_decimal_char = FILE_DECIMAL_CHAR_DOT;
-    strcpy(_settings.file_prefix, "log");
-    _settings.file_name_mode = FILE_NAME_MODE_TIMESTAMP;
-    _settings.file_separator_char = FILE_SEPARATOR_CHAR_COMMA;
-    _settings.file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
-    _settings.file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
+    _inSettings->adc_log_sample_rate = ADC_SAMPLE_RATE_10Hz; // 10Hz 
+    _inSettings->adc_channel_type = 0x00; // all channels normal ADC by default
+    _inSettings->adc_channels_enabled = 0xFF; // all channels are enabled by default
+    _inSettings->adc_channel_range = 0x00; // 10V by default
+    
+    char temp[5];
+
+    for (uint8_t i= 0; i < NUM_ADC_CHANNELS; i++)
+    {
+        sprintf(temp, "AIN%u", i+1);
+        strcpy(_inSettings->adc_channel_labels[i], temp);
+    }
+
+    for (uint8_t i = 0; i < NUM_DIO_CHANNELS; i++)
+    {
+        sprintf(temp, "DIO%u", i+1);
+        strcpy(_inSettings->dio_channel_labels[i], temp);
+    }
+    
+    _inSettings->averageSamples = 0;       // 0 = averaging turned off. 1 = averaging turned on
+    _inSettings->gpio_channels_enabled = 0x3F; // default for enable the DIOs
+    _inSettings->logMode = LOGMODE_CSV;
+    _inSettings->bootReason = 0;       // 0 = Normal bootmode
+    _inSettings->file_decimal_char = FILE_DECIMAL_CHAR_DOT;
+    strcpy(_inSettings->file_prefix, "log");
+    _inSettings->file_name_mode = FILE_NAME_MODE_TIMESTAMP;
+    _inSettings->file_separator_char = FILE_SEPARATOR_CHAR_COMMA;
+    _inSettings->file_split_size = MAX_FILE_SPLIT_SIZE; // always in BYTES.
+    _inSettings->file_split_size_unit  = FILE_SPLIT_SIZE_UNIT_GB; // 0 = KiB, 1 = MiB, 2 = GiB
+
+    _inSettings->settings_format_version = SETTINGS_FORMAT_VERSION;
     // Get mac address
     char buffer[8];
     wifi_get_trimmed_mac(buffer);
     
-    sprintf(_settings.wifi_ssid_ap, "Uberlogger-%s", buffer);
+    sprintf(_inSettings->wifi_ssid_ap, "Uberlogger-%s", buffer);
     
     
-    strcpy(_settings.wifi_ssid, _settings.wifi_ssid_ap);
-    strcpy(_settings.wifi_password, "");
-    _settings.wifi_mode = WIFI_MODE_AP;
-    _settings.wifi_channel = 1;
+    strcpy(_inSettings->wifi_ssid, _inSettings->wifi_ssid_ap);
+    strcpy(_inSettings->wifi_password, "");
+    _inSettings->wifi_mode = WIFI_MODE_AP;
+    _inSettings->wifi_channel = 1;
 
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
-        _settings.adc_offsets_12b[i] = (1<<11);
-        _settings.adc_offsets_16b[i] = (1<<15);
-        _settings.temp_offsets[i] = 0;
+        _inSettings->adc_offsets_12b[i] = (1<<11);
+        _inSettings->adc_offsets_16b[i] = (1<<15);
+        _inSettings->temp_offsets[i] = 0;
     }
+
+
+
+    return ESP_OK;
+}
+
+esp_err_t settings_get_ain_chan_label(uint8_t channel, char * inStr)
+{
+    if (channel > NUM_ADC_CHANNELS)
+        return ESP_ERR_INVALID_ARG;
+    
+    strcpy(inStr, _settings.adc_channel_labels[channel]);
+    return ESP_OK;
+
+}
+
+
+esp_err_t settings_set_ain_chan_label(uint8_t channel, char * inChanName)
+{
+    if (channel > NUM_ADC_CHANNELS)
+        return ESP_ERR_INVALID_ARG;
+
+    if (strlen(inChanName) > MAX_CHANNEL_NAME_LEN)
+        return ESP_ERR_INVALID_SIZE;
+    
+    strcpy(_settings.adc_channel_labels[channel], inChanName);
+    
+    return ESP_OK;
+}
+
+esp_err_t settings_get_dio_chan_label(uint8_t channel, char *inStr)
+{
+    if (channel > NUM_ADC_CHANNELS)
+        return ESP_ERR_INVALID_ARG;
+    
+    strcpy(inStr, _settings.dio_channel_labels[channel]);
+    return ESP_OK;
+}
+
+esp_err_t settings_set_dio_chan_label(uint8_t channel, char * inChanName)
+{
+    if (channel > NUM_DIO_CHANNELS)
+        return ESP_ERR_INVALID_ARG;
+
+    if (strlen(inChanName) > MAX_CHANNEL_NAME_LEN)
+        return ESP_ERR_INVALID_SIZE;
+    
+    strcpy(_settings.dio_channel_labels[channel], inChanName);
 
     return ESP_OK;
 }
@@ -649,6 +714,16 @@ esp_err_t settings_load_json(FILE* f)
         _settings.adc_channels_enabled = adc_channels_enabled->valueint;
     }
 
+    const cJSON* adc_channel_labels = cJSON_GetObjectItemCaseSensitive(root, "adc_channel_labels");
+    if (cJSON_IsArray(adc_channel_labels)) {
+        for (int i = 0; i < cJSON_GetArraySize(adc_channel_labels) && i < NUM_ADC_CHANNELS; i++) {
+            cJSON* item = cJSON_GetArrayItem(adc_channel_labels, i);
+            if (cJSON_IsString(item)) {
+                strcpy(_settings.adc_channel_labels[i], item->valuestring);
+            }
+        }
+    }
+
     const cJSON* adc_channel_range = cJSON_GetObjectItemCaseSensitive(root, "adc_channel_range");
     if (cJSON_IsNumber(adc_channel_range)) {
         _settings.adc_channel_range = adc_channel_range->valueint;
@@ -664,10 +739,20 @@ esp_err_t settings_load_json(FILE* f)
         _settings.adc_resolution = adc_resolution->valueint;
     }
 
-        const cJSON* averageSamples = cJSON_GetObjectItemCaseSensitive(root, "averageSamples");
+    const cJSON* averageSamples = cJSON_GetObjectItemCaseSensitive(root, "averageSamples");
     if (cJSON_IsNumber(averageSamples)) {
         _settings.averageSamples = averageSamples->valueint;
     } 
+
+    const cJSON* dio_channel_labels = cJSON_GetObjectItemCaseSensitive(root, "dio_channel_labels");
+    if (cJSON_IsArray(dio_channel_labels)) {
+        for (int i = 0; i < cJSON_GetArraySize(dio_channel_labels) && i < NUM_DIO_CHANNELS; i++) {
+            cJSON* item = cJSON_GetArrayItem(dio_channel_labels, i);
+            if (cJSON_IsString(item)) {
+                strcpy(_settings.dio_channel_labels[i], item->valuestring);
+            }
+        }
+    }
 
     const cJSON* gpio_channels_enabled = cJSON_GetObjectItemCaseSensitive(root, "gpio_channels_enabled");
     if (cJSON_IsNumber(gpio_channels_enabled)) {
@@ -708,6 +793,11 @@ esp_err_t settings_load_json(FILE* f)
     const cJSON* file_split_size_unit = cJSON_GetObjectItemCaseSensitive(root, "file_split_size_unit");
     if (cJSON_IsNumber(file_split_size_unit)) {
         _settings.file_split_size_unit = file_split_size_unit->valueint;
+    }
+
+    const cJSON* settings_format_version = cJSON_GetObjectItemCaseSensitive(root, "settings_format_version");
+    if (cJSON_IsNumber(settings_format_version)) {
+        _settings.settings_format_version = settings_format_version->valueint;
     }
 
     const cJSON* wifi_ssid = cJSON_GetObjectItemCaseSensitive(root, "wifi_ssid");
@@ -832,7 +922,7 @@ esp_err_t settings_load_persisted_settings()
 
 
     // By default load all settings into the new settings struct
-    settings_set_default();
+    settings_set_default(&_settings);
     // First check if there is an old settings.json file on the spiffs drive. 
     if (spiffs_init() == ESP_OK)
     {  
@@ -925,6 +1015,17 @@ esp_err_t settings_print()
     }
 
     ESP_LOGI(TAG_SETTINGS, "ADC Enabled: %d", _settings.adc_channels_enabled);
+    
+    for (i=0; i<NUM_ADC_CHANNELS; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "ADC channel label %d: %s", i, _settings.adc_channel_labels[i]);
+    }
+
+    for (i=0; i<NUM_DIO_CHANNELS; i++)
+    {
+        ESP_LOGI(TAG_SETTINGS, "DIO channel label %d: %s", i, _settings.dio_channel_labels[i]);
+    }
+
     ESP_LOGI(TAG_SETTINGS, "GPIO Enabled: %d", _settings.gpio_channels_enabled);
     ESP_LOGI(TAG_SETTINGS, "Average samples: %d", _settings.averageSamples);
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
@@ -933,7 +1034,7 @@ esp_err_t settings_print()
     ESP_LOGI(TAG_SETTINGS, "File separator character %u (%s)", _settings.file_separator_char, ((settings_get_file_separator_char() == FILE_SEPARATOR_CHAR_COMMA) ? "," : ";") );
     ESP_LOGI(TAG_SETTINGS, "File split size unit: %u", _settings.file_split_size_unit);
     ESP_LOGI(TAG_SETTINGS, "File split size: %lu", _settings.file_split_size);
-
+    ESP_LOGI(TAG_SETTINGS, "settings format version: %u", _settings.settings_format_version);
     ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);
     ESP_LOGI(TAG_SETTINGS, "Wifi AP SSID %s", _settings.wifi_ssid_ap);
     ESP_LOGI(TAG_SETTINGS, "Wifi channel %d", _settings.wifi_channel);
@@ -990,10 +1091,25 @@ char * settings_to_json(Settings_t *settings)
      // Add data to the cJSON object
     cJSON_AddNumberToObject(root, "adc_channel_type", _settings.adc_channel_type);
     cJSON_AddNumberToObject(root, "adc_channels_enabled", _settings.adc_channels_enabled);
+    cJSON *adc_channel_labels = cJSON_CreateArray();
+    for (int i = 0; i<NUM_ADC_CHANNELS; i++)
+    {   
+        cJSON_AddItemToArray(adc_channel_labels, cJSON_CreateString(_settings.adc_channel_labels[i]));
+    }
+
+    cJSON_AddItemToObject(root, "adc_channel_labels", adc_channel_labels);
     cJSON_AddNumberToObject(root, "adc_channel_range", _settings.adc_channel_range);
     cJSON_AddNumberToObject(root, "adc_log_sample_rate", _settings.adc_log_sample_rate);
     cJSON_AddNumberToObject(root, "adc_resolution", _settings.adc_resolution);
     cJSON_AddNumberToObject(root, "averageSamples", _settings.averageSamples);
+    
+    cJSON *dio_channel_labels = cJSON_CreateArray();
+    for (int i = 0; i<NUM_DIO_CHANNELS; i++)
+    {   
+        cJSON_AddItemToArray(dio_channel_labels, cJSON_CreateString(_settings.dio_channel_labels[i]));
+    }
+
+    cJSON_AddItemToObject(root, "dio_channel_labels", dio_channel_labels);
     cJSON_AddNumberToObject(root, "gpio_channels_enabled", _settings.gpio_channels_enabled);
     cJSON_AddNumberToObject(root, "log_mode", _settings.logMode);
     cJSON_AddNumberToObject(root, "file_decimal_char", _settings.file_decimal_char);
@@ -1002,6 +1118,7 @@ char * settings_to_json(Settings_t *settings)
     cJSON_AddNumberToObject(root, "file_separator_char", _settings.file_separator_char);
     cJSON_AddNumberToObject(root, "file_split_size", _settings.file_split_size);
     cJSON_AddNumberToObject(root, "file_split_size_unit", _settings.file_split_size_unit);
+    cJSON_AddNumberToObject(root, "settings_format_version", _settings.settings_format_version);
     cJSON_AddNumberToObject(root, "wifi_channel", _settings.wifi_channel);
     cJSON_AddNumberToObject(root, "wifi_mode", _settings.wifi_mode);
     cJSON_AddStringToObject(root, "wifi_ssid", _settings.wifi_ssid);

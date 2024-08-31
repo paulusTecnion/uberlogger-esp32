@@ -182,7 +182,7 @@ static bool shouldLogRaw(size_t dataLen)
 
 static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
 {
-    const uint8_t *src = (const uint8_t *)msg;
+    // const uint8_t *src = (const uint8_t *)msg;
     size_t spiMsgSize = msgSize;
     // memcpy(sdcard_data.spi_data + spiMsgSize * log_counter, src, msgSize);
 

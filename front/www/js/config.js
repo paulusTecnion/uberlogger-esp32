@@ -101,6 +101,8 @@ function parseConfig(data) {
   populateFields("#channel_configuration", data["AIN_RANGE_SELECT"]);
   populateFields("#channel_configuration", data["AIN_ENABLED"]);
   populateFields("#channel_configuration", data["DIN_ENABLED"]);
+  populateFields("#channel_configuration", data["AIN_CHANNEL_LABELS"]);
+  populateFields("#channel_configuration", data["DIO_CHANNEL_LABELS"]);
 }
 
 function testWifiNetwork() {
@@ -250,6 +252,20 @@ function validateIntegerInput(element) {
     element.value = ""; // Clear the field if the result is not a number
   }
 }
+function validateChannelNames(channelNames) {
+  const validPattern = /^[a-zA-Z0-9_-]*$/;
+  for (let key in channelNames) {
+    if (channelNames.hasOwnProperty(key)) {
+      if (!validPattern.test(channelNames[key])) {
+        alert(
+          `Invalid characters in ${key}. Only letters, numbers, underscores, and hyphens are allowed.`
+        );
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 function setConfig() {
   let input_all = getFormDataAsJsonObject($("#configuration"));
@@ -268,6 +284,34 @@ function setConfig() {
   }
   if (!/^[a-zA-Z0-9_-]*$/.test(fileNamePrefix)) {
     alert("File name prefix should not contain spaces or special characters.");
+    return;
+  }
+
+  // Validate channel names
+  let ainChannelLabels = {
+    AIN1: String(input["AIN_CHAN_LABEL1"]),
+    AIN2: String(input["AIN_CHAN_LABEL2"]),
+    AIN3: String(input["AIN_CHAN_LABEL3"]),
+    AIN4: String(input["AIN_CHAN_LABEL4"]),
+    AIN5: String(input["AIN_CHAN_LABEL5"]),
+    AIN6: String(input["AIN_CHAN_LABEL6"]),
+    AIN7: String(input["AIN_CHAN_LABEL7"]),
+    AIN8: String(input["AIN_CHAN_LABEL8"]),
+  };
+
+  let dioChannelLabels = {
+    DIO1: String(input["DIO_CHAN_LABEL1"]),
+    DIO2: String(input["DIO_CHAN_LABEL2"]),
+    DIO3: String(input["DIO_CHAN_LABEL3"]),
+    DIO4: String(input["DIO_CHAN_LABEL4"]),
+    DIO5: String(input["DIO_CHAN_LABEL5"]),
+    DIO6: String(input["DIO_CHAN_LABEL6"]),
+  };
+
+  if (
+    !validateChannelNames(ainChannelLabels) ||
+    !validateChannelNames(dioChannelLabels)
+  ) {
     return;
   }
 
@@ -299,7 +343,7 @@ function setConfig() {
     return;
   }
 
-  // merge input to config struct
+  // Merge input to config struct
   let config = {
     LOG_SAMPLE_RATE: input["LOG_SAMPLE_RATE"],
     ADC_RESOLUTION: input["ADC_RESOLUTION"],
@@ -349,6 +393,8 @@ function setConfig() {
       DIN5_ENABLE: input["DIN5_ENABLE"],
       DIN6_ENABLE: input["DIN6_ENABLE"],
     },
+    AIN_CHANNEL_LABELS: ainChannelLabels,
+    DIO_CHANNEL_LABELS: dioChannelLabels,
     WIFI_CHANNEL: input["WIFI_CHANNEL"],
     WIFI_MODE: input["WIFI_MODE"],
     WIFI_PASSWORD: input["WIFI_PASSWORD"],
@@ -367,7 +413,7 @@ function setConfig() {
 
     success: function (response) {
       if (response["resp"] == "ack") {
-        alert("Settings saved succesfully.");
+        alert("Settings saved successfully.");
       } else {
         alert(
           "Error: could not save settings, response=" + response["reason"] + "."

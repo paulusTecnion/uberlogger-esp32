@@ -22,6 +22,10 @@
 #define MAX_WIFI_PASSW_LEN 20
 
 #define NUM_ADC_CHANNELS 8
+#define NUM_DIO_CHANNELS 6
+#define MAX_CHANNEL_NAME_LEN 21
+
+#define SETTINGS_FORMAT_VERSION 1
 
 typedef enum adc_channel_e {
 	ADC_CHANNEL_0 = 0x00,
@@ -149,7 +153,9 @@ struct Settings_t {
 	int16_t temp_offsets[NUM_ADC_CHANNELS];
 	uint8_t bootReason;
 	/* NEW SETTINGS */
-	uint8_t gpio_channels_enabled;
+	/* Channel names - New addition */
+    char adc_channel_labels[NUM_ADC_CHANNELS][MAX_CHANNEL_NAME_LEN]; // Array to store channel names
+	char dio_channel_labels[NUM_DIO_CHANNELS][MAX_CHANNEL_NAME_LEN];
 	file_decimal_character_t file_decimal_char; // character for decimal notation in CSVs. 0 = dot, 1 = comma
 	uint8_t file_name_mode;  // 0 = sequential logfile, 1 = timestamp
 	char file_prefix[MAX_FILE_PREFIX_LENGTH];
@@ -158,6 +164,9 @@ struct Settings_t {
 	uint32_t file_split_size;
 	// File split size unit. 0 = KB, 1 = MB, 2 = GB
 	uint8_t file_split_size_unit;
+	uint8_t gpio_channels_enabled;
+
+	uint8_t settings_format_version;
 };
 
 struct Settings_old_t {
@@ -214,8 +223,14 @@ esp_err_t settings_set_temp_offset(int32_t * offsets);
 int32_t * settings_get_adc_offsets();
 esp_err_t settings_set_adc_offset(int32_t * offsets, adc_resolution_t resolution);
 
-Settings_t settings_get_default();
-esp_err_t settings_set_default();
+// Settings_t settings_get_default();
+esp_err_t settings_set_default(Settings_t * _inSettings);
+
+esp_err_t settings_get_ain_chan_label(uint8_t channel, char * inStr);
+esp_err_t settings_set_ain_chan_label(uint8_t channel, char * inChanName);
+
+esp_err_t settings_get_dio_chan_label(uint8_t channel, char * inStr);
+esp_err_t settings_set_dio_chan_label(uint8_t channel, char * inChanName);
 
 file_decimal_character_t settings_get_file_decimal_char();
 esp_err_t settings_set_file_decimal_char(file_decimal_character_t decimal_character);

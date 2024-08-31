@@ -36,7 +36,7 @@ function renderValueList() {
   // parse JSON data to input list
   htmlstring = [];
   htmlstring += "<p>Timestamp of data: " + valuesData["TIMESTAMPSTR"] + "</p>";
-
+  console.debug("renderValueList called");
   $.each(valuesData["READINGS"], function (category, category_values) {
     htmlstring +=
       "<div class='block greybox' style='font-size: smaller;'><h2 class='first'>" +
@@ -54,11 +54,11 @@ function renderValueList() {
       htmlstring += "<tr><td>" + channel + "</td>";
 
       if (typeof channel_value === "number") {
-        if (channel.startsWith("T")) {
+        if (category === "TEMPERATURE") {
           // Round to one decimal place for Tx
           htmlstring +=
             "<td align='right'>" + channel_value.toFixed(1) + "</td></tr>";
-        } else if (channel.startsWith("DI")) {
+        } else if (category === "DIGITAL") {
           // Round to zero decimal places for DI
           htmlstring +=
             "<td align='right'>" + channel_value.toFixed(0) + "</td></tr>";
