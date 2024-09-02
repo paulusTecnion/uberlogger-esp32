@@ -51,7 +51,10 @@ function renderValueList() {
     let n = 0;
     $.each(category_values["VALUES"], function (channel, channel_value) {
       n++;
-      htmlstring += "<tr><td>" + channel + "</td>";
+      let truncatedChannel =
+        channel.length > 4 ? channel.substring(0, 4) + ".." : channel;
+
+      htmlstring += "<tr><td>" + truncatedChannel + "</td>";
 
       if (typeof channel_value === "number") {
         if (category === "TEMPERATURE") {
