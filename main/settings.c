@@ -336,28 +336,47 @@ esp_err_t settings_get_ain_chan_label(uint8_t channel, char * inStr)
 }
 
 
-esp_err_t settings_set_ain_chan_label(uint8_t channel, char * inChanName)
+esp_err_t settings_set_ain_chan_label(uint8_t channel, char *inChanName)
 {
-    if (channel > NUM_ADC_CHANNELS)
+    if (channel >= NUM_ADC_CHANNELS) // Use >= to ensure the channel index is within bounds
         return ESP_ERR_INVALID_ARG;
 
     if (strlen(inChanName) > MAX_CHANNEL_NAME_LEN)
         return ESP_ERR_INVALID_SIZE;
-    
+
+    // Check for special characters and spaces, but allow hyphens and underscores
+    for (size_t i = 0; i < strlen(inChanName); i++)
+    {
+        if (!isalnum((unsigned char)inChanName[i]) && inChanName[i] != '-' && inChanName[i] != '_')
+        {
+            return ESP_ERR_INVALID_ARG; // Return an error if an invalid character is found
+        }
+    }
+
     strcpy(_settings.adc_channel_labels[channel], inChanName);
-    
+
     return ESP_OK;
 }
 
 esp_err_t settings_get_dio_chan_label(uint8_t channel, char *inStr)
 {
-    if (channel > NUM_ADC_CHANNELS)
+    if (channel >= NUM_ADC_CHANNELS) // Ensure the channel index is within bounds
         return ESP_ERR_INVALID_ARG;
-    
+
+    // Validate the label to ensure it only contains allowed characters
+    for (size_t i = 0; i < strlen(_settings.dio_channel_labels[channel]); i++)
+    {
+        if (!isalnum((unsigned char)_settings.dio_channel_labels[channel][i]) &&
+            _settings.dio_channel_labels[channel][i] != '-' &&
+            _settings.dio_channel_labels[channel][i] != '_')
+        {
+            return ESP_ERR_INVALID_ARG; // Return an error if an invalid character is found
+        }
+    }
+
     strcpy(inStr, _settings.dio_channel_labels[channel]);
     return ESP_OK;
 }
-
 esp_err_t settings_set_dio_chan_label(uint8_t channel, char * inChanName)
 {
     if (channel > NUM_DIO_CHANNELS)

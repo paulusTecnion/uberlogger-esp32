@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <ctype.h> // For isalnum()
 #include <time.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
