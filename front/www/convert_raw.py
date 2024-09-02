@@ -346,7 +346,7 @@ def generate_header(adc_channel_enabled, gpio_channel_enabled, adc_channel_label
     headers = ["time(utc)"]  # Start with fixed header part
     for i in range(8):  # Assuming 8 channels
         if (adc_channel_enabled >> i) & 1:  # Check if the channel is enabled
-            headers.append(f"{adc_channel_labels}")
+            headers.append(f"{adc_channel_labels[i]}")
     
     # Iterate through GPIO channels
     for i in range(6):  # Assuming 6 GPIO channels
