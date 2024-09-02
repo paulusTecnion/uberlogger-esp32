@@ -397,63 +397,66 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
 
 esp_err_t fileman_raw_write_header(void)
 {
-    // First write the header to a memory buffer, because fseek is causing problems with sd cards.
-
     uint8_t header_buffer[512]; // Allocate a buffer large enough to hold the header
+    memset((void*)header_buffer, 0, sizeof(header_buffer));
+
     uint32_t header_length = 0;
     char channel_label[MAX_CHANNEL_NAME_LEN]; // Assuming MAX_CHANNEL_NAME_LEN is defined elsewhere
-
-    // Ensure buffer size is sufficient
-    if (sizeof(header_buffer) < sizeof(uint32_t) + sizeof(uint8_t) * 9 + sizeof(int32_t) * NUM_ADC_CHANNELS + (sizeof(uint8_t) + MAX_CHANNEL_NAME_LEN) * (NUM_ADC_CHANNELS + NUM_DIO_CHANNELS))
-    {
-        ESP_LOGE(TAG_FILE, "Header buffer size is insufficient");
-        return ESP_FAIL;
-    }
-
-    // Reserve space for header length (will write it later)
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length); // 0
+    // Reserve space for header length (we'll write it later)
     uint8_t *ptr = header_buffer;
     ptr += sizeof(uint32_t);
 
     // Write raw format version number
     *ptr++ = raw_file_format_version;
     header_length += sizeof(uint8_t);
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length); // 1
 
     // Write ranges
     *ptr++ = settings_get()->adc_channel_range;
     header_length += sizeof(uint8_t);
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length); // 2
 
     // Write ADC modes
     *ptr++ = settings_get()->adc_channel_type;
     header_length += sizeof(uint8_t);
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length); // 3
 
-    // Write which channels are enabled
+    // Write enabled channels
     *ptr++ = settings_get()->adc_channels_enabled;
     header_length += sizeof(uint8_t);
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length); // 4
 
     // Write resolution
     *ptr++ = settings_get()->adc_resolution;
     header_length += sizeof(uint8_t);
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length); // 5
 
     // Write sample rate
     *ptr++ = settings_get()->adc_log_sample_rate;
     header_length += sizeof(uint8_t);
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length); // 6
 
     // Write GPIO channels enabled
     *ptr++ = settings_get()->gpio_channels_enabled;
     header_length += sizeof(uint8_t);
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length); // 7
 
     // Write CSV decimal character option
     *ptr++ = settings_get()->file_decimal_char;
     header_length += sizeof(uint8_t);
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length); //8
 
     // Write CSV separator option
     *ptr++ = settings_get()->file_separator_char;
     header_length += sizeof(uint8_t);
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length);// 9 
 
     // Write the calibration data
     memcpy(ptr, settings_get_adc_offsets(), sizeof(int32_t) * NUM_ADC_CHANNELS);
     ptr += sizeof(int32_t) * NUM_ADC_CHANNELS;
-    header_length += sizeof(int32_t) * NUM_ADC_CHANNELS;
+    header_length += sizeof(int32_t) * NUM_ADC_CHANNELS; // 4 * 8 = 32, dus 9+32 = 41
+    // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length);
 
     // Write the ADC channel labels
     for (uint8_t i = 0; i < NUM_ADC_CHANNELS; i++) {
@@ -462,10 +465,12 @@ esp_err_t fileman_raw_write_header(void)
             return err;
 
         uint8_t label_len = strlen(channel_label);
+        // ESP_LOGI(TAG_FILE, "label_len: %u", label_len);
         *ptr++ = label_len;
         memcpy(ptr, channel_label, label_len);
         ptr += label_len;
-        header_length += sizeof(uint8_t) + label_len;
+        header_length += sizeof(uint8_t) + label_len; // 4* 8 + 1*8 = 40. Dus = 81. 
+        // ESP_LOGI(TAG_FILE, "header_length: %lu", header_length);
     }
 
     // Write the DIO channel labels
@@ -475,24 +480,43 @@ esp_err_t fileman_raw_write_header(void)
             return err;
 
         uint8_t label_len = strlen(channel_label);
+        // ESP_LOGI(TAG_FILE, "Label length: %u. header_length before: %lu", label_len, header_length);
         *ptr++ = label_len;
         memcpy(ptr, channel_label, label_len);
+        size_t offset = ptr - header_buffer;
+
+        // Log the current state of the header_buffer at the copied position
+        // ESP_LOGI(TAG_FILE, "After memcpy for DIO channel %u, label length: %u", i, label_len);
+      
+        // ESP_LOGI(TAG_FILE, "ptr: %s", ptr);
         ptr += label_len;
-        header_length += sizeof(uint8_t) + label_len;
+        // ESP_LOGI(TAG_FILE, "Header_buffer: %s", header_buffer+offset);
+        header_length += sizeof(uint8_t) + label_len; // 5 * 4 +  11 * 2 = 20+22 = 44. 81 + 36 = 123
+        // ESP_LOGI(TAG_FILE, "header_buffer[header_length]: %lu", header_length);
+
     }
 
+    // I have 3.5 hours on finding out why to add this next line, but it is necessary... :/ 
+    header_length += 4;
     // Now go back to the start of the buffer and write the header length
     memcpy(header_buffer, &header_length, sizeof(uint32_t));
 
+    // ESP_LOGI(TAG_FILE, "%c %c %c %c", header_buffer[header_length-4], header_buffer[header_length-3], header_buffer[header_length-2], header_buffer[header_length-1]);
+    // ESP_LOG_BUFFER_HEX(TAG_FILE, header_buffer, header_length);
     // Write the entire header in one go
-    int w = fwrite(header_buffer, 1, header_length + sizeof(uint32_t), f);
-    if (w != header_length + sizeof(uint32_t))
+    int w = fwrite(header_buffer,  header_length, 1, f);   
+
+    if (w != 1 )
     {
-        ESP_LOGE(TAG_FILE, "Error writing full header to file. Expected %lu bytes, wrote %d bytes", header_length + sizeof(uint32_t), w);
+        ESP_LOGE(TAG_FILE, "Error writing full header to file. Expected %lu bytes, wrote %d bytes", header_length, w);
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG_FILE, "Written full header size: %lu", header_length + sizeof(uint32_t));
+
+
+    // ESP_LOGI(TAG_FILE, "Beginning bytes :%u, %u, %u, %u. End bytes: %u %u %u", header_buffer[0], header_buffer[1], header_buffer[2], header_buffer[3], header_buffer[header_length-2],header_buffer[header_length-1], header_buffer[header_length]);
+
+    // ESP_LOGI(TAG_FILE, "Written full header size: %lu", header_length);
 
     return ESP_OK;
 }
