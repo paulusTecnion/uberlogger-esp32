@@ -155,6 +155,7 @@ enum LogTaskStates
 
 enum LoggingStates{
     LOGGING_IDLE = 0,
+    LOGGING_WAIT_FOR_TRIGGER,
     LOGGING_WAIT_FOR_DATA_READY,
     LOGGING_RX0_WAIT,
     LOGGING_RX1_WAIT,

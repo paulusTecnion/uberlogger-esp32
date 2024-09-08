@@ -57,6 +57,8 @@ DEBUG OUTPUT CONFIGURATION
 
 // ADC enable
 #define GPIO_ADC_EN 5
+// External trigger pin value (= GPIO_STM32_UART_TX). Forwards the debounced external pin value
+#define EXT_PIN_VALUE 3
 
 // nBOOT0 and nRESET
 #define GPIO_STM32_BOOT0 21

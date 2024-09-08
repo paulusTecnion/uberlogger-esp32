@@ -293,6 +293,9 @@ esp_err_t settings_set_default(Settings_t * _inSettings)
     _inSettings->gpio_channels_enabled = 0x3F; // default for enable the DIOs
     _inSettings->logMode = LOGMODE_CSV;
     _inSettings->bootReason = 0;       // 0 = Normal bootmode
+    _inSettings->ext_trigger_debounce_time = DEBOUNCE_TIME_DEFAULT;
+    _inSettings->ext_trigger_mode = TRIGGER_MODE_CONTINUOUS;
+    _inSettings->ext_trigger_pin = 1; // corresponds to dio 1
     _inSettings->file_decimal_char = FILE_DECIMAL_CHAR_DOT;
     strcpy(_inSettings->file_prefix, "log");
     _inSettings->file_name_mode = FILE_NAME_MODE_TIMESTAMP;
@@ -388,6 +391,49 @@ esp_err_t settings_set_dio_chan_label(uint8_t channel, char * inChanName)
     strcpy(_settings.dio_channel_labels[channel], inChanName);
 
     return ESP_OK;
+}
+
+uint8_t settings_get_ext_trigger_mode()
+{
+    return _settings.ext_trigger_mode;
+}
+
+esp_err_t settings_set_ext_trigger_mode(ext_trigger_modes_t inExtMode)
+{
+    if (inExtMode > TRIGGER_MODE_EXTERNAL)
+        return ESP_FAIL;
+
+    _settings.ext_trigger_mode = inExtMode;
+    return ESP_OK;
+}
+
+uint8_t settings_get_ext_trigger_mode_pin()
+{
+    return _settings.ext_trigger_pin;
+}
+
+esp_err_t settings_set_ext_trigger_mode_pin(uint8_t inPin)
+{
+    if (inPin < EXT_TRIGGER_MIN_PIN_VAL || inPin > EXT_TRIGGER_MAX_PIN_VAL)
+        return ESP_FAIL;
+
+    _settings.ext_trigger_pin = inPin;
+    return ESP_OK;
+}
+
+uint32_t settings_get_ext_trigger_debounce_time()
+{
+    return _settings.ext_trigger_debounce_time;
+}
+
+esp_err_t settings_set_ext_trigger_debounce_time(uint32_t inDebounceTime)
+{
+    if (inDebounceTime > DEBOUNCE_TIME_MAX)
+        return ESP_FAIL;
+
+    _settings.ext_trigger_debounce_time = inDebounceTime;
+    return ESP_OK;
+
 }
 
 file_decimal_character_t settings_get_file_decimal_char()
@@ -773,6 +819,21 @@ esp_err_t settings_load_json(FILE* f)
         }
     }
 
+    const cJSON* ext_trigger_debounce_time = cJSON_GetObjectItemCaseSensitive(root, "ext_trigger_debounce_time");
+    if (cJSON_IsNumber(ext_trigger_debounce_time)) {
+        _settings.ext_trigger_debounce_time = ext_trigger_debounce_time->valuedouble;
+    } 
+
+    const cJSON* ext_trigger_mode = cJSON_GetObjectItemCaseSensitive(root, "ext_trigger_mode");
+    if (cJSON_IsNumber(ext_trigger_mode)) {
+        _settings.ext_trigger_mode = ext_trigger_mode->valueint;
+    } 
+
+       const cJSON* ext_trigger_pin = cJSON_GetObjectItemCaseSensitive(root, "ext_trigger_pin");
+    if (cJSON_IsNumber(ext_trigger_pin)) {
+        _settings.ext_trigger_pin = ext_trigger_pin->valueint;
+    } 
+
     const cJSON* gpio_channels_enabled = cJSON_GetObjectItemCaseSensitive(root, "gpio_channels_enabled");
     if (cJSON_IsNumber(gpio_channels_enabled)) {
         _settings.gpio_channels_enabled = gpio_channels_enabled->valueint;
@@ -1045,6 +1106,10 @@ esp_err_t settings_print()
         ESP_LOGI(TAG_SETTINGS, "DIO channel label %d: %s", i, _settings.dio_channel_labels[i]);
     }
 
+    ESP_LOGI(TAG_SETTINGS, "External trigger debounce time: %lu", _settings.ext_trigger_debounce_time);
+    ESP_LOGI(TAG_SETTINGS, "External trigger mode: %u", _settings.ext_trigger_mode);
+    ESP_LOGI(TAG_SETTINGS, "External trigger pin: %u", _settings.ext_trigger_pin);
+
     ESP_LOGI(TAG_SETTINGS, "GPIO Enabled: %d", _settings.gpio_channels_enabled);
     ESP_LOGI(TAG_SETTINGS, "Average samples: %d", _settings.averageSamples);
     ESP_LOGI(TAG_SETTINGS, "Log mode: %s", _settings.logMode ? "CSV" : "RAW");
@@ -1129,6 +1194,9 @@ char * settings_to_json(Settings_t *settings)
     }
 
     cJSON_AddItemToObject(root, "dio_channel_labels", dio_channel_labels);
+    cJSON_AddItemToObject(root, "ext_trigger_debounce_time", _settings.ext_trigger_debounce_time);
+    cJSON_AddItemToObject(root, "ext_trigger_mode", _settings.ext_trigger_mode);
+    cJSON_AddItemToObject(root, "ext_trigger_pin", _settings.ext_trigger_pin);
     cJSON_AddNumberToObject(root, "gpio_channels_enabled", _settings.gpio_channels_enabled);
     cJSON_AddNumberToObject(root, "log_mode", _settings.logMode);
     cJSON_AddNumberToObject(root, "file_decimal_char", _settings.file_decimal_char);

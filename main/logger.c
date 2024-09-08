@@ -799,8 +799,25 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
     ESP_LOGI(TAG_LOG, "Voltage range set");
     #endif
 
-    
+    /* Setting external trigger mode */
+    cmd.command = STM32_CMD_SET_TRIGGER_MODE;
+    cmd.data0 = (uint8_t)settings_get_ext_trigger_mode();
+    cmd.data1 = settings_get_ext_trigger_mode_pin();
+    memcpy(cmd.data2, settings_get_ext_trigger_debounce_time(), sizeof(uint32_t));
 
+    spi_ctrl_cmd(STM32_CMD_SET_TRIGGER_MODE, &cmd, sizeof(spi_cmd_t));
+    // spi_ctrl_print_rx_buffer();
+    if (spi_buffer[0] != STM32_CMD_SET_TRIGGER_MODE || spi_buffer[1] != STM32_RESP_OK )
+    {
+        ESP_LOGE(TAG_LOG, "Unable to set STM32 External trigger mode. ");
+        spi_ctrl_print_rx_buffer(spi_buffer);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_SYNC_ERROR);
+        return ESP_FAIL;
+    }
+
+    #ifdef DEBUG_LOGGING
+    ESP_LOGI(TAG_LOG, "Voltage range set");
+    #endif
 
     if (syncTime)
     {
@@ -1581,21 +1598,25 @@ esp_err_t Logger_logging()
                 _startLogging = 0;
                 // Reset the spi controller
                 spi_ctrl_reset_rx_state();
-                stm32TimerTimeout = esp_timer_get_time();
-                // enable data rdy interrupt pin
-                spi_ctrl_datardy_int(1);
-                // Enable logging at STM32
-                #ifdef DEBUG_LOGGING
-                ESP_LOGI(TAG_LOG, "Enabling ADC_EN");
-                #endif
-                if(!gpio_get_level(GPIO_ADC_EN))
-                {
-                    gpio_set_level(GPIO_ADC_EN, 1);
-                }
-                _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
+
             }
+
+            stm32TimerTimeout = esp_timer_get_time();
+            // enable data rdy interrupt pin
+            spi_ctrl_datardy_int(1);
+            // Enable logging at STM32
+            #ifdef DEBUG_LOGGING
+            ESP_LOGI(TAG_LOG, "Enabling ADC_EN");
+            #endif
+            if(!gpio_get_level(GPIO_ADC_EN))
+            {
+                gpio_set_level(GPIO_ADC_EN, 1);
+            }
+            _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
+
         break;
-            
+        
+
        
         case LOGGING_WAIT_FOR_DATA_READY:
         {
@@ -1605,19 +1626,23 @@ esp_err_t Logger_logging()
 
             // To add: timeout function. This, however, depends on the logging rate used. 
             // For now, the time out is set to 73 seconds, since at 1 Hz, the maximum fill time of the buffer is 70 seconds (its size is 70)
-            if (currtime_us - stm32TimerTimeout > (DATA_LINES_PER_SPI_TRANSACTION+3)*1000000)
+            // Only works if external trigger mode is not enabled, else we just assume that the stm32 is just waiting (probably need to change this!)
+            if (settings_get_ext_trigger_mode() != TRIGGER_MODE_EXTERNAL)
             {
-                ESP_LOGE(TAG_LOG, "STM32 timed out: %llu", currtime_us - stm32TimerTimeout);
-                SET_ERROR(_errorCode, ERR_LOGGER_STM32_TIMEOUT);
-                Logger_disableADCen_and_Interrupt();
-                _nextLoggingState = LOGGING_DONE;
-                break;
+                if (currtime_us - stm32TimerTimeout > (DATA_LINES_PER_SPI_TRANSACTION+3)*1000000)
+                {
+                    ESP_LOGE(TAG_LOG, "STM32 timed out: %llu", currtime_us - stm32TimerTimeout);
+                    SET_ERROR(_errorCode, ERR_LOGGER_STM32_TIMEOUT);
+                    Logger_disableADCen_and_Interrupt();
+                    _nextLoggingState = LOGGING_DONE;
+                    break;
+                }
             }
 
             if (state == RXDATA_STATE_DATA_READY)
             {
                 
-            spi_ctrl_queue_msg(NULL, sizeof(spi_msg_1_t));
+                spi_ctrl_queue_msg(NULL, sizeof(spi_msg_1_t));
                 stm32TimerTimeout = esp_timer_get_time();
                 _nextLoggingState = LOGGING_RX0_WAIT;
                 // _nextLoggingState = LOGGING_START;
@@ -2195,7 +2220,9 @@ void task_logging(void * pvParameters)
 
     gpio_set_direction(SDCARD_CD, GPIO_MODE_INPUT);
     gpio_set_pull_mode(SDCARD_CD, GPIO_PULLDOWN_ENABLE);
-       
+    
+    gpio_set_direction(EXT_PIN_VALUE, GPIO_MODE_INPUT);
+
     // Initialize SD card
 
     if (esp_sd_card_check_for_card() == ESP_OK  &&

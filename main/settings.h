@@ -26,6 +26,12 @@
 #define NUM_DIO_CHANNELS 6
 #define MAX_CHANNEL_NAME_LEN 17
 
+#define EXT_TRIGGER_MIN_PIN_VAL 1
+#define EXT_TRIGGER_MAX_PIN_VAL 6
+
+#define DEBOUNCE_TIME_MAX 60000 // 60 seconds
+#define DEBOUNCE_TIME_DEFAULT 100 // 100 ms
+
 #define SETTINGS_FORMAT_VERSION 1
 
 typedef enum adc_channel_e {
@@ -94,6 +100,10 @@ typedef enum int32 {
 	ADC_16_BITS_60V_FACTOR = 18310	
 } adc_factors_t;
 
+typedef enum uint8_t {
+	TRIGGER_MODE_CONTINUOUS =0,
+	TRIGGER_MODE_EXTERNAL
+} ext_trigger_modes_t;
 
 typedef enum file_separator_char_e {
 	FILE_SEPARATOR_CHAR_COMMA = 0,
@@ -166,7 +176,9 @@ struct Settings_t {
 	// File split size unit. 0 = KB, 1 = MB, 2 = GB
 	uint8_t file_split_size_unit;
 	uint8_t gpio_channels_enabled;
-
+	uint8_t ext_trigger_mode;
+	uint8_t ext_trigger_pin;
+	uint32_t ext_trigger_debounce_time;
 	uint8_t settings_format_version;
 };
 
@@ -232,6 +244,15 @@ esp_err_t settings_set_ain_chan_label(uint8_t channel, char * inChanName);
 
 esp_err_t settings_get_dio_chan_label(uint8_t channel, char * inStr);
 esp_err_t settings_set_dio_chan_label(uint8_t channel, char * inChanName);
+
+uint8_t settings_get_ext_trigger_mode();
+esp_err_t settings_set_ext_trigger_mode(ext_trigger_modes_t inExtMode);
+
+uint8_t settings_get_ext_trigger_mode_pin();
+esp_err_t settings_set_ext_trigger_mode_pin(uint8_t inPin);
+
+uint32_t settings_get_ext_trigger_debounce_time();
+esp_err_t settings_set_ext_trigger_debounce_time(uint32_t inDebounceTime);
 
 file_decimal_character_t settings_get_file_decimal_char();
 esp_err_t settings_set_file_decimal_char(file_decimal_character_t decimal_character);
