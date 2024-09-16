@@ -803,7 +803,10 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
     cmd.command = STM32_CMD_SET_TRIGGER_MODE;
     cmd.data0 = (uint8_t)settings_get_ext_trigger_mode();
     cmd.data1 = settings_get_ext_trigger_mode_pin();
-    memcpy(cmd.data2, settings_get_ext_trigger_debounce_time(), sizeof(uint32_t));
+    uint32_t debounceTime = settings_get_ext_trigger_debounce_time();
+    memcpy(&cmd.data2, &debounceTime, sizeof(uint32_t));
+
+    // ESP_LOGI(TAG_LOG, "Sending CMD")
 
     spi_ctrl_cmd(STM32_CMD_SET_TRIGGER_MODE, &cmd, sizeof(spi_cmd_t));
     // spi_ctrl_print_rx_buffer();

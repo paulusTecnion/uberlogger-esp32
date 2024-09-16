@@ -20,6 +20,8 @@ void settings_init()
         settings_persist_settings();
     }
 
+    settings_print();
+
 }
 
 // Determines the last enabled channel for ADC and GPIO inputs
@@ -751,7 +753,7 @@ esp_err_t settings_load_json(FILE* f)
 
     char * json = settings_read_json_file(f);
 
-    ESP_LOGI(TAG_SETTINGS, "%s", json);
+    // ESP_LOGI(TAG_SETTINGS, "%s", json);
 
     if (json == NULL)
     {
@@ -1194,9 +1196,9 @@ char * settings_to_json(Settings_t *settings)
     }
 
     cJSON_AddItemToObject(root, "dio_channel_labels", dio_channel_labels);
-    cJSON_AddItemToObject(root, "ext_trigger_debounce_time", _settings.ext_trigger_debounce_time);
-    cJSON_AddItemToObject(root, "ext_trigger_mode", _settings.ext_trigger_mode);
-    cJSON_AddItemToObject(root, "ext_trigger_pin", _settings.ext_trigger_pin);
+    cJSON_AddNumberToObject(root, "ext_trigger_debounce_time", _settings.ext_trigger_debounce_time);
+    cJSON_AddNumberToObject(root, "ext_trigger_mode", _settings.ext_trigger_mode);
+    cJSON_AddNumberToObject(root, "ext_trigger_pin", _settings.ext_trigger_pin);
     cJSON_AddNumberToObject(root, "gpio_channels_enabled", _settings.gpio_channels_enabled);
     cJSON_AddNumberToObject(root, "log_mode", _settings.logMode);
     cJSON_AddNumberToObject(root, "file_decimal_char", _settings.file_decimal_char);
