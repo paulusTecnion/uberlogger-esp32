@@ -118,6 +118,9 @@ LoggerState_t _nextLogTaskState = LOGTASK_IDLE;
 LoggingState_t _currentLoggingState = LOGGING_IDLE;
 LoggingState_t _nextLoggingState = LOGGING_IDLE;
 
+LogTaskLoggingState_t _currentLogTaskLoggingState = LOGTASK_LOGGING_INIT;
+LogTaskLoggingState_t _nextLogTaskLoggingState = LOGTASK_LOGGING_INIT;
+
 // Queue for logging
 QueueHandle_t xQueue = NULL;
 // Queue for firmware update 
@@ -141,7 +144,7 @@ static uint16_t sharedBuffer[8][25] = {0};
 static uint16_t sharedBufferLen[8] = {0};
 
 uint32_t iirFilterSecondsCounter = 0;
-
+uint8_t gpio_ext_pin_value = 0;
 
 /* PRIVATE HELPER FUNCTIONS */
 
@@ -1615,11 +1618,33 @@ esp_err_t Logger_logging()
             {
                 gpio_set_level(GPIO_ADC_EN, 1);
             }
-            _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
+
+            if (settings_get_ext_trigger_mode() == TRIGGER_MODE_CONTINUOUS)
+            {
+                _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
+            } else {
+                _nextLoggingState = LOGGING_WAIT_FOR_TRIGGER;
+            }
 
         break;
         
+        case LOGGING_WAIT_FOR_TRIGGER:
+        // in case we have to stop or the external pin trigger is low, we stop
+            if (_stopLogging)
+            {
+                _nextLoggingState = LOGGING_DONE;
+                break;
+            }
+                // else we need to retrieve data
+            if (gpio_ext_pin_value)
+            {
+                ESP_LOGI(TAG_LOG,"EXT Trigger HIGH");
+                _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
+            } 
 
+            
+
+        break;
        
         case LOGGING_WAIT_FOR_DATA_READY:
         {
@@ -1630,17 +1655,16 @@ esp_err_t Logger_logging()
             // To add: timeout function. This, however, depends on the logging rate used. 
             // For now, the time out is set to 73 seconds, since at 1 Hz, the maximum fill time of the buffer is 70 seconds (its size is 70)
             // Only works if external trigger mode is not enabled, else we just assume that the stm32 is just waiting (probably need to change this!)
-            if (settings_get_ext_trigger_mode() != TRIGGER_MODE_EXTERNAL)
+           
+            if (currtime_us - stm32TimerTimeout > (DATA_LINES_PER_SPI_TRANSACTION+3)*1000000)
             {
-                if (currtime_us - stm32TimerTimeout > (DATA_LINES_PER_SPI_TRANSACTION+3)*1000000)
-                {
-                    ESP_LOGE(TAG_LOG, "STM32 timed out: %llu", currtime_us - stm32TimerTimeout);
-                    SET_ERROR(_errorCode, ERR_LOGGER_STM32_TIMEOUT);
-                    Logger_disableADCen_and_Interrupt();
-                    _nextLoggingState = LOGGING_DONE;
-                    break;
-                }
+                ESP_LOGE(TAG_LOG, "STM32 timed out: %llu", currtime_us - stm32TimerTimeout);
+                SET_ERROR(_errorCode, ERR_LOGGER_STM32_TIMEOUT);
+                Logger_disableADCen_and_Interrupt();
+                _nextLoggingState = LOGGING_DONE;
+                break;
             }
+            
 
             if (state == RXDATA_STATE_DATA_READY)
             {
@@ -1659,7 +1683,7 @@ esp_err_t Logger_logging()
                 Logger_disableADCen_and_Interrupt();
                 _nextLoggingState = LOGGING_DONE;
             } 
-            else if (_stopLogging)
+            else if (_stopLogging || !gpio_ext_pin_value)
             // state cannot be RXDATA_STATE_DATA_READY, because else we will queue another message for receiving the last ADC leading to a 
             // system crash
             {   
@@ -1691,9 +1715,9 @@ esp_err_t Logger_logging()
                 
                 // If in the meantime we got a stop logging request, then stop immediately, else we 
                 // continue logging for too long
-                if (_stopLogging)
+                if (_stopLogging || (!gpio_ext_pin_value && (settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL)))
                 {
-                    _stopLogging = 0;
+                    ESP_LOGI(TAG_LOG,"EXT Trigger LOW or stop logging");
                     _nextLoggingState = LOGGING_DONE;
                 } else {
                     _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
@@ -1912,149 +1936,193 @@ void Logtask_logging()
 {
     esp_err_t ret;
     // spi_cmd_t spi_cmd;
-    uint8_t finalwrite = 0;
+    uint8_t firstWrite = 0, finalwrite = 0;
 
-    if (esp_sdcard_is_mounted() )
-    {
-
-        if (Logger_check_sdcard_free_space() != ESP_OK)
-        {
-            // esp_sd_card_unmount();
-            SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
-            // push error to queue?
-            // ...
-            return;
-        }
-
-        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp, 0);
-        
-        if (fileman_open_file() != ESP_OK)
-        { 
-            // esp_sd_card_unmount();
-            SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
-            return;
-            // push error to queue?
-            // ...
-        } 
-
-        
-        if (settings_get_logmode() == LOGMODE_CSV)
-        {
-            fileman_csv_write_header();
-        } else {
-            // write the ADC settings to the file when writing a raw file
-            if (fileman_raw_write_header() != ESP_OK)
-            {
-                ESP_LOGE(TAG_LOG, "Error writing header!");
-            }
-        }
-                      
-        // Reset and start the logging statemachine
-        
-        LogTask_reset();
-        Logging_reset();
-        Logging_start();
-        
-    } else {
-        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
-        // push error to queue?
-        // ...
-        return;
-    }
+    _currentLogTaskLoggingState = LOGTASK_LOGGING_INIT;
     
     while (1)
     {
         // Put this in separate task?
         spi_ctrl_loop();
+        gpio_ext_pin_value =  gpio_get_level(GPIO_EXT_PIN);
         Logger_logging();
+
+        switch (_currentLogTaskLoggingState)
+        {
+            case LOGTASK_LOGGING_INIT:
+                if (esp_sdcard_is_mounted() )
+                {
+
+                    if (Logger_check_sdcard_free_space() != ESP_OK)
+                    {
+                        // esp_sd_card_unmount();
+                        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_NO_FREE_SPACE);
+                        // push error to queue?
+                        // ...
+                        return;
+                    }
+
+                    fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp, 0);
+                    
+                    if (fileman_open_file() != ESP_OK)
+                    { 
+                        // esp_sd_card_unmount();
+                        SET_ERROR(_errorCode, ERR_FILEMAN_UNABLE_TO_OPEN_FILE);
+                        return;
+                        // push error to queue?
+                        // ...
+                    } 
+
+                    
+                    if (settings_get_logmode() == LOGMODE_CSV)
+                    {
+                        fileman_csv_write_header();
+                    } else {
+                        // write the ADC settings to the file when writing a raw file
+                        if (fileman_raw_write_header() != ESP_OK)
+                        {
+                            ESP_LOGE(TAG_LOG, "Error writing header!");
+                        }
+                    }
+                                
+                    // Reset and start the logging statemachine
+                    ESP_LOGI(TAG_LOG, "Current log file %s", fileman_get_current_file_name());
+                    LogTask_reset();
+                    Logging_reset();
+                    Logging_start();
+                    _nextLogTaskLoggingState = LOGTASK_LOGGING_BUSY;
+                    
+                } else {
+                    SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_MOUNT);
+                    // push error to queue?
+                    // ...
+                    return;
+                }
+            break;
+
+            case LOGTASK_LOGGING_BUSY:
+                if (_dataReceived)           
+                {
+                    #ifdef DEBUG_LOGTASK_RX
+                    ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
+                    #endif
+                    
+                    ret = Logger_processData();
         
-        if (_dataReceived)           
-        {
-            #ifdef DEBUG_LOGTASK_RX
-            ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
-            #endif
-            
-            ret = Logger_processData();
-   
-            if (ret != ESP_OK)
-            {
-                LogTask_stop();
-                SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
-                finalwrite = 1;
-            }
-            Logger_GetSingleConversion(&live_data);
+                    if (ret != ESP_OK)
+                    {
+                        LogTask_stop();
+                        SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+                        finalwrite = 1;
+                    }
+                    Logger_GetSingleConversion(&live_data);
+                
+                    #ifdef DEBUG_LOGTASK_RX
+                    // ESP_LOGI(TAG_LOG, "_dataReceived = 0");
+                    #endif
+                    _dataReceived = 0;
+                }
+                
+                // do we need to flush the data? 
+                if( log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH || 
+                    (log_counter == 1 && (settings_get_samplerate() < ADC_SAMPLE_RATE_1Hz)))
+                {
+                    firstWrite = 1;
+                    if (Logger_flush_to_sdcard() != ESP_OK)
+                    {
+                        ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
+                        LogTask_stop();
+                        finalwrite = 1;
+                    } 
         
-            #ifdef DEBUG_LOGTASK_RX
-            // ESP_LOGI(TAG_LOG, "_dataReceived = 0");
-            #endif
-            _dataReceived = 0;
-        }
-        
-        // do we need to flush the data? 
-        if( log_counter >= DATA_TRANSACTIONS_PER_SD_FLUSH || 
-            (log_counter == 1 && (settings_get_samplerate() < ADC_SAMPLE_RATE_1Hz)))
-        {
-            if (Logger_flush_to_sdcard() != ESP_OK)
-            {
-                ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
-                LogTask_stop();
-                finalwrite = 1;
-            } 
- 
-            log_counter = 0;
-            sdcard_data.datarows = 0;
-            sdcard_data.numSpiMessages = 0;
+                    log_counter = 0;
+                    sdcard_data.datarows = 0;
+                    sdcard_data.numSpiMessages = 0;
+                }
+
+                // Keep in mind we are talking about _currentLoggingState here, not _CurrentLogTaskState!
+                if ((_currentLoggingState == LOGGING_ERROR ||
+                    _errorCode > 0) &&
+                    _currentLoggingState != LOGGING_DONE) 
+                {
+                    if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
+                    {
+                        ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
+                        LogTask_stop();
+                        // finalwrite = 1;
+                    } 
+                    
+                }
+
+                if ( _currentLoggingState == LOGGING_DONE)
+                {
+                    // Now either we already received the last message, which is indicated by _dataReceived
+                    // or we will have to retrieve it.
+                    if (_dataReceived)
+                    {
+        #ifdef DEBUG_LOGTASK
+                        ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
+        #endif
+                        Logger_processData();
+        #ifdef DEBUG_LOGTASK_RX
+
+        #endif
+                        _dataReceived = 0;
+                    }
+                    // Flush the data to SD card
+                    finalwrite = 1;
+                    _nextLogTaskLoggingState = LOGTASK_LOGGING_FINAL;
+                    
+                }
+            break;
+
+            case LOGTASK_LOGGING_FINAL:
+                 // If we received SPI data and are sampling normally (no averaging or slow sampling) then write the final data
+                if (!firstWrite)
+                {
+                    
+                    ESP_LOGI(TAG_LOG, "Removing created but unwritten file");
+                    // remove created file
+                    fileman_close_file();
+                    fileman_delete_file(fileman_get_current_file_name());
+                    
+                    
+
+                } else if (finalwrite) {
+                    ESP_LOGI(TAG_LOG, "Finalwrite == 1");
+                    Logger_flush_to_sdcard();
+                    if (settings_get_logmode() == LOGMODE_RAW)
+                    {
+                        // Write total number of rows at the end of the file
+                        fileman_write(&(sdcard_data.total_datarows), sizeof(sdcard_data.total_datarows));
+                    }
+                    fileman_close_file();
+                    // esp_sd_card_unmount();
+                    vTaskDelay(500 / portTICK_PERIOD_MS);
+                }
+
+                 if (_stopLogging)
+                    {
+                        _stopLogging = 0;
+                        _nextLogTaskLoggingState = LOGTASK_LOGGING_DONE;
+                    } else {
+                        // This stop was not triggered by stopLogging, but by external trigger that
+                        // went to low level. Make a new file.
+                        firstWrite = 0;
+                        _nextLogTaskLoggingState = LOGTASK_LOGGING_INIT;
+                    }
+            break;
+
+            case LOGTASK_LOGGING_DONE:
+                // Exit the logging function
+                ESP_LOGI(TAG_LOG, "Logtask_logging() exiting..");
+                return;
+            break;
         }
 
-        // Keep in mind we are talking about _currentLoggingState here, not _CurrentLogTaskState!
-        if ((_currentLoggingState == LOGGING_ERROR ||
-            _errorCode > 0) &&
-            _currentLoggingState != LOGGING_DONE) 
+        if(_nextLogTaskLoggingState != _currentLogTaskLoggingState)
         {
-            if (_currentLoggingState == LOGGING_ERROR || _errorCode > 0)
-            {
-                ESP_LOGE(TAG_LOG, "Error 0x%08lX occured in Logging statemachine. Stopping..", _errorCode);
-                LogTask_stop();
-                // finalwrite = 1;
-            } 
-            
-        }
-
-        if ( _currentLoggingState == LOGGING_DONE)
-        {
-            // Now either we already received the last message, which is indicated by _dataReceived
-            // or we will have to retrieve it.
-            if (_dataReceived)
-            {
-#ifdef DEBUG_LOGTASK
-                ESP_LOGI(TAG_LOG, "LOGGING DONE and _dataReceived == 1. Processing data");
-#endif
-                Logger_processData();
-#ifdef DEBUG_LOGTASK_RX
-
-#endif
-                _dataReceived = 0;
-            }
-            // Flush the data to SD card
-            finalwrite = 1;
-            
-        }
-
-        // If we received SPI data and are sampling normally (no averaging or slow sampling) then write the final data
-        if (finalwrite)
-        {
-            Logger_flush_to_sdcard();
-            if (settings_get_logmode() == LOGMODE_RAW)
-            {
-                // Write total number of rows at the end of the file
-                fileman_write(&(sdcard_data.total_datarows), sizeof(sdcard_data.total_datarows));
-            }
-            fileman_close_file();
-            // esp_sd_card_unmount();
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-            // Exit the logging function
-            ESP_LOGI(TAG_LOG, "Logtask_logging() exiting..");
-            return;
+            _currentLogTaskLoggingState = _nextLogTaskLoggingState;
         }
 
     }
@@ -2224,7 +2292,7 @@ void task_logging(void * pvParameters)
     gpio_set_direction(SDCARD_CD, GPIO_MODE_INPUT);
     gpio_set_pull_mode(SDCARD_CD, GPIO_PULLDOWN_ENABLE);
     
-    gpio_set_direction(EXT_PIN_VALUE, GPIO_MODE_INPUT);
+    gpio_set_direction(GPIO_EXT_PIN, GPIO_MODE_INPUT);
 
     // Initialize SD card
 

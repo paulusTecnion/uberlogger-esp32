@@ -152,6 +152,13 @@ enum LogTaskStates
     LOGTASK_NUM_STATES
 };
 
+enum Logtask_loggingState
+{
+    LOGTASK_LOGGING_INIT = 0,
+    LOGTASK_LOGGING_BUSY,
+    LOGTASK_LOGGING_FINAL,
+    LOGTASK_LOGGING_DONE
+};
 
 enum LoggingStates{
     LOGGING_IDLE = 0,
@@ -186,6 +193,7 @@ enum LoggerFWState
 };
 
 typedef uint8_t LoggerState_t;
+typedef uint8_t LogTaskLoggingState_t;
 typedef uint8_t LoggingState_t;
 typedef uint8_t LoggerFWState_t;
 

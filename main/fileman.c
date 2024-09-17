@@ -138,6 +138,29 @@ esp_err_t fileman_open_file()
     return ESP_OK;
 }
 
+// Returns the current file name including path
+char * fileman_get_current_file_name(void)
+{
+    return _file_name;
+}
+
+// Deletes the specified file. Expects filename including path.
+esp_err_t fileman_delete_file(char * inFilename)
+{
+    
+   
+    if (remove(inFilename) == 0) {
+        ESP_LOGI(TAG_FILE, "File deleted successfully.");
+        return ESP_OK;
+    } else {
+        ESP_LOGE(TAG_FILE, "Error deleting file %s", inFilename);
+        return ESP_FAIL;
+    }
+
+    
+
+}
+
 esp_err_t fileman_close_file(void)
 {
     if (f!=NULL)

@@ -19,6 +19,8 @@ void fileman_reset_subnum(void);
 int fileman_write(const void * data, size_t len);
 int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_date_time_t *date_time_ptr, size_t datarows);
 int fileman_csv_write_header(void);
+char * fileman_get_current_file_name(void);
+esp_err_t fileman_delete_file(char * filename);
 esp_err_t fileman_raw_write_header(void);
 esp_err_t fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t * adcData);
 

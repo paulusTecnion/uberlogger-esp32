@@ -93,14 +93,14 @@ typedef enum adc_sample_rate_e {
 } adc_sample_rate_t;
 
 // Multiply offsets and coefficients with 10000000 to work with these factors
-typedef enum int32 {
+typedef enum  {
 	ADC_12_BITS_10V_FACTOR = 488400,
 	ADC_12_BITS_60V_FACTOR = 293040,
 	ADC_16_BITS_10V_FACTOR = 30518, 
 	ADC_16_BITS_60V_FACTOR = 18310	
 } adc_factors_t;
 
-typedef enum uint8_t {
+typedef enum  {
 	TRIGGER_MODE_CONTINUOUS =0,
 	TRIGGER_MODE_EXTERNAL
 } ext_trigger_modes_t;
