@@ -862,7 +862,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_ext_trigger_mode(item->valueint) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid trigger mode value. 0 = continuous or 1 = trigger mode allowed.", HTTPD_400_BAD_REQUEST);
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid trigger mode value. 0 = continuous, 1 = trigger mode or 2 = external control allowed.", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -1162,6 +1162,12 @@ return ESP_OK;
 static esp_err_t Logger_start_handler(httpd_req_t *req)
 {
     
+    if (settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL)
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot start logger. Logger start/stop controlled by external digital input.", HTTPD_403_FORBIDDEN);
+        return ESP_OK;
+    }
+
     if (LogTask_start() == ESP_OK)
     {
         json_send_resp(req, ENDPOINT_RESP_ACK, NULL, HTTPD_403_FORBIDDEN);
@@ -1175,6 +1181,12 @@ static esp_err_t Logger_start_handler(httpd_req_t *req)
 
 static esp_err_t Logger_stop_handler(httpd_req_t *req)
 {
+    if (settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL)
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot stop logger. Logger start/stop controlled by external digital input.", HTTPD_403_FORBIDDEN);
+        return ESP_OK;
+    }
+
     if (LogTask_stop() == ESP_OK)
     {
         json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);

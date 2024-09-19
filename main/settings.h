@@ -102,7 +102,8 @@ typedef enum  {
 
 typedef enum  {
 	TRIGGER_MODE_CONTINUOUS =0,
-	TRIGGER_MODE_EXTERNAL
+	TRIGGER_MODE_EXTERNAL,
+	TRIGGER_MODE_EXTERNAL_CONTROL
 } ext_trigger_modes_t;
 
 typedef enum file_separator_char_e {

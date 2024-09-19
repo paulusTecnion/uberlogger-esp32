@@ -402,7 +402,7 @@ uint8_t settings_get_ext_trigger_mode()
 
 esp_err_t settings_set_ext_trigger_mode(ext_trigger_modes_t inExtMode)
 {
-    if (inExtMode > TRIGGER_MODE_EXTERNAL)
+    if (inExtMode > TRIGGER_MODE_EXTERNAL_CONTROL)
         return ESP_FAIL;
 
     _settings.ext_trigger_mode = inExtMode;

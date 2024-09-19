@@ -998,9 +998,10 @@ uint8_t Logger_getCsvLog()
 void Logger_mode_button_pushed()
 {
 
-    if (_currentLogTaskState == LOGTASK_IDLE || 
+    if ((_currentLogTaskState == LOGTASK_IDLE || 
         _currentLogTaskState == LOGTASK_ERROR_OCCURED || 
-        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
+        _currentLogTaskState == LOGTASK_SINGLE_SHOT) && 
+        (settings_get_ext_trigger_mode() != TRIGGER_MODE_EXTERNAL_CONTROL))
     {
         LogTask_start();
         return;
@@ -1610,6 +1611,7 @@ esp_err_t Logger_logging()
 
     if (_stopLogging)
     {
+
         Logger_disableADCen_and_Interrupt();
     }
 
@@ -1638,11 +1640,11 @@ esp_err_t Logger_logging()
                 gpio_set_level(GPIO_ADC_EN, 1);
             }
 
-            if (settings_get_ext_trigger_mode() == TRIGGER_MODE_CONTINUOUS)
+            if (settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL)
             {
-                _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
-            } else {
                 _nextLoggingState = LOGGING_WAIT_FOR_TRIGGER;
+            } else {
+                _nextLoggingState = LOGGING_WAIT_FOR_DATA_READY;
             }
 
         break;
@@ -1964,6 +1966,13 @@ void Logtask_logging()
         // Put this in separate task?
         spi_ctrl_loop();
         gpio_ext_pin_value =  gpio_get_level(GPIO_EXT_PIN);
+
+        if (!gpio_ext_pin_value && (settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL) && _stopLogging == 0)
+        {
+            ESP_LOGI(TAG_LOG, "GPIO ext pin LOW && EXT CTRL MODE");
+            _stopLogging = 1;
+        }
+
         Logger_logging();
 
         switch (_currentLogTaskLoggingState)
@@ -2123,7 +2132,6 @@ void Logtask_logging()
 
                  if (_stopLogging)
                     {
-                        _stopLogging = 0;
                         _nextLogTaskLoggingState = LOGTASK_LOGGING_DONE;
                     } else {
                         // This stop was not triggered by stopLogging, but by external trigger that
@@ -2135,6 +2143,7 @@ void Logtask_logging()
 
             case LOGTASK_LOGGING_DONE:
                 // Exit the logging function
+                 _stopLogging = 0;
                 ESP_LOGI(TAG_LOG, "Logtask_logging() exiting..");
                 return;
             break;
@@ -2394,6 +2403,17 @@ void task_logging(void * pvParameters)
         } else {
             ESP_LOGI(TAG_LOG, "Received task: %d", _currentLogTaskState);
         }
+
+        if (gpio_get_level(GPIO_EXT_PIN) && 
+            (_currentLogTaskState == LOGTASK_IDLE ||
+            _currentLogTaskState == LOGTASK_SINGLE_SHOT) && 
+            settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL && 
+            _startLogTask == 0)
+            {
+                LogTask_start();
+                _startLogTask = 1;
+            }
+        
             
         switch (_currentLogTaskState)
         {
@@ -2405,7 +2425,10 @@ void task_logging(void * pvParameters)
                 iir_set_samplefreq(settings_get_samplerate());                  break;
             case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings(0);             break;
             case LOGTASK_SYNC_TIME:         Logger_syncSettings(1);             break;
-            case LOGTASK_LOGGING:           Logtask_logging();                  break;
+            case LOGTASK_LOGGING:           
+                Logtask_logging();                  
+                _startLogTask = 0;
+                break;
             case LOGTASK_REBOOT_SYSTEM:
                 vTaskDelay(3000 / portTICK_PERIOD_MS);
                 esp_restart();
