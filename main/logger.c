@@ -387,7 +387,7 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
                 if (shouldLogRaw(msgSize)) {
                     copyDataToSdCard((void*)&tempMsg1, msgSize, msgType);
                 } else {
-                    if (asyncCopyDataToSdCard((void*)&tempMsg1, msgSize) != ESP_OK) {
+                    if (asyncCopyDataToSdCard((void*)&tempMsg1, sizeof(spi_msg_1_t)) != ESP_OK) {
                         ESP_LOGE("LOGGER", "Failed to copy data to SD card asynchronously");
                         return;
                     }
