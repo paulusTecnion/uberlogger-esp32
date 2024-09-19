@@ -251,7 +251,14 @@ function validateIntegerInput(element) {
   } else {
     element.value = ""; // Clear the field if the result is not a number
   }
+
+  if (value < input.min) {
+    input.value = input.min;
+  } else if (value > input.max) {
+    input.value = input.max;
+  }
 }
+
 function validateChannelNames(channelNames) {
   const validPattern = /^[a-zA-Z0-9_-]*$/;
   for (let key in channelNames) {
@@ -349,6 +356,9 @@ function setConfig() {
     ADC_RESOLUTION: input["ADC_RESOLUTION"],
     AVERAGE_SAMPLES: input["AVERAGE_SAMPLES"],
     LOG_MODE: input["LOG_MODE"],
+    EXT_TRIGGER_MODE: input["EXT_TRIGGER_MODE"],
+    EXT_TRIGGER_PIN: input["EXT_TRIGGER_PIN"],
+    EXT_TRIGGER_DEBOUNCE_TIME: input["EXT_TRIGGER_DEBOUNCE_TIME"],
     FILE_DECIMAL_CHAR: input["FILE_DECIMAL_CHAR"],
     FILE_NAME_MODE: input["FILE_NAME_MODE"],
     FILE_NAME_PREFIX: input["FILE_NAME_PREFIX"],

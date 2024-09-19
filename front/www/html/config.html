@@ -98,6 +98,67 @@
         </select>
       </p>
 
+      <h4>Measurement mode</h4>
+      <p>
+        Here you can select the desired measurement mode. When you start the
+        measurement using the "Start logging" button in the web interface or the
+        physical button on the logger, you can start measuring continuously or
+        wait for an external trigger using one of the digital inputs. Can you
+        can also set the debounce time for the external trigger, which is the
+        time for the trigger input to stabilize or to delay the measurement. If
+        fast oscilliations on the trigger input can occur that may quickly
+        enable and disable logging, you can set a debouce time here. Maximum
+        debounce time is 60000 ms (60 seconds)
+      </p>
+      <p>
+        <i
+          ><b>Note:</b> no file is created when the trigger is not triggered.</i
+        >
+      </p>
+      <p>
+        <label for="EXT_TRIGGER_MODE">Trigger mode</label>
+        <select
+          name="EXT_TRIGGER_MODE"
+          id="EXT_TRIGGER_MODE"
+          class="json-as-number"
+        >
+          <option value="0">Continous measurement</option>
+          <option value="1">External trigger</option>
+        </select>
+      </p>
+
+      <p>
+        <label for="EXT_TRIGGER_PIN">Trigger channel</label>
+        <select
+          name="EXT_TRIGGER_PIN"
+          id="EXT_TRIGGER_PIN"
+          class="json-as-number"
+        >
+          <option value="1">DIO 1</option>
+          <option value="2">DIO 2</option>
+          <option value="3">DIO 3</option>
+          <option value="4">DIO 4</option>
+          <option value="5">DIO 5</option>
+          <option value="6">DIO 6</option>
+        </select>
+      </p>
+
+      <p>
+        <label for="EXT_TRIGGER_DEBOUNCE_TIME"
+          >Trigger debounce time in milliseconds.
+        </label>
+        <input
+          type="number"
+          id="file_split_size"
+          name="EXT_TRIGGER_DEBOUNCE_TIME"
+          class="json-as-number"
+          min="0"
+          max="60000"
+          step="1"
+          oninput="validateIntegerInput(this)"
+        />
+      </p>
+
       <div id="configuration_done">
         <input
           id="saveForm"

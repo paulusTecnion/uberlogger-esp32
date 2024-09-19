@@ -464,6 +464,10 @@ const char * logger_settings_to_json(Settings_t *settings)
         cJSON_AddStringToObject(dio_chan_labels, buf, settings->dio_channel_labels[i]);
     }
 
+    cJSON_AddNumberToObject(root, "EXT_TRIGGER_DEBOUNCE_TIME", settings->ext_trigger_debounce_time);
+    cJSON_AddNumberToObject(root, "EXT_TRIGGER_MODE", settings->ext_trigger_mode);
+    cJSON_AddNumberToObject(root, "EXT_TRIGGER_PIN", settings->ext_trigger_pin);
+
     cJSON_AddNumberToObject(root, "FILE_DECIMAL_CHAR", settings->file_decimal_char);
     cJSON_AddNumberToObject(root, "FILE_NAME_MODE", settings->file_name_mode);
     cJSON_AddStringToObject(root, "FILE_NAME_PREFIX", settings->file_prefix);
@@ -836,6 +840,43 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                     }
                 }
             }        
+        }
+    }
+
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "EXT_TRIGGER_DEBOUNCE_TIME");
+    if (item != NULL)
+    {
+        ESP_LOGI(REST_TAG, "incoming debounce time %f", item->valuedouble);
+        if (settings_set_ext_trigger_debounce_time(item->valuedouble) != ESP_OK)
+        {            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid trigger debounce time. 0 to 60000 ms allowed", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "EXT_TRIGGER_MODE");
+    if (item != NULL)
+    {
+        if (settings_set_ext_trigger_mode(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid trigger mode value. 0 = continuous or 1 = trigger mode allowed.", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
+        }
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "EXT_TRIGGER_PIN");
+    if (item != NULL)
+    {
+        if (settings_set_ext_trigger_mode_pin(item->valueint) != ESP_OK)
+        {
+            
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid external trigger pin value. 1 to 6 allowed", HTTPD_400_BAD_REQUEST);
+            // return ESP_FAIL;
+            goto error;
         }
     }
 
