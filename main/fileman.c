@@ -387,7 +387,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
             if (settings_get_gpio_channel_enabled(settings_get(), x))
             {
                 writeptr = writeptr + snprintf(filestrbuffer + writeptr, 3, "%d%s",
-                                       (dataGpio[j] & (0x04 << x)) && 1,
+                                       (dataGpio[j] & (0x04 << x)) ? 1 : 0,
                                         (x == settings_get_last_enabled_GPIO_channel()) ? "" : separator_char);
                            
             }

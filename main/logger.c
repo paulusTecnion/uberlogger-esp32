@@ -204,6 +204,7 @@ static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
         //ESP_LOGI("SPI MSG 1", "Time %d %d", spi_msg_slow_freq_1_ptr->timeData->minutes, spi_msg_slow_freq_1_ptr->timeData->seconds);
         // Copy gpio data block
         size_t gpioDataOffset = baseOffset + sizeof(s_date_time_t) * msgT->dataLen;
+        // ESP_LOGI(TAG_LOG, "msgT->gpioData[0]: %d, msgT->dataLen: %d", msgT->gpioData[0], msgT->dataLen);
         memcpy(sdcard_data.spi_data + gpioDataOffset, msgT->gpioData, msgT->dataLen);
 
         // Copy adc data block
@@ -238,9 +239,22 @@ static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
 
 static esp_err_t asyncCopyDataToSdCard(const void *src, size_t size)
 {
+    
+    // spi_msg_1_t * tmsg, * inMsg;
+
+    // inMsg = (spi_msg_1_t *)src;
+
+    // ESP_LOGI(TAG_LOG, "inMsg.gpioData[0]: %d", inMsg->gpioData[0]);
+
+    // tmsg =  (spi_msg_1_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t));
+    // ESP_LOGI(TAG_LOG, "log_counter: %d, tmsg.gpiodata[0]: %d", log_counter, tmsg->gpioData[0]) ;
+
     ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t), (void*)src, size, async_memcpy_cb, NULL));
     sdcard_data.msgSize = sizeof(spi_msg_1_t);
     xSemaphoreTake(copy_done_sem, portMAX_DELAY);
+    // tmsg =  (spi_msg_1_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t));
+    // ESP_LOGI(TAG_LOG, "tmsg.gpiodata[0]: %d", tmsg->gpioData[0]) ;
+
 
     return ESP_OK;
 }
@@ -376,6 +390,11 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
                         memcpy(tempMsg1.adcData16, msg2->adcData+((msg2->dataLen - 1)*8*2), 8*2);
                     }
 
+                    // for (int i = 0; i< msg2->dataLen; i++)
+                    // {
+                    //     ESP_LOGI(TAG_LOG, "msg2.gpiodata[%d] %d", i, msg2->gpioData[i]);
+                    // }
+
                     tempMsg1.gpioData[0] = msg2->gpioData[msg2->dataLen-1];
                     // Update msg pointer to the new tempMsg1
                     msg = &tempMsg1;
@@ -383,7 +402,7 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
                     msgType = 0; // Update msgType to reflect the change
                 }
 
-                
+                // ESP_LOGI(TAG_LOG, "tempMsg1.gpioData[0]: %d, msgSize: %d", tempMsg1.gpioData[0], msgSize);
                 if (shouldLogRaw(msgSize)) {
                     copyDataToSdCard((void*)&tempMsg1, msgSize, msgType);
                 } else {
