@@ -1702,14 +1702,14 @@ esp_err_t Logger_logging()
                 Logger_disableADCen_and_Interrupt();
                 _nextLoggingState = LOGGING_DONE;
             } 
-            else if (_stopLogging || !gpio_ext_pin_value)
+            else if (_stopLogging || (!gpio_ext_pin_value && settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL))
             // state cannot be RXDATA_STATE_DATA_READY, because else we will queue another message for receiving the last ADC leading to a 
             // system crash
             {   
                 #ifdef DEBUG_LOGGING
                 ESP_LOGI(TAG_LOG, "Setting _stopLogging to 0.");
                 #endif
-                _stopLogging = 0;
+                // _stopLogging = 0;
                 _nextLoggingState = LOGGING_DONE;
             } 
         }
