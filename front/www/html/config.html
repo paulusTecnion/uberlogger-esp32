@@ -30,7 +30,7 @@
 
     <h2>Channel configuration</h2>
     <div class="group" id="sampling_configuration">
-      <h3>Sampling rate and resolution</h3>
+      <h3>Sampling rate, resolution and measurement mode</h3>
       <p>
         Select the desired sample rate:
         <select
@@ -72,21 +72,25 @@
       </p>
 
       <h4>Averaging</h4>
-      <p>
-        For the sample frequencies below 1 Hz, you can choose to average the
-        samples over the desired sample frequency or only take one sample at the
-        desired sample rate. For example, if you enable this option with a
-        sample frequency of 1 Sample/minute, the average will be taken over 1
-        minute of samples using an IIR filter. After 1 minute, the average will
-        be output to the file.
-      </p>
-      <p>
-        <i
-          ><b>Note:</b> averaging is done by sampling at 25 Hz and using an IIR
-          low pass filter with -3 dB cut-off frequencies at 1/(sample
-          frequency).</i
-        >
-      </p>
+      <details>
+        <summary>Click to see the explanation</summary>
+        <p>
+          For sample frequencies below 1 Hz, you can choose to average the
+          samples over the desired sample frequency or only take one sample at
+          the desired sample rate. For example, if you enable this option with a
+          sample frequency of 1 Sample/minute, the average will be taken over 1
+          minute of samples using an IIR filter. After 1 minute, the average
+          will be output to the file.
+        </p>
+        <p>
+          <i
+            ><b>Note:</b> Averaging is done by sampling at 25 Hz and using an
+            IIR low pass filter with -3 dB cut-off frequencies at 1/(sample
+            frequency).</i
+          >
+        </p>
+      </details>
+
       <p>
         <select
           name="AVERAGE_SAMPLES"
@@ -98,68 +102,95 @@
         </select>
       </p>
 
-      <h4>Measurement mode</h4>
-      <p>
-        Here you can select the desired measurement mode. When you start the
-        measurement using the "Start logging" button in the web interface or the
-        physical button on the logger, you can start measuring continuously or
-        wait for an external trigger using one of the digital inputs. Can you
-        can also set the debounce time for the external trigger, which is the
-        time for the trigger input to stabilize or to delay the measurement. If
-        fast oscilliations on the trigger input can occur that may quickly
-        enable and disable logging, you can set a debouce time here. Maximum
-        debounce time is 60000 ms (60 seconds).
-        <b>Currently only trigger on input HIGH is supported.</b>
-      </p>
-      <p>
-        <i
-          ><b>Note:</b> the live view is not updating when no the trigger is not
-          triggered.</i
-        >
-      </p>
-      <p>
-        <label for="EXT_TRIGGER_MODE">Trigger mode</label>
-        <select
-          name="EXT_TRIGGER_MODE"
-          id="EXT_TRIGGER_MODE"
-          class="json-as-number"
-        >
-          <option value="0">Continous measurement</option>
-          <option value="1">External trigger</option>
-        </select>
-      </p>
+      <h4>Measurement Mode</h4>
+      <details>
+        <summary>Click to see the explanation</summary>
+        <p>Three measurement modes are possible:</p>
+        <ul>
+          <li>
+            <b>Continuous measurement:</b> Instantly start the measurement using
+            the "Start logging" button on the web interface or the physical
+            button on the logger.
+          </li>
+          <li>
+            <b>External trigger:</b> Use the "Start logging" button on the web
+            interface or the physical button on the logger to arm the logger.
+            Then, wait for an external trigger using one of the digital inputs.
+          </li>
+          <li>
+            <b>External control:</b> Logger start and stop is controlled by a
+            digital input. The logger start/stop button and web button are
+            disabled.
+          </li>
+        </ul>
+        <p>
+          <b>Debounce time:</b> Set the time for the trigger input to stabilize
+          or delay the measurement. If fast oscillations on the trigger input
+          can occur that may quickly enable and disable logging, you can set a
+          debounce time here. Maximum debounce time is 60000 ms (60 seconds).
+        </p>
+        <p>
+          <i
+            ><b>Note:</b> Currently, only triggers and external control on input
+            <b>HIGH</b> are supported.</i
+          >
+        </p>
+        <p>
+          <i
+            ><b>Note 2:</b> The live view is not updating when in external
+            trigger mode and the trigger is low.</i
+          >
+        </p>
+      </details>
 
-      <p>
-        <label for="EXT_TRIGGER_PIN">Trigger channel</label>
-        <select
-          name="EXT_TRIGGER_PIN"
-          id="EXT_TRIGGER_PIN"
-          class="json-as-number"
-        >
-          <option value="1">DIO 1</option>
-          <option value="2">DIO 2</option>
-          <option value="3">DIO 3</option>
-          <option value="4">DIO 4</option>
-          <option value="5">DIO 5</option>
-          <option value="6">DIO 6</option>
-        </select>
-      </p>
+      <div class="form-container">
+        <h4>Measurement Settings</h4>
 
-      <p>
-        <label for="EXT_TRIGGER_DEBOUNCE_TIME"
-          >Trigger debounce time in milliseconds.
-        </label>
-        <input
-          type="number"
-          id="file_split_size"
-          name="EXT_TRIGGER_DEBOUNCE_TIME"
-          class="json-as-number"
-          min="0"
-          max="60000"
-          step="1"
-          oninput="validateIntegerInput(this)"
-        />
-      </p>
+        <div class="form-group">
+          <label for="EXT_TRIGGER_MODE">Measurement mode</label>
+          <select
+            name="EXT_TRIGGER_MODE"
+            id="EXT_TRIGGER_MODE"
+            class="json-as-number"
+          >
+            <option value="0">Continuous measurement</option>
+            <option value="1">External trigger</option>
+            <option value="2">External control</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="EXT_TRIGGER_PIN">Trigger channel</label>
+          <select
+            name="EXT_TRIGGER_PIN"
+            id="EXT_TRIGGER_PIN"
+            class="json-as-number"
+          >
+            <option value="1">DIO 1</option>
+            <option value="2">DIO 2</option>
+            <option value="3">DIO 3</option>
+            <option value="4">DIO 4</option>
+            <option value="5">DIO 5</option>
+            <option value="6">DIO 6</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="EXT_TRIGGER_DEBOUNCE_TIME"
+            >Trigger debounce time in milliseconds</label
+          >
+          <input
+            type="number"
+            id="EXT_TRIGGER_DEBOUNCE_TIME"
+            name="EXT_TRIGGER_DEBOUNCE_TIME"
+            class="json-as-number"
+            min="0"
+            max="60000"
+            step="1"
+            oninput="validateIntegerInput(this)"
+          />
+        </div>
+      </div>
 
       <div id="configuration_done">
         <input
@@ -167,7 +198,7 @@
           class="button_text"
           type="button"
           onClick="setConfig()"
-          value="Save sample settings"
+          value="Save measurement settings"
         />
       </div>
     </div>
