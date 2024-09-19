@@ -2078,7 +2078,8 @@ void Logtask_logging()
 
             case LOGTASK_LOGGING_FINAL:
                  // If we received SPI data and are sampling normally (no averaging or slow sampling) then write the final data
-                if (!firstWrite)
+                 // If we haven't written anything yet and there's nothing left that needs to be written, we remove the opened file
+                if (!firstWrite && log_counter == 0)
                 {
                     
                     ESP_LOGI(TAG_LOG, "Removing created but unwritten file");
