@@ -266,6 +266,12 @@ function getValues() {
         calibrating = true;
         calibCounter = 0;
         break;
+      case 11:
+        valuesData["LOGGER_STATE"] = "Formatting SD";
+        break;
+      case 14:
+        valuesData["LOGGER_STATE"] = "Waiting for trigger";
+        break;
 
       // case 9:
       // 	valuesData["LOGGER_STATE"]="CALIBRATION";

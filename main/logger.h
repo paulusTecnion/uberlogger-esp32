@@ -149,6 +149,7 @@ enum LogTaskStates
     LOGTASK_FORMAT_SDCARD,
     LOGTASK_WIFI_CONNECT_AP,
     LOGTASK_WIFI_DISCONNECT_AP,
+    LOGTASK_WAITING_FOR_TRIGGER,
     LOGTASK_NUM_STATES
 };
 
@@ -226,6 +227,7 @@ float Logger_convertAdcFloat(uint16_t adcVal);
 uint32_t Logger_getLastFreeSpace();
 esp_err_t Logger_check_sdcard_free_space();
 LoggerState_t Logger_getState();
+LoggingState_t Logger_getLoggingState();
 uint32_t LogTaskGetError();
 esp_err_t Logger_log();
 

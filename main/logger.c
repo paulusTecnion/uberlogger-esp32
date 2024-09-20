@@ -1594,6 +1594,12 @@ esp_err_t Logging_check_sdcard()
    
 }
 
+LoggingState_t Logger_getLoggingState()
+{
+    return _currentLoggingState;
+}
+
+
 esp_err_t Logger_logging()
 {   
     
