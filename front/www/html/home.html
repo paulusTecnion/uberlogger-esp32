@@ -48,6 +48,12 @@
           You can configure the WiFi settings in the "Configuration" page under
           the "WiFi Configuration" section.
         </p>
+        <p>
+          <i>
+            <b>Note:</b> When connecting to your access point, only 2.4 GHz
+            Wi-Fi WPA2/WPA3 networks are supported.
+          </i>
+        </p>
       </details>
     </div>
 
@@ -55,15 +61,25 @@
     <div class="flexdiv-md greybox">
       <h3>Channel configuration</h3>
       <details>
-        <summary>Channel settings explanation</summary>
+        <summary>Setting analog inputs</summary>
         <p>
           The UberLogger can measure temperature, analog voltage, and digital
           signals. Ensure the correct configuration for accurate results:
         </p>
         <ul>
           <li>
+            <b>Enabling channels:</b> You can enable or disable or signal using
+            the enable checkbox. Disabling channels leads to smaller log files.
+            Ideal for long measurements.
+          </li>
+          <li>
+            <b>Custom labels:</b> You can give each label a custom name. The
+            maximum length is 16 characters and cannot contain any space or
+            special characters, except hyphens '-' and underscores '_'.
+          </li>
+          <li>
             <b>NTCx/AINx selection:</b> Choose between temperature or voltage
-            for each channel using both the hardware DIP-switch and the
+            for each channel using both the hardware DIP-switch <b>and</b> the
             configuration page.
           </li>
           <li>
@@ -80,7 +96,7 @@
     <div class="flexdiv-md greybox">
       <h3>Sampling settings</h3>
       <details>
-        <summary>Sampling settings and importance</summary>
+        <summary>Sampling settings</summary>
         <p>
           The UberLogger allows configurable sampling rates and resolutions to
           capture data accurately. The sample rate affects:
@@ -108,14 +124,18 @@
       <details>
         <summary>How averaging works</summary>
         <p>
-          For sample rates below 1 Hz, the UberLogger can average data samples.
-          This is done using an IIR filter. At 1 Hz or lower, the filter outputs
-          an averaged value every minute.
+          For sample frequencies below 1 Hz, you can choose to average the
+          samples over the desired sample frequency or only take one sample at
+          the desired sample rate. For example, if you enable this option with a
+          sample frequency of 1 Sample/minute, the average will be taken over 1
+          minute of samples using an IIR filter. After 1 minute, the average
+          will be output to the file.
         </p>
         <p>
-          <i
-            ><b>Note:</b> Averaging is performed using a 25 Hz sample rate and
-            an IIR low-pass filter with a -3 dB cut-off frequency.</i
+          <i>
+            <b>Note:</b> Averaging is performed using a 25 Hz sample rate and an
+            IIR low-pass filter with a -3 dB cut-off frequency at the desired
+            output sample rate.</i
           >
         </p>
       </details>
@@ -125,7 +145,7 @@
     <div class="flexdiv-md greybox">
       <h3>Measurement Mode</h3>
       <details>
-        <summary>Measurement modes overview</summary>
+        <summary>Click to see the explanation</summary>
         <p>The UberLogger supports three measurement modes:</p>
         <ul>
           <li>
@@ -135,16 +155,28 @@
           <li>
             <b>External trigger:</b> The logger waits for an external trigger
             signal to start logging.
+            <i
+              ><b>Note: </b> Live view is not working when no trigger has
+              trigged a measurement.</i
+            >
           </li>
           <li>
             <b>External control:</b> Start/stop logging is fully controlled via
             a digital input.
+            <i
+              ><b>Note:</b> The physical start / stop button and the web
+              interface start / stop buttons are <b>not</b> working in external
+              controller mode.</i
+            >
           </li>
         </ul>
         <p>
           For external trigger and external control, you can also set the
           <b>trigger debounce time</b> to stabilize the trigger input, reducing
-          noise in trigger signals.
+          noise in trigger signals. By default this is set to 100 ms. But you
+          can also increase it up to 60000 ms to create a delayed measurement.
+          The debouncing timer will reset upon getting to low level within the
+          debounce time, restarting the debounce timer.
         </p>
       </details>
     </div>
@@ -153,7 +185,7 @@
     <div class="flexdiv-md greybox">
       <h3>Time synchronization</h3>
       <details>
-        <summary>RTC Synchronization</summary>
+        <summary>Synchronize the Uberlogger time with your local time</summary>
         <p>
           The UberLogger features an internal real-time clock (RTC) that tracks
           time, even during power off (if the battery is installed, which it is
@@ -175,78 +207,152 @@
       <details>
         <summary>Click to see the explanation</summary>
         <p>
-          The <b>File Options</b> section allows you to configure how the UberLogger saves its data.
+          The <b>File Options</b> section allows you to configure how the
+          UberLogger saves its data.
         </p>
         <p>
           <b>File Format:</b>
-          <ul>
-            <li><b>CSV:</b> CSV format writes data directly to CSV files, ideal for low sample rates or short measurement durations. CSV files are easily readable in tools like Excel.</li>
-            <li><b>Raw Data:</b> Raw format records raw data for long measurements, which can be later converted into CSV files using the provided Python or Windows conversion tools. Raw data is more efficient for long recordings.</li>
-          </ul>
         </p>
+        <ul>
+          <li>
+            <b>CSV:</b> CSV format writes data directly to CSV files, ideal for
+            low sample rates or short measurement durations. CSV files are
+            easily readable in tools like Excel.
+          </li>
+          <li>
+            <b>Raw Data:</b> Raw format records raw data for long measurements,
+            which can be later converted into CSV files using the provided
+            Python or Windows conversion tools. Raw data is more storage
+            efficient for long recordings.
+          </li>
+        </ul>
+
         <p>
           <b>File Name Mode:</b>
-          <ul>
-            <li><b>Sequential:</b> Generates filenames in a sequential order (e.g., `log0`, `log1`, etc.), overwriting existing files with the same name.</li>
-            <li><b>Timestamp:</b> Generates filenames with a timestamp in the format `YYYYMMDD_Time_FilePrefix.csv`. This avoids overwriting and helps track when files were created.</li>
-          </ul>
         </p>
+        <ul>
+          <li>
+            <b>Sequential:</b> Generates filenames in a sequential order (e.g.,
+            `log0`, `log1`, etc.), overwriting existing files with the same
+            name.
+          </li>
+          <li>
+            <b>Timestamp:</b> Generates filenames with a timestamp in the format
+            `YYYYMMDD_Time_FilePrefix.csv`. This avoids overwriting and helps
+            track when files were created.
+          </li>
+        </ul>
+
+        <p>
+          <b>File name and split size:</b>
+        </p>
+        <ul>
+          <li>
+            <b>Prefix:</b> Set your own prefix for a filename. No special
+            characters can be used and maximum of 70 length characters is
+            allowed.
+          </li>
+          <li>
+            <b>File split size:</b> automatically split files into smaller
+            files. Configurable with kB, MB, or GB sizes. Maximum split size 4
+            GB.
+          </li>
+        </ul>
       </details>
     </div>
-    
+
     <div class="flexdiv-md greybox">
       <h3 class="first">Calibration</h3>
       <details>
-        <summary>Click to see the explanation</summary>
+        <summary>Zero calibrating your Uberlogger</summary>
         <p>
-          The <b>Calibration</b> section allows you to perform zero-calibration of the analog channels.
+          The <b>Calibration</b> section allows you to perform zero-calibration
+          of the analog channels.
         </p>
         <p>
-          Zero calibration ensures that each analog input reads 0 when no signal is present. It is essential for accurate measurements.
+          Zero calibration ensures that each analog input reads 0 when no signal
+          is present. It is essential for accurate measurements.
         </p>
         <p>
-          You can initiate calibration by pressing the "Start Calibration" button. Ensure that all inputs are properly connected before starting calibration to get accurate results.
+          You can initiate calibration by pressing the "Start Calibration"
+          button. Ensure that all analog and temperature inputs are all
+          disconnected and all channels are configured as analog inputs both
+          with the DIP switches as well in on the Configuration page before
+          starting calibration, to get accurate results.
         </p>
       </details>
     </div>
-    
 
     <div class="flexdiv-md greybox">
       <h3 class="first">Import/Export Configuration</h3>
       <details>
         <summary>Click to see the explanation</summary>
         <p>
-          The <b>Import/Export Configuration</b> section allows you to save or load the configuration settings of the UberLogger.
+          The <b>Import/Export Configuration</b> section allows you to save or
+          load the configuration settings of the UberLogger.
         </p>
         <p>
-          <b>Export Configuration:</b> You can download the current configuration settings to a file for backup or to apply to another device later.
+          <b>Export Configuration:</b> You can download the current
+          configuration settings to a JSON file for backup or to apply to
+          another device later.
         </p>
         <p>
-          <b>Import Configuration:</b> This allows you to load a previously saved configuration file to restore settings or replicate configurations across multiple devices.
+          <b>Import Configuration:</b> This allows you to load a previously
+          saved JSON configuration file to restore settings or replicate
+          configurations across multiple devices.
         </p>
       </details>
     </div>
-    
+
     <div class="flexdiv-md greybox">
       <h3 class="first">File Browser</h3>
       <details>
-        <summary>Click to see the explanation</summary>
+        <summary>Browsing through files</summary>
         <p>
-          The <b>File Browser</b> allows you to manage the data files stored on the SD card.
+          The <b>File Browser</b> allows you to manage the data files stored on
+          the SD card.
         </p>
         <p>
-          You can download, delete, or refresh the list of files. Formatting the SD card and unmounting it are only possible when the logger is not actively logging data.
+          You can download, delete, or refresh the list of files. Formatting the
+          SD card and unmounting it are only possible when the logger is not
+          actively logging data.
         </p>
         <ul>
-          <li><b>Download:</b> Click on "Download" to retrieve a file from the SD card to your local machine.</li>
-          <li><b>Delete:</b> Select "Delete" to remove the file from the SD card.</li>
-          <li><b>Format SD-card:</b> This option will erase all contents from the SD card and prepare it for fresh data logging.</li>
-          <li><b>Unmount SD-card:</b> Safely unmount the SD card to remove it without causing data corruption.</li>
+          <li>
+            <b>Download:</b> Click on "Download" to retrieve a file from the SD
+            card to your local machine.
+          </li>
+          <li>
+            <b>Delete:</b> Select "Delete" to remove the file from the SD card.
+          </li>
+          <li>
+            <b>Format SD-card:</b> This option will erase all contents from the
+            SD card and prepare it for fresh data logging.
+          </li>
+          <li>
+            <b>Unmount SD-card:</b> Safely unmount the SD card to remove it
+            without causing data corruption.
+          </li>
         </ul>
       </details>
     </div>
 
-    
+    <div class="flexdiv-md greybox">
+      <h3 class="first">REST API</h3>
+      <details>
+        <summary>Control your Uberlogger remotely</summary>
+        <p>
+          With the <b>REST API</b> endpoints you can control and manage your
+          Uberlogger remotely.
+        </p>
+        <p>
+          The whole list of REST API endpoints is too long to be mentioned here,
+          but you can check it out
+          <a href="https://docs.uberlogger.com/api" target="_blank">here</a>
+        </p>
+      </details>
+    </div>
+
     <!-- Specifications Section -->
     <div class="flexdiv-lg greybox">
       <h3>Specifications</h3>
