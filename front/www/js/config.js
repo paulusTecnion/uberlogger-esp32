@@ -23,6 +23,22 @@ function importConfigfile() {
   $("#file_import_config").click();
 }
 
+function toggleTriggerSettings() {
+  const measurementMode = document.getElementById("EXT_TRIGGER_MODE").value;
+  const triggerChannel = document.getElementById("EXT_TRIGGER_PIN");
+  const debounceTime = document.getElementById("EXT_TRIGGER_DEBOUNCE_TIME");
+
+  if (measurementMode == "0") {
+    // Continuous measurement, disable trigger settings
+    triggerChannel.disabled = true;
+    debounceTime.disabled = true;
+  } else {
+    // Enable for other modes
+    triggerChannel.disabled = false;
+    debounceTime.disabled = false;
+  }
+}
+
 function disableAIN(x) {
   var ntcSelect = document.getElementById("NTC" + x);
   var ainSelect = document.getElementById("AIN" + x + "_RANGE");

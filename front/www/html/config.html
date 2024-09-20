@@ -20,7 +20,7 @@
       </p>
       <input
         id="btn_sync_time"
-        class="button"
+        class="button button-secondary"
         type="button"
         name="btn_sync_time"
         value="Synchronize to local time"
@@ -29,10 +29,9 @@
     </div>
 
     <h2>Channel configuration</h2>
-    <div class="group" id="sampling_configuration">
-      <h3>Sampling rate, resolution and measurement mode</h3>
-      <p>
-        Select the desired sample rate:
+    <div class="form-grid-container">
+      <div class="form-group">
+        <label for="LOG_SAMPLE_RATE">Select the desired sample rate:</label>
         <select
           name="LOG_SAMPLE_RATE"
           id="LOG_SAMPLE_RATE"
@@ -52,9 +51,12 @@
           <option value="11">100 Samples/s</option>
           <option value="12">250 Samples/s</option>
         </select>
-      </p>
-      <p>
-        Select the desired analog resolution:
+      </div>
+
+      <div class="form-group">
+        <label for="ADC_RESOLUTION"
+          >Select the desired analog resolution:</label
+        >
         <select
           name="ADC_RESOLUTION"
           id="ADC_RESOLUTION"
@@ -63,17 +65,20 @@
           <option value="12">12 bits</option>
           <option value="16">16 bits</option>
         </select>
-      </p>
-      <p>
-        <i
-          ><b>Note:</b> 16-bits will not improve resolution for temperature
-          sensors, since these channels will be scaled down to 12-bits.</i
-        >
-      </p>
+      </div>
+    </div>
 
-      <h4>Averaging</h4>
-      <details>
-        <summary>Click to see the explanation</summary>
+    <p class="note">
+      <i
+        ><b>Note:</b> 16-bits will not improve resolution for temperature
+        sensors, as these channels will be scaled down to 12-bits.</i
+      >
+    </p>
+
+    <h4>Averaging</h4>
+    <details>
+      <summary>Click to see the explanation</summary>
+      <div class="explanation-box">
         <p>
           For sample frequencies below 1 Hz, you can choose to average the
           samples over the desired sample frequency or only take one sample at
@@ -82,16 +87,12 @@
           minute of samples using an IIR filter. After 1 minute, the average
           will be output to the file.
         </p>
-        <p>
-          <i
-            ><b>Note:</b> Averaging is done by sampling at 25 Hz and using an
-            IIR low pass filter with -3 dB cut-off frequencies at 1/(sample
-            frequency).</i
-          >
-        </p>
-      </details>
+      </div>
+    </details>
 
-      <p>
+    <div class="form-grid-container">
+      <div class="form-group">
+        <label for="AVERAGE_SAMPLES">Average sampling mode</label>
         <select
           name="AVERAGE_SAMPLES"
           id="AVERAGE_SAMPLES"
@@ -100,11 +101,13 @@
           <option value="0">Normal sampling (default)</option>
           <option value="1">Average samples over time</option>
         </select>
-      </p>
+      </div>
+    </div>
 
-      <h4>Measurement Mode</h4>
-      <details>
-        <summary>Click to see the explanation</summary>
+    <h4>Measurement Mode</h4>
+    <details>
+      <summary>Click to see the explanation</summary>
+      <div class="explanation-box">
         <p>Three measurement modes are possible:</p>
         <ul>
           <li>
@@ -141,66 +144,57 @@
             trigger mode and the trigger is low.</i
           >
         </p>
-      </details>
+      </div>
+    </details>
 
-      <div class="form-container">
-        <h4>Measurement Settings</h4>
-
-        <div class="form-group">
-          <label for="EXT_TRIGGER_MODE">Measurement mode</label>
-          <select
-            name="EXT_TRIGGER_MODE"
-            id="EXT_TRIGGER_MODE"
-            class="json-as-number"
-          >
-            <option value="0">Continuous measurement</option>
-            <option value="1">External trigger</option>
-            <option value="2">External control</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="EXT_TRIGGER_PIN">Trigger channel</label>
-          <select
-            name="EXT_TRIGGER_PIN"
-            id="EXT_TRIGGER_PIN"
-            class="json-as-number"
-          >
-            <option value="1">DIO 1</option>
-            <option value="2">DIO 2</option>
-            <option value="3">DIO 3</option>
-            <option value="4">DIO 4</option>
-            <option value="5">DIO 5</option>
-            <option value="6">DIO 6</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="EXT_TRIGGER_DEBOUNCE_TIME"
-            >Trigger debounce time in milliseconds</label
-          >
-          <input
-            type="number"
-            id="EXT_TRIGGER_DEBOUNCE_TIME"
-            name="EXT_TRIGGER_DEBOUNCE_TIME"
-            class="json-as-number"
-            min="0"
-            max="60000"
-            step="1"
-            oninput="validateIntegerInput(this)"
-          />
-        </div>
+    <div class="form-grid-container">
+      <div class="form-group">
+        <label for="EXT_TRIGGER_MODE">Measurement mode:</label>
+        <select
+          name="EXT_TRIGGER_MODE"
+          id="EXT_TRIGGER_MODE"
+          class="json-as-number"
+          onchange="toggleTriggerSettings()"
+        >
+          <option value="0">Continuous measurement</option>
+          <option value="1">External trigger</option>
+          <option value="2">External control</option>
+        </select>
       </div>
 
-      <div id="configuration_done">
+      <div class="form-group">
+        <label for="EXT_TRIGGER_PIN">Trigger channel:</label>
+        <select
+          name="EXT_TRIGGER_PIN"
+          id="EXT_TRIGGER_PIN"
+          class="json-as-number"
+        >
+          <option value="1">DIO 1</option>
+          <option value="2">DIO 2</option>
+          <option value="3">DIO 3</option>
+          <option value="4">DIO 4</option>
+          <option value="5">DIO 5</option>
+          <option value="6">DIO 6</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="EXT_TRIGGER_DEBOUNCE_TIME">Debounce time in ms:</label>
         <input
-          id="saveForm"
-          class="button_text"
-          type="button"
-          onClick="setConfig()"
-          value="Save measurement settings"
+          type="number"
+          id="EXT_TRIGGER_DEBOUNCE_TIME"
+          name="EXT_TRIGGER_DEBOUNCE_TIME"
+          min="0"
+          max="60000"
+          step="1"
         />
       </div>
+    </div>
+
+    <div id="configuration_done">
+      <button id="saveForm" type="button" class="button" onClick="setConfig()">
+        Save measurement settings
+      </button>
     </div>
 
     <div class="group" id="channel_configuration">
@@ -645,7 +639,7 @@
       <div id="configuration_done">
         <input
           id="saveForm"
-          class="button_text"
+          class="button"
           type="button"
           onClick="setConfig()"
           value="Save channel settings"
@@ -661,7 +655,7 @@
     <div id="calibration">
       <input
         id="calibrationStart"
-        class="button_text"
+        class="button button-secondary"
         type="button"
         onClick="startCalibration()"
         value="Start calibration"
@@ -682,8 +676,8 @@
         checked="true"
       />
       <label class="choice" for="log_mode"
-        >CSV<br />Write CSV files directly. Recommended for low sample rates or
-        short measurements.</label
+        >CSV<br />Write CSV files directly. Recommended for short
+        measurements.</label
       >
 
       <input
@@ -695,18 +689,18 @@
       />
       <label class="choice" for="log_mode"
         >Raw data<br />Write the raw data and convert the data to a CSV file
-        afterwards. This option is recommended for long measurements. You can
-        use the Python conversion script or Windows exe tool to convert the .dat
-        files to .csv. Download the Python <a href="convert_raw.py">here</a> or
-        check the Uberlogger website for the Windows tool in the download
-        section.
+        afterwards. This option is recommended for long measurements that may
+        take hours or days. You can use the Python conversion script or Windows
+        exe tool to convert the .dat files to .csv. Download the Python
+        <a href="convert_raw.py">here</a> or check the Uberlogger website for
+        the Windows tool in the download section.
       </label>
     </span>
 
     <h3>File name mode</h3>
     <span>
       <input
-        id="file_name_mode"
+        id="FILE_NAME_MODE"
         name="FILE_NAME_MODE"
         class="element radio json-as-number"
         type="radio"
@@ -733,7 +727,7 @@
     </span>
 
     <h3>CSV options</h3>
-    <div>
+    <div class="form-grid-container">
       <label for="file_separator_char"
         >CSV separator character. Semicolon is recommended for Excel.</label
       >
@@ -761,48 +755,55 @@
     </div>
 
     <h3>File name and split size</h3>
-    <label for="file_name_prefix">File name prefix</label>
-    <input
-      type="text"
-      id="file_name_prefix"
-      name="FILE_NAME_PREFIX"
-      class="json-as-text"
-      maxlength="70"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="none"
-      value=""
-    />
 
-    <label for="file_split_size"
-      >Max size of one log file (200 KB min and 2 GB max)</label
-    >
-    <div class="split-size-container">
-      <input
-        type="number"
-        id="file_split_size"
-        name="FILE_SPLIT_SIZE"
-        class="json-as-number"
-        max="4194304"
-        step="1"
-        oninput="validateIntegerInput(this)"
-      />
+    <div class="form-grid-container">
+      <div class="form-group">
+        <label for="file_name_prefix">File name prefix</label>
+        <input
+          type="text"
+          id="file_name_prefix"
+          name="FILE_NAME_PREFIX"
+          class="json-as-text"
+          maxlength="70"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          value=""
+        />
+      </div>
 
-      <select
-        name="FILE_SPLIT_SIZE_UNIT"
-        id="file_size_split_size_unit"
-        class="json-as-number"
-      >
-        <option value="0">KB</option>
-        <option value="1">MB</option>
-        <option value="2">GB</option>
-      </select>
+      <div class="form-group">
+        <label for="file_split_size"
+          >Max size of one log file (200 KB min and 2 GB max)</label
+        >
+        <div class="split-size-container">
+          <input
+            type="number"
+            id="file_split_size"
+            name="FILE_SPLIT_SIZE"
+            class="json-as-number"
+            max="4194304"
+            step="1"
+            oninput="validateIntegerInput(this)"
+          />
+
+          <select
+            name="FILE_SPLIT_SIZE_UNIT"
+            id="file_size_split_size_unit"
+            class="json-as-number"
+          >
+            <option value="0">KB</option>
+            <option value="1">MB</option>
+            <option value="2">GB</option>
+          </select>
+        </div>
+      </div>
     </div>
 
     <div id="configuration_done">
       <input
         id="saveForm"
-        class="button_text"
+        class="button"
         type="button"
         onClick="setConfig()"
         value="Save file options"
@@ -948,7 +949,7 @@
       <div>
         <input
           id="btn_test_wifi_network"
-          class="button_text"
+          class="button"
           type="button"
           value="Save Wi-Fi settings"
           onclick="setConfig()"
@@ -965,7 +966,7 @@
       >
       <input
         id="btn_load_defaults"
-        class="button"
+        class="button button-secondary"
         type="button"
         name="btn_load_defaults"
         value="Restore default settings"
@@ -983,7 +984,7 @@
       <input
         id="btn_import_config"
         name="btn_import_config"
-        class="button"
+        class="button button-secondary"
         type="button"
         value="Import settings from file..."
         onclick="importConfigfile()"
@@ -998,14 +999,14 @@
         style="visibility: hidden; display: none"
       />
       <a href="/ajax/getConfig?download=true" target="_blank"
-        ><button class="button" type="button">
+        ><button class="button button-secondary" type="button">
           Download current settings
         </button></a
       >
       <h3 class="first">Save all settings</h3>
       <input
         id="btn_test_wifi_network"
-        class="button_text"
+        class="button"
         type="button"
         value="Save all settings"
         onclick="setConfig()"

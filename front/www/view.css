@@ -118,31 +118,6 @@ body {
   box-shadow: 0px 0px 5px 0px hsl(215, 30%, 50%, 0.2);
 }
 
-#topmenubar button {
-  background-color: #ff5b23;
-  border: 2px solid #ff5b23;
-  color: white;
-
-  border-radius: 10px;
-  font-size: 105%;
-  text-align: center;
-  text-decoration: none;
-
-  display: inline-block;
-  margin: 0 5px 0 0;
-  height: 40px;
-}
-
-#topmenubar button.selected {
-  background-color: #fff;
-  color: black;
-}
-
-#topmenubar button:hover {
-  background-color: #f8a285;
-  color: white;
-}
-
 /* render window where page is loaded into */
 #render {
   border-radius: 10px;
@@ -243,10 +218,44 @@ li {
   padding: 10px 10px;
 }
 
-.block {
-  display: inline-block;
-  margin: 5px 5px;
-  vertical-align: top;
+/* Make the blocks smaller */
+.block.greybox {
+  font-size: 0.9rem; /* Smaller font size */
+  padding: 10px 15px; /* Reduce padding inside the block */
+  width: auto;
+  max-width: 200px; /* Limit the width of the blocks */
+  display: inline-block; /* Make sure they stay aligned properly */
+  margin: 10px; /* Add some space between blocks */
+}
+
+/* Table Styling */
+.block.greybox table {
+  width: 100%;
+  border-collapse: collapse; /* Remove space between table borders */
+  font-size: 0.8rem; /* Reduce the font size further for tables */
+}
+
+.block.greybox th,
+.block.greybox td {
+  padding: 6px; /* Reduce padding inside table cells */
+  border: none; /* Remove table borders or make them lighter */
+  text-align: left;
+}
+
+.block.greybox th {
+  font-weight: bold;
+  color: #333;
+  background-color: #f4f4f4;
+}
+
+.block.greybox td {
+  text-align: right;
+}
+
+/* Headings for blocks */
+.block.greybox h2 {
+  font-size: 1rem; /* Reduce the font size for headings */
+  margin-bottom: 10px;
 }
 
 /* tables */
@@ -413,6 +422,31 @@ body {
   text-shadow: 3px 3px 5px #000; /* Updated shadow for better visibility */
 }
 
+#topmenubar button {
+  background-color: #ff5b23;
+  border: 2px solid #ff5b23;
+  color: white;
+
+  border-radius: 10px;
+  font-size: 105%;
+  text-align: center;
+  text-decoration: none;
+
+  display: inline-block;
+  margin: 0 5px 0 0;
+  height: 40px;
+}
+
+#topmenubar button.selected {
+  background-color: #fff;
+  color: black;
+}
+
+#topmenubar button:hover {
+  background-color: #f8a285;
+  color: white;
+}
+
 #topmenubar {
   /* ... other styles ... */
   background-color: white; /* Updated to the main dark blue background */
@@ -485,7 +519,9 @@ h3 {
 }
 
 .split-size-container {
-  display: flex; /* This makes the children (input and select) lay out horizontally */
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Adds space between the input and select */
 }
 
 .split-size-container select {
@@ -500,10 +536,6 @@ h3 {
 
 #file_size_split_size_unit {
   width: 100px; /* Or whatever width suits your design */
-}
-
-#file_name_prefix {
-  width: 200px;
 }
 
 table.compact-table {
@@ -533,3 +565,500 @@ table.compact-table tr:nth-child(even) {
 /* table.compact-table tr:hover {
   background-color: #f1f1f1; /* Highlight on row hover 
 } */
+
+/* Body and Container */
+body {
+  background-color: #f4f7f6;
+  font-family: "Roboto", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Headers */
+h1,
+h2,
+h3 {
+  font-family: "Montserrat", sans-serif;
+  color: #e6632e; /* Darker shade of the orange */
+}
+
+h1 {
+  font-size: 2.5rem;
+}
+
+h2 {
+  font-size: 2rem;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+h3 {
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+}
+
+/* Cards */
+.card {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+/* Table */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+table th,
+table td {
+  /* padding: 12px 15px; */
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+/* General Button Styling */
+.button {
+  background-color: #f78661;
+  color: white;
+  padding: 12px 24px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, box-shadow 0.2s ease;
+  margin: 10px 10px 10px 0;
+  display: inline-block;
+}
+
+/* Hover and Focus Effects */
+.button:hover,
+.button:focus {
+  background-color: #e25e3b;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Secondary Button */
+.button-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.button-secondary:hover,
+.button-secondary:focus {
+  background-color: #5a6268;
+}
+
+/* Disabled Button */
+.button:disabled {
+  background-color: #ddd;
+  cursor: not-allowed;
+  color: #999;
+}
+
+/* Button Alignment for Import/Export */
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.button-group .button {
+  flex-grow: 1;
+}
+
+/* Inputs */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+select {
+  padding: 8px;
+  width: 100%;
+  font-size: 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin-bottom: 20px;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #f78661;
+}
+
+/* Footer */
+#footer {
+  clear: both;
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  border-top: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .button {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .block.greybox {
+    max-width: 100%;
+    margin: 10px auto;
+  }
+}
+
+td input[type="text"] {
+  width: auto;
+}
+
+/* Align the checkbox better */
+td input[type="checkbox"] {
+  margin-left: 10px; /* Aligns the checkbox nicely in the column */
+}
+
+input[type="number"] {
+  width: auto; /* Let the width be dynamic */
+  padding: 10px; /* Padding inside the input */
+  font-size: 1rem; /* Font size for consistency with other fields */
+  border: 1px solid #ccc; /* Match other inputs' border styles */
+  border-radius: 5px; /* Rounded corners for consistency */
+  box-sizing: border-box; /* Ensure padding is included in width calculations */
+}
+
+input[type="number"]:focus {
+  border-color: #f78661; /* Highlight border on focus to match the orange theme */
+  outline: none; /* Remove the default blue outline */
+}
+
+a {
+  color: #1742b9;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Flexbox container for a more compact layout */
+.form-grid-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  max-width: 800px;
+}
+
+.form-group {
+  flex: 1;
+  min-width: 220px;
+  margin-bottom: 10px;
+}
+
+/* .form-group {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 48%;
+  margin-bottom: 20px;
+} */
+
+label {
+  font-size: 0.9rem;
+  display: block;
+  margin-bottom: 5px;
+}
+
+select,
+input[type="number"] {
+  width: 100%;
+  padding: 8px;
+  font-size: 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+button.button {
+  background-color: #ff784e;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+button.button:hover {
+  background-color: #ff9a71;
+}
+
+.note {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* Style the details element and its summary */
+details {
+  background-color: #f9f9f9; /* Light grey background */
+  border: 1px solid #ddd; /* Subtle border */
+  border-radius: 5px; /* Rounded corners */
+  padding: 10px;
+  margin-bottom: 15px; /* Space below the explanation box */
+  max-width: 800px;
+}
+
+details[open] {
+  background-color: #fefefe; /* Slightly brighter when expanded */
+}
+
+details summary {
+  cursor: pointer; /* Make the summary clickable */
+  font-weight: bold;
+  padding: 5px 0;
+}
+
+details p {
+  font-size: 0.95rem; /* Slightly smaller text */
+  line-height: 1.4; /* Improved line spacing */
+  margin-top: 10px; /* Some space between the summary and text */
+  color: #555; /* Darker text color for contrast */
+}
+
+details ul {
+  margin-left: 20px; /* Indentation for list */
+}
+
+details summary:hover {
+  color: #ff784e; /* Hover effect on the summary */
+}
+
+/* Card-like styling for the explanation section */
+.explanation-box {
+  background-color: #f5f5f5; /* Soft background for distinction */
+  border: 1px solid #ddd; /* Thin border around */
+  padding: 15px;
+  border-radius: 8px; /* Rounded corners */
+  margin-top: 10px;
+}
+
+#homepage .container {
+  max-width: 800px;
+  padding: 20px;
+}
+
+#homepage .box {
+  background-color: #f9f9f9;
+  padding: 15px;
+  margin: 15px 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#homepage details summary {
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#homepage details p {
+  padding: 10px 0;
+  margin: 0;
+}
+
+#homepage .compact-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#homepage .compact-table th,
+#homepage .compact-table td {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+}
+
+#homepage .greybox {
+  background-color: #f0f0f0;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 5px;
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#right_buttons {
+  display: flex;
+  align-items: center;
+}
+
+/* For mobile menu */
+#hamburger_menu {
+  display: none;
+  position: relative;
+}
+
+/* menubar */
+
+#menu_toggle {
+  display: none;
+  font-size: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+}
+
+#menu_items {
+  display: flex;
+}
+
+#menu_items button {
+  margin-right: 10px;
+  padding: 10px 20px;
+  border: none;
+  background-color: #ffa07a;
+  color: #fff;
+  cursor: pointer;
+}
+
+#menu_items button:hover {
+  background-color: #ff7f50;
+}
+
+#menu_items.hidden {
+  display: none;
+}
+
+#menu_items button {
+  margin: 5px 0;
+  padding: 10px;
+}
+
+/* Left menu container */
+#left_buttons {
+  display: flex;
+  align-items: center;
+}
+
+.button-icon {
+  margin-right: 5px;
+}
+/* Mobile specific styles */
+@media (max-width: 768px) {
+  /* Hamburger menu toggle button */
+  #menu_toggle {
+    display: block;
+    font-size: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    margin-left: 5px;
+    color: #ff5b23; /* Orange color for hamburger icon */
+    position: relative;
+    z-index: 1000; /* Ensure it's above the menu */
+  }
+
+  /* Hide the menu items by default on mobile */
+  #menu_items {
+    position: fixed;
+    left: -300px; /* Initially off-screen */
+    top: 0;
+    width: 250px; /* Width of the sliding menu */
+    height: 100%;
+    background-color: #ffffff;
+    padding: 20px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    transition: left 0.3s ease; /* Smooth sliding effect */
+    z-index: 1001; /* Ensure it's below the toggle button */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  #close_menu {
+    align-self: flex-end; /* Position the close button at the top-right */
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #ff5b23; /* Orange color */
+    cursor: pointer;
+    margin-bottom: 20px; /* Space below the close button */
+  }
+
+  /* Show the menu when active */
+  #menu_items.show {
+    left: 0; /* Slide the menu into view */
+  }
+
+  /* Mobile button styles - stack vertically */
+  #menu_items button {
+    margin-bottom: 10px;
+    text-align: left;
+    font-size: 100%;
+  }
+
+  /* Hide the regular menu buttons on mobile */
+  #left_buttons {
+    display: none;
+  }
+
+  /* Align the Start Logging button to the right */
+  #start_logging_button {
+    right: 10px;
+    top: 10px;
+    height: 40px;
+  }
+
+  /* Hide the text for smaller screens */
+  #start_logging_button .button-text {
+    display: none;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 769px) {
+  #left_buttons {
+    display: flex;
+  }
+
+  /* Hide the hamburger toggle button on desktop */
+  #menu_toggle {
+    display: none !important;
+  }
+
+  /* Ensure the menu items are displayed on desktop */
+  #menu_items {
+    display: none;
+  }
+}

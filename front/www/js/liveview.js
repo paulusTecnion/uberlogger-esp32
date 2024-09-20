@@ -42,7 +42,7 @@ function renderValueList() {
       "<div class='block greybox' style='font-size: smaller;'><h2 class='first'>" +
       sanitizeCategoryName(category) +
       "</h2>";
-    htmlstring += "<table width='100%'>";
+    htmlstring += "<table class='table-compact'>";
     htmlstring +=
       "<tr><th>Input</th><th align='right'>" +
       category_values["UNITS"] +

@@ -57,24 +57,38 @@
           </div>
 
           <div id="topmenubar">
+            <!-- Hamburger menu toggle for mobile -->
+            <button id="menu_toggle" onclick="toggleMenu()">☰</button>
+          
+            <!-- Desktop menu items -->
             <div id="left_buttons">
-              <button id="menu_home" onclick="gotoPage('home');">Home</button>
-              <button id="menu_liveview" onclick="gotoPage('liveview');">
-                Live data
-              </button>
-              <button id="menu_log" onclick="gotoPage('log');">Logging</button>
-              <button id="menu_config" onclick="gotoPage('config');">
-                Configuration
-              </button>
+              <button id="menu_liveview" onclick="gotoPage('liveview');">Live data</button>
+              <button id="menu_log" onclick="gotoPage('log');">File browser</button>
+              <button id="menu_config" onclick="gotoPage('config');">Configuration</button>
+              <button id="menu_home" onclick="gotoPage('home');">Quick user manual</button>
             </div>
+          
+            <!-- Mobile menu items -->
+            <div id="menu_items">
+              <button id="close_menu" onclick="toggleMenu()">&#10006;</button> <!-- Close Button -->
+              <button id="menu_liveview_mobile" onclick="gotoPage('liveview');">Live data</button>
+              <button id="menu_log_mobile" onclick="gotoPage('log');">File browser</button>
+              <button id="menu_config_mobile" onclick="gotoPage('config');">Configuration</button>
+              <button id="menu_home_mobile" onclick="gotoPage('home');">Quick user manual</button>
+            </div>
+          
+            <!-- Start logging button -->
             <div id="right_buttons">
               <button id="start_logging_button">
                 <span class="button-icon">&#9658;</span>
-                <span class="button-text"></span>
+                <span class="button-text">Start logging</span>
               </button>
             </div>
           </div>
-        </div>
+          
+          
+          
+          
 
         <div id="render"></div>
 

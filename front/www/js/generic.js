@@ -35,6 +35,15 @@ function gotoPage(page, version) {
   location.href = "index.html?page=" + page;
 }
 
+function toggleMenu() {
+  var menu = document.getElementById("menu_items");
+  if (menu.classList.contains("show")) {
+    menu.classList.remove("show");
+  } else {
+    menu.classList.add("show");
+  }
+}
+
 function ejectCard() {
   $.ajax({
     method: "POST",

@@ -1,153 +1,345 @@
-<h1>Home</h1>
+<h1>Quick user manual</h1>
 
-<div>
-<h2 class="first">Overview</h2>
-  <p>Within the control panel you can:
-    <ul>
-      <li>Plot measured data from a live stream using the "Live data"-page;</li>
-      <li>Start SD-card logging using the "Logging"-page;</li>
-      <li>Configure the logger, input channels and WiFi-functionality through the "Configuration"-page.</li>
-    </ul>
+<div class="container">
+  <!-- Overview Section -->
+  <h2 class="first">Overview</h2>
+  <p>
+    The UberLogger control panel allows you to manage and monitor your logging
+    device. The key functionalities include:
   </p>
-  <p>Click on the corresponding buttons above to navigate.</p>
-  <p><i><b>Note:</b> it is essential to configure the logger and its input channels before starting any measurements to ensure the sampled data is accurate.</i></p>
-</div>
 
-<div>
-  <h2>Quick user manual</h2>
+  <ul>
+    <li>Plotting live data streams via the "Live data" page</li>
+    <li>Starting and stopping SD-card logging via the "Logging" page</li>
+    <li>
+      Configuring logger settings, input channels, sample rate, resolution, and
+      WiFi functionality via the "Configuration" page
+    </li>
+  </ul>
+
+  <p>
+    <i
+      ><b>Note:</b> It is essential to configure the logger and its input
+      channels correctly before starting any measurements to ensure accurate
+      data.</i
+    >
+  </p>
 
   <div class="flexcontainer">
-	<div class="flexdiv-md greybox">
-      <h3 class="first">WiFi configuration</h3>
-      <p>
-        The UberLogger is controlled via this control panel over WiFi, which can operate in two modes:
-		<ol>
-			<li>
-				<p>Hotspot mode</p>
-				<p>In hotspot mode, you can connect to UberLogger via any device with an integrated WiFi adapter, and access the control panel through http://192.168.4.1 via your favorite web browser. Note that using this mode will  disconnect you from internet while you're connected to the UberLogger hotspot. You also might have to disable any active mobile data connections.</p>
-			</li>
-			<li>
-				<p>Client + Hotspot mode</p>
-				<p>In this mode, the UberLogger will attempt to connect to the configured WiFi access point, which you will have to configure through the "Configuration"-page. After configuring and successful connection, you will be able to access the control panel through http://IPADDRESS, where IPADDRESS is the IP-address that is obtained through the DHCP-server. You can find this address on the "Configuration"-page after succesful connection.</p>
-			</li>
-		</ol>
-      </p>
-    </div>
-
-  
+    <!-- WiFi Configuration -->
     <div class="flexdiv-md greybox">
-      <h3 class="first">Channel configuration</h3>
-      <p>
-        The UberLogger can measure three types of signals: temperature, analog voltage, and digital signals. Additionally, the sample rate, resolution and (analog) scaling can be adjusted to ensure your measurements are recorded accurately.
-      </p>
-      <p>
-        <b>NTCx/AINx selection:</b> The temperature and analog voltage channels are shared, which means you have to select whether you want to measure temperature or voltage for each individual channel (NTC1/AIN1, NTC2/AIN2, ...).
-        <i>Important: this selection needs to be done on two locations: using the hardware DIP-switches on the UberLogger, and you need to tell the logger what the current DIP-switch configuration is through the "Configuration"-page.</i>
-      </p>
-      <p>
-        <b>AINx range selection:</b> The AINx channels can be individually set on two ranges: -10V ... +10V and -60V ... +60V. The range select is changing the analog frontend gain.
-        This results in more bits per Volt when the lower range is used, improving resolution and reducing quantization noise.
-        <i>Important: this selection needs to be done on two locations: using the hardware DIP-switches on the UberLogger, and you need to tell the logger what the current DIP-switch configuration is through the "Configuration"-page.</i>
-      </p>
+      <h3>WiFi configuration</h3>
+      <details>
+        <summary>How to configure WiFi</summary>
+        <p>The UberLogger can operate in two modes:</p>
+        <ol>
+          <li>
+            <b>Hotspot mode:</b> Connect directly to the UberLogger via a device
+            with WiFi. Access the control panel via
+            <a href="http://192.168.4.1">http://192.168.4.1</a>.
+          </li>
+          <li>
+            <b>Client + Hotspot mode:</b> Configure the logger to connect to a
+            WiFi network. Access the control panel via the IP address assigned
+            through the DHCP server.
+          </li>
+        </ol>
+        <p>
+          You can configure the WiFi settings in the "Configuration" page under
+          the "WiFi Configuration" section.
+        </p>
+      </details>
+    </div>
+
+    <!-- Channel Configuration -->
+    <div class="flexdiv-md greybox">
+      <h3>Channel configuration</h3>
+      <details>
+        <summary>Channel settings explanation</summary>
+        <p>
+          The UberLogger can measure temperature, analog voltage, and digital
+          signals. Ensure the correct configuration for accurate results:
+        </p>
+        <ul>
+          <li>
+            <b>NTCx/AINx selection:</b> Choose between temperature or voltage
+            for each channel using both the hardware DIP-switch and the
+            configuration page.
+          </li>
+          <li>
+            <b>AINx range selection:</b> Adjust the input voltage range (-10V
+            ... +10V or -60V ... +60V) for better resolution and reduced noise.
+            This should also be set using the DIP-switch and the configuration
+            page.
+          </li>
+        </ul>
+      </details>
+    </div>
+
+    <!-- Sampling Settings -->
+    <div class="flexdiv-md greybox">
+      <h3>Sampling settings</h3>
+      <details>
+        <summary>Sampling settings and importance</summary>
+        <p>
+          The UberLogger allows configurable sampling rates and resolutions to
+          capture data accurately. The sample rate affects:
+        </p>
+        <ul>
+          <li>
+            <b>Maximum frequency:</b> The higher the sample rate, the higher the
+            frequency the logger can capture.
+          </li>
+          <li>
+            <b>Storage space:</b> Higher sample rates require more space on the
+            SD card.
+          </li>
+        </ul>
+        <p>
+          The resolution can be set to 12-bit or 16-bit. Higher resolutions
+          improve accuracy but may impact performance at high sample rates.
+        </p>
+      </details>
+    </div>
+
+    <!-- Averaging -->
+    <div class="flexdiv-md greybox">
+      <h3>Averaging</h3>
+      <details>
+        <summary>How averaging works</summary>
+        <p>
+          For sample rates below 1 Hz, the UberLogger can average data samples.
+          This is done using an IIR filter. At 1 Hz or lower, the filter outputs
+          an averaged value every minute.
+        </p>
+        <p>
+          <i
+            ><b>Note:</b> Averaging is performed using a 25 Hz sample rate and
+            an IIR low-pass filter with a -3 dB cut-off frequency.</i
+          >
+        </p>
+      </details>
+    </div>
+
+    <!-- Measurement Mode -->
+    <div class="flexdiv-md greybox">
+      <h3>Measurement Mode</h3>
+      <details>
+        <summary>Measurement modes overview</summary>
+        <p>The UberLogger supports three measurement modes:</p>
+        <ul>
+          <li>
+            <b>Continuous measurement:</b> Start and stop logging via the web
+            interface or the physical button.
+          </li>
+          <li>
+            <b>External trigger:</b> The logger waits for an external trigger
+            signal to start logging.
+          </li>
+          <li>
+            <b>External control:</b> Start/stop logging is fully controlled via
+            a digital input.
+          </li>
+        </ul>
+        <p>
+          For external trigger and external control, you can also set the
+          <b>trigger debounce time</b> to stabilize the trigger input, reducing
+          noise in trigger signals.
+        </p>
+      </details>
+    </div>
+
+    <!-- Time Synchronization -->
+    <div class="flexdiv-md greybox">
+      <h3>Time synchronization</h3>
+      <details>
+        <summary>RTC Synchronization</summary>
+        <p>
+          The UberLogger features an internal real-time clock (RTC) that tracks
+          time, even during power off (if the battery is installed, which it is
+          by default). You can synchronize the RTC with your local time via the
+          "Configuration" page. This ensures accurate timestamps for recorded
+          data.
+        </p>
+        <p>
+          <i
+            ><b>Note:</b> Data is saved in Coordinated Universal Time (UTC),
+            which helps merge datasets easily across time zones.</i
+          >
+        </p>
+      </details>
     </div>
 
     <div class="flexdiv-md greybox">
-      <h3 class="first">Sampling</h3>
-      The analog front-end of the UberLogger has a configurable sample rate and resolution. Before starting any measurement, it is important to select a suitable sample rate and resolution. 
-      <p>
-        <b>Sample rate:</b> The sample rate determines two things: (1) the maximum frequency that can be recorded, and (2) the required SD-card space for a recording.
-        The higher the sample rate, the larger the file that will be written to the SD-card.
-        It is therefore recommended to pick a sample rate that is at approximately 10x ... 20x higher than the highest frequency that needs to be captured, but not higher than that to save disk space.
-        If increased signal accuracy is required, a higher factor can be selected, compromising disk space.
-        The UberLogger contains an anti-aliassing filter which removes high-frequency content to reduce aliasing effects.
-      </p>
-      <p>
-        <b>Resolution:</b> The sampling resolution is adjustable between 12 and 16 bits.
-        Selecting 12 bits bypasses the digital anti-aliassing filter. This allows measurements which rely on aliassing (frequency-folding) to occur.
-        Note that the hardware anti-aliassing filter is always enabled and has a first-order roll off and a bandwith of 10 kHz.
-      </p>
+      <h3 class="first">File options</h3>
+      <details>
+        <summary>Click to see the explanation</summary>
+        <p>
+          The <b>File Options</b> section allows you to configure how the UberLogger saves its data.
+        </p>
+        <p>
+          <b>File Format:</b>
+          <ul>
+            <li><b>CSV:</b> CSV format writes data directly to CSV files, ideal for low sample rates or short measurement durations. CSV files are easily readable in tools like Excel.</li>
+            <li><b>Raw Data:</b> Raw format records raw data for long measurements, which can be later converted into CSV files using the provided Python or Windows conversion tools. Raw data is more efficient for long recordings.</li>
+          </ul>
+        </p>
+        <p>
+          <b>File Name Mode:</b>
+          <ul>
+            <li><b>Sequential:</b> Generates filenames in a sequential order (e.g., `log0`, `log1`, etc.), overwriting existing files with the same name.</li>
+            <li><b>Timestamp:</b> Generates filenames with a timestamp in the format `YYYYMMDD_Time_FilePrefix.csv`. This avoids overwriting and helps track when files were created.</li>
+          </ul>
+        </p>
+      </details>
     </div>
+    
+    <div class="flexdiv-md greybox">
+      <h3 class="first">Calibration</h3>
+      <details>
+        <summary>Click to see the explanation</summary>
+        <p>
+          The <b>Calibration</b> section allows you to perform zero-calibration of the analog channels.
+        </p>
+        <p>
+          Zero calibration ensures that each analog input reads 0 when no signal is present. It is essential for accurate measurements.
+        </p>
+        <p>
+          You can initiate calibration by pressing the "Start Calibration" button. Ensure that all inputs are properly connected before starting calibration to get accurate results.
+        </p>
+      </details>
+    </div>
+    
 
     <div class="flexdiv-md greybox">
-		<h3 class="first">Time synchronization</h3>
-		<p>
-			The UberLogger has an integrated real-time clock (RTC) which accurately keeps track of the elapsed time. Place an RTC-battery to ensure the RTC keeps track of time even when the power is switched off.
-			The RTC can be synchronized to your PC's time easily through the "Configuration"-page, by clicking on "Synchronize to local time". The data timestamp in the live data view will update to the local time.
-		</p>
-		<p>
-			<i><b>Important:</b> UberLogger will save all data to the SD-card in the coordinated universal time (UTC) format, which excludes any time zone offset. This format allows effortless merging of multiple recorded datasets and gives accurate reader-independent results.</i>
-		</p>
+      <h3 class="first">Import/Export Configuration</h3>
+      <details>
+        <summary>Click to see the explanation</summary>
+        <p>
+          The <b>Import/Export Configuration</b> section allows you to save or load the configuration settings of the UberLogger.
+        </p>
+        <p>
+          <b>Export Configuration:</b> You can download the current configuration settings to a file for backup or to apply to another device later.
+        </p>
+        <p>
+          <b>Import Configuration:</b> This allows you to load a previously saved configuration file to restore settings or replicate configurations across multiple devices.
+        </p>
+      </details>
+    </div>
+    
+    <div class="flexdiv-md greybox">
+      <h3 class="first">File Browser</h3>
+      <details>
+        <summary>Click to see the explanation</summary>
+        <p>
+          The <b>File Browser</b> allows you to manage the data files stored on the SD card.
+        </p>
+        <p>
+          You can download, delete, or refresh the list of files. Formatting the SD card and unmounting it are only possible when the logger is not actively logging data.
+        </p>
+        <ul>
+          <li><b>Download:</b> Click on "Download" to retrieve a file from the SD card to your local machine.</li>
+          <li><b>Delete:</b> Select "Delete" to remove the file from the SD card.</li>
+          <li><b>Format SD-card:</b> This option will erase all contents from the SD card and prepare it for fresh data logging.</li>
+          <li><b>Unmount SD-card:</b> Safely unmount the SD card to remove it without causing data corruption.</li>
+        </ul>
+      </details>
     </div>
 
+    
+    <!-- Specifications Section -->
     <div class="flexdiv-lg greybox">
-		<h3 class="first">Specifications</h3>
-    	<p>
-        	<table style="table-layout: fixed; width: 100%">
-            	<tr>
-                	<th style="width: 35%">Parameter</th>
-                	<th style="width: 40%">Description</th>
-                	<th style="width: 25%">Value</th>
-            	</tr>
-            	<tr>
-                	<td colspan="3"><i><b>Electrical characteristics</b></i></td>
-            	</tr>
-            	<tr>
-                	<td>Supply voltage</td><td></td><td>4.75 V ... 5.25 V</td>
-            	</tr>
-            	<tr>
-                	<td>Supply current</td><td></td><td>300 mA (typ)</td>
-            	</tr>
-
-            	<tr>
-                	<td colspan="3"><i><b>Analog input characteristics</b></i></td>
-            	</tr>
-            	<tr>
-                	<td>Input voltage range</td><td>selectable</td><td>-10 V ... +10 V<br/>-60 V ... +60 V</td>
-            	</tr>
-            	<tr>
-                	<td>Input impedance</td><td></td><td>100 kOhm</td>
-            	</tr>
-            	<tr>
-                	<td>Input accuracy</td><td></td><td>+/-0.5%</td>
-            	</tr>
-            	<tr>
-                	<td>ADC resolution</td><td>selectable</td><td>12 bit<br/>16 bit</td>
-            	</tr>
-            	<tr>
-                	<td>Analog filter</td><td>Analog anti-aliasing filter cut-off frequency (1st order)</td><td>5 kHz</td>
-            	</tr>
-            	<tr>
-                	<td>Digital filter</td><td>Digital anti-aliasing filter cut-off frequency (1st order)<br/>Active in 16 bit mode only</td><td>f<sub>sample</sub>/2</td>
-            	</tr>
-            	<tr>
-                	<td>Input protection</td><td>Over-voltage protection</td><td>clamped</td>
-            	</tr>
-
-               	<tr>
-                	<td colspan="3"><i><b>Digital input characteristics</b></i></td>
-            	</tr>
-            	<tr>
-                	<td>Input voltage range</td><td></td><td>-60 V ... +60 V</td>
-            	</tr>
-            	<tr>
-                	<td>Input impedance</td><td></td><td>100 kOhm</td>
-            	</tr>
-            	<tr>
-                	<td>Analog filter</td><td>Analog de-bounce filter cut-off frequency (1st order)</td><td>100 kHz</td>
-            	</tr>
-            	<tr>
-                	<td>Input LOW</td><td>Voltage to read digital read LOW (false)</td><td>1.0 V</td>
-            	</tr>
-            	<tr>
-                	<td>Input HIGH</td><td>Voltage to read digital read HIGH (true)</td><td>2.0 V</td>
-            	</tr>
-            	<tr>
-                	<td>Input protection</td><td>Over-voltage protection</td><td>clamped</td>
-            	</tr>
-
-    		</table>
-    	</p>
+      <h3>Specifications</h3>
+      <p>
+        Below are the key electrical and input characteristics of the
+        UberLogger.
+      </p>
+      <table class="compact-table">
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Description</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="3">
+              <i><b>Electrical characteristics</b></i>
+            </td>
+          </tr>
+          <tr>
+            <td>Supply voltage</td>
+            <td>Operating range</td>
+            <td>4.75 V ... 5.25 V</td>
+          </tr>
+          <tr>
+            <td>Supply current</td>
+            <td>Typical current consumption</td>
+            <td>300 mA</td>
+          </tr>
+          <tr>
+            <td colspan="3">
+              <i><b>Analog input characteristics</b></i>
+            </td>
+          </tr>
+          <tr>
+            <td>Input voltage range</td>
+            <td>Selectable range</td>
+            <td>-10 V ... +10 V or -60 V ... +60 V</td>
+          </tr>
+          <tr>
+            <td>Input impedance</td>
+            <td></td>
+            <td>100 kOhm</td>
+          </tr>
+          <tr>
+            <td>Input accuracy</td>
+            <td></td>
+            <td>±0.5%</td>
+          </tr>
+          <tr>
+            <td>Resolution</td>
+            <td>Selectable</td>
+            <td>12-bit / 16-bit</td>
+          </tr>
+          <tr>
+            <td>Anti-aliasing filter</td>
+            <td>Cut-off frequency (1st order)</td>
+            <td>5 kHz</td>
+          </tr>
+          <tr>
+            <td>Input protection</td>
+            <td>Over-voltage protection</td>
+            <td>Clamped</td>
+          </tr>
+          <tr>
+            <td colspan="3">
+              <i><b>Digital input characteristics</b></i>
+            </td>
+          </tr>
+          <tr>
+            <td>Input voltage range</td>
+            <td></td>
+            <td>-60 V ... +60 V</td>
+          </tr>
+          <tr>
+            <td>Input impedance</td>
+            <td></td>
+            <td>100 kOhm</td>
+          </tr>
+          <tr>
+            <td>Software De-bounce filter</td>
+            <td>Adjustable</td>
+            <td>0 - 60000 ms</td>
+          </tr>
+          <tr>
+            <td>Input HIGH / LOW</td>
+            <td>Voltage threshold</td>
+            <td>LOW: 1.0 V, HIGH: 2.0 V</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-
   </div>
 </div>
