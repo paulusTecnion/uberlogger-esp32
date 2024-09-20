@@ -29,7 +29,7 @@ void settings_determine_last_enabled_channel()
 {
     for (int i = NUM_ADC_CHANNELS - 1; i >= 0; i--)
     {
-        if (settings_get_adc_channel_enabled(i))
+        if (settings_get_adc_channel_enabled(&_settings,i))
         {
             lastEnabledADC = i;
             break; // Found the last enabled ADC, exit the loop
@@ -66,9 +66,9 @@ int8_t settings_get_last_enabled_GPIO_channel()
     return lastEnabledGPIO;
 }
 
-uint8_t settings_get_adc_channel_enabled(adc_channel_t channel)
+uint8_t settings_get_adc_channel_enabled(Settings_t *settings, adc_channel_t channel)
 {
-    return _settings.adc_channels_enabled & (0x01 << channel);
+    return settings->adc_channels_enabled & (0x01 << channel);
 }
 
 

@@ -217,7 +217,7 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     char buf[25];
     for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
     {
-        if (settings_get_adc_channel_enabled(i))
+        if (settings_get_adc_channel_enabled(settings_get(),i))
         {
             if (settings_get_adc_channel_type(settings_get(), i))
             {
@@ -270,7 +270,13 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     // cJSON_AddNumberToObject(aDigital, "DI6", live_data.gpioData[5]);
 
     // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
-    cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
+    if (Logger_getLoggingState() == LOGGING_WAIT_FOR_TRIGGER)
+    {
+        // very dirty and workaround :(
+        cJSON_AddNumberToObject(root, "LOGGER_STATE", LOGTASK_WAITING_FOR_TRIGGER);
+    }    else {
+        cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
+    }
     cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
     // cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
     cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
@@ -448,7 +454,7 @@ const char * logger_settings_to_json(Settings_t *settings)
             cJSON_AddBoolToObject(range_select, buf, settings_get_adc_channel_range(settings, i));
             
             sprintf(buf,"AIN%d_ENABLE", i+1);
-            cJSON_AddBoolToObject(ain_enabled, buf, settings_get_adc_channel_enabled(i));
+            cJSON_AddBoolToObject(ain_enabled, buf, settings_get_adc_channel_enabled(settings, i));
             
             if (i<6)
             {

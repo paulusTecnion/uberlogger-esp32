@@ -239,7 +239,7 @@ int fileman_csv_write_header()
     char buff[22];
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
-        if (!settings_get_adc_channel_enabled(i))
+        if (!settings_get_adc_channel_enabled(settings_get(), i))
         {
             continue;
         }   
@@ -335,7 +335,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio,  const s_
         for (int x = 0; x < NUM_ADC_CHANNELS; x++)
         {
             // Check if the channel is enable, else skip it
-            if (!settings_get_adc_channel_enabled(x))
+            if (!settings_get_adc_channel_enabled(settings_get(),x))
             {
                 continue;
             }
