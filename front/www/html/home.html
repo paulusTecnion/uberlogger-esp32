@@ -96,7 +96,7 @@
     <div class="flexdiv-md greybox">
       <h3>Sampling settings</h3>
       <details>
-        <summary>Sampling settings</summary>
+        <summary>Choosing the right sample rate</summary>
         <p>
           The UberLogger allows configurable sampling rates and resolutions to
           capture data accurately. The sample rate affects:
@@ -109,6 +109,18 @@
           <li>
             <b>Storage space:</b> Higher sample rates require more space on the
             SD card.
+          </li>
+          <li>
+            <b>Frequency requirements: </b> The appropriate sampling frequency
+            for your measurements depends on the signal you wish to capture
+            accurately. It is recommended to set the sample rate at least twice
+            the maximum frequency of the signal of interest. For instance, if
+            your signal's highest frequency is 50 Hz, logging at 100 Hz will
+            prevent aliasing (signal distortion due to a too low sample rate).
+            For temperature logging, most applications can achieve satisfactory
+            results with sampling frequencies as low as 1 Hz or 5 Hz. This
+            ensures sufficient data points for precise temperature measurements
+            without significantly increasing data storage requirements.
           </li>
         </ul>
         <p>
@@ -145,7 +157,9 @@
     <div class="flexdiv-md greybox">
       <h3>Measurement Mode</h3>
       <details>
-        <summary>Click to see the explanation</summary>
+        <summary>
+          Setting continuous measurement or external trigger/control
+        </summary>
         <p>The UberLogger supports three measurement modes:</p>
         <ul>
           <li>
@@ -205,7 +219,7 @@
     <div class="flexdiv-md greybox">
       <h3 class="first">File options</h3>
       <details>
-        <summary>Click to see the explanation</summary>
+        <summary>Customize file names and size</summary>
         <p>
           The <b>File Options</b> section allows you to configure how the
           UberLogger saves its data.
@@ -286,7 +300,7 @@
     <div class="flexdiv-md greybox">
       <h3 class="first">Import/Export Configuration</h3>
       <details>
-        <summary>Click to see the explanation</summary>
+        <summary>Back and restore settings</summary>
         <p>
           The <b>Import/Export Configuration</b> section allows you to save or
           load the configuration settings of the UberLogger.

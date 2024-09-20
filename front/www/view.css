@@ -344,7 +344,7 @@ input[type="radio"] {
   flex-grow: 2;
 }
 .flexdiv-lg {
-  flex-basis: 640px;
+  flex-basis: 100%;
   flex-grow: 3;
 }
 
@@ -579,7 +579,6 @@ body {
 
 .container {
   max-width: 1200px;
-  margin: 0 auto;
   padding: 20px;
 }
 
