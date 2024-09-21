@@ -2414,7 +2414,8 @@ void task_logging(void * pvParameters)
             (_currentLogTaskState == LOGTASK_IDLE ||
             _currentLogTaskState == LOGTASK_SINGLE_SHOT) && 
             settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL && 
-            _startLogTask == 0)
+            _startLogTask == 0 && 
+            _systemTimeSet == 1) // first set the system time, else we get the wrong date in our filename
             {
                 LogTask_start();
                 _startLogTask = 1;
