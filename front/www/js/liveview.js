@@ -36,13 +36,13 @@ function renderValueList() {
   // parse JSON data to input list
   htmlstring = [];
   htmlstring += "<p>Timestamp of data: " + valuesData["TIMESTAMPSTR"] + "</p>";
-
+  console.debug("renderValueList called");
   $.each(valuesData["READINGS"], function (category, category_values) {
     htmlstring +=
       "<div class='block greybox' style='font-size: smaller;'><h2 class='first'>" +
       sanitizeCategoryName(category) +
       "</h2>";
-    htmlstring += "<table width='100%'>";
+    htmlstring += "<table class='table-compact'>";
     htmlstring +=
       "<tr><th>Input</th><th align='right'>" +
       category_values["UNITS"] +
@@ -51,14 +51,17 @@ function renderValueList() {
     let n = 0;
     $.each(category_values["VALUES"], function (channel, channel_value) {
       n++;
-      htmlstring += "<tr><td>" + channel + "</td>";
+      let truncatedChannel =
+        channel.length > 4 ? channel.substring(0, 4) + ".." : channel;
+
+      htmlstring += "<tr><td>" + truncatedChannel + "</td>";
 
       if (typeof channel_value === "number") {
-        if (channel.startsWith("T")) {
+        if (category === "TEMPERATURE") {
           // Round to one decimal place for Tx
           htmlstring +=
             "<td align='right'>" + channel_value.toFixed(1) + "</td></tr>";
-        } else if (channel.startsWith("DI")) {
+        } else if (category === "DIGITAL") {
           // Round to zero decimal places for DI
           htmlstring +=
             "<td align='right'>" + channel_value.toFixed(0) + "</td></tr>";

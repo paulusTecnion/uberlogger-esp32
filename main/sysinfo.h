@@ -2,7 +2,7 @@
 
 #include "esp_system.h"
 
-static const char SW_VERSION[] =  "1.1.3_2024.03.29.08.11";
+static const char SW_VERSION[] =  "1.2.0_2024.09.20.19.44";
 
 // float sysinfo_get_core_temperature();
 const char * sysinfo_get_fw_version();

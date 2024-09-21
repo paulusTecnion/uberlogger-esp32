@@ -1,8 +1,10 @@
 import sys
 import struct 
 
-RAW_FORMAT_VERSION = 1
+VERSION_STRING = "V1.1"
+RAW_FORMAT_VERSION = 2
 NUM_ADC_CHANNELS = 8
+NUM_DIO_CHANNELS = 6  # Assuming 6 DIO channels as per your requirements
 ADC_MULT_FACTOR_16B_TEMP = 1000000
 ADC_MULT_FACTOR_60V = 1000000
 ADC_MULT_FACTOR_10V = 10000000
@@ -128,7 +130,6 @@ NTC_table = [
 -534, -548, -564, -583, -604, -629, -661,
 -704, -774, -844
 ]
-
 def decode_adc_data(adc_data_raw, data_len):
     adc_data = []
     for i in range(0, len(adc_data_raw), 2):
@@ -142,9 +143,12 @@ def decode_gpio_data(gpio_data_raw):
 def read_file_header(file_path):
     """ Read and return the file header. """
     with open(file_path, 'rb') as file:
-        # Read the settings (9 bytes) and adc_offsets (4 bytes * 8 channels)
-        header_data = file.read(9 + 4 * 8)
-        return header_data
+        # Read the header length
+        header_length = struct.unpack('I', file.read(4))[0]
+        
+        # Read the rest of the header based on its length
+        header_data = file.read(header_length - 4)  # Subtract 4 bytes already read for header_length
+        return header_data, header_length
     
 def decode_time_data(time_data_raw, data_len):
     time_data = []
@@ -197,15 +201,36 @@ def read_struct(file):
 
 
 def decode_file_header(header_data):
-    # Unpack the settings (7 bytes)
-    settings_format = '9B'  # 7 bytes for settings
+    # Unpack the settings (9 bytes)
+    settings_format = '9B'  # 9 bytes for settings
     settings = struct.unpack(settings_format, header_data[:9])
 
     # Unpack the adc_offsets (8 int32_t values)
     adc_offsets_format = '8i'  # 8 int32_t values
-    adc_offsets = struct.unpack(adc_offsets_format, header_data[9:])
+    adc_offsets = struct.unpack(adc_offsets_format, header_data[9:9 + 4 * NUM_ADC_CHANNELS])
 
-    return settings, adc_offsets
+    # Calculate the start of the labels in the header
+    labels_offset = 9 + 4 * NUM_ADC_CHANNELS
+
+    # Read ADC channel labels
+    adc_channel_labels = []
+    for _ in range(NUM_ADC_CHANNELS):
+        label_len = struct.unpack('B', header_data[labels_offset:labels_offset + 1])[0]
+        labels_offset += 1
+        label = header_data[labels_offset:labels_offset + label_len].decode('utf-8')
+        labels_offset += label_len
+        adc_channel_labels.append(label)
+
+    # Read DIO channel labels
+    dio_channel_labels = []
+    for _ in range(NUM_DIO_CHANNELS):
+        label_len = struct.unpack('B', header_data[labels_offset:labels_offset + 1])[0]
+        labels_offset += 1
+        label = header_data[labels_offset:labels_offset + label_len].decode('utf-8')
+        labels_offset += label_len
+        dio_channel_labels.append(label)
+
+    return settings, adc_offsets, adc_channel_labels, dio_channel_labels
 
 def convert_adc(settings, adc_offsets, adc_data, data_len):
     adc_channel_range, adc_channel_type = settings[1], settings[2]
@@ -225,7 +250,7 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
             range_value = 2*offset
             
         is_ntc = (adc_channel_type >> channel) & 1
-        
+
 
 
         if is_ntc:  # NTC input
@@ -250,7 +275,7 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
 
 def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type, 
               adc_channel_range, adc_channel_enable, gpio_channel_enable, 
-              decimal_char, separator_char,  f):
+              decimal_char, separator_char, f, adc_channel_labels, dio_channel_labels):
     
     file_bytes_written = 0
 
@@ -289,7 +314,7 @@ def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type,
                     filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_10V:.7f}{separator_char if add_comma else ''}"
 
         # Print GPIO values
-        for x in range(6):  # Assuming 6 GPIO channels
+        for x in range(NUM_DIO_CHANNELS):
             if gpio_channel_enable & (1 << x):  # Check if the GPIO channel is enabled
                 gpio_val = int(bool(((dataGpio[j] & (4 << x)))))
                 add_comma = x != last_enabled_gpio  # Add a comma only if this isn't the last enabled GPIO
@@ -308,11 +333,7 @@ def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type,
     return data_len  # Return the original data length
 
 
-
-
-
 def format_time_data(time_data_entry):
-    # Assuming time_data_entry is a tuple (year, month, day, hours, minutes, seconds, padding1, padding2, subseconds)
     year, month, day, hours, minutes, seconds, _, _, subseconds = time_data_entry
     subseconds = subseconds
     return f"{2000 + year}-{month:02d}-{day:02d} {hours:02d}:{minutes:02d}:{seconds:02d}.{subseconds:03d}"
@@ -321,20 +342,16 @@ def format_gpio_data(gpio_data_entry):
     # Format GPIO data into binary states
     return [int(bit) for bit in format(gpio_data_entry, '08b')[:6]]
 
-
-def generate_header(adc_channel_type, adc_channel_enabled, gpio_channel_enabled, separator_char):
+def generate_header(adc_channel_enabled, gpio_channel_enabled, adc_channel_labels, dio_channel_labels, separator_char):
     headers = ["time(utc)"]  # Start with fixed header part
-    # Iterate through ADC channels
     for i in range(8):  # Assuming 8 channels
         if (adc_channel_enabled >> i) & 1:  # Check if the channel is enabled
-            channel_type = 'NTC' if (adc_channel_type >> i) & 1 else 'AIN'
-            headers.append(f"{channel_type}{i+1}")
+            headers.append(f"{adc_channel_labels[i]}")
     
     # Iterate through GPIO channels
     for i in range(6):  # Assuming 6 GPIO channels
         if (gpio_channel_enabled >> i) & 1:  # Check if the channel is enabled
-            headers.append(f"DI{i+1}")
-    
+            headers.append(f"{dio_channel_labels[i]}")
     return separator_char.join(headers)
 
 def read_spi_msg_1(file, rows_remaining):
@@ -385,9 +402,6 @@ def read_spi_msg_1(file, rows_remaining):
     return data_len, time_data, gpio_data, adc_data, rows_remaining
 
 def read_spi_msg_2(file, data_len, rows_remaining):
-
-    
-
     if (data_len == 70):
         if rows_remaining < data_len:
             data_len = rows_remaining
@@ -402,109 +416,98 @@ def read_spi_msg_2(file, data_len, rows_remaining):
         gpio_data_raw = file.read(data_len)
         time_data_raw = file.read(data_len*12)
    
-    
     try:
         data_len, stopByte0, stopByte1 = struct.unpack('H 2B', file.read(4))
     except struct.error:
         return -1  # End of file or error in reading
         
     if not (stopByte0 == 0xFB and stopByte1 == 0xFA):
-        return "Unexpected start bytes for spi_msg_2."
+        return "Unexpected stop bytes for spi_msg_2."
     if not ( data_len<=70):
         return "Unexpected data length for spi_msg_2"
     
     adc_data = decode_adc_data(adc_data_raw, data_len)
 
     # Read and process GPIO data
-   
     gpio_data = decode_gpio_data(gpio_data_raw)  # Exclude padding bytes
 
     # Read and process time data
     time_data = decode_time_data(time_data_raw, data_len)
 
     rows_remaining = rows_remaining - data_len
-    
 
     return data_len, time_data, gpio_data, adc_data, rows_remaining
 
 
-
-print("*** Uberlogger raw data conversion tool. Tecnion Technologies 2024 (C) ***\r\n")
+print(f"*** Uberlogger raw data conversion tool {VERSION_STRING}. Tecnion Technologies 2024 (C) ***\r\n")
 if len(sys.argv) < 2:
     print("Usage: python convert_raw.py <file_path>")
     sys.exit(1)  # Exit the script if no file path is provided
 
 file_path = sys.argv[1]  # Use the file path from the command line argument
-# file_path = 'test_log.dat'
+
 # File path to your .dat file
 csv_file_path = file_path.rsplit('.dat', 1)[0] + '.csv' 
 
 # Read and decode the file header
-file_header = read_file_header(file_path)
-decoded_settings, decoded_adc_offsets = decode_file_header(file_header)
+file_header, header_length = read_file_header(file_path)
+decoded_settings, decoded_adc_offsets, adc_channel_labels, dio_channel_labels = decode_file_header(file_header)
 
 # Display the decoded values
 print("Settings:", decoded_settings)
 
 # Assuming decoded_settings contains the settings as a tuple
-# For example: decoded_settings = (0, 4, 255, 12, 7)
-
-# Names of the settings
 settings_names = ["File format version", "adc_channel_range", "adc_channel_type", "adc_channels_enabled", "adc_resolution", "log_sample_rate", "GPIO inputs enabled", "CSV decimal character", "CSV separator character"]
 
 # Print the settings
 for i, setting in enumerate(decoded_settings):
     print(f"{i+1}. {settings_names[i]}: {setting}")
-    if (i==0 and (setting != RAW_FORMAT_VERSION)):
-        print("ERROR: cannot convert {file_path}. This data file is made with an older and incompatible Uberlogger firmware version.")
+    if (i == 0 and setting != RAW_FORMAT_VERSION):
+        print(f"ERROR: cannot convert {file_path}. This data file is made with an older and incompatible Uberlogger firmware version.")
         exit()
-
 
 print("ADC Offsets:", decoded_adc_offsets)
 adc_channel_range = decoded_settings[1]
 adc_channel_type = decoded_settings[2]  # Extract adc_channel_type from settings
 adc_channel_enabled = decoded_settings[3]
+adc_sample_rate = decoded_settings[5]
 gpio_channel_enabled = decoded_settings[6]
 file_decimal_char = "." if decoded_settings[7] == 0 else ","
 file_separator_char = "," if decoded_settings[8] == 0 else ";"
 
-# print(generate_header(adc_channel_type, adc_channel_enabled, gpio_channel_enabled, file_separator_char))  # Print the dynamically generated header
-
-
 with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
-    header_size = 9 + 4 * 8  # Size of the header (9 bytes of settings + 8* adc_offsets)
     # Skip the header
-    file.seek(header_size)
+    file.seek(header_length)
 
-    # Seek to 4 bytes from the end of the file
+    # Seek to 8 bytes from the end of the file
     file.seek(-8, 2)  # The '2' argument means 'seek relative to file's end'
-    # Read the last 4 bytes
+    # Read the last 8 bytes for total number of rows
     total_number_rows = file.read(8)
     rows_remaining = struct.unpack('<Q', total_number_rows)[0]
     total_rows_int = rows_remaining
-    # go back
-    file.seek(header_size)
-    # write the csv header
-    fcsv.write(generate_header(adc_channel_type, adc_channel_enabled, gpio_channel_enabled, file_separator_char) + '\r')
+    # Go back to the data section
+    file.seek(header_length)
+    # Write the CSV header with labels
+    fcsv.write(generate_header(adc_channel_enabled, gpio_channel_enabled, adc_channel_labels, dio_channel_labels, file_separator_char) + '\r')
 
     message_type = 1  # Start with spi_msg_1
     while True:
-        # result = read_struct(file)
         if message_type == 1:
             result = read_spi_msg_1(file, rows_remaining)
             if result == -1:
                 break  # End of file reached
             elif isinstance(result, str):
                 print(result)  # Error message
-                break
-            message_type = 2  # Switch to spi_msg_2 for the next iteration
+                sys.exit(1)
+            if adc_sample_rate > 4:
+                message_type = 2  # Switch to spi_msg_2 for the next iteration
         else:
-            result = read_spi_msg_2(file, data_len, rows_remaining) # this is under the condition that read_spi_msg_1 is always called before read_spi_msg_2
+            result = read_spi_msg_2(file, data_len, rows_remaining)  # Assuming read_spi_msg_1 is always called before read_spi_msg_2
             if result == -1:
                 break  # End of file reached
             elif isinstance(result, str):
                 print(result)  # Error message
-                break
+                sys.exit(1)
             message_type = 1  # Switch back to spi_msg_1 for the next iteration
 
         if result == -1:
@@ -512,20 +515,19 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
 
         data_len, time_data, gpio_data, adc_data, rows_remaining = result
 
-        
         # Convert ADC data
         converted_adc_values = convert_adc(decoded_settings, decoded_adc_offsets, adc_data, data_len)
         
-        # Process and print each line of data        
+        # Process and write each line of data to CSV        
         csv_write(converted_adc_values, gpio_data, time_data, data_len, adc_channel_type, adc_channel_range, 
-                  adc_channel_enabled, gpio_channel_enabled, file_decimal_char, file_separator_char, fcsv)
-
-        # print('Rows remaining:', {rows_remaining})
+                  adc_channel_enabled, gpio_channel_enabled, file_decimal_char, file_separator_char, fcsv,
+                  adc_channel_labels, dio_channel_labels)
 
         progress = (total_rows_int - rows_remaining) / total_rows_int * 100  # Calculate progress percentage
         print(f'\rProgress: {progress:.2f}%', end='')
-        if (rows_remaining == 0):
+        if rows_remaining == 0:
             print("\r\nConversion complete!          ")  # Extra spaces to overwrite any remaining characters from the progress update
             print(f"File stored as {csv_file_path}")
             break
 
+sys.exit(0)

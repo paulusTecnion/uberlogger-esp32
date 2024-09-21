@@ -1,8 +1,8 @@
-<h1>SD card logging</h1>
+<h1>File browser</h1>
 
 <div id="log">
   <div id="logger">
-    <h2 class="first">Logger</h2>
+    <h2 class="first">Logger status</h2>
     <p>Logger time: <span name="TIMESTAMPSTR">-</span></p>
     <p>Logger status: <span name="LOGGER_STATE">-</span></p>
     <p>Logger error: <span name="ERRORCODE">-</span></p>
@@ -35,10 +35,15 @@
   </div>
 
   <div id="filebrowser">
-    <h2>File browser</h2>
+    <h2>Files</h2>
     <p>SD card status: <span name="SD_CARD_STATUS">-</span></p>
     <p>SD card free space: <span name="SD_CARD_FREE_SPACE">-</span></p>
-
+    <p>
+      <b
+        >Note that the file browser functionality (browsing, downloading,
+        deleting, formatting) only works when the logger is idle.</b
+      >
+    </p>
     <div
       id="filelist"
       style="display: block; max-width: 800px; border: 0; margin-top: 20px"

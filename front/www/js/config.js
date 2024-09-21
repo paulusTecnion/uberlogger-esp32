@@ -2,10 +2,41 @@ document.querySelector("#configuration").onkeypress = checkEnter; // don't submi
 
 $(document).ready(function () {
   loadForm();
+  document
+    .getElementById("LOG_SAMPLE_RATE")
+    .addEventListener("change", updateAverageSamplesField);
+  updateAverageSamplesField(); // Call initially to set the correct state on load
 });
+
+function updateAverageSamplesField() {
+  const logSampleRate = document.getElementById("LOG_SAMPLE_RATE").value;
+  const averageSamplesField = document.getElementById("AVERAGE_SAMPLES");
+
+  if (logSampleRate >= 0 && logSampleRate <= 4) {
+    averageSamplesField.disabled = false;
+  } else {
+    averageSamplesField.disabled = true;
+  }
+}
 
 function importConfigfile() {
   $("#file_import_config").click();
+}
+
+function toggleTriggerSettings() {
+  const measurementMode = document.getElementById("EXT_TRIGGER_MODE").value;
+  const triggerChannel = document.getElementById("EXT_TRIGGER_PIN");
+  const debounceTime = document.getElementById("EXT_TRIGGER_DEBOUNCE_TIME");
+
+  if (measurementMode == "0") {
+    // Continuous measurement, disable trigger settings
+    triggerChannel.disabled = true;
+    debounceTime.disabled = true;
+  } else {
+    // Enable for other modes
+    triggerChannel.disabled = false;
+    debounceTime.disabled = false;
+  }
 }
 
 function disableAIN(x) {
@@ -86,6 +117,8 @@ function parseConfig(data) {
   populateFields("#channel_configuration", data["AIN_RANGE_SELECT"]);
   populateFields("#channel_configuration", data["AIN_ENABLED"]);
   populateFields("#channel_configuration", data["DIN_ENABLED"]);
+  populateFields("#channel_configuration", data["AIN_CHANNEL_LABELS"]);
+  populateFields("#channel_configuration", data["DIO_CHANNEL_LABELS"]);
 }
 
 function testWifiNetwork() {
@@ -234,6 +267,27 @@ function validateIntegerInput(element) {
   } else {
     element.value = ""; // Clear the field if the result is not a number
   }
+
+  if (value < input.min) {
+    input.value = input.min;
+  } else if (value > input.max) {
+    input.value = input.max;
+  }
+}
+
+function validateChannelNames(channelNames) {
+  const validPattern = /^[a-zA-Z0-9_-]*$/;
+  for (let key in channelNames) {
+    if (channelNames.hasOwnProperty(key)) {
+      if (!validPattern.test(channelNames[key])) {
+        alert(
+          `Invalid characters in ${key}. Only letters, numbers, underscores, and hyphens are allowed.`
+        );
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 function setConfig() {
@@ -253,6 +307,34 @@ function setConfig() {
   }
   if (!/^[a-zA-Z0-9_-]*$/.test(fileNamePrefix)) {
     alert("File name prefix should not contain spaces or special characters.");
+    return;
+  }
+
+  // Validate channel names
+  let ainChannelLabels = {
+    AIN1: String(input["AIN_CHAN_LABEL1"]),
+    AIN2: String(input["AIN_CHAN_LABEL2"]),
+    AIN3: String(input["AIN_CHAN_LABEL3"]),
+    AIN4: String(input["AIN_CHAN_LABEL4"]),
+    AIN5: String(input["AIN_CHAN_LABEL5"]),
+    AIN6: String(input["AIN_CHAN_LABEL6"]),
+    AIN7: String(input["AIN_CHAN_LABEL7"]),
+    AIN8: String(input["AIN_CHAN_LABEL8"]),
+  };
+
+  let dioChannelLabels = {
+    DIO1: String(input["DIO_CHAN_LABEL1"]),
+    DIO2: String(input["DIO_CHAN_LABEL2"]),
+    DIO3: String(input["DIO_CHAN_LABEL3"]),
+    DIO4: String(input["DIO_CHAN_LABEL4"]),
+    DIO5: String(input["DIO_CHAN_LABEL5"]),
+    DIO6: String(input["DIO_CHAN_LABEL6"]),
+  };
+
+  if (
+    !validateChannelNames(ainChannelLabels) ||
+    !validateChannelNames(dioChannelLabels)
+  ) {
     return;
   }
 
@@ -284,11 +366,15 @@ function setConfig() {
     return;
   }
 
-  // merge input to config struct
+  // Merge input to config struct
   let config = {
     LOG_SAMPLE_RATE: input["LOG_SAMPLE_RATE"],
     ADC_RESOLUTION: input["ADC_RESOLUTION"],
+    AVERAGE_SAMPLES: input["AVERAGE_SAMPLES"],
     LOG_MODE: input["LOG_MODE"],
+    EXT_TRIGGER_MODE: input["EXT_TRIGGER_MODE"],
+    EXT_TRIGGER_PIN: input["EXT_TRIGGER_PIN"],
+    EXT_TRIGGER_DEBOUNCE_TIME: input["EXT_TRIGGER_DEBOUNCE_TIME"],
     FILE_DECIMAL_CHAR: input["FILE_DECIMAL_CHAR"],
     FILE_NAME_MODE: input["FILE_NAME_MODE"],
     FILE_NAME_PREFIX: input["FILE_NAME_PREFIX"],
@@ -333,6 +419,8 @@ function setConfig() {
       DIN5_ENABLE: input["DIN5_ENABLE"],
       DIN6_ENABLE: input["DIN6_ENABLE"],
     },
+    AIN_CHANNEL_LABELS: ainChannelLabels,
+    DIO_CHANNEL_LABELS: dioChannelLabels,
     WIFI_CHANNEL: input["WIFI_CHANNEL"],
     WIFI_MODE: input["WIFI_MODE"],
     WIFI_PASSWORD: input["WIFI_PASSWORD"],
@@ -351,7 +439,7 @@ function setConfig() {
 
     success: function (response) {
       if (response["resp"] == "ack") {
-        alert("Settings saved succesfully.");
+        alert("Settings saved successfully.");
       } else {
         alert(
           "Error: could not save settings, response=" + response["reason"] + "."

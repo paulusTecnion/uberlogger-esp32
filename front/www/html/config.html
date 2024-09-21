@@ -14,14 +14,13 @@
     <h2>Logging settings</h2>
     <div class="group" id="logging_configuration">
       <h3>System time</h3>
-
       <p>
         To ensure recordings are indicating the correct time, you can
         synchronize the real time clock with the local time.
       </p>
       <input
         id="btn_sync_time"
-        class="button"
+        class="button button-secondary"
         type="button"
         name="btn_sync_time"
         value="Synchronize to local time"
@@ -30,30 +29,34 @@
     </div>
 
     <h2>Channel configuration</h2>
-    <div class="group" id="sampling_configuration">
-      <h3>Sampling</h3>
-      <p>
-        Select the desired sample rate:
+    <div class="form-grid-container">
+      <div class="form-group">
+        <label for="LOG_SAMPLE_RATE">Select the desired sample rate:</label>
         <select
           name="LOG_SAMPLE_RATE"
           id="LOG_SAMPLE_RATE"
           class="json-as-number"
         >
-          <!-- <option value="0">Once per minute</option>
-          <option value="1">Once per 10 seconds</option> -->
-          <option value="0">1 Sample/s</option>
-          <option value="1">2 Samples/s</option>
-          <option value="2">5 Samples/s</option>
-          <option value="3">10 Samples/s</option>
-          <option value="4">25 Samples/s</option>
-          <option value="5">50 Samples/s</option>
-          <option value="6">100 Samples/s</option>
-          <option value="7">250 Samples/s</option>
+          <option value="0">1 Sample/hour</option>
+          <option value="1">1 Sample/10 minutes</option>
+          <option value="2">1 Sample/5 minutes</option>
+          <option value="3">1 Sample/minute</option>
+          <option value="4">1 Sample/10 seconds</option>
+          <option value="5">1 Sample/s</option>
+          <option value="6">2 Samples/s</option>
+          <option value="7">5 Samples/s</option>
+          <option value="8">10 Samples/s</option>
+          <option value="9">25 Samples/s</option>
+          <option value="10">50 Samples/s</option>
+          <option value="11">100 Samples/s</option>
+          <option value="12">250 Samples/s</option>
         </select>
-      </p>
+      </div>
 
-      <p>
-        Select the desired analog resolution:
+      <div class="form-group">
+        <label for="ADC_RESOLUTION"
+          >Select the desired analog resolution:</label
+        >
         <select
           name="ADC_RESOLUTION"
           id="ADC_RESOLUTION"
@@ -62,18 +65,144 @@
           <option value="12">12 bits</option>
           <option value="16">16 bits</option>
         </select>
-      </p>
-      <p>
-        <i
-          ><b>Note:</b>16-bits will not improve resolution for temperature
-          sensors, since these channels will be scaled down to 12-bits.</i
+      </div>
+    </div>
+
+    <p class="note">
+      <i
+        ><b>Note:</b> 16-bits will not improve resolution for temperature
+        sensors, as these channels will be scaled down to 12-bits.</i
+      >
+    </p>
+
+    <h4>Averaging</h4>
+    <details>
+      <summary>Click to see the explanation</summary>
+      <div class="explanation-box">
+        <p>
+          For sample frequencies below 1 Hz, you can choose to average the
+          samples over the desired sample frequency or only take one sample at
+          the desired sample rate. For example, if you enable this option with a
+          sample frequency of 1 Sample/minute, the average will be taken over 1
+          minute of samples using an IIR filter. After 1 minute, the average
+          will be output to the file.
+        </p>
+      </div>
+    </details>
+
+    <div class="form-grid-container">
+      <div class="form-group">
+        <label for="AVERAGE_SAMPLES">Average sampling mode</label>
+        <select
+          name="AVERAGE_SAMPLES"
+          id="AVERAGE_SAMPLES"
+          class="json-as-number"
         >
-      </p>
+          <option value="0">Normal sampling (default)</option>
+          <option value="1">Average samples over time</option>
+        </select>
+      </div>
+    </div>
+
+    <h4>Measurement Mode</h4>
+    <details>
+      <summary>Click to see the explanation</summary>
+      <div class="explanation-box">
+        <p>Three measurement modes are possible:</p>
+        <ul>
+          <li>
+            <b>Continuous measurement:</b> Instantly start the measurement using
+            the "Start logging" button on the web interface or the physical
+            button on the logger.
+          </li>
+          <li>
+            <b>External trigger:</b> Use the "Start logging" button on the web
+            interface or the physical button on the logger to arm the logger.
+            Then, wait for an external trigger using one of the digital inputs.
+          </li>
+          <li>
+            <b>External control:</b> Logger start and stop is controlled by a
+            digital input. The logger start/stop button and web button are
+            disabled.
+          </li>
+        </ul>
+        <p>
+          <b>Debounce time:</b> Set the time for the trigger input to stabilize
+          or delay the measurement. If fast oscillations on the trigger input
+          can occur that may quickly enable and disable logging, you can set a
+          debounce time here. Maximum debounce time is 60000 ms (60 seconds).
+        </p>
+        <p>
+          <i
+            ><b>Note:</b> Currently, only triggers and external control on input
+            <b>HIGH</b> are supported.</i
+          >
+        </p>
+        <p>
+          <i
+            ><b>Note 2:</b> The live view is not updating when in external
+            trigger mode and the trigger is low.</i
+          >
+        </p>
+      </div>
+    </details>
+
+    <div class="form-grid-container">
+      <div class="form-group">
+        <label for="EXT_TRIGGER_MODE">Measurement mode:</label>
+        <select
+          name="EXT_TRIGGER_MODE"
+          id="EXT_TRIGGER_MODE"
+          class="json-as-number"
+          onchange="toggleTriggerSettings()"
+        >
+          <option value="0">Continuous measurement</option>
+          <option value="1">External trigger</option>
+          <option value="2">External control</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="EXT_TRIGGER_PIN">Trigger channel:</label>
+        <select
+          name="EXT_TRIGGER_PIN"
+          id="EXT_TRIGGER_PIN"
+          class="json-as-number"
+        >
+          <option value="1">DIO 1</option>
+          <option value="2">DIO 2</option>
+          <option value="3">DIO 3</option>
+          <option value="4">DIO 4</option>
+          <option value="5">DIO 5</option>
+          <option value="6">DIO 6</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="EXT_TRIGGER_DEBOUNCE_TIME">Debounce time in ms:</label>
+        <input
+          type="number"
+          id="EXT_TRIGGER_DEBOUNCE_TIME"
+          name="EXT_TRIGGER_DEBOUNCE_TIME"
+          min="0"
+          max="60000"
+          step="1"
+        />
+      </div>
+    </div>
+
+    <div id="configuration_done">
+      <button id="saveForm" type="button" class="button" onClick="setConfig()">
+        Save measurement settings
+      </button>
     </div>
 
     <div class="group" id="channel_configuration">
       <h3>Analog & digital channels</h3>
-      <p>Select the mode used for the analog channels.</p>
+      <p>
+        Select the mode used for the analog channels and adjust channel names if
+        necessary.
+      </p>
       <p>
         <i
           ><b>Important:</b> ensure the hardware configuration (DIP-switch
@@ -84,10 +213,12 @@
       <table class="compact-table" width="100%">
         <tr>
           <th>Enable</th>
-          <th>Analog channel</th>
+          <th>Channel</th>
+          <th>Channel label</th>
           <th>Mode</th>
           <th>Range</th>
         </tr>
+        <!-- Analog Channels -->
         <tr>
           <td>
             <input
@@ -97,7 +228,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Analog Input 1</td>
+          <td>AIN1</td>
+          <td>
+            <input
+              type="text"
+              name="AIN_CHAN_LABEL1"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td>
             <select
               name="NTC1"
@@ -125,7 +264,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Analog Input 2</td>
+          <td>AIN2</td>
+          <td>
+            <input
+              type="text"
+              name="AIN_CHAN_LABEL2"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td>
             <select
               name="NTC2"
@@ -153,7 +300,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Analog Input 3</td>
+          <td>AIN3</td>
+          <td>
+            <input
+              type="text"
+              name="AIN_CHAN_LABEL3"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td>
             <select
               name="NTC3"
@@ -181,7 +336,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Analog Input 4</td>
+          <td>AIN4</td>
+          <td>
+            <input
+              type="text"
+              name="AIN_CHAN_LABEL4"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td>
             <select
               name="NTC4"
@@ -209,7 +372,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Analog Input 5</td>
+          <td>AIN5</td>
+          <td>
+            <input
+              type="text"
+              name="AIN_CHAN_LABEL5"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td>
             <select
               name="NTC5"
@@ -237,7 +408,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Analog Input 6</td>
+          <td>AIN6</td>
+          <td>
+            <input
+              type="text"
+              name="AIN_CHAN_LABEL6"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td>
             <select
               name="NTC6"
@@ -265,7 +444,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Analog Input 7</td>
+          <td>AIN7</td>
+          <td>
+            <input
+              type="text"
+              name="AIN_CHAN_LABEL7"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td>
             <select
               name="NTC7"
@@ -293,7 +480,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Analog Input 8</td>
+          <td>AIN8</td>
+          <td>
+            <input
+              type="text"
+              name="AIN_CHAN_LABEL8"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td>
             <select
               name="NTC8"
@@ -312,7 +507,6 @@
             </select>
           </td>
         </tr>
-
         <!-- Digital Inputs Rows -->
         <tr>
           <td>
@@ -323,13 +517,18 @@
               class="json-as-bool"
             />
           </td>
-          <td>Digital Input 1</td>
+          <td>DIO1</td>
+          <td>
+            <input
+              type="text"
+              name="DIO_CHAN_LABEL1"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td></td>
-          <!-- Mode column left empty for digital inputs -->
           <td></td>
-          <!-- Range column can be left empty or repurposed if needed -->
         </tr>
-        <!-- Repeat for DI2 to DI6 with onchange added -->
         <tr>
           <td>
             <input
@@ -339,11 +538,18 @@
               class="json-as-bool"
             />
           </td>
-          <td>Digital Input 2</td>
+          <td>DIO2</td>
+          <td>
+            <input
+              type="text"
+              name="DIO_CHAN_LABEL2"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td></td>
           <td></td>
         </tr>
-        <!-- Continue adding similar blocks for DI3 to DI6, changing the numbers accordingly -->
         <tr>
           <td>
             <input
@@ -353,7 +559,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Digital Input 3</td>
+          <td>DIO3</td>
+          <td>
+            <input
+              type="text"
+              name="DIO_CHAN_LABEL3"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td></td>
           <td></td>
         </tr>
@@ -366,7 +580,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Digital Input 4</td>
+          <td>DIO4</td>
+          <td>
+            <input
+              type="text"
+              name="DIO_CHAN_LABEL4"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td></td>
           <td></td>
         </tr>
@@ -379,7 +601,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Digital Input 5</td>
+          <td>DIO5</td>
+          <td>
+            <input
+              type="text"
+              name="DIO_CHAN_LABEL5"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td></td>
           <td></td>
         </tr>
@@ -392,7 +622,15 @@
               class="json-as-bool"
             />
           </td>
-          <td>Digital Input 6</td>
+          <td>DIO6</td>
+          <td>
+            <input
+              type="text"
+              name="DIO_CHAN_LABEL6"
+              maxlength="16"
+              autocomplete="off"
+            />
+          </td>
           <td></td>
           <td></td>
         </tr>
@@ -401,126 +639,125 @@
       <div id="configuration_done">
         <input
           id="saveForm"
-          class="button_text"
+          class="button"
           type="button"
           onClick="setConfig()"
           value="Save channel settings"
         />
       </div>
+    </div>
 
-      <h3>Analog Calibration</h3>
-      <p>
-        Hit the calibration button below to start zero calibration of the
-        channels
-      </p>
-      <div id="calibration">
-        <input
-          id="calibrationStart"
-          class="button_text"
-          type="button"
-          onClick="startCalibration()"
-          value="Start calibration"
-        />
-        <p id="calibStatus"></p>
-      </div>
+    <h3>Analog Calibration</h3>
+    <p>
+      Hit the calibration button below to start zero calibration of the
+      channels.
+    </p>
+    <div id="calibration">
+      <input
+        id="calibrationStart"
+        class="button button-secondary"
+        type="button"
+        onClick="startCalibration()"
+        value="Start calibration"
+      />
+      <p id="calibStatus"></p>
+    </div>
 
-      <span>
-        <h2>File options</h2>
+    <h2>File options</h2>
 
-        <span>
-          <h3>File format</h3>
-          <input
-            id="log_mode"
-            name="LOG_MODE"
-            class="element radio json-as-number"
-            type="radio"
-            value="1"
-            checked="true"
-          />
-          <label class="choice" for="log_mode"
-            >CSV<br />Write CSV files directly. Recommended for low sample rates
-            or short measurements.</label
-          >
+    <h3>File format</h3>
+    <span>
+      <input
+        id="log_mode"
+        name="LOG_MODE"
+        class="element radio json-as-number"
+        type="radio"
+        value="1"
+        checked="true"
+      />
+      <label class="choice" for="log_mode"
+        >CSV<br />Write CSV files directly. Recommended for short
+        measurements.</label
+      >
 
-          <input
-            id="log_mode"
-            name="LOG_MODE"
-            class="element radio json-as-number"
-            type="radio"
-            value="0"
-          />
-          <label class="choice" for="log_mode"
-            >Raw data<br />Write the raw data and convert the data to a CSV file
-            afterwards. This option is recommended for long measurements. You
-            can use the Python conversion script or Windows exe tool to convert
-            the .dat files to .csv. Download the Python
-            <a href="convert_raw.py">here</a> or check the Uberlogger website
-            for the Windows tool in the download section.
-          </label>
-        </span>
+      <input
+        id="log_mode"
+        name="LOG_MODE"
+        class="element radio json-as-number"
+        type="radio"
+        value="0"
+      />
+      <label class="choice" for="log_mode"
+        >Raw data<br />Write the raw data and convert the data to a CSV file
+        afterwards. This option is recommended for long measurements that may
+        take hours or days. You can use the Python conversion script or Windows
+        exe tool to convert the .dat files to .csv. Download the Python
+        <a href="convert_raw.py">here</a> or check the Uberlogger website for
+        the Windows tool in the download section.
+      </label>
+    </span>
 
-        <span>
-          <h3>File name mode</h3>
-          <input
-            id="file_name_mode"
-            name="FILE_NAME_MODE"
-            class="element radio json-as-number"
-            type="radio"
-            value="0"
-            checked="true"
-          />
-          <label class="choice" for="file_name_mode"
-            >Sequential<br />File names are written with prefix + sequence
-            number. Example: log0, log1 etc. Existing files will be
-            overwritten.</label
-          >
+    <h3>File name mode</h3>
+    <span>
+      <input
+        id="FILE_NAME_MODE"
+        name="FILE_NAME_MODE"
+        class="element radio json-as-number"
+        type="radio"
+        value="0"
+        checked="true"
+      />
+      <label class="choice" for="file_name_mode"
+        >Sequential<br />File names are written with prefix + sequence number.
+        Example: log0, log1 etc. Existing files will be overwritten.</label
+      >
 
-          <input
-            id="file_name_mode"
-            name="FILE_NAME_MODE"
-            class="element radio json-as-number"
-            type="radio"
-            value="1"
-          />
-          <label class="choice" for="file_name_mode"
-            >Timestamp<br />File name will be like YYYYMMDD_Time_File Prefix.
-            Example: 20240312_14-34-34_Logfile.csv. Each split part will have a
-            new timestamp in UTC time.
-          </label>
-        </span>
+      <input
+        id="file_name_mode"
+        name="FILE_NAME_MODE"
+        class="element radio json-as-number"
+        type="radio"
+        value="1"
+      />
+      <label class="choice" for="file_name_mode"
+        >Timestamp<br />File name will be like YYYYMMDD_Time_File Prefix.
+        Example: 20240312_14-34-34_Logfile.csv. Each split part will have a new
+        timestamp in UTC time.
+      </label>
+    </span>
 
-        <span>
-          <h3>CSV options</h3>
-          <div>
-            <label for="file_separator_char"
-              >CSV separator character. Semicolon is recommended for
-              Excel.</label
-            >
-            <select
-              name="FILE_SEPARATOR_CHAR"
-              id="file_separator_char"
-              class="json-as-number"
-            >
-              <option value="0">Comma (,)</option>
-              <option value="1">Semicolon (;)</option>
-            </select>
-            <label for="file_decimal_char"
-              >Decimal notation character. Note: this option does not have
-              effect when using RAW data file format. The conversion script will
-              use the system's default decimal character.</label
-            >
-            <select
-              name="FILE_DECIMAL_CHAR"
-              id="file_decimal_char"
-              class="json-as-number"
-            >
-              <option value="0">Dot (.)</option>
-              <option value="1">Comma (,)</option>
-            </select>
-          </div>
-        </span>
+    <h3>CSV options</h3>
+    <div class="form-grid-container">
+      <label for="file_separator_char"
+        >CSV separator character. Semicolon is recommended for Excel.</label
+      >
+      <select
+        name="FILE_SEPARATOR_CHAR"
+        id="file_separator_char"
+        class="json-as-number"
+      >
+        <option value="0">Comma (,)</option>
+        <option value="1">Semicolon (;)</option>
+      </select>
+      <label for="file_decimal_char"
+        >Decimal notation character. Note: this option does not have effect when
+        using RAW data file format. The conversion script will use the system's
+        default decimal character.</label
+      >
+      <select
+        name="FILE_DECIMAL_CHAR"
+        id="file_decimal_char"
+        class="json-as-number"
+      >
+        <option value="0">Dot (.)</option>
+        <option value="1">Comma (,)</option>
+      </select>
+    </div>
 
-        <h3>File name and split size</h3>
+    <h3>File name and split size</h3>
+
+    <div class="form-grid-container">
+      <div class="form-group">
         <label for="file_name_prefix">File name prefix</label>
         <input
           type="text"
@@ -528,13 +765,14 @@
           name="FILE_NAME_PREFIX"
           class="json-as-text"
           maxlength="70"
-          class="element"
           autocomplete="off"
           autocorrect="off"
           autocapitalize="none"
           value=""
         />
+      </div>
 
+      <div class="form-group">
         <label for="file_split_size"
           >Max size of one log file (200 KB min and 2 GB max)</label
         >
@@ -559,24 +797,24 @@
             <option value="2">GB</option>
           </select>
         </div>
+      </div>
+    </div>
 
-        <div id="configuration_done">
-          <input
-            id="saveForm"
-            class="button_text"
-            type="button"
-            onClick="setConfig()"
-            value="Save file options"
-          />
-        </div>
-      </span>
+    <div id="configuration_done">
+      <input
+        id="saveForm"
+        class="button"
+        type="button"
+        onClick="setConfig()"
+        value="Save file options"
+      />
     </div>
 
     <h2>Wi-Fi configuration</h2>
     <div class="group" id="wifi_configuration">
       <h3>Wi-Fi channel Hotspot</h3>
       <p>
-        Select the Wi-Fi channel for the hotspot
+        Select the Wi-Fi channel for the hotspot:
         <select name="WIFI_CHANNEL" id="WIFI_CHANNEL" class="json-as-number">
           <option value="1">1</option>
           <option value="2">2</option>
@@ -711,7 +949,7 @@
       <div>
         <input
           id="btn_test_wifi_network"
-          class="button_text"
+          class="button"
           type="button"
           value="Save Wi-Fi settings"
           onclick="setConfig()"
@@ -728,7 +966,7 @@
       >
       <input
         id="btn_load_defaults"
-        class="button"
+        class="button button-secondary"
         type="button"
         name="btn_load_defaults"
         value="Restore default settings"
@@ -746,7 +984,7 @@
       <input
         id="btn_import_config"
         name="btn_import_config"
-        class="button"
+        class="button button-secondary"
         type="button"
         value="Import settings from file..."
         onclick="importConfigfile()"
@@ -761,14 +999,14 @@
         style="visibility: hidden; display: none"
       />
       <a href="/ajax/getConfig?download=true" target="_blank"
-        ><button class="button" type="button">
+        ><button class="button button-secondary" type="button">
           Download current settings
         </button></a
       >
       <h3 class="first">Save all settings</h3>
       <input
         id="btn_test_wifi_network"
-        class="button_text"
+        class="button"
         type="button"
         value="Save all settings"
         onclick="setConfig()"

@@ -35,6 +35,15 @@ function gotoPage(page, version) {
   location.href = "index.html?page=" + page;
 }
 
+function toggleMenu() {
+  var menu = document.getElementById("menu_items");
+  if (menu.classList.contains("show")) {
+    menu.classList.remove("show");
+  } else {
+    menu.classList.add("show");
+  }
+}
+
 function ejectCard() {
   $.ajax({
     method: "POST",
@@ -256,6 +265,12 @@ function getValues() {
         $("#calibrationStart").attr("disabled", true);
         calibrating = true;
         calibCounter = 0;
+        break;
+      case 11:
+        valuesData["LOGGER_STATE"] = "Formatting SD";
+        break;
+      case 14:
+        valuesData["LOGGER_STATE"] = "Waiting for trigger";
         break;
 
       // case 9:

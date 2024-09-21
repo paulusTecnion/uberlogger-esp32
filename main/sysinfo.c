@@ -24,6 +24,8 @@ esp_err_t sysinfo_init()
     sprintf(sw_hw_version, "%s%s", SW_VERSION, "R04");
   } else if (hwversion == 5){
     sprintf(sw_hw_version, "%s%s", SW_VERSION, "R05");
+  } else {
+    sprintf(sw_hw_version, "%s%s", SW_VERSION, "RXX");
   }
 
     return ESP_OK;

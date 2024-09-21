@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <ctype.h> // For isalnum()
 #include <time.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -22,6 +23,16 @@
 #define MAX_WIFI_PASSW_LEN 20
 
 #define NUM_ADC_CHANNELS 8
+#define NUM_DIO_CHANNELS 6
+#define MAX_CHANNEL_NAME_LEN 17
+
+#define EXT_TRIGGER_MIN_PIN_VAL 1
+#define EXT_TRIGGER_MAX_PIN_VAL 6
+
+#define DEBOUNCE_TIME_MAX 60000 // 60 seconds
+#define DEBOUNCE_TIME_DEFAULT 100 // 100 ms
+
+#define SETTINGS_FORMAT_VERSION 1
 
 typedef enum adc_channel_e {
 	ADC_CHANNEL_0 = 0x00,
@@ -60,9 +71,12 @@ typedef enum adc_channel_enable_e {
 } adc_channel_enable_t;
 
 typedef enum adc_sample_rate_e {
-	// ADC_SAMPLE_RATE_EVERY_60S = 0,
-	// ADC_SAMPLE_RATE_EVERY_10S,
-    ADC_SAMPLE_RATE_1Hz = 0,
+	ADC_SAMPLE_RATE_EVERY_3600S = 0, // once per hour
+	ADC_SAMPLE_RATE_EVERY_600S, // once per 10 min
+	ADC_SAMPLE_RATE_EVERY_300S, // once per 5 min
+	ADC_SAMPLE_RATE_EVERY_60S, // once per 1 min
+	ADC_SAMPLE_RATE_EVERY_10S, // once per 10 sec
+    ADC_SAMPLE_RATE_1Hz,
 	ADC_SAMPLE_RATE_2Hz,
 	ADC_SAMPLE_RATE_5Hz,
 	ADC_SAMPLE_RATE_10Hz,
@@ -79,13 +93,18 @@ typedef enum adc_sample_rate_e {
 } adc_sample_rate_t;
 
 // Multiply offsets and coefficients with 10000000 to work with these factors
-typedef enum int32 {
+typedef enum  {
 	ADC_12_BITS_10V_FACTOR = 488400,
 	ADC_12_BITS_60V_FACTOR = 293040,
 	ADC_16_BITS_10V_FACTOR = 30518, 
 	ADC_16_BITS_60V_FACTOR = 18310	
 } adc_factors_t;
 
+typedef enum  {
+	TRIGGER_MODE_CONTINUOUS =0,
+	TRIGGER_MODE_EXTERNAL,
+	TRIGGER_MODE_EXTERNAL_CONTROL
+} ext_trigger_modes_t;
 
 typedef enum file_separator_char_e {
 	FILE_SEPARATOR_CHAR_COMMA = 0,
@@ -130,6 +149,7 @@ struct Settings_t {
     uint8_t adc_channel_type; // indicate whether channel 0..7 are normal ADC (bit = 0) or NTC (bit = 1). LSB = channel 0, MSB = channel 7
     uint8_t adc_channels_enabled; // Indicate whether an ADC channel should be enabled or not. Each bit represents a channel. LSB = 0 channel 0 (Mask 0x01), MSB = channel 7 (Mask 0x80)
 	uint8_t adc_channel_range; // Indicate what the range of channel 0..7 is -10V / +10 (bit = 0) or -60V / +60V (bit = 1)
+	uint8_t averageSamples; // whether to average samples using iir filter or not (for sample rate < 1 Hz)
 	uint8_t logMode;
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
@@ -145,7 +165,9 @@ struct Settings_t {
 	int16_t temp_offsets[NUM_ADC_CHANNELS];
 	uint8_t bootReason;
 	/* NEW SETTINGS */
-	uint8_t gpio_channels_enabled;
+	/* Channel names - New addition */
+    char adc_channel_labels[NUM_ADC_CHANNELS][MAX_CHANNEL_NAME_LEN]; // Array to store channel names
+	char dio_channel_labels[NUM_DIO_CHANNELS][MAX_CHANNEL_NAME_LEN];
 	file_decimal_character_t file_decimal_char; // character for decimal notation in CSVs. 0 = dot, 1 = comma
 	uint8_t file_name_mode;  // 0 = sequential logfile, 1 = timestamp
 	char file_prefix[MAX_FILE_PREFIX_LENGTH];
@@ -154,6 +176,11 @@ struct Settings_t {
 	uint32_t file_split_size;
 	// File split size unit. 0 = KB, 1 = MB, 2 = GB
 	uint8_t file_split_size_unit;
+	uint8_t gpio_channels_enabled;
+	uint8_t ext_trigger_mode;
+	uint8_t ext_trigger_pin;
+	uint32_t ext_trigger_debounce_time;
+	uint8_t settings_format_version;
 };
 
 struct Settings_old_t {
@@ -185,7 +212,7 @@ typedef struct Settings_t Settings_t;
 void settings_init();
 Settings_t * settings_get();
 
-uint8_t settings_get_adc_channel_enabled(adc_channel_t channel);
+uint8_t settings_get_adc_channel_enabled(Settings_t *settings, adc_channel_t channel);
 uint8_t settings_get_adc_channel_enabled_all();
 esp_err_t settings_set_adc_channel_enabled(adc_channel_t channel, adc_channel_enable_t value);
 
@@ -197,6 +224,9 @@ uint8_t settings_get_adc_channel_range(Settings_t *settings, adc_channel_t chann
 uint8_t settings_get_adc_channel_range_all();
 esp_err_t settings_set_adc_channel_range(adc_channel_t channel, adc_channel_range_t value);
 
+esp_err_t settings_set_averageSamples(uint8_t value);
+uint8_t settings_get_averageSample();
+
 esp_err_t settings_clear_bootreason();
 uint8_t settings_get_boot_reason();
 uint8_t settings_set_boot_reason(uint8_t reason);
@@ -207,8 +237,23 @@ esp_err_t settings_set_temp_offset(int32_t * offsets);
 int32_t * settings_get_adc_offsets();
 esp_err_t settings_set_adc_offset(int32_t * offsets, adc_resolution_t resolution);
 
-Settings_t settings_get_default();
-esp_err_t settings_set_default();
+// Settings_t settings_get_default();
+esp_err_t settings_set_default(Settings_t * _inSettings);
+
+esp_err_t settings_get_ain_chan_label(uint8_t channel, char * inStr);
+esp_err_t settings_set_ain_chan_label(uint8_t channel, char * inChanName);
+
+esp_err_t settings_get_dio_chan_label(uint8_t channel, char * inStr);
+esp_err_t settings_set_dio_chan_label(uint8_t channel, char * inChanName);
+
+uint8_t settings_get_ext_trigger_mode();
+esp_err_t settings_set_ext_trigger_mode(ext_trigger_modes_t inExtMode);
+
+uint8_t settings_get_ext_trigger_mode_pin();
+esp_err_t settings_set_ext_trigger_mode_pin(uint8_t inPin);
+
+uint32_t settings_get_ext_trigger_debounce_time();
+esp_err_t settings_set_ext_trigger_debounce_time(uint32_t inDebounceTime);
 
 file_decimal_character_t settings_get_file_decimal_char();
 esp_err_t settings_set_file_decimal_char(file_decimal_character_t decimal_character);

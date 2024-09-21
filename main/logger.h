@@ -149,12 +149,21 @@ enum LogTaskStates
     LOGTASK_FORMAT_SDCARD,
     LOGTASK_WIFI_CONNECT_AP,
     LOGTASK_WIFI_DISCONNECT_AP,
+    LOGTASK_WAITING_FOR_TRIGGER,
     LOGTASK_NUM_STATES
 };
 
+enum Logtask_loggingState
+{
+    LOGTASK_LOGGING_INIT = 0,
+    LOGTASK_LOGGING_BUSY,
+    LOGTASK_LOGGING_FINAL,
+    LOGTASK_LOGGING_DONE
+};
 
 enum LoggingStates{
     LOGGING_IDLE = 0,
+    LOGGING_WAIT_FOR_TRIGGER,
     LOGGING_WAIT_FOR_DATA_READY,
     LOGGING_RX0_WAIT,
     LOGGING_RX1_WAIT,
@@ -185,6 +194,7 @@ enum LoggerFWState
 };
 
 typedef uint8_t LoggerState_t;
+typedef uint8_t LogTaskLoggingState_t;
 typedef uint8_t LoggingState_t;
 typedef uint8_t LoggerFWState_t;
 
@@ -217,6 +227,7 @@ float Logger_convertAdcFloat(uint16_t adcVal);
 uint32_t Logger_getLastFreeSpace();
 esp_err_t Logger_check_sdcard_free_space();
 LoggerState_t Logger_getState();
+LoggingState_t Logger_getLoggingState();
 uint32_t LogTaskGetError();
 esp_err_t Logger_log();
 
