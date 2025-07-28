@@ -1,11 +1,9 @@
-/* HTTP Restful API Server
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
+/*
+ * Uberlogger Firmware
+ * Copyright (c) 2025 Tecnion Technologies
+ * Licensed under the MIT License.
+ * See the README.md file in the project root for license details and hardware restrictions.
+ */
 #include <string.h>
 #include <fcntl.h>
 
@@ -1299,6 +1297,7 @@ esp_err_t start_rest_server(const char *base_path)
     config.max_uri_handlers = 18;
     config.task_priority = tskIDLE_PRIORITY+1;
     config.uri_match_fn = httpd_uri_match_wildcard;
+    // enable the next in order to prevent occasional http response freezes
     config.lru_purge_enable = true;
 
     ESP_LOGI(REST_TAG, "Starting HTTP Server");

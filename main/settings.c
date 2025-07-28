@@ -1,3 +1,9 @@
+/*
+ * Uberlogger Firmware
+ * Copyright (c) 2025 Tecnion Technologies
+ * Licensed under the MIT License.
+ * See the README.md file in the project root for license details and hardware restrictions.
+ */
 #include "settings.h"
 #include "rest_server.h"
 #include "spiffs_settings.h"
@@ -1025,6 +1031,7 @@ esp_err_t settings_load_persisted_settings()
         // strcpy(tmpOldSettings.wifi_ssid_ap, "UBLOG-AP");
 
         // spiffs_write((char*)&tmpOldSettings, sizeof(tmpOldSettings), settings_filename_old);
+        
         // If old settings exist on spiffs, load them into the settings struct. 
         if (spiffs_read((char*)&tmpOldSettings, sizeof(Settings_old_t), settings_filename_old) == ESP_OK)
         {

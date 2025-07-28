@@ -1,9 +1,10 @@
-/* SPI Slave example, sender (uses SPI master driver)
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
+/*
+ * Uberlogger Firmware
+ * Copyright (c) 2025 Tecnion Technologies
+ * Licensed under the MIT License.
+ * See the README.md file in the project root for license details and hardware restrictions.
+ */
+
 #include <stdio.h>
 
 #include <stdint.h>
