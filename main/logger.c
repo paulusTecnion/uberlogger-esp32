@@ -588,17 +588,14 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         // The next values are calibrated values
         if (settings_get_adc_channel_range(settings_get(), j))
         {
-            channel_offset = V_OFFSET_60V; //126811146; // 60*ADC_MULT_FACTOR_60V;
+            channel_offset = V_OFFSET_60V; 
 
         } else {
-            channel_offset = V_OFFSET_10V; //151703704; //10*ADC_MULT_FACTOR_10V;
+            channel_offset = V_OFFSET_10V; 
             
         }
 
         channel_range = 2*channel_offset;
-
-    
-        // dataOutput->analogData[j] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
 
 
         if (settings_get_adc_channel_type(settings_get(),j) )
@@ -617,13 +614,6 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         // ESP_LOGI(TAG_LOG, "%u, %f", adcVal, dataOutput->analogData[j]);
 
         // ESP_LOGI(TAG_LOG, "%f", dataOutput->analogData[j]);
-        
-
-            
-        // tfloat = (int32_t)NTC_ADC2Temperature(adcVal)/10.0F;
-        
-        
-        // dataOutput->temperatureData[j] = tfloat;
         j++;
     }
 
@@ -657,8 +647,7 @@ esp_err_t Logger_singleShot()
     cmd.command = STM32_CMD_SINGLE_SHOT_MEASUREMENT;
     cmd.data0 = 0;
 
-    // if (Logger_getState() == LOGTASK_SINGLE_SHOT)
-    // {
+
         if (spi_ctrl_cmd(STM32_CMD_SINGLE_SHOT_MEASUREMENT, &cmd, sizeof(spi_cmd_t)) == ESP_OK)
         {
             if (settings_get_samplerate() <= ADC_SAMPLE_RATE_2Hz)
@@ -684,17 +673,6 @@ esp_err_t Logger_singleShot()
             return ESP_FAIL;
         }
         return ESP_OK;        
-    // } 
-    
-    // return ESP_FAIL;
-    // else if (Logger_getState() == LOGTASK_LOGGING)
-    // {
-    //     // Data should be already available, since normal logging is enabled
-    //     return ESP_OK;   
-    // } else {
-    //     return ESP_FAIL;
-    // }
-    
     
 }
 
@@ -709,10 +687,7 @@ void  Logger_resetSTM32()
 esp_err_t Logger_syncSettings(uint8_t syncTime)
 {
 
-    // Reset STM32
-
-    // Logger_resetSTM32();
-
+    spi_cmd_t cmd;
     vTaskDelay(300 / portTICK_PERIOD_MS);
     // Send command to STM32 to go into settings mode
     #ifdef DEBUG_LOGGING
@@ -720,14 +695,7 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
     #endif
     spi_buffer = spi_ctrl_getRxData();
 
-    spi_cmd_t cmd;
 
-
-    // if (spi_ctrl_datardy_int(0) != ESP_OK)
-    // {
-    //     SET_ERROR(_errorCode, ERR_LOGGER_SPI_CTRL_ERROR);
-    //     return ESP_FAIL;
-    // }
 
     cmd.command = STM32_CMD_SETTINGS_MODE;
     cmd.data0 = 0;
@@ -1118,13 +1086,6 @@ size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size)
    
 }
 
-// size_t Logger_flush_buffer_to_sd_card_csv(int32_t *adcData, size_t lenAdc, uint8_t *gpioData, size_t lenGpio, uint8_t *timeData, size_t lenTime, size_t datarows)
-// {
-// #ifdef DEBUG_SDCARD
-//     ESP_LOGI(TAG_LOG, "Flusing CSV buffer to SD card");
-// #endif
-//     return fileman_csv_write(adcData, gpioData, timeData, datarows);
-// }
 
 esp_err_t Logger_calibrate()
 {
@@ -1296,12 +1257,6 @@ esp_err_t Logger_check_sdcard_free_space()
 
 esp_err_t Logger_flush_to_sdcard()
 {
-    //     if (fileman_open_file() == ESP_FAIL)
-    // {
-    //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_OPEN_FILE);
-    //     return ESP_FAIL;
-    // }
-
 
 
     if (xSemaphoreTake(sdcard_semaphore, 600 / portTICK_PERIOD_MS) != pdTRUE) 
@@ -1329,15 +1284,6 @@ esp_err_t Logger_flush_to_sdcard()
             goto error;
         }
     } else {
-        // if (!Logger_flush_buffer_to_sd_card_csv(
-        //     adc_buffer_fixed_point, (sizeof(adc_buffer_fixed_point)/sizeof(int32_t)),
-        //     sdcard_data.gpioData, sizeof(sdcard_data.gpioData), 
-        //     sdcard_data.timeData, (sizeof(sdcard_data.timeData)/sizeof(s_date_time_t)), 
-        //     sdcard_data.datarows) ) // lenght of data
-        // {
-        //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
-        //     goto error;
-        // }
         
         size_t len = Logger_flush_buffer_to_sd_card_uint8(sdcard_data.spi_data, sdcard_data.msgSize*sdcard_data.numSpiMessages);
         // if (len != SD_BUFFERSIZE)
@@ -1375,13 +1321,6 @@ esp_err_t Logger_flush_to_sdcard()
         //SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
         //goto error;
     } 
-
-    // Close file
-    // if (fileman_close_file() == ESP_FAIL)
-    // {
-    //     SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_UNABLE_TO_CLOSE_FILE);
-    //     return ESP_FAIL;
-    // }
 
     // check if there's still space left (instead of doing this before every write)
 
