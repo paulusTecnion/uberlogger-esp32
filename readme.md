@@ -2,7 +2,7 @@
 
 Welcome to the development repository for the Uberlogger, a simple yet powerful ESP32-based logging device. 
 
-The software of this device was not open source, since I spent a lot of time on it and I'm still selling the device. 50% of the profits go to EDELAC, a school for the poorest children in the city Xela of Guatemala. Through this product, I helping them a bit with getting education and you, the end user, with logging your data. You can find more information about the school [here](https://edelac.org/). 
+The software of this device was not open source, since I spent a lot of time on it and I'm still selling the device. 50% of the profits go to EDELAC, a school for the poorest children in the city Xela of Guatemala. Through this product, I am helping them a bit with getting education and you, the end user, with logging your data. You can find more information about the school [here](https://edelac.org/). 
 
 I decided to make this open source, since I have little time to make more features alone by myself, and next to that I notice there are hobbyists and research people who might be interested in using or adjusting the code to their needs. Since I value innovation and education, it made sense to make this open source. 
 
