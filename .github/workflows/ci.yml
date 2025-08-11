@@ -2,17 +2,17 @@ name: CI & Release (ESP-IDF)
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [master, develop]
   workflow_dispatch:
 
 permissions:
-  contents: write  # needed to push tags and create releases
+  contents: write # needed to push tags and create releases
 
 jobs:
   build:
     name: Build firmware
     runs-on: ubuntu-latest
-    container: espressif/idf:v5.2.1
+    container: espressif/idf:v5.2.5
 
     outputs:
       version: ${{ steps.setver.outputs.version }}
