@@ -1,6 +1,6 @@
 # 🧠 Uberlogger – ESP32 Development Instructions
 
-Welcome to the development repository for the Uberlogger, a simple yet powerful ESP32-based logging device. 
+Welcome to the development repository for the [Uberlogger](https://www.uberlogger.com], a simple yet powerful ESP32-based logging device. 
 
 The software of this device was not open source, since I spent a lot of time on it and I'm still selling the device. 50% of the profits go to EDELAC, a school for the poorest children in the city Xela of Guatemala. Through this product, I am helping them a bit with getting education and you, the end user, with logging your data. You can find more information about the school [here](https://edelac.org/). 
 
@@ -8,7 +8,7 @@ I decided to make this open source, since I have little time to make more featur
 
 ## 💖 Support our cause
 
-If you buy the Uberlogger, you help the children in Guatemala. Ordering can be done at our partner [Eleshop](https://eleshop.eu/uberloggerul01.html). As written below, the code is open source, but the hardware is not. Sorry. 
+If you buy the Uberlogger, you help the children in Guatemala. Ordering can be done at our partner [Eleshop](https://eleshop.eu/uberloggerul01.html) for best and fast international shipments. As written below, the code is open source, but the hardware is not. Sorry. 
 
 ## 📄 Licensing and Legal
 
