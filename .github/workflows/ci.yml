@@ -1,0 +1,154 @@
+name: CI & Release (ESP-IDF)
+
+on:
+  push:
+    branches: [ master, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed to push tags and create releases
+
+jobs:
+  build:
+    name: Build firmware
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.2.1
+
+    outputs:
+      version: ${{ steps.setver.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Build
+      - name: idf.py build
+        run: |
+          idf.py build
+
+      # Compute VERSION (same as your GitLab grep/awk), add dirty_ except on master
+      - name: Compute version
+        id: setver
+        shell: bash
+        run: |
+          VERSION=$(grep 'static const char SW_VERSION\[\]' main/sysinfo.h | awk -F '"' '{print $2}' | awk -F '_' '{print $1}')
+          if [ "${GITHUB_REF_NAME}" != "master" ]; then
+            VERSION="dirty_${VERSION}"
+          fi
+          echo "VERSION=${VERSION}" > build_vars
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # Merge bins + rename to your expected OTA files
+      - name: Merge and prepare binaries
+        shell: bash
+        run: |
+          esptool.py --chip esp32s2 merge_bin --output ./firmware.bin --flash_mode dio --flash_freq 80m --flash_size 4MB \
+            0x1000 build/bootloader/bootloader.bin \
+            0x8000 build/partition_table/partition-table.bin \
+            0xf000 build/ota_data_initial.bin \
+            0x20000 build/uberlogger-esp32.bin \
+            0x27c000 build/www.bin
+          mv build/uberlogger-esp32.bin ./ota_main.bin
+          mv build/www.bin ./ota_filesystem.bin
+
+      # Optional: bundle everything into a single versioned package (zip)
+      - name: Create package
+        shell: bash
+        run: |
+          VERSION=$(cut -d= -f2 build_vars)
+          mkdir -p dist
+          cp firmware.bin ota_main.bin ota_filesystem.bin build_vars dist/
+          (cd dist && zip -r "uberlogger-esp32-${VERSION}.zip" firmware.bin ota_main.bin ota_filesystem.bin build_vars)
+
+      # Keep artifacts for the next job and for manual download if needed
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.setver.outputs.version }}
+          path: |
+            firmware.bin
+            ota_main.bin
+            ota_filesystem.bin
+            build_vars
+            dist/uberlogger-esp32-${{ steps.setver.outputs.version }}.zip
+
+  release:
+    name: Create tag & GitHub Release
+    # Only release from master just like your GitLab job
+    if: github.ref_name == 'master'
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout (full history for tagging)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.version }}
+          path: dist
+
+      # Create the tag (mirrors your GitLab tag step)
+      - name: Create and push tag
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          git config user.name "ci-cd"
+          git config user.email "ci@cd.com"
+          # Only create if it doesn't exist (re-runs won't fail)
+          if git rev-parse "refs/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "Tag ${VERSION} already exists."
+          else
+            git tag "${VERSION}"
+            git push origin "refs/tags/${VERSION}"
+          fi
+
+      # Create Release and upload assets (bins + the zip "package")
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.build.outputs.version }}
+          release_name: ${{ needs.build.outputs.version }}
+          body: Release version ${{ needs.build.outputs.version }}
+
+      - name: Upload firmware.bin
+        uses: actions/upload-release-asset@v1
+        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/firmware.bin
+          asset_name: firmware.bin
+          asset_content_type: application/octet-stream
+
+      - name: Upload ota_main.bin
+        uses: actions/upload-release-asset@v1
+        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/ota_main.bin
+          asset_name: ota_main.bin
+          asset_content_type: application/octet-stream
+
+      - name: Upload ota_filesystem.bin
+        uses: actions/upload-release-asset@v1
+        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/ota_filesystem.bin
+          asset_name: ota_filesystem.bin
+          asset_content_type: application/octet-stream
+
+      - name: Upload packaged zip
+        uses: actions/upload-release-asset@v1
+        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/uberlogger-esp32-${{ needs.build.outputs.version }}.zip
+          asset_name: uberlogger-esp32-${{ needs.build.outputs.version }}.zip
+          asset_content_type: application/zip
