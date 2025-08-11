@@ -22,7 +22,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: idf.py build
+        shell: bash
         run: |
+          . "$IDF_PATH/export.sh"
+          idf.py --version
           idf.py build
 
       - name: Compute version
@@ -39,6 +42,7 @@ jobs:
       - name: Merge and prepare binaries
         shell: bash
         run: |
+          . "$IDF_PATH/export.sh"
           esptool.py --chip esp32s2 merge_bin --output ./firmware.bin --flash_mode dio --flash_freq 80m --flash_size 4MB \
             0x1000 build/bootloader/bootloader.bin \
             0x8000 build/partition_table/partition-table.bin \
@@ -51,6 +55,9 @@ jobs:
       - name: Create package (zip)
         shell: bash
         run: |
+          if ! command -v zip >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y zip
+          fi
           VERSION=$(cut -d= -f2 build_vars)
           mkdir -p dist
           cp firmware.bin ota_main.bin ota_filesystem.bin build_vars dist/
