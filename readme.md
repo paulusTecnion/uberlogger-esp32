@@ -76,12 +76,14 @@ Sometimes the `sdkconfig` file lacks some important ESP32-S2 settings. After clo
   - **ESP System Settings**
     - `Panic handler behaviour` = `GDBStub on panic`
     - `Channel for console output` = `USB CDC`
-
----
-
 5. Putting Uberlogger in programming mode
 
-Turn on the Uberlogger. Then hold the "mode" and "reset" button simultaneously and release the "reset" button. A new COM port should pop on your PC. Use ```idf.py build flash``` to build and flash the Uberlogger or add the ```-p COMPORT``` parameter where COMPORT is the COM port name/location, to flash directly without using auto-detect.
+ - Turn on the Uberlogger
+ - Then hold the "mode" and "reset" button simultaneously and release the "reset" button. A new COM port should pop on your PC.
+ - Use ```idf.py build flash``` to build and flash the Uberlogger or add the ```-p COMPORT``` parameter where COMPORT is the COM port name/location, to flash directly without using auto-detect.
+---
+
+
 
 ## 🧪 Optional: Disable Webserver (for faster build)
 
