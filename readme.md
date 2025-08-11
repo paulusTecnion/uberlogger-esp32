@@ -26,7 +26,7 @@ The **hardware** design, including schematics, PCB layouts, mechanical component
 
 ## Features that might be interesting
 
-- NTP Server: I tried to integrate this, but when there is a request to do an NTP sync while it also wants to send data while logging, the ESP32 stack may run into issues. The architecture is not build for this, so you may have to readjust this or hack your way to make it work
+- NTP sync: I tried to integrate this, but when there is a request to do an NTP sync while it also wants to send data while logging, the ESP32 stack may run into issues. The architecture is not build for this, so you may have to readjust this or hack your way to make it work
 - Add MQTT / Home-assistant support . Doing this in parallel with existing polling method / webserver might put stress on resources, but I haven't done much research on it
 - Showing MAC addresses of the WiFi ESP32 hotspot and client controllers in the web UI.
 - Increase log speed
