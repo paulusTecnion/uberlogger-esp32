@@ -1,6 +1,9 @@
 # 🧠 Uberlogger – ESP32 Development Instructions
 
-![Uberlogger UL01](https://github.com/user-attachments/assets/0152f741-67ca-4d7e-8d23-f9b1f567e315)
+| | |
+|---|---|
+| ![Uberlogger UL01](https://github.com/user-attachments/assets/0152f741-67ca-4d7e-8d23-f9b1f567e315) | ![cropped_to_2000x1500_477230259-9cfe64ff-2d1a-40d0-abcc-8224dfc5fa30](https://github.com/user-attachments/assets/6eb20049-7d64-4672-af0b-c1cea997191f)|
+
 
 Welcome to the  repository for the [Uberlogger](https://www.uberlogger.com), a simple yet powerful ESP32-based & STM32 WiFi enabled logging device. The logger can log 8 analog channels and 6 digital channels at maximum 250 Hz at 16 or 12 bits to CSV or raw data file on an SD card and is fully stand-alone. The analog channels can be set as either NTC inputs or normal analog inputs with input ranges varying from -10V to +10V DC or from -60V to + 60V DC. There is a web UI interface to configure the device and see live data and an [API](https://docs.uberlogger.com/api) to retrieve data using your own scripts or devices.
 
