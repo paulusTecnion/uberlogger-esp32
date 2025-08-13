@@ -100,7 +100,7 @@ uint8_t iir_set_samplefreq(uint8_t sampleFreq)
 
 void iir_init()
 {
-	// Original coefficients from https://tecnionnl.sharepoint.com/:x:/s/uberlogger/EeEoN_zLy7BHslnFgKYobd4BH9o46vYH16z9PU2SE_CJCw?e=e9fFJc
+	// Original coefficients from Excel sheet. See internal documentation.
 	// 0.000069811
 	// 0.000418791
 	// 0.000837407
