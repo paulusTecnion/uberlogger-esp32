@@ -102,6 +102,42 @@ static int cmd_logger(int argc, char **argv)
     
 }
 
+static int cmd_calibrate(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    return (int)Logger_calibrate();
+}
+
+static int cmd_print_ip(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    return (int)wifi_print_ip();
+}
+
+static int cmd_restart(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    esp_restart();
+    return 0;
+}
+
+static int cmd_stm32_sync(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    return (int)Logtask_sync_settings();
+}
+
+static int cmd_update_stm32(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    return (int)flash_stm32();
+}
+
 
 static void register_calibrate(void)
 {
@@ -109,7 +145,7 @@ static void register_calibrate(void)
         .command = "calibrate",
         .help = "Calibrate ADC",
         .hint = NULL,
-        .func = &Logger_calibrate
+        .func = &cmd_calibrate
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
@@ -120,7 +156,7 @@ static void register_print_ip(void)
         .command = "get_ip",
         .help = "Print IP address",
         .hint = NULL,
-        .func = &wifi_print_ip
+        .func = &cmd_print_ip
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
@@ -182,7 +218,7 @@ static void register_restart(void)
         .command = "restart",
         .help = "Restart ESP32",
         .hint = NULL,
-        .func = &esp_restart
+        .func = &cmd_restart
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
@@ -194,7 +230,7 @@ static void register_stm32_sync(void)
         .command = "sync",
         .help = "STM32 sync settings",
         .hint = NULL,
-        .func = &Logtask_sync_settings
+        .func = &cmd_stm32_sync
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
@@ -216,7 +252,7 @@ static void register_update_stm32(){
         .command = "update-stm32",
         .help = "Update STM32 firmware",
         .hint = NULL,
-        .func = &flash_stm32
+        .func = &cmd_update_stm32
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }

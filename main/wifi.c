@@ -108,10 +108,9 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         // Only when in STA mode, we try to reconnect
         // Else when changing from STA to APSTA mode,
         // we keep connecting after a disconnect.
-		if (settings_get_wifi_mode() == WIFI_MODE_APSTA) 
+		if (settings_get_wifi_mode() == WIFI_MODE_APSTA || settings_get_wifi_mode() == WIFI_MODE_STA) 
         {
             esp_wifi_connect();
-            // Logtask_wifi_connect_ap();s
         }
 		xEventGroupClearBits(wifi_event_group, CONNECTED_BIT | FAIL_BIT);
 
@@ -272,52 +271,38 @@ esp_err_t wifi_init()
 
 esp_err_t wifi_start()
 {
+    uint8_t mode = settings_get_wifi_mode();
+
+    // Configure AP while still in APSTA mode (set during wifi_init),
+    // so the config is stored for potential runtime mode switches via button.
     wifi_config_t wifi_config = {
         .ap = {
-            // .ssid = wifi_ssid,
-            // .ssid_len = strlen(wifi_ssid),
             .channel = settings_get_wifi_channel(),
-            // .password = wifi_pass,
             .max_connection = EXAMPLE_MAX_STA_CONN,
             .authmode = WIFI_AUTH_WPA_WPA2_PSK,
         },
-        // .sta = {
-        //     /* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (pasword len => 8).
-        //      * If you want to connect the device to deprecated WEP/WPA networks, Please set the threshold value
-        //      * to WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK and set the password with length and format matching to
-	    //  * WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK standards.
-        //      */
-        //     .threshold.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD,
-        //     .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
-        // },
     };
 
-    // always default to Uberlogger
     strcpy((char*)wifi_config.ap.ssid, settings_get_wifi_ssid_ap());
     wifi_config.ap.ssid_len = strlen((const char*)(wifi_config.ap.ssid));
     strcpy((char*)wifi_config.ap.password, "");
 
     if (strlen((const char*)(wifi_config.ap.password)) == 0) {
-        wifi_config.ap.authmode =  WIFI_AUTH_OPEN;
+        wifi_config.ap.authmode = WIFI_AUTH_OPEN;
     }
 
     ESP_ERROR_CHECK(esp_netif_set_hostname(ap_netif, settings_get_wifi_ssid_ap()));
     esp_netif_set_hostname(sta_netif, settings_get_wifi_ssid_ap());
 
-    // strcpy((char*)wifi_config.sta.ssid, settings_get_wifi_ssid());
-    
-    // wifi_config.sta.ssid_len = strlen((const char*)(wifi_config.sta.ssid));
-    // strcpy((char*)wifi_config.sta.password, settings_get_wifi_password());
-    // Enable to Access Point and Station mode
-    // ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
-    
-    
+
     #ifdef DEBUG_WIFI
     ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",
              wifi_config.ap.ssid, wifi_config.ap.password, EXAMPLE_ESP_WIFI_CHANNEL);
     #endif
 
+    // Switch to the actual desired mode before starting
+    ESP_ERROR_CHECK(esp_wifi_set_mode(mode));
 
     // Don't touch the next lines! First one is to make sure SoftAP does not interfere
     // with other wifis or makes connected devices having distored signals
@@ -325,19 +310,18 @@ esp_err_t wifi_start()
     // This second line is to prevent the http server from not responding sometimes. 
     esp_wifi_set_ps(WIFI_PS_NONE);
 
-	ESP_ERROR_CHECK( esp_wifi_start() );
+    ESP_ERROR_CHECK(esp_wifi_start());
 
     wifi_enabled = 1;
 
-     if (settings_get_wifi_mode() == WIFI_MODE_APSTA) {
+    if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_STA) {
         #ifdef DEBUG_WIFI
         ESP_LOGI(TAG, "Connecting with AP");
         #endif
         wifi_connect_to_ap();
-     }
+    }
 
-     return ESP_OK;
-
+    return ESP_OK;
 }
 
 int8_t wifi_get_rssi()
@@ -367,5 +351,41 @@ esp_err_t wifi_print_ip()
 
 
 
+
+esp_err_t wifi_change_mode(uint8_t new_mode)
+{
+    settings_set_wifi_mode(new_mode);
+
+    if (new_mode == WIFI_MODE_AP || new_mode == WIFI_MODE_APSTA) {
+        // Switching to a mode that includes AP — need APSTA briefly to reconfigure AP
+        // if coming from STA-only, then set APSTA to enable the AP interface
+        esp_wifi_set_mode(WIFI_MODE_APSTA);
+        // Re-apply AP config in case it was lost
+        wifi_config_t wifi_config = {
+            .ap = {
+                .channel = settings_get_wifi_channel(),
+                .max_connection = EXAMPLE_MAX_STA_CONN,
+                .authmode = WIFI_AUTH_WPA_WPA2_PSK,
+            },
+        };
+        strcpy((char*)wifi_config.ap.ssid, settings_get_wifi_ssid_ap());
+        wifi_config.ap.ssid_len = strlen((const char*)(wifi_config.ap.ssid));
+        strcpy((char*)wifi_config.ap.password, "");
+        if (strlen((const char*)(wifi_config.ap.password)) == 0) {
+            wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+        }
+        esp_wifi_set_config(WIFI_IF_AP, &wifi_config);
+    }
+
+    esp_wifi_set_mode(new_mode);
+
+    if (new_mode == WIFI_MODE_APSTA || new_mode == WIFI_MODE_STA) {
+        wifi_connect_to_ap();
+    } else {
+        wifi_disconnect_ap();
+    }
+
+    return ESP_OK;
+}
 
 // To do: split up start / stop functions to event handlers for wifi. 

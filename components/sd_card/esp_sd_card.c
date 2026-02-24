@@ -303,7 +303,7 @@ uint32_t esp_sd_card_get_free_space()
             }
                 
             FATFS *fs;
-            uint64_t fre_clust; //, tot_sect;
+            DWORD fre_clust; //, tot_sect;
             DWORD fre_sect;
             /* Get volume information and free clusters of drive 0 */
             int res = f_getfree("/sdcard/", &fre_clust, &fs);

@@ -139,11 +139,11 @@ function testWifiNetwork() {
 function wifiConfigVisibilityUpdate() {
   var show_parameters = $("input[name='WIFI_MODE']:checked").val();
 
-  if (show_parameters == "1") {
+  if (show_parameters == "1" || show_parameters == "2") {
     document.querySelector("#wifi_client_settings").style.display =
-      "inline-block"; // hide parameters
+      "inline-block";
   } else {
-    document.querySelector("#wifi_client_settings").style.display = "none"; // show parameters
+    document.querySelector("#wifi_client_settings").style.display = "none";
   }
 }
 
@@ -266,12 +266,13 @@ function validateIntegerInput(element) {
     element.value = intValue;
   } else {
     element.value = ""; // Clear the field if the result is not a number
+    return;
   }
 
-  if (value < input.min) {
-    input.value = input.min;
-  } else if (value > input.max) {
-    input.value = input.max;
+  if (intValue < Number(element.min)) {
+    element.value = element.min;
+  } else if (intValue > Number(element.max)) {
+    element.value = element.max;
   }
 }
 

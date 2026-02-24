@@ -283,7 +283,7 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
     
     uint8_t wifi_state = 0;
-    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA || settings_get_wifi_mode() == WIFI_MODE_STA)
     {
         if (wifi_is_connected_to_ap())
         {
@@ -381,7 +381,7 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 
      uint8_t wifi_state = 0;
-    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA || settings_get_wifi_mode() == WIFI_MODE_STA)
     {
         if (wifi_is_connected_to_ap())
         {
@@ -502,12 +502,14 @@ const char * logger_settings_to_json(Settings_t *settings)
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
     cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
-    if (settings->wifi_mode == WIFI_MODE_AP)
-    {
-        cJSON_AddNumberToObject(root, "WIFI_MODE", 0);
-    } else if (settings->wifi_mode == WIFI_MODE_APSTA)
+    if (settings->wifi_mode == WIFI_MODE_APSTA)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 1);
+    } else if (settings->wifi_mode == WIFI_MODE_STA)
+    {
+        cJSON_AddNumberToObject(root, "WIFI_MODE", 2);
+    } else {
+        cJSON_AddNumberToObject(root, "WIFI_MODE", 0);
     }
 
     
@@ -980,13 +982,18 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (item->valueint == 0)
         {
-            // Wifi ap mode
             settings_set_wifi_mode(WIFI_MODE_AP);
         } 
         else if (item->valueint == 1)
         {
-            // Wifi ap/station mode
             settings_set_wifi_mode(WIFI_MODE_APSTA);
+        }
+        else if (item->valueint == 2)
+        {
+            settings_set_wifi_mode(WIFI_MODE_STA);
+        } else {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Invalid WiFi mode. Allowed values: 0=AP, 1=APSTA, 2=STA", HTTPD_400_BAD_REQUEST);
+            goto error;
         }
     }
 
@@ -1008,7 +1015,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_wifi_password(item->valuestring) != ESP_OK)
         {
             
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID", HTTPD_400_BAD_REQUEST);
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi password", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
@@ -1090,29 +1097,16 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     // First check if old wifi mode != new mode
     if (oldSettings.wifi_mode != settings_get_wifi_mode())
     {
-        if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
-        {
-            // wifi_connect_to_ap(); 
-            // Send task to wifi queue to connect to access point
-            // 
-            // Logtask_wifi_connect_ap();
-            wifi_connect_to_ap();
-        } else {
-            // send event to wifi to disconnect from access point
-            // Logtask_wifi_disconnect_ap();
-            wifi_disconnect_ap();
-        }
-    } else if // if any wifi setting has changed, then we need to reconnect to the access point when mode is WIFI_MODE_APSTA
-        (settings_get_wifi_mode() == WIFI_MODE_APSTA && 
+        wifi_change_mode(settings_get_wifi_mode());
+    } else if
+        ((settings_get_wifi_mode() == WIFI_MODE_APSTA || settings_get_wifi_mode() == WIFI_MODE_STA) && 
         (
         (wifi_is_connected_to_ap() == false)  ||
         (oldSettings.wifi_channel != settings_get_wifi_channel()) || 
-        (strcmp(oldSettings.wifi_ssid_ap, settings_get_wifi_ssid_ap()) != 0)  || 
+        (strcmp(oldSettings.wifi_ssid, settings_get_wifi_ssid()) != 0)  || 
         (strcmp(oldSettings.wifi_password, settings_get_wifi_password()) !=0 )
         ))
     {
-        // a connect event automatically disconnects and reconnects to an access point
-        // Logtask_wifi_connect_ap();
         wifi_connect_to_ap();
     }
 
@@ -1477,8 +1471,6 @@ err:
 
 esp_err_t stop_rest_server(void)
 {
-    httpd_handle_t server = NULL;
-    
     if (server == NULL)
     {
         ESP_LOGE(REST_TAG, "Server not started");

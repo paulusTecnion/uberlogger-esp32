@@ -988,20 +988,17 @@ void Logger_mode_button_long_pushed()
         _currentLogTaskState == LOGTASK_ERROR_OCCURED ||
         _currentLogTaskState == LOGTASK_SINGLE_SHOT)
     {
-        if (settings_get_wifi_mode()==WIFI_MODE_APSTA)
+        uint8_t current_mode = settings_get_wifi_mode();
+        if (current_mode == WIFI_MODE_APSTA || current_mode == WIFI_MODE_STA)
         {
-            settings_set_wifi_mode(WIFI_MODE_AP);
             #ifdef DEBUG_LOGTASK
             ESP_LOGI(TAG_LOG, "Switching to AP mode");
             #endif
-            
-            
-            // Push to queueu
-            // settings_persist_settings();
+
+            wifi_change_mode(WIFI_MODE_AP);
+
             LoggerState_t t = LOGTASK_PERSIST_SETTINGS;
             xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
-
-            wifi_disconnect_ap();
         }
     }
    

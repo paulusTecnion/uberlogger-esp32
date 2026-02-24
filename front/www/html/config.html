@@ -867,6 +867,22 @@
           UberLogger through the IP-address that is assigned through your DHCP
           server.</label
         >
+
+        <input
+          id="wifi_mode_sta"
+          name="WIFI_MODE"
+          class="element radio json-as-number"
+          type="radio"
+          value="2"
+          onclick="wifiConfigVisibilityUpdate();"
+        />
+        <label class="choice" for="wifi_mode_sta"
+          >Client only mode<br />The UberLogger connects to your Wi-Fi-network
+          without creating its own hotspot. Access the UberLogger through the
+          IP-address assigned by your DHCP server.<br />
+          <i><b>Note:</b> if the connection fails, press and hold the MODE
+          button for 5 seconds to switch back to Hotspot mode.</i></label
+        >
       </span>
 
       <div id="wifi_client_settings">

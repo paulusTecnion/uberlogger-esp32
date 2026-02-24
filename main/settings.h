@@ -26,7 +26,8 @@
 #define FILE_NAME_MODE_TIMESTAMP 1
 
 #define MAX_WIFI_SSID_LEN 32
-#define MAX_WIFI_PASSW_LEN 20
+#define MAX_WIFI_PASSW_LEN 65
+#define MAX_WIFI_PASSW_LEN_OLD 20
 
 #define NUM_ADC_CHANNELS 8
 #define NUM_DIO_CHANNELS 6
@@ -198,7 +199,7 @@ struct Settings_old_t {
 	uint8_t logMode;
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
-	char wifi_password[MAX_WIFI_PASSW_LEN];
+	char wifi_password[MAX_WIFI_PASSW_LEN_OLD];
 	uint8_t wifi_channel;
 	uint8_t wifi_mode;
 	uint32_t timestamp; // time in BCD format
