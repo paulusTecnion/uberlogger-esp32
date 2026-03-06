@@ -1062,6 +1062,22 @@ details summary:hover {
   }
 }
 
+/* ── Narrow form group (e.g. small selects like Wi-Fi channel) ─────────── */
+.form-group-narrow {
+  flex: 0 0 160px;
+  min-width: unset;
+}
+
+/* ── Inline SVG icon inside buttons ────────────────────────────────────── */
+.btn-icon {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  vertical-align: -2px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
 /* ── Config page tabs ─────────────────────────────────────────────────── */
 .config-tab-nav {
   display: flex;
