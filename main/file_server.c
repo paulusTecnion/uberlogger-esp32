@@ -18,6 +18,7 @@
 #include "esp_spiffs.h"
 #include "esp_http_server.h"
 #include "file_server.h"
+#include "rest_server.h"
 #include "esp_sd_card.h"
 #include "firmware-www.h"
 #include "firmwareESP32.h"
@@ -273,7 +274,10 @@ static const char* get_path_from_uri(char *dest, const char *base_path, const ch
 /* Handler to download a file kept on the server */
 esp_err_t download_get_handler(httpd_req_t *req)
 {
-   
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+
       if (Logger_getState() == LOGTASK_LOGGING){
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot request files while logging");
         return ESP_FAIL;
@@ -399,6 +403,9 @@ esp_err_t download_get_handler(httpd_req_t *req)
 /* Handler to upload a file onto the server */
 esp_err_t upload_post_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
       if (Logger_getState() == LOGTASK_LOGGING ){
         httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Cannot upload files while logging");
         return ESP_FAIL;
@@ -543,7 +550,10 @@ esp_err_t upload_post_handler(httpd_req_t *req)
 /* Handler to delete a file from the server */
 esp_err_t delete_post_handler(httpd_req_t *req)
 {
-  
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+
       if (Logger_getState() == LOGTASK_LOGGING){
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Cannot delete files while logging");
         return ESP_FAIL;
@@ -630,7 +640,9 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 
 esp_err_t fwupdate_get_handler(httpd_req_t *req)
 {
-    // esp_err_t err;
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
 
     if (strstr(req->uri, "/fwupdate/enable") != NULL)
     {

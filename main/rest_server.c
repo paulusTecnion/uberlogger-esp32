@@ -12,6 +12,7 @@
 #include "config.h"
 #include "wifi.h"
 #include "esp_wifi_types.h"
+#include "mbedtls/base64.h"
 
 char * endpoint_response_char[] = 
 {
@@ -43,6 +44,49 @@ typedef struct rest_server_context {
 } rest_server_context_t;
 
 httpd_handle_t server = NULL;
+
+/* HTTP Basic Auth helpers */
+
+bool rest_check_auth(httpd_req_t *req)
+{
+    const char *web_password = settings_get_web_password();
+    if (strlen(web_password) == 0) {
+        return true; // No password configured, allow all access
+    }
+
+    char auth_header[256];
+    if (httpd_req_get_hdr_value_str(req, "Authorization", auth_header, sizeof(auth_header)) != ESP_OK) {
+        return false;
+    }
+
+    if (strncmp(auth_header, "Basic ", 6) != 0) {
+        return false;
+    }
+
+    unsigned char decoded[128];
+    size_t decoded_len = 0;
+    if (mbedtls_base64_decode(decoded, sizeof(decoded) - 1, &decoded_len,
+                               (unsigned char *)(auth_header + 6),
+                               strlen(auth_header + 6)) != 0) {
+        return false;
+    }
+    decoded[decoded_len] = '\0';
+
+    // Expected credentials: "admin:<web_password>"
+    char expected[MAX_WEB_PASSWORD_LEN + 8];
+    snprintf(expected, sizeof(expected), "admin:%s", web_password);
+
+    return (strcmp((char *)decoded, expected) == 0);
+}
+
+esp_err_t rest_send_auth_required(httpd_req_t *req)
+{
+    httpd_resp_set_status(req, "401 Unauthorized");
+    httpd_resp_set_hdr(req, "WWW-Authenticate", "Basic realm=\"Uberlogger\"");
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_send(req, "Unauthorized", HTTPD_RESP_USE_STRLEN);
+    return ESP_FAIL;
+}
 
 // extern SemaphoreHandle_t sdcard_semaphore;
 
@@ -81,6 +125,10 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
 /* Send HTTP response with the contents of the requested file */
 static esp_err_t rest_common_get_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+
     char filepath[FILE_PATH_MAX];
 
     rest_server_context_t *rest_context = (rest_server_context_t *)req->user_ctx;
@@ -193,6 +241,9 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
 
 static esp_err_t logger_getValues_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
     cJSON * root = cJSON_CreateObject();
     if (root == NULL)
@@ -334,6 +385,9 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
 
 static esp_err_t logger_getRawAdc_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
      httpd_resp_set_type(req, "application/json");
     cJSON * root = cJSON_CreateObject();
     if (root == NULL)
@@ -364,13 +418,16 @@ static esp_err_t logger_getRawAdc_handler(httpd_req_t *req)
 
 static esp_err_t logger_getStatus_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
     cJSON * root = cJSON_CreateObject();
     if (root == NULL)
     {
         return ESP_FAIL;
     }
-   
+
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
     cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
     // cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
@@ -502,6 +559,9 @@ const char * logger_settings_to_json(Settings_t *settings)
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
     cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
+    cJSON_AddStringToObject(root, "WIFI_PASSWORD_AP", settings->wifi_password_ap);
+    cJSON_AddNumberToObject(root, "WIFI_SSID_HIDDEN", settings->wifi_ssid_hidden);
+    cJSON_AddBoolToObject(root, "WEB_PASSWORD_SET", strlen(settings->web_password) > 0);
     if (settings->wifi_mode == WIFI_MODE_AP)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 0);
@@ -518,7 +578,10 @@ const char * logger_settings_to_json(Settings_t *settings)
 }
 
 static esp_err_t logger_calibrate_handler(httpd_req_t *req)
-{   
+{
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
     if (Logger_getState() == LOGTASK_LOGGING)
     {
@@ -549,6 +612,9 @@ static esp_err_t logger_calibrate_handler(httpd_req_t *req)
 
 static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
 
     if (Logger_format_sdcard() == ESP_OK)
@@ -564,6 +630,9 @@ static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 
 static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
     Settings_t settings;
     settings_set_default(&settings);
@@ -583,6 +652,9 @@ static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
 
 static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
     
     // Check if the query parameter for download is present and set to 'true'
@@ -613,6 +685,9 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 
 static esp_err_t logger_setTime_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
      httpd_resp_set_type(req, "application/json");
     cJSON *settings_in = NULL;
     if (Logger_getState() == LOGTASK_LOGGING)
@@ -698,6 +773,9 @@ error2:
 
 static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
 
     httpd_resp_set_type(req, "application/json");
     cJSON *settings_in = NULL;
@@ -995,11 +1073,10 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_wifi_channel(item->valueint) != ESP_OK)
         {
-            
             json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel", HTTPD_400_BAD_REQUEST);
-            // return ESP_FAIL;
             goto error;
         }
+        wifi_update_ap();
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
@@ -1007,13 +1084,42 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_wifi_password(item->valuestring) != ESP_OK)
         {
-            
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID", HTTPD_400_BAD_REQUEST);
-            // return ESP_FAIL;
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi STA password. Must be empty or 8-19 characters.", HTTPD_400_BAD_REQUEST);
             goto error;
         }
     }
 
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD_AP");
+    if (item != NULL)
+    {
+        if (settings_set_wifi_password_ap(item->valuestring) != ESP_OK)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting AP password. Must be empty (open) or 8-63 characters.", HTTPD_400_BAD_REQUEST);
+            goto error;
+        }
+        wifi_update_ap();
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID_HIDDEN");
+    if (item != NULL)
+    {
+        if (settings_set_wifi_ssid_hidden(item->valueint) != ESP_OK)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting SSID hidden. Must be 0 (visible) or 1 (hidden).", HTTPD_400_BAD_REQUEST);
+            goto error;
+        }
+        wifi_update_ap();
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WEB_PASSWORD");
+    if (item != NULL)
+    {
+        if (settings_set_web_password(item->valuestring) != ESP_OK)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting web password. Must be empty (no auth) or up to 31 characters.", HTTPD_400_BAD_REQUEST);
+            goto error;
+        }
+    }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "ADC_RESOLUTION");
     if (item != NULL)
@@ -1132,6 +1238,9 @@ error2:
 
 esp_err_t reboot_post_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
 
    if (Logging_restartSystem() != ESP_OK)
@@ -1157,6 +1266,9 @@ esp_err_t reboot_post_handler(httpd_req_t *req)
 
 esp_err_t upload_form_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
 // Send the HTML form as the response
 httpd_resp_set_type(req, "text/html");
 httpd_resp_send(req, UPLOAD_FORM, HTTPD_RESP_USE_STRLEN);
@@ -1165,7 +1277,10 @@ return ESP_OK;
 
 static esp_err_t Logger_start_handler(httpd_req_t *req)
 {
-    
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+
     if (settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL)
     {
         json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot start logger. Logger start/stop controlled by external digital input.", HTTPD_403_FORBIDDEN);
@@ -1185,6 +1300,9 @@ static esp_err_t Logger_start_handler(httpd_req_t *req)
 
 static esp_err_t Logger_stop_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     if (settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL)
     {
         json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot stop logger. Logger start/stop controlled by external digital input.", HTTPD_403_FORBIDDEN);
@@ -1203,6 +1321,9 @@ static esp_err_t Logger_stop_handler(httpd_req_t *req)
 
 esp_err_t  Logger_sdcard_unmount_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     if(Logger_user_unmount_sdcard() == ESP_OK)
     {
         json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);

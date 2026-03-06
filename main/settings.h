@@ -27,6 +27,8 @@
 
 #define MAX_WIFI_SSID_LEN 32
 #define MAX_WIFI_PASSW_LEN 20
+#define MAX_WIFI_AP_PASSW_LEN 64  // WPA2 allows up to 63 chars + null
+#define MAX_WEB_PASSWORD_LEN 32
 
 #define NUM_ADC_CHANNELS 8
 #define NUM_DIO_CHANNELS 6
@@ -187,6 +189,10 @@ struct Settings_t {
 	uint8_t ext_trigger_pin;
 	uint32_t ext_trigger_debounce_time;
 	uint8_t settings_format_version;
+	/* Security settings */
+	char wifi_password_ap[MAX_WIFI_AP_PASSW_LEN]; // password for the device's own WiFi AP hotspot
+	uint8_t wifi_ssid_hidden;                      // 0 = SSID visible, 1 = SSID hidden
+	char web_password[MAX_WEB_PASSWORD_LEN];       // password for web UI HTTP Basic Auth
 };
 
 struct Settings_old_t {
@@ -327,7 +333,14 @@ uint32_t settings_get_timestamp();
 uint8_t settings_get_wifi_mode();
 esp_err_t settings_set_wifi_mode(uint8_t mode);
 
+char * settings_get_wifi_password_ap();
+esp_err_t settings_set_wifi_password_ap(char *password);
 
+uint8_t settings_get_wifi_ssid_hidden();
+esp_err_t settings_set_wifi_ssid_hidden(uint8_t hidden);
+
+char * settings_get_web_password();
+esp_err_t settings_set_web_password(char *password);
 
 
 #endif
