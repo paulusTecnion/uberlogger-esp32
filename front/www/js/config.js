@@ -119,6 +119,26 @@ function parseConfig(data) {
   populateFields("#channel_configuration", data["DIN_ENABLED"]);
   populateFields("#channel_configuration", data["AIN_CHANNEL_LABELS"]);
   populateFields("#channel_configuration", data["DIO_CHANNEL_LABELS"]);
+
+  // Password status indicators — server returns _SET booleans, not actual passwords
+  var apPwdSpan = document.getElementById("wifi_ap_password_status");
+  if (apPwdSpan) apPwdSpan.textContent = data["WIFI_PASSWORD_AP_SET"] ? "Password set" : "No password (open network)";
+  var staPwdSpan = document.getElementById("wifi_password_status");
+  if (staPwdSpan) staPwdSpan.textContent = data["WIFI_PASSWORD_SET"] ? "Password set" : "No password";
+  var webPwdSpan = document.getElementById("web_password_status");
+  if (webPwdSpan) webPwdSpan.textContent = data["WEB_PASSWORD_SET"] ? "Password set" : "No password (login disabled)";
+}
+
+// Returns the value to send for a password field:
+//   - empty string if the clear checkbox is checked (explicit remove)
+//   - the typed value if non-empty
+//   - null if the field is blank and clear is not checked (keep unchanged, don't send)
+function getPasswordFieldValue(inputName, clearCheckboxId) {
+  var clearCheckbox = document.getElementById(clearCheckboxId);
+  var inputVal = $("[name=" + inputName + "]", "#configuration").val();
+  if (clearCheckbox && clearCheckbox.checked) return "";
+  if (inputVal) return inputVal;
+  return null;
 }
 
 function testWifiNetwork() {
@@ -423,10 +443,18 @@ function setConfig() {
     DIO_CHANNEL_LABELS: dioChannelLabels,
     WIFI_CHANNEL: input["WIFI_CHANNEL"],
     WIFI_MODE: input["WIFI_MODE"],
-    WIFI_PASSWORD: input["WIFI_PASSWORD"],
     WIFI_SSID: input["WIFI_SSID"],
+    WIFI_SSID_HIDDEN: input["WIFI_SSID_HIDDEN"],
     TIMESTAMP: Number(new Date()),
   };
+
+  // Password fields: only send if a new value was entered or clear was requested
+  var wifiPwd = getPasswordFieldValue("WIFI_PASSWORD", "clear_WIFI_PASSWORD");
+  if (wifiPwd !== null) config["WIFI_PASSWORD"] = wifiPwd;
+  var wifiApPwd = getPasswordFieldValue("WIFI_PASSWORD_AP", "clear_WIFI_PASSWORD_AP");
+  if (wifiApPwd !== null) config["WIFI_PASSWORD_AP"] = wifiApPwd;
+  var webPwd = getPasswordFieldValue("WEB_PASSWORD", "clear_WEB_PASSWORD");
+  if (webPwd !== null) config["WEB_PASSWORD"] = webPwd;
 
   $.ajax({
     method: "POST",

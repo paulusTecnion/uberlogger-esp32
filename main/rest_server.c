@@ -558,8 +558,8 @@ const char * logger_settings_to_json(Settings_t *settings)
     
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
-    cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
-    cJSON_AddStringToObject(root, "WIFI_PASSWORD_AP", settings->wifi_password_ap);
+    cJSON_AddBoolToObject(root, "WIFI_PASSWORD_SET", strlen(settings->wifi_password) > 0);
+    cJSON_AddBoolToObject(root, "WIFI_PASSWORD_AP_SET", strlen(settings->wifi_password_ap) > 0);
     cJSON_AddNumberToObject(root, "WIFI_SSID_HIDDEN", settings->wifi_ssid_hidden);
     cJSON_AddBoolToObject(root, "WEB_PASSWORD_SET", strlen(settings->web_password) > 0);
     if (settings->wifi_mode == WIFI_MODE_AP)

@@ -837,6 +837,46 @@
           setting</i
         >
       </p>
+      <h3>Hotspot security</h3>
+      <div class="form-grid-container">
+        <div class="form-group">
+          <label for="WIFI_PASSWORD_AP">Hotspot password</label>
+          <p>Current status: <span id="wifi_ap_password_status">-</span></p>
+          <input
+            id="WIFI_PASSWORD_AP"
+            name="WIFI_PASSWORD_AP"
+            class="element"
+            type="password"
+            maxlength="63"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="none"
+            placeholder="Leave blank to keep current"
+          />
+          <p class="note">
+            <i>WPA2 requires 8–63 characters. Leave blank to keep current password.</i>
+          </p>
+          <label>
+            <input type="checkbox" id="clear_WIFI_PASSWORD_AP" />
+            Remove hotspot password (open network)
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Hide SSID</label>
+          <label>
+            <input
+              id="WIFI_SSID_HIDDEN"
+              name="WIFI_SSID_HIDDEN"
+              class="element json-as-bool"
+              type="checkbox"
+            />
+            Hide the hotspot from Wi-Fi scan results
+          </label>
+          <p class="note">
+            <i><b>Note:</b> When hidden, clients must enter the SSID manually to connect.</i>
+          </p>
+        </div>
+      </div>
       <h3>Connection mode</h3>
       <span>
         <input
@@ -895,17 +935,25 @@
         />
 
         <label for="WIFI_PASSWORD">Password</label>
+        <p>Current status: <span id="wifi_password_status">-</span></p>
         <input
           id="WIFI_PASSWORD"
           name="WIFI_PASSWORD"
           class="element"
-          type="text"
+          type="password"
           maxlength="64"
           autocomplete="off"
           autocorrect="off"
           autocapitalize="none"
-          value=""
+          placeholder="Leave blank to keep current"
         />
+        <p class="note">
+          <i>Leave blank to keep current password.</i>
+        </p>
+        <label>
+          <input type="checkbox" id="clear_WIFI_PASSWORD" />
+          Remove password (connect to open network)
+        </label>
 
         <p>
           After entering the connection details above, you can test the Wi-Fi
@@ -952,6 +1000,47 @@
           class="button"
           type="button"
           value="Save Wi-Fi settings"
+          onclick="setConfig()"
+        />
+      </div>
+    </div>
+
+    <h2>Security</h2>
+    <div class="group" id="security_configuration">
+      <h3>Web interface password</h3>
+      <p>
+        Protect the web interface with a password. When set, a login prompt
+        will appear before accessing this page. The username is <b>admin</b>.
+      </p>
+      <p>Current status: <span id="web_password_status">-</span></p>
+      <div class="form-grid-container">
+        <div class="form-group">
+          <label for="WEB_PASSWORD">New web password:</label>
+          <input
+            id="WEB_PASSWORD"
+            name="WEB_PASSWORD"
+            class="element"
+            type="password"
+            maxlength="31"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="none"
+            placeholder="Leave blank to keep current"
+          />
+          <p class="note">
+            <i>Leave blank to keep current password.</i>
+          </p>
+          <label>
+            <input type="checkbox" id="clear_WEB_PASSWORD" />
+            Remove web password (disable login)
+          </label>
+        </div>
+      </div>
+      <div>
+        <input
+          class="button"
+          type="button"
+          value="Save security settings"
           onclick="setConfig()"
         />
       </div>
