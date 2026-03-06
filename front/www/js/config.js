@@ -121,25 +121,33 @@ function parseConfig(data) {
   populateFields("#channel_configuration", data["AIN_CHANNEL_LABELS"]);
   populateFields("#channel_configuration", data["DIO_CHANNEL_LABELS"]);
 
-  // Password status indicators — server returns _SET booleans, not actual passwords
-  var apPwdSpan = document.getElementById("wifi_ap_password_status");
-  if (apPwdSpan) apPwdSpan.textContent = data["WIFI_PASSWORD_AP_SET"] ? "Password set" : "No password (open network)";
-  var staPwdSpan = document.getElementById("wifi_password_status");
-  if (staPwdSpan) staPwdSpan.textContent = data["WIFI_PASSWORD_SET"] ? "Password set" : "No password";
-  var webPwdSpan = document.getElementById("web_password_status");
-  if (webPwdSpan) webPwdSpan.textContent = data["WEB_PASSWORD_SET"] ? "Password set" : "No password (login disabled)";
+  // Security mode selectors — initialised from _SET booleans returned by the server
+  var apAuthMode = document.getElementById("WIFI_AP_AUTH_MODE");
+  if (apAuthMode) { apAuthMode.value = data["WIFI_PASSWORD_AP_SET"] ? "wpa2" : "open"; updateApSecurityUI(); }
+  var staAuthMode = document.getElementById("WIFI_STA_AUTH_MODE");
+  if (staAuthMode) { staAuthMode.value = data["WIFI_PASSWORD_SET"] ? "password" : "open"; updateStaSecurityUI(); }
+  var webAuthMode = document.getElementById("WEB_AUTH_MODE");
+  if (webAuthMode) { webAuthMode.value = data["WEB_PASSWORD_SET"] ? "password" : "none"; updateWebSecurityUI(); }
 }
 
-// Returns the value to send for a password field:
-//   - empty string if the clear checkbox is checked (explicit remove)
-//   - the typed value if non-empty
-//   - null if the field is blank and clear is not checked (keep unchanged, don't send)
-function getPasswordFieldValue(inputName, clearCheckboxId) {
-  var clearCheckbox = document.getElementById(clearCheckboxId);
-  var inputVal = $("[name=" + inputName + "]", "#configuration").val();
-  if (clearCheckbox && clearCheckbox.checked) return "";
-  if (inputVal) return inputVal;
-  return null;
+
+// ── Security mode UI toggles ───────────────────────────────────────────────
+function updateApSecurityUI() {
+  var mode    = document.getElementById("WIFI_AP_AUTH_MODE");
+  var section = document.getElementById("wifi_ap_password_section");
+  if (mode && section) section.style.display = (mode.value === "wpa2") ? "block" : "none";
+}
+
+function updateStaSecurityUI() {
+  var mode    = document.getElementById("WIFI_STA_AUTH_MODE");
+  var section = document.getElementById("wifi_sta_password_section");
+  if (mode && section) section.style.display = (mode.value === "password") ? "block" : "none";
+}
+
+function updateWebSecurityUI() {
+  var mode    = document.getElementById("WEB_AUTH_MODE");
+  var section = document.getElementById("web_password_section");
+  if (mode && section) section.style.display = (mode.value === "password") ? "block" : "none";
 }
 
 function testWifiNetwork() {
@@ -448,13 +456,30 @@ function setConfig() {
     TIMESTAMP: Number(new Date()),
   };
 
-  // Password fields: only send if a new value was entered or clear was requested
-  var wifiPwd = getPasswordFieldValue("WIFI_PASSWORD", "clear_WIFI_PASSWORD");
-  if (wifiPwd !== null) config["WIFI_PASSWORD"] = wifiPwd;
-  var wifiApPwd = getPasswordFieldValue("WIFI_PASSWORD_AP", "clear_WIFI_PASSWORD_AP");
-  if (wifiApPwd !== null) config["WIFI_PASSWORD_AP"] = wifiApPwd;
-  var webPwd = getPasswordFieldValue("WEB_PASSWORD", "clear_WEB_PASSWORD");
-  if (webPwd !== null) config["WEB_PASSWORD"] = webPwd;
+  // Password fields: derive from security mode selectors
+  var apAuthMode = document.getElementById("WIFI_AP_AUTH_MODE");
+  if (apAuthMode && apAuthMode.value === "open") {
+    config["WIFI_PASSWORD_AP"] = ""; // explicit clear
+  } else {
+    var apPwd = $("[name=WIFI_PASSWORD_AP]", "#configuration").val();
+    if (apPwd) config["WIFI_PASSWORD_AP"] = apPwd; // only send if user typed a new value
+  }
+
+  var staAuthMode = document.getElementById("WIFI_STA_AUTH_MODE");
+  if (staAuthMode && staAuthMode.value === "open") {
+    config["WIFI_PASSWORD"] = ""; // explicit clear
+  } else {
+    var staPwd = $("[name=WIFI_PASSWORD]", "#configuration").val();
+    if (staPwd) config["WIFI_PASSWORD"] = staPwd;
+  }
+
+  var webAuthMode = document.getElementById("WEB_AUTH_MODE");
+  if (webAuthMode && webAuthMode.value === "none") {
+    config["WEB_PASSWORD"] = ""; // explicit clear
+  } else {
+    var webPwd = $("[name=WEB_PASSWORD]", "#configuration").val();
+    if (webPwd) config["WEB_PASSWORD"] = webPwd;
+  }
 
   $.ajax({
     method: "POST",

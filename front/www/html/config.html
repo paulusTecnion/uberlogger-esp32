@@ -501,27 +501,29 @@
         </div>
         <p class="note" style="margin-top:0"><i><b>Note:</b> Press the reset button manually after saving this setting.</i></p>
 
-        <!-- Hotspot password: full-width field below -->
+        <!-- Hotspot security mode + conditional password -->
         <div class="form-grid-container" style="margin-top: 12px;">
           <div class="form-group">
-            <label for="WIFI_PASSWORD_AP">Hotspot password</label>
-            <p>Current status: <span id="wifi_ap_password_status">-</span></p>
-            <input
-              id="WIFI_PASSWORD_AP"
-              name="WIFI_PASSWORD_AP"
-              class="element"
-              type="password"
-              maxlength="63"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="none"
-              placeholder="Leave blank to keep current"
-            />
-            <p class="note"><i>WPA2 requires 8–63 characters. Leave blank to keep current password.</i></p>
-            <label>
-              <input type="checkbox" id="clear_WIFI_PASSWORD_AP" />
-              Remove hotspot password (open network)
-            </label>
+            <label for="WIFI_AP_AUTH_MODE">Hotspot security</label>
+            <select id="WIFI_AP_AUTH_MODE" onchange="updateApSecurityUI()">
+              <option value="open">Open (no password)</option>
+              <option value="wpa2">WPA2 / WPA3</option>
+            </select>
+            <div id="wifi_ap_password_section" style="display:none; margin-top:8px;">
+              <label for="WIFI_PASSWORD_AP">Password</label>
+              <input
+                id="WIFI_PASSWORD_AP"
+                name="WIFI_PASSWORD_AP"
+                class="element"
+                type="password"
+                maxlength="63"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                placeholder="Leave blank to keep current password"
+              />
+              <p class="note"><i>8–63 characters required. Leave blank to keep the current password.</i></p>
+            </div>
           </div>
         </div>
 
@@ -579,24 +581,26 @@
               />
             </div>
             <div class="form-group">
-              <label for="WIFI_PASSWORD">Password</label>
-              <p>Current status: <span id="wifi_password_status">-</span></p>
-              <input
-                id="WIFI_PASSWORD"
-                name="WIFI_PASSWORD"
-                class="element"
-                type="password"
-                maxlength="64"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="none"
-                placeholder="Leave blank to keep current"
-              />
-              <p class="note"><i>Leave blank to keep current password.</i></p>
-              <label>
-                <input type="checkbox" id="clear_WIFI_PASSWORD" />
-                Remove password (connect to open network)
-              </label>
+              <label for="WIFI_STA_AUTH_MODE">Network security</label>
+              <select id="WIFI_STA_AUTH_MODE" onchange="updateStaSecurityUI()">
+                <option value="open">Open (no password)</option>
+                <option value="password">Password protected</option>
+              </select>
+              <div id="wifi_sta_password_section" style="display:none; margin-top:8px;">
+                <label for="WIFI_PASSWORD">Password</label>
+                <input
+                  id="WIFI_PASSWORD"
+                  name="WIFI_PASSWORD"
+                  class="element"
+                  type="password"
+                  maxlength="64"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="none"
+                  placeholder="Leave blank to keep current password"
+                />
+                <p class="note"><i>Leave blank to keep the current password unchanged.</i></p>
+              </div>
             </div>
           </div>
           <p>
@@ -623,30 +627,28 @@
         </div><!-- /#wifi_client_settings -->
 
         <h3>Web interface security</h3>
-        <p>
-          Protect the web interface with a password. When set, a login prompt will
-          appear before accessing this page. The username is <b>admin</b>.
-        </p>
         <div class="form-grid-container">
           <div class="form-group">
-            <label for="WEB_PASSWORD">Web interface password</label>
-            <p>Current status: <span id="web_password_status">-</span></p>
-            <input
-              id="WEB_PASSWORD"
-              name="WEB_PASSWORD"
-              class="element"
-              type="password"
-              maxlength="31"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="none"
-              placeholder="Leave blank to keep current"
-            />
-            <p class="note"><i>Leave blank to keep current password.</i></p>
-            <label>
-              <input type="checkbox" id="clear_WEB_PASSWORD" />
-              Remove web password (disable login)
-            </label>
+            <label for="WEB_AUTH_MODE">Web interface login</label>
+            <select id="WEB_AUTH_MODE" onchange="updateWebSecurityUI()">
+              <option value="none">No login required</option>
+              <option value="password">Password protected (username: admin)</option>
+            </select>
+            <div id="web_password_section" style="display:none; margin-top:8px;">
+              <label for="WEB_PASSWORD">Password</label>
+              <input
+                id="WEB_PASSWORD"
+                name="WEB_PASSWORD"
+                class="element"
+                type="password"
+                maxlength="31"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                placeholder="Leave blank to keep current password"
+              />
+              <p class="note"><i>Leave blank to keep the current password unchanged.</i></p>
+            </div>
           </div>
         </div>
 

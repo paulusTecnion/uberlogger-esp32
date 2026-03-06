@@ -776,7 +776,7 @@ a:hover {
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-start;
   max-width: 800px;
 }
 
@@ -784,6 +784,16 @@ a:hover {
   flex: 1;
   min-width: 220px;
   margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+  .form-group {
+    flex: 0 0 100%;
+    min-width: unset;
+  }
+  .form-grid-container {
+    gap: 10px;
+  }
 }
 
 /* .form-group {

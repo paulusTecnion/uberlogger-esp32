@@ -279,7 +279,7 @@ esp_err_t wifi_start()
             .channel = settings_get_wifi_channel(),
             // .password = wifi_pass,
             .max_connection = EXAMPLE_MAX_STA_CONN,
-            .authmode = WIFI_AUTH_WPA_WPA2_PSK,
+            .authmode = WIFI_AUTH_WPA2_WPA3_PSK,
         },
         // .sta = {
         //     /* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (pasword len => 8).
@@ -346,7 +346,7 @@ esp_err_t wifi_update_ap()
         .ap = {
             .channel = settings_get_wifi_channel(),
             .max_connection = EXAMPLE_MAX_STA_CONN,
-            .authmode = WIFI_AUTH_WPA_WPA2_PSK,
+            .authmode = WIFI_AUTH_WPA2_WPA3_PSK,
         },
     };
 
