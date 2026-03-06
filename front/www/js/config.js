@@ -121,13 +121,30 @@ function parseConfig(data) {
   populateFields("#channel_configuration", data["AIN_CHANNEL_LABELS"]);
   populateFields("#channel_configuration", data["DIO_CHANNEL_LABELS"]);
 
-  // Security mode selectors — initialised from _SET booleans returned by the server
+  // Security mode selectors — initialised from _SET booleans returned by the server.
+  // data-originally-set remembers the server state so setConfig() can avoid sending
+  // unchanged passwords (which would trigger an unnecessary wifi_update_ap() call).
   var apAuthMode = document.getElementById("WIFI_AP_AUTH_MODE");
-  if (apAuthMode) { apAuthMode.value = data["WIFI_PASSWORD_AP_SET"] ? "wpa2" : "open"; updateApSecurityUI(); }
+  if (apAuthMode) {
+    var apSet = !!data["WIFI_PASSWORD_AP_SET"];
+    apAuthMode.value = apSet ? "wpa2" : "open";
+    apAuthMode.dataset.originallySet = apSet ? "true" : "false";
+    updateApSecurityUI();
+  }
   var staAuthMode = document.getElementById("WIFI_STA_AUTH_MODE");
-  if (staAuthMode) { staAuthMode.value = data["WIFI_PASSWORD_SET"] ? "password" : "open"; updateStaSecurityUI(); }
+  if (staAuthMode) {
+    var staSet = !!data["WIFI_PASSWORD_SET"];
+    staAuthMode.value = staSet ? "password" : "open";
+    staAuthMode.dataset.originallySet = staSet ? "true" : "false";
+    updateStaSecurityUI();
+  }
   var webAuthMode = document.getElementById("WEB_AUTH_MODE");
-  if (webAuthMode) { webAuthMode.value = data["WEB_PASSWORD_SET"] ? "password" : "none"; updateWebSecurityUI(); }
+  if (webAuthMode) {
+    var webSet = !!data["WEB_PASSWORD_SET"];
+    webAuthMode.value = webSet ? "password" : "none";
+    webAuthMode.dataset.originallySet = webSet ? "true" : "false";
+    updateWebSecurityUI();
+  }
 }
 
 
@@ -456,29 +473,42 @@ function setConfig() {
     TIMESTAMP: Number(new Date()),
   };
 
-  // Password fields: derive from security mode selectors
+  // Password fields — only include in the POST when the user actually changed something.
+  // Sending WIFI_PASSWORD_AP triggers wifi_update_ap() server-side, which reconfigures
+  // the WiFi AP and can drop the current HTTP connection before the response is sent.
+  // Sending unchanged passwords caused the save to silently fail.
   var apAuthMode = document.getElementById("WIFI_AP_AUTH_MODE");
-  if (apAuthMode && apAuthMode.value === "open") {
-    config["WIFI_PASSWORD_AP"] = ""; // explicit clear
-  } else {
-    var apPwd = $("[name=WIFI_PASSWORD_AP]", "#configuration").val();
-    if (apPwd) config["WIFI_PASSWORD_AP"] = apPwd; // only send if user typed a new value
+  if (apAuthMode) {
+    var apOriginallySet = (apAuthMode.dataset.originallySet === "true");
+    if (apAuthMode.value === "open" && apOriginallySet) {
+      config["WIFI_PASSWORD_AP"] = ""; // user switched from password → open: explicit clear
+    } else if (apAuthMode.value === "wpa2") {
+      var apPwd = $("[name=WIFI_PASSWORD_AP]", "#configuration").val();
+      if (apPwd) config["WIFI_PASSWORD_AP"] = apPwd; // new password typed
+    }
+    // else: already open and staying open → omit (no wifi_update_ap() call)
   }
 
   var staAuthMode = document.getElementById("WIFI_STA_AUTH_MODE");
-  if (staAuthMode && staAuthMode.value === "open") {
-    config["WIFI_PASSWORD"] = ""; // explicit clear
-  } else {
-    var staPwd = $("[name=WIFI_PASSWORD]", "#configuration").val();
-    if (staPwd) config["WIFI_PASSWORD"] = staPwd;
+  if (staAuthMode) {
+    var staOriginallySet = (staAuthMode.dataset.originallySet === "true");
+    if (staAuthMode.value === "open" && staOriginallySet) {
+      config["WIFI_PASSWORD"] = ""; // user switched from password → open: explicit clear
+    } else if (staAuthMode.value === "password") {
+      var staPwd = $("[name=WIFI_PASSWORD]", "#configuration").val();
+      if (staPwd) config["WIFI_PASSWORD"] = staPwd;
+    }
   }
 
   var webAuthMode = document.getElementById("WEB_AUTH_MODE");
-  if (webAuthMode && webAuthMode.value === "none") {
-    config["WEB_PASSWORD"] = ""; // explicit clear
-  } else {
-    var webPwd = $("[name=WEB_PASSWORD]", "#configuration").val();
-    if (webPwd) config["WEB_PASSWORD"] = webPwd;
+  if (webAuthMode) {
+    var webOriginallySet = (webAuthMode.dataset.originallySet === "true");
+    if (webAuthMode.value === "none" && webOriginallySet) {
+      config["WEB_PASSWORD"] = ""; // user switched from password → none: explicit clear
+    } else if (webAuthMode.value === "password") {
+      var webPwd = $("[name=WEB_PASSWORD]", "#configuration").val();
+      if (webPwd) config["WEB_PASSWORD"] = webPwd;
+    }
   }
 
   $.ajax({
