@@ -1061,3 +1061,37 @@ details summary:hover {
     display: none;
   }
 }
+
+/* ── Config page tabs ─────────────────────────────────────────────────── */
+.config-tab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 16px 20px 0;
+  border-bottom: 2px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.tab-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: 3px solid transparent;
+  padding: 9px 22px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  border-radius: 4px 4px 0 0;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.tab-btn:hover  { color: #f78661; background: #fff3ee; }
+.tab-btn.active { color: #f78661; border-bottom-color: #f78661; background: #fff; }
+
+.tab-pane        { display: none; padding: 20px 20px 30px; }
+.tab-pane.active { display: block; }
+
+@media (max-width: 768px) {
+  .config-tab-nav { padding: 10px 8px 0; gap: 1px; }
+  .tab-btn        { padding: 8px 12px; font-size: 13px; }
+}

@@ -83,6 +83,7 @@ function loadForm() {
     // parse JSON data to form
     parseConfig(data);
     wifiConfigVisibilityUpdate();
+    initConfigTabs();
 
     document.querySelector("#loading").style.display = "none";
     document.querySelector("#config").style.display = "block";
@@ -483,6 +484,24 @@ function setConfig() {
       console.log("Failed, response=" + response["responseText"]);
     },
   });
+}
+
+// ── Tab navigation ────────────────────────────────────────────────────────
+function initConfigTabs() {
+  // Use delegated click so it works even if tabs are re-rendered.
+  $(document).off("click.configtab").on("click.configtab", ".tab-btn", function () {
+    var tab = $(this).data("tab");
+    $(".tab-btn").removeClass("active");
+    $(this).addClass("active");
+    $(".tab-pane").removeClass("active");
+    $("#tab-" + tab).addClass("active");
+    try { sessionStorage.setItem("config_tab", tab); } catch (e) {}
+  });
+
+  // Restore the last active tab (default: channels)
+  var lastTab = "channels";
+  try { lastTab = sessionStorage.getItem("config_tab") || "channels"; } catch (e) {}
+  $('[data-tab="' + lastTab + '"]').trigger("click");
 }
 
 function getFormDataAsJsonObject(form) {
