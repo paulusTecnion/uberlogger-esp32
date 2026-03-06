@@ -1068,6 +1068,26 @@ details summary:hover {
   min-width: unset;
 }
 
+/* ── Inline field row: label + compact select/input on one line ─────────── */
+.field-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.field-inline label {
+  margin-bottom: 0;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.select-inline {
+  width: auto !important;
+  min-width: 80px;
+  flex-shrink: 0;
+  margin-bottom: 0 !important;
+}
+
 /* ── Inline SVG icon inside buttons ────────────────────────────────────── */
 .btn-icon {
   width: 14px;

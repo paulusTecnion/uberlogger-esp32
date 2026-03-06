@@ -479,26 +479,30 @@
       <div class="group" id="wifi_configuration">
 
         <h3>Hotspot settings</h3>
-        <div class="form-grid-container">
-          <div class="form-group form-group-narrow">
-            <label for="WIFI_CHANNEL">Wi-Fi channel</label>
-            <select name="WIFI_CHANNEL" id="WIFI_CHANNEL" class="json-as-number">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="8">8</option>
-              <option value="9">9</option>
-              <option value="10">10</option>
-              <option value="11">11</option>
-              <option value="12">12</option>
-              <option value="13">13</option>
-            </select>
-            <p class="note"><i><b>Note:</b> Press the reset button manually after saving this setting.</i></p>
-          </div>
+
+        <!-- Wi-Fi channel: inline label + compact select -->
+        <div class="field-inline">
+          <label for="WIFI_CHANNEL">Wi-Fi channel:</label>
+          <select name="WIFI_CHANNEL" id="WIFI_CHANNEL" class="json-as-number select-inline">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+          </select>
+        </div>
+        <p class="note" style="margin-top:0"><i><b>Note:</b> Press the reset button manually after saving this setting.</i></p>
+
+        <!-- Hotspot password: full-width field below -->
+        <div class="form-grid-container" style="margin-top: 12px;">
           <div class="form-group">
             <label for="WIFI_PASSWORD_AP">Hotspot password</label>
             <p>Current status: <span id="wifi_ap_password_status">-</span></p>
