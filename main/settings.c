@@ -322,7 +322,6 @@ esp_err_t settings_set_default(Settings_t * _inSettings)
     strcpy(_inSettings->wifi_ssid, _inSettings->wifi_ssid_ap);
     strcpy(_inSettings->wifi_password, "");
     strcpy(_inSettings->wifi_password_ap, ""); // AP hotspot open by default
-    _inSettings->wifi_ssid_hidden = 0;         // SSID visible by default
     strcpy(_inSettings->web_password, "");     // no web UI password by default
     _inSettings->wifi_mode = WIFI_MODE_AP;
     _inSettings->wifi_channel = 1;
@@ -915,11 +914,6 @@ esp_err_t settings_load_json(FILE* f)
         _settings.wifi_password_ap[sizeof(_settings.wifi_password_ap) - 1] = '\0';
     }
 
-    const cJSON* wifi_ssid_hidden = cJSON_GetObjectItemCaseSensitive(root, "wifi_ssid_hidden");
-    if (cJSON_IsNumber(wifi_ssid_hidden)) {
-        _settings.wifi_ssid_hidden = wifi_ssid_hidden->valueint;
-    }
-
     const cJSON* web_password = cJSON_GetObjectItemCaseSensitive(root, "web_password");
     if (cJSON_IsString(web_password) && web_password->valuestring != NULL) {
         strncpy(_settings.web_password, web_password->valuestring, sizeof(_settings.web_password) - 1);
@@ -1241,7 +1235,6 @@ char * settings_to_json(Settings_t *settings)
     cJSON_AddStringToObject(root, "wifi_ssid_ap", _settings.wifi_ssid_ap);
     cJSON_AddStringToObject(root, "wifi_password", _settings.wifi_password);
     cJSON_AddStringToObject(root, "wifi_password_ap", _settings.wifi_password_ap);
-    cJSON_AddNumberToObject(root, "wifi_ssid_hidden", _settings.wifi_ssid_hidden);
     cJSON_AddStringToObject(root, "web_password", _settings.web_password);
     cJSON_AddNumberToObject(root, "timestamp", _settings.timestamp);
     cJSON_AddNumberToObject(root, "boot_reason", _settings.bootReason);
@@ -1327,18 +1320,6 @@ esp_err_t settings_set_wifi_password_ap(char *password)
     return ESP_FAIL;
 }
 
-uint8_t settings_get_wifi_ssid_hidden()
-{
-    return _settings.wifi_ssid_hidden;
-}
-
-esp_err_t settings_set_wifi_ssid_hidden(uint8_t hidden)
-{
-    if (hidden > 1)
-        return ESP_FAIL;
-    _settings.wifi_ssid_hidden = hidden;
-    return ESP_OK;
-}
 
 char * settings_get_web_password()
 {

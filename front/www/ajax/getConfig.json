@@ -4,7 +4,6 @@
   "WIFI_SSID": "test wifi",
   "WIFI_PASSWORD_SET": true,
   "WIFI_PASSWORD_AP_SET": false,
-  "WIFI_SSID_HIDDEN": 0,
   "WEB_PASSWORD_SET": false,
   "LOG_MODE": 1,
   "LOG_SAMPLE_RATE": 3,

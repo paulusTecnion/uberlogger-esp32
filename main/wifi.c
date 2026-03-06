@@ -296,7 +296,6 @@ esp_err_t wifi_start()
     strcpy((char*)wifi_config.ap.ssid, settings_get_wifi_ssid_ap());
     wifi_config.ap.ssid_len = strlen((const char*)(wifi_config.ap.ssid));
     strcpy((char*)wifi_config.ap.password, settings_get_wifi_password_ap());
-    wifi_config.ap.ssid_hidden = settings_get_wifi_ssid_hidden();
 
     if (strlen((const char*)(wifi_config.ap.password)) == 0) {
         wifi_config.ap.authmode =  WIFI_AUTH_OPEN;
@@ -354,7 +353,6 @@ esp_err_t wifi_update_ap()
     strcpy((char*)wifi_config.ap.ssid, settings_get_wifi_ssid_ap());
     wifi_config.ap.ssid_len = strlen((const char*)(wifi_config.ap.ssid));
     strcpy((char*)wifi_config.ap.password, settings_get_wifi_password_ap());
-    wifi_config.ap.ssid_hidden = settings_get_wifi_ssid_hidden();
 
     if (strlen((const char*)(wifi_config.ap.password)) == 0) {
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;

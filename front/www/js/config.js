@@ -445,7 +445,6 @@ function setConfig() {
     WIFI_CHANNEL: input["WIFI_CHANNEL"],
     WIFI_MODE: input["WIFI_MODE"],
     WIFI_SSID: input["WIFI_SSID"],
-    WIFI_SSID_HIDDEN: input["WIFI_SSID_HIDDEN"],
     TIMESTAMP: Number(new Date()),
   };
 

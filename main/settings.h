@@ -191,7 +191,6 @@ struct Settings_t {
 	uint8_t settings_format_version;
 	/* Security settings */
 	char wifi_password_ap[MAX_WIFI_AP_PASSW_LEN]; // password for the device's own WiFi AP hotspot
-	uint8_t wifi_ssid_hidden;                      // 0 = SSID visible, 1 = SSID hidden
 	char web_password[MAX_WEB_PASSWORD_LEN];       // password for web UI HTTP Basic Auth
 };
 
@@ -335,9 +334,6 @@ esp_err_t settings_set_wifi_mode(uint8_t mode);
 
 char * settings_get_wifi_password_ap();
 esp_err_t settings_set_wifi_password_ap(char *password);
-
-uint8_t settings_get_wifi_ssid_hidden();
-esp_err_t settings_set_wifi_ssid_hidden(uint8_t hidden);
 
 char * settings_get_web_password();
 esp_err_t settings_set_web_password(char *password);

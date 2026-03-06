@@ -523,7 +523,6 @@ const char * logger_settings_to_json(Settings_t *settings)
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
     cJSON_AddBoolToObject(root, "WIFI_PASSWORD_SET", strlen(settings->wifi_password) > 0);
     cJSON_AddBoolToObject(root, "WIFI_PASSWORD_AP_SET", strlen(settings->wifi_password_ap) > 0);
-    cJSON_AddNumberToObject(root, "WIFI_SSID_HIDDEN", settings->wifi_ssid_hidden);
     cJSON_AddBoolToObject(root, "WEB_PASSWORD_SET", strlen(settings->web_password) > 0);
     if (settings->wifi_mode == WIFI_MODE_AP)
     {
@@ -1058,17 +1057,6 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         if (settings_set_wifi_password_ap(item->valuestring) != ESP_OK)
         {
             json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting AP password. Must be empty (open) or 8-63 characters.", HTTPD_400_BAD_REQUEST);
-            goto error;
-        }
-        wifi_update_ap();
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID_HIDDEN");
-    if (item != NULL)
-    {
-        if (settings_set_wifi_ssid_hidden(item->valueint) != ESP_OK)
-        {
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting SSID hidden. Must be 0 (visible) or 1 (hidden).", HTTPD_400_BAD_REQUEST);
             goto error;
         }
         wifi_update_ap();
