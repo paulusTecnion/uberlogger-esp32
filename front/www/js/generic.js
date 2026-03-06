@@ -3,6 +3,7 @@ var alert_active_valueserr = false;
 var calibrating = false;
 var calibCounter = 0;
 const BYTES_PER_MB = 1024 * 1024;
+var fwUpdateInProgress = false;   // set by fwupdate.js to suppress getValues alert during flashing
 
 // load correct page after document is ready and highlight correct item in menu
 function loadPage() {
@@ -18,7 +19,7 @@ function loadPage() {
   $("#menu_" + page).addClass("selected");
 
   getValues();
-  setInterval(getValues, 1000);
+  window.valuesInterval = setInterval(getValues, 1000);
 }
 
 function renderPage(page, page_version) {
@@ -342,7 +343,7 @@ function getValues() {
     populateFields("#topstatus", valuesData);
     alert_active_valueserr = false;
   }).fail(function () {
-    if (alert_active_valueserr == false) {
+    if (alert_active_valueserr == false && !fwUpdateInProgress) {
       alert_active_valueserr = true;
       alert("Error: could not update values.");
     }
