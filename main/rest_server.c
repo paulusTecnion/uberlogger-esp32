@@ -245,142 +245,105 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
         return rest_send_auth_required(req);
     }
     httpd_resp_set_type(req, "application/json");
-    cJSON * root = cJSON_CreateObject();
-    if (root == NULL)
-    {
-        return ESP_FAIL;
-    }
-     
-    cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
-    
-    cJSON *readings = cJSON_AddObjectToObject(root, "READINGS");
 
-    cJSON *temperature = cJSON_AddObjectToObject(readings, "TEMPERATURE");
-    cJSON_AddStringToObject(temperature, "UNITS", "DEG C");
-    cJSON *tValues = cJSON_AddObjectToObject(temperature, "VALUES");
+    // Static buffer: avoids ~5-8 KB of cJSON heap churn on every 1-second poll.
+    // Max content: 8 ch labels (16B) + values + fixed fields < 1200 B.
+    static char buf[1536];
+    char label[25];
+    int pos = 0;
+    int first;
+    Settings_t *settings = settings_get();
 
-    cJSON *analog = cJSON_AddObjectToObject(readings, "ANALOG");
-    cJSON_AddStringToObject(analog, "UNITS", "Volt");
-    cJSON * aValues = cJSON_AddObjectToObject(analog, "VALUES");
-    
-    char buf[25];
-    for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
-    {
-        if (settings_get_adc_channel_enabled(settings_get(),i))
-        {
-            if (settings_get_adc_channel_type(settings_get(), i))
-            {
-                settings_get_ain_chan_label(i, buf);
-                // sprintf(buf,"%s", );
-                
-                cJSON_AddNumberToObject(tValues, buf, (double)live_data.temperatureData[i]/10.0);
-            } else {
-                // sprintf(buf,"AIN%d", i+1);
-                settings_get_ain_chan_label(i, buf);
-                
-                 if (settings_get_adc_channel_range(settings_get(), i))
-                {
-                    cJSON_AddNumberToObject(aValues, buf, (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_60V);
-                } else {
-                    cJSON_AddNumberToObject(aValues, buf, (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_10V);
-                // cJSON_AddStringToObject(aValues, buf, live_data.analogData[i]);
-                }
-            }
+    // Root + TIMESTAMP + open READINGS
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "{\"TIMESTAMP\":%.0f,\"READINGS\":{", (double)live_data.timestamp);
+
+    // --- TEMPERATURE ---
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"TEMPERATURE\":{\"UNITS\":\"DEG C\",\"VALUES\":{");
+    first = 1;
+    for (int i = ADC_CHANNEL_0; i <= ADC_CHANNEL_7; i++) {
+        if (settings_get_adc_channel_enabled(settings, i) &&
+            settings_get_adc_channel_type(settings, i)) {
+            settings_get_ain_chan_label(i, label);
+            pos += snprintf(buf + pos, sizeof(buf) - pos,
+                "%s\"%s\":%.1f", first ? "" : ",",
+                label, (double)live_data.temperatureData[i] / 10.0);
+            first = 0;
         }
-        
-        
     }
-      
-   
-    // // For future use. Always enabled now.
-    // // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
-    
-   cJSON *digital = cJSON_AddObjectToObject(readings, "DIGITAL");
-   cJSON_AddStringToObject(digital, "UNITS", "Level");
-//    cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
-    cJSON * aDigital = cJSON_AddObjectToObject(digital, "VALUES");
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "}},");
 
-
-    for (int i = 0; i<6; i++)
-    {
-        if (settings_get_gpio_channel_enabled(settings_get(), i))
-        {
-            // sprintf(buf, "DI%d", i+1);
-            settings_get_dio_chan_label(i, buf);
-            cJSON_AddNumberToObject(aDigital, buf, live_data.gpioData[i]);
+    // --- ANALOG ---
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"ANALOG\":{\"UNITS\":\"Volt\",\"VALUES\":{");
+    first = 1;
+    for (int i = ADC_CHANNEL_0; i <= ADC_CHANNEL_7; i++) {
+        if (settings_get_adc_channel_enabled(settings, i) &&
+            !settings_get_adc_channel_type(settings, i)) {
+            settings_get_ain_chan_label(i, label);
+            double val = settings_get_adc_channel_range(settings, i)
+                ? (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_60V
+                : (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_10V;
+            pos += snprintf(buf + pos, sizeof(buf) - pos,
+                "%s\"%s\":%.4f", first ? "" : ",", label, val);
+            first = 0;
         }
-            
     }
-    
-    // cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[1]);
-    // cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[2]);
-    // cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[3]);
-    // cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[4]);
-    // cJSON_AddNumberToObject(aDigital, "DI6", live_data.gpioData[5]);
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "}},");
 
-    // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
-    if (Logger_getLoggingState() == LOGGING_WAIT_FOR_TRIGGER)
-    {
-        // very dirty and workaround :(
-        cJSON_AddNumberToObject(root, "LOGGER_STATE", LOGTASK_WAITING_FOR_TRIGGER);
-    }    else {
-        cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
+    // --- DIGITAL ---
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"DIGITAL\":{\"UNITS\":\"Level\",\"VALUES\":{");
+    first = 1;
+    for (int i = 0; i < 6; i++) {
+        if (settings_get_gpio_channel_enabled(settings, i)) {
+            settings_get_dio_chan_label(i, label);
+            pos += snprintf(buf + pos, sizeof(buf) - pos,
+                "%s\"%s\":%d", first ? "" : ",", label, live_data.gpioData[i]);
+            first = 0;
+        }
     }
-    cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
-    // cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
-    cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
-    cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", Logger_getLastFreeSpace());
+    // Close VALUES, DIGITAL, READINGS
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "}}},");
 
-    cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
-    
+    // --- Logger state (preserve trigger workaround) ---
+    uint8_t logger_state = (Logger_getLoggingState() == LOGGING_WAIT_FOR_TRIGGER)
+        ? LOGTASK_WAITING_FOR_TRIGGER : (uint8_t)Logger_getState();
+
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"LOGGER_STATE\":%u,\"ERRORCODE\":%u,"
+        "\"FW_VERSION\":\"%s\","
+        "\"SD_CARD_FREE_SPACE\":%u,\"SD_CARD_STATUS\":%d,",
+        (unsigned)logger_state, (unsigned)Logger_getError(),
+        sysinfo_get_fw_version(),
+        (unsigned)Logger_getLastFreeSpace(), (int)esp_sd_card_get_state());
+
+    // --- WiFi ---
     uint8_t wifi_state = 0;
-    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
-    {
-        if (wifi_is_connected_to_ap())
-        {
-            wifi_state = 3;
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA) {
+        if      (wifi_is_connected_to_ap())   wifi_state = 3;
+        else if (wifi_ap_connection_failed()) wifi_state = 2;
+        else                                  wifi_state = 1;
+    }
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"WIFI_TEST_STATUS\":%u,", (unsigned)wifi_state);
 
-        } else if (wifi_ap_connection_failed())
-        {
-            wifi_state = 2;
-        } else {
-            wifi_state = 1;
-        }
-    } 
-    
-    cJSON_AddNumberToObject(root, "WIFI_TEST_STATUS", wifi_state);
-    
-    if (wifi_is_connected_to_ap())
-    {
-        char buffer[20];
-        wifi_get_ip(buffer);
-        cJSON_AddStringToObject(root, "WIFI_TEST_IP", buffer);
-        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", wifi_get_rssi());
+    if (wifi_is_connected_to_ap()) {
+        char ip[20];
+        wifi_get_ip(ip);
+        pos += snprintf(buf + pos, sizeof(buf) - pos,
+            "\"WIFI_TEST_IP\":\"%s\",\"WIFI_TEST_RSSI\":%d", ip, (int)wifi_get_rssi());
     } else {
-        cJSON_AddStringToObject(root, "WIFI_TEST_IP", "0.0.0.0");
-        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", 0);
+        pos += snprintf(buf + pos, sizeof(buf) - pos,
+            "\"WIFI_TEST_IP\":\"0.0.0.0\",\"WIFI_TEST_RSSI\":0");
     }
 
-    
-    const char *settings_json= cJSON_Print(root);
+    // Close root
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "}");
 
-    // if (xSemaphoreTake(sdcard_semaphore, portMAX_DELAY) != pdTRUE)
-    // {
-    //     ESP_LOGE(REST_TAG, "Failed to take semaphore");
-    //     return ESP_FAIL;
-    // } else {
-        httpd_resp_sendstr(req, settings_json);
-        // xSemaphoreGive(sdcard_semaphore);
-    // }
-
-    
-    
-    
-    free((void *)settings_json);
-    cJSON_Delete(root);
-    
+    httpd_resp_sendstr(req, buf);
     return ESP_OK;
-    
 }
 
 static esp_err_t logger_getRawAdc_handler(httpd_req_t *req)
