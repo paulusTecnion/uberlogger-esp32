@@ -146,6 +146,16 @@
       "Continue?"
     )) { return; }
 
+    // Stop the background getValues poller immediately.
+    // The ESP32 HTTP server has a very limited number of simultaneous connections
+    // (CONFIG_LWIP_MAX_SOCKETS=10 → 7 HTTP slots). If getValues keeps opening
+    // connections during the upload, LRU purge can close the upload connection
+    // mid-transfer, causing ERR_CONNECTION_RESET.
+    if (window.valuesInterval) {
+      clearInterval(window.valuesInterval);
+      window.valuesInterval = null;
+    }
+
     // Suppress the getValues "could not update values" alert during flashing
     fwUpdateInProgress = true;
 
@@ -167,6 +177,10 @@
         showPhase("select");
         showError(String(err) || "An unknown error occurred.");
         fwUpdateInProgress = false;
+        // Restart the getValues poller that was stopped above
+        if (!window.valuesInterval) {
+          window.valuesInterval = setInterval(getValues, 1000);
+        }
       });
   }
 
@@ -210,7 +224,12 @@
       var xhr  = new XMLHttpRequest();
 
       xhr.open("POST", "/upload/" + f.expected, true);
-      xhr.setRequestHeader("Content-Type", "multipart/form-data");
+      // Do NOT set Content-Type manually. With a File object, the browser sends
+      // application/octet-stream with a correct Content-Length header. Setting
+      // multipart/form-data (without a required boundary) can cause some browsers
+      // to omit Content-Length, which makes the server see content_len=0 and
+      // close the connection while the body is still being sent → ERR_CONNECTION_RESET.
+      xhr.timeout = 120000; // 2 min per file
 
       // Mark this step as active
       $("#" + f.stepId).addClass("fw-step-active");
@@ -246,6 +265,11 @@
       xhr.onerror = function () {
         $("#" + f.stepId).removeClass("fw-step-active").addClass("fw-step-error");
         reject("Network error uploading " + f.expected + ". Reset the device and try again.");
+      };
+
+      xhr.ontimeout = function () {
+        $("#" + f.stepId).removeClass("fw-step-active").addClass("fw-step-error");
+        reject("Upload of " + f.expected + " timed out. Reset the device and try again.");
       };
 
       xhr.send(file);
