@@ -13,6 +13,8 @@
 #include "wifi.h"
 #include "esp_wifi_types.h"
 #include "mbedtls/base64.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 char * endpoint_response_char[] = 
 {
@@ -44,6 +46,30 @@ typedef struct rest_server_context {
 } rest_server_context_t;
 
 httpd_handle_t server = NULL;
+
+static void wifi_update_ap_deferred_task(void *arg)
+{
+    (void)arg;
+    vTaskDelay(pdMS_TO_TICKS(250));
+    wifi_update_ap();
+    vTaskDelete(NULL);
+}
+
+static void schedule_wifi_update_ap_deferred(void)
+{
+    BaseType_t rc = xTaskCreate(
+        wifi_update_ap_deferred_task,
+        "wifi_ap_upd",
+        2048,
+        NULL,
+        tskIDLE_PRIORITY + 1,
+        NULL);
+
+    if (rc != pdPASS) {
+        ESP_LOGW(REST_TAG, "Failed to schedule deferred AP update, applying immediately");
+        wifi_update_ap();
+    }
+}
 
 /* HTTP Basic Auth helpers */
 
@@ -757,6 +783,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     // Store old settings (only to compare old wifi settings)
     Settings_t oldSettings;
     memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
+    bool ap_update_required = false;
 
     int total_len = req->content_len;
     int cur_len = 0;
@@ -1038,7 +1065,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel", HTTPD_400_BAD_REQUEST);
             goto error;
         }
-        wifi_update_ap();
+        ap_update_required = true;
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
@@ -1059,7 +1086,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting AP password. Must be empty (open) or 8-63 characters.", HTTPD_400_BAD_REQUEST);
             goto error;
         }
-        wifi_update_ap();
+        ap_update_required = true;
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WEB_PASSWORD");
@@ -1175,6 +1202,11 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
+
+    if (ap_update_required)
+    {
+        schedule_wifi_update_ap_deferred();
+    }
     
 
 error:
