@@ -46,12 +46,84 @@
         </ol>
         <p>
           You can configure the WiFi settings in the "Configuration" page under
-          the "WiFi Configuration" section.
+          the "Network" tab.
+        </p>
+        <p>
+          <b>Hotspot security:</b> The device's own access point can be left
+          open (no password) or secured with WPA2/WPA3. When secured, set a
+          password of 8–63 characters. Clients connecting to the hotspot will
+          then need this password.
+        </p>
+        <p>
+          <b>Network security (client mode):</b> When connecting the logger to
+          an existing WiFi network, choose between an open network or a
+          password-protected one.
         </p>
         <p>
           <i>
             <b>Note:</b> When connecting to your access point, only 2.4 GHz
             Wi-Fi WPA2/WPA3 networks are supported.
+          </i>
+        </p>
+      </details>
+    </div>
+
+    <!-- Web Interface Security -->
+    <div class="flexdiv-md greybox">
+      <h3>Web interface security</h3>
+      <details>
+        <summary>Protect the web interface with a login</summary>
+        <p>
+          The web interface (and all REST/file endpoints) can be protected with
+          HTTP Basic Authentication. Configure this under the
+          <b>Network</b> tab on the Configuration page.
+        </p>
+        <ul>
+          <li>
+            <b>No login required:</b> Anyone with network access to the device
+            can use the web interface. This is the default.
+          </li>
+          <li>
+            <b>Password protected:</b> The browser shows a native login dialog
+            when navigating to the device. The username is fixed as
+            <b>admin</b>; set the password yourself.
+          </li>
+        </ul>
+        <p>
+          <i>
+            <b>Note:</b> Basic Auth is sent in clear text over HTTP. Treat the
+            password as a deterrent against casual access on a shared network,
+            not as strong protection.
+          </i>
+        </p>
+      </details>
+    </div>
+
+    <!-- Firmware Update -->
+    <div class="flexdiv-md greybox">
+      <h3>Firmware update</h3>
+      <details>
+        <summary>Updating the UberLogger firmware</summary>
+        <p>
+          Firmware updates are performed via the dedicated
+          <b>Firmware Update</b> page in the web interface. The page accepts the
+          three binaries produced by the build system:
+        </p>
+        <ul>
+          <li><b>ota_main.bin</b> — ESP32 main application</li>
+          <li><b>ota_support.bin</b> — STM32 support chip firmware</li>
+          <li><b>ota_filesystem.bin</b> — SPIFFS filesystem image (web interface assets)</li>
+        </ul>
+        <p>
+          Select all three files, then start the update. Live progress is shown
+          during upload and flashing. Once flashing completes, the device
+          restarts and the page waits for it to come back online before
+          reporting success.
+        </p>
+        <p>
+          <i>
+            <b>Note:</b> Do not power down the device during an update. Active
+            logging is paused for the duration of the update.
           </i>
         </p>
       </details>
