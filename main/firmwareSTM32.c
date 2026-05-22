@@ -51,10 +51,13 @@ static void send_byte(uint8_t byte)
     ESP_ERROR_CHECK(uart_wait_tx_done(UART_PORT, 500 / portTICK_PERIOD_MS)); 
 }
 
-static int8_t recv_byte()
+/* Returns the received byte (0-255) or -1 on timeout. */
+static int recv_byte(void)
 {
     uint8_t data;
-    uart_read_bytes(UART_PORT, &data, 1, 1000 / portTICK_PERIOD_MS);
+    if (uart_read_bytes(UART_PORT, &data, 1, 1000 / portTICK_PERIOD_MS) != 1) {
+        return -1;
+    }
     return data;
 }
 
@@ -82,22 +85,19 @@ static void send_cmd(uint8_t cmd)
     
 }
 
-static uint8_t recv_ack()
+static uint8_t recv_ack(void)
 {
-    uint8_t ack = recv_byte();
-    if (ack == ACK)
+    int b = recv_byte();
+    if (b < 0)
     {
-        return 1;
-    }
-    else if (ack == NACK)
-    {
+        ESP_LOGE(TAG, "Timeout waiting for ACK/NACK");
         return 0;
     }
-    else
-    {
-        ESP_LOGE(TAG, "Invalid ACK/NACK response: %02X", ack);
-        return 0;
-    }
+    uint8_t ack = (uint8_t)b;
+    if (ack == ACK)  { return 1; }
+    if (ack == NACK) { return 0; }
+    ESP_LOGE(TAG, "Invalid ACK/NACK response: %02X", ack);
+    return 0;
 }
 
 // static uint8_t recv_resp(uint8_t resp)
@@ -193,22 +193,22 @@ static esp_err_t flash_write(uint32_t addr, uint8_t *data, uint32_t len)
     // ESP_LOGI(TAG, "Sending length, data and checksum bytes");
     // Send length and checksum
     uint8_t checksum = aligned_len - 1;
-     // Send the number of bytes to be received
+    // Send the number of bytes to be received
     tmp[0] = aligned_len - 1;
     // Fill data bytes, calculate checksum
-    for (int i = 0; i < aligned_len; i++) {
+    for (int i = 0; i < (int)len; i++) {
         checksum ^= data[i];
         tmp[i+1] = data[i];
     }
 
-    // padding data bytes
-	for (int i = len; i < aligned_len; i++) {
-		checksum ^= 0xFF;
-		tmp[i + 1] = 0xFF;
-	}
+    // Padding bytes (0xFF) for alignment
+    for (int i = len; i < (int)aligned_len; i++) {
+        checksum ^= 0xFF;
+        tmp[i + 1] = 0xFF;
+    }
 
-    tmp[len+1]  = checksum;
-    send_data(tmp, len+2);
+    tmp[aligned_len + 1] = checksum;
+    send_data(tmp, aligned_len + 2);
 
     
     if (recv_ack())
@@ -285,8 +285,13 @@ esp_err_t bootload_stm()
     if (error == 5)
     {
         ESP_LOGE(TAG, "Failed to activate STM32G030 bootloader");
-        return ESP_FAIL;    
-    } 
+        return ESP_FAIL;
+    }
+
+    /* Flush any stale bytes accumulated during activation retries before
+     * sending flash commands — a delayed ACK from a timed-out attempt
+     * would otherwise be consumed as the ACK for the first flash command. */
+    uart_flush_input(UART_PORT);
 
     return ESP_OK;
 
