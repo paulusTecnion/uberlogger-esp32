@@ -48,6 +48,20 @@ struct file_server_data {
 extern SemaphoreHandle_t idle_state;
 static const char *TAG_FILESERVER = "file_server";
 
+/* Drain unread request body so the HTTP error response reaches the client
+ * before the connection closes.  Without this, a TCP RST can race the
+ * error response and the browser sees a network error instead of a 4xx/5xx. */
+static void upload_drain_request(httpd_req_t *req)
+{
+    char *buf = ((struct file_server_data *)req->user_ctx)->scratch;
+    int remaining = req->content_len;
+    while (remaining > 0) {
+        int n = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE));
+        if (n <= 0) break;
+        remaining -= n;
+    }
+}
+
 // Helper function to get query parameter value from a request
 static char* get_query_param_value(httpd_req_t *req, const char *param_name) {
     size_t buf_len = httpd_req_get_url_query_len(req) + 1;
@@ -421,6 +435,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
                                              req->uri + sizeof("/upload") - 1, sizeof(filepath));
     if (!filename) {
         /* Respond with 500 Internal Server Error */
+        upload_drain_request(req);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Filename too long");
         goto error;
     }
@@ -428,6 +443,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
     /* Filename cannot have a trailing '/' */
     if (filename[strlen(filename) - 1] == '/') {
         ESP_LOGE(TAG_FILESERVER, "Invalid filename : %s", filename);
+        upload_drain_request(req);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid filename");
         goto error;
     }
@@ -446,23 +462,21 @@ esp_err_t upload_post_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
                             "File size must be less than "
                             MAX_FILE_SIZE_STR "!");
-        /* Return failure to close underlying connection else the
-         * incoming file content will keep the socket busy */
         goto error;
     }
 
     if (esp_sd_card_mount() != ESP_OK) {
         ESP_LOGE(TAG_FILESERVER, "Failed to mount SD card");
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to mount SD card");
+        upload_drain_request(req);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No SD card detected. Insert an SD card and try again.");
         goto error;
     }
 
     fd = fopen(filepath, "w");
     if (!fd) {
         ESP_LOGE(TAG_FILESERVER, "Failed to create file : %s", filepath);
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file");
+        upload_drain_request(req);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file on SD card");
         goto error;
     }
     #ifdef DEBUG_FILESERVER
