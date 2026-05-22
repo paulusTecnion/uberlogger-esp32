@@ -6,8 +6,6 @@
 
   // ── Constants ─────────────────────────────────────────────────────────────
   var MAX_FILE_BYTES = 1200 * 1024; // 1.17 MB — matches backend limit
-  var POLL_INTERVAL  = 1000;        // ms between /fwupdate/state polls
-  var POLL_TIMEOUT   = 120000;      // ms — give up after 2 min of no state 4
 
   // File descriptor table
   var FILES = [
@@ -39,18 +37,6 @@
       pctId:    "fw-pct-filesystem"
     }
   ];
-
-  var FLASH_STATE_LABELS = {
-    0: "Device rebooting, waiting for flash to start...",
-    1: "Flashing support chip (STM32)...",
-    2: "Flashing filesystem...",
-    3: "Flashing main chip (ESP32)...",
-    4: "Flash complete \u2014 rebooting to new firmware...",
-    5: "ERROR \u2014 flash failed."
-  };
-
-  // Progress bar width (%) at each flash state
-  var FLASH_STATE_BARS = { 0: 0, 1: 10, 2: 45, 3: 75, 4: 100, 5: 100 };
 
   // ── Init ──────────────────────────────────────────────────────────────────
   $(document).ready(function () {
@@ -117,6 +103,13 @@
     $("#fw-btn-upload").prop("disabled", !allFilesValid());
   }
 
+  // Extract plain text from an HTML error response body (ESP-IDF wraps errors in HTML)
+  function extractErrorText(html) {
+    var tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    return (tmp.textContent || tmp.innerText || "").trim() || html;
+  }
+
   // ── Error / phase helpers ─────────────────────────────────────────────────
 
   function showError(msg) {
@@ -134,6 +127,21 @@
     if (name === "select")   { $("#fwupdate-phase-select").show(); }
     if (name === "progress") { $("#fwupdate-phase-progress").show(); }
     if (name === "done")     { $("#fwupdate-phase-done").show(); }
+  }
+
+  function showDonePhase(isError) {
+    fwUpdateInProgress = false;
+    showPhase("done");
+
+    if (isError) {
+      $("#fw-done-title").text("Update failed");
+      $("#fw-done-msg").hide();
+      $("#fw-done-error").show();
+    } else {
+      $("#fw-done-title").text("Update complete");
+      $("#fw-done-error").hide();
+      $("#fw-done-msg").show();
+    }
   }
 
   // ── Main upload click ─────────────────────────────────────────────────────
@@ -156,6 +164,9 @@
       window.valuesInterval = null;
     }
 
+    // Persist in-progress flag so it survives page navigation.
+    sessionStorage.setItem('fwFlashInProgress', '1');
+
     // Suppress the getValues "could not update values" alert during flashing
     fwUpdateInProgress = true;
 
@@ -167,19 +178,24 @@
       .then(uploadAllFiles)
       .then(startUpgrade)
       .then(function () {
-        // Files uploaded + upgrade triggered — show flash progress panel
+        // Files uploaded + upgrade triggered — HTTP server is now stopped on device.
+        // Switch to reconnect polling instead of state polling.
         $("#fw-upload-section").hide();
         $("#fw-flash-section").show();
-        beginPolling();
+        $("#fw-upload-bar").css("width", "100%");
+        beginReconnectPolling();
       })
       .catch(function (err) {
-        // Roll back to file selection and show error inline
+        sessionStorage.removeItem('fwFlashInProgress');
         showPhase("select");
         showError(String(err) || "An unknown error occurred.");
         fwUpdateInProgress = false;
         // Restart the getValues poller that was stopped above
         if (!window.valuesInterval) {
-          window.valuesInterval = setInterval(getValues, 1000);
+          window.valuesInterval = setInterval(function () {
+            if (sessionStorage.getItem('fwFlashInProgress')) return;
+            getValues();
+          }, 1000);
         }
       });
   }
@@ -239,25 +255,22 @@
       xhr.upload.onprogress = function (evt) {
         if (!evt.lengthComputable) { return; }
         var filePct = evt.loaded / evt.total;
-        // Per-file %
         $("#" + f.pctId).text(Math.round(filePct * 100) + "%");
-        // Overall bar: file i occupies the range [i/3, (i+1)/3]
-        var overall = (index + filePct) / 3;
-        $("#fw-upload-bar").css("width", Math.round(overall * 100) + "%");
+        $("#fw-upload-bar").css("width", Math.round(filePct * 100) + "%");
       };
 
       xhr.onload = function () {
         if (xhr.status === 200 || xhr.status === 0) {
-          // Mark step done, snap bar to exact position for this file
           $("#" + f.stepId).removeClass("fw-step-active").addClass("fw-step-done");
           $("#" + f.pctId).text("100%");
-          $("#fw-upload-bar").css("width", Math.round((index + 1) / 3 * 100) + "%");
+          $("#fw-upload-bar").css("width", "0%");
           resolve();
         } else {
           $("#" + f.stepId).removeClass("fw-step-active").addClass("fw-step-error");
+          var serverMsg = xhr.responseText ? extractErrorText(xhr.responseText) : "";
           reject(
-            "Upload of " + f.expected + " failed (HTTP\u00a0" + xhr.status + "). " +
-            "Reset the device, check the SD card, and try again."
+            "Upload of " + f.expected + " failed" +
+            (serverMsg ? ": " + serverMsg : " (HTTP\u00a0" + xhr.status + "). Reset the device and try again.")
           );
         }
       };
@@ -284,99 +297,53 @@
       xhr.open("GET", "/fwupdate/startupgrade", true);
       xhr.timeout = 15000;
 
-      // The device reboots immediately after responding to this request.
-      // The connection may drop before the browser receives a response,
-      // so we treat both onload and onerror/ontimeout as success.
+      // The HTTP server will be stopped on the device shortly after this request.
+      // Treat both onload and onerror/ontimeout as success.
       xhr.onload    = function () { resolve(); };
-      xhr.onerror   = function () { resolve(); }; // connection reset by device reboot
-      xhr.ontimeout = function () { resolve(); }; // device rebooted before response
+      xhr.onerror   = function () { resolve(); }; // connection reset when server stops
+      xhr.ontimeout = function () { resolve(); }; // server stopped before response
       xhr.send();
     });
   }
 
-  // ── Step 4: poll flash state ──────────────────────────────────────────────
+  // ── Step 4: reconnect polling — wait for device to come back online ───────
 
-  var pollTimer      = null;
-  var pollStartTime  = 0;
-  var lastFlashState = 0;
+  function beginReconnectPolling() {
+    var start    = Date.now();
+    var deadline = start + 120000; // 2 min timeout
+    var done     = false;
 
-  function beginPolling() {
-    $("#fw-flash-label").text(FLASH_STATE_LABELS[0]);
-    pollStartTime  = Date.now();
-    lastFlashState = 0;
-    pollTimer = setInterval(pollState, POLL_INTERVAL);
-  }
+    // Tick the elapsed-time display every second
+    var clockTimer = setInterval(function () {
+      if (done) { clearInterval(clockTimer); return; }
+      var remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      $("#fw-flash-timer").text("The green LED flashes while updating. Your PC may disconnect from the UberLogger Wi-Fi \u2014 reconnect manually if needed. Waiting... " + remaining + "s");
+    }, 1000);
 
-  function pollState() {
-    // Global timeout guard
-    if (Date.now() - pollStartTime > POLL_TIMEOUT) {
-      clearInterval(pollTimer);
-      showPhase("select");
-      showError("Timed out waiting for the device to report flash state. Check the LEDs and try again.");
-      fwUpdateInProgress = false;
-      return;
-    }
-
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", "/fwupdate/state", true);
-    xhr.timeout = 2000;
-
-    xhr.onload = function () {
-      var state = parseInt(xhr.responseText, 10);
-      if (!isNaN(state)) { applyFlashState(state); }
-    };
-
-    // Network error or timeout = device is between reboots (or has finished and gone offline).
-    // Transition to "done" only if we already observed state 4.
-    xhr.onerror = xhr.ontimeout = function () {
-      if (lastFlashState === 4) {
+    var pollTimer = setInterval(function () {
+      if (Date.now() > deadline) {
+        done = true;
         clearInterval(pollTimer);
-        showDonePhase(false);
+        clearInterval(clockTimer);
+        sessionStorage.removeItem('fwFlashInProgress');
+        showPhase("select");
+        showError("Update timed out. When the green LED stops flashing, the update is complete. Your PC may have disconnected from the UberLogger Wi-Fi \u2014 reconnect manually and reload this page.");
+        fwUpdateInProgress = false;
+        return;
       }
-      // else: keep polling — device briefly offline between first and second reboot
-    };
-
-    xhr.send();
-  }
-
-  function applyFlashState(state) {
-    lastFlashState = state;
-
-    // Update label and progress bar
-    $("#fw-flash-label").text(FLASH_STATE_LABELS[state] || "Flashing...");
-    $("#fw-flash-bar").css("width", (FLASH_STATE_BARS[state] || 0) + "%");
-
-    // Colour-code the three flash step rows
-    $.each([1, 2, 3], function (_, s) {
-      var $step = $("#fw-flash-step-" + s);
-      $step.removeClass("fw-step-active fw-step-done fw-step-error");
-      if      (state > s)  { $step.addClass("fw-step-done");   }
-      else if (state === s) { $step.addClass("fw-step-active"); }
-    });
-
-    if (state === 5) {
-      // Flash failed — stop polling and show error phase
-      clearInterval(pollTimer);
-      showDonePhase(true);
-    }
-    // state 4 is handled in onerror (we keep polling until the device goes offline)
-  }
-
-  // ── Done / reconnect phase ────────────────────────────────────────────────
-
-  function showDonePhase(isError) {
-    fwUpdateInProgress = false;
-    showPhase("done");
-
-    if (isError) {
-      $("#fw-done-title").text("Update failed");
-      $("#fw-done-msg").hide();
-      $("#fw-done-error").show();
-    } else {
-      $("#fw-done-title").text("Update complete");
-      $("#fw-done-error").hide();
-      $("#fw-done-msg").show();
-    }
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", "/", true);
+      xhr.timeout = 2000;
+      xhr.onload = function () {
+        done = true;
+        clearInterval(pollTimer);
+        clearInterval(clockTimer);
+        sessionStorage.removeItem('fwFlashInProgress');
+        fwUpdateInProgress = false;
+        showDonePhase(false);
+      };
+      xhr.send();
+    }, 3000);
   }
 
 })(); // end IIFE

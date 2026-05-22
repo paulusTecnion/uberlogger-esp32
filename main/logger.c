@@ -23,6 +23,7 @@
 #include "tempsensor.h"
 #include <time.h>
 #include "wifi.h"
+#include "rest_server.h"
 
 
 // Function prototypes for static helper functions
@@ -2125,11 +2126,12 @@ void Logtask_fw_update()
             case LOGGER_FW_IDLE:            break;
 
             case LOGGER_FW_START:
-                settings_set_boot_reason(1); 
-                esp_restart();
+                settings_set_boot_reason(1);
+                _nextFWState = LOGGER_FW_FLASHING_STM;
             break;
 
             case LOGGER_FW_FLASHING_STM:
+            stop_rest_server();
             if (esp_sd_card_mount() != ESP_OK)
             {
                 ESP_LOGE(TAG_LOG, "Failed to mount SD card");

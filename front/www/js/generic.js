@@ -1,9 +1,9 @@
 var valuesData = [];
 var alert_active_valueserr = false;
+var fwUpdateInProgress = false;
 var calibrating = false;
 var calibCounter = 0;
 const BYTES_PER_MB = 1024 * 1024;
-var fwUpdateInProgress = false;   // set by fwupdate.js to suppress getValues alert during flashing
 
 // load correct page after document is ready and highlight correct item in menu
 function loadPage() {
@@ -19,7 +19,10 @@ function loadPage() {
   $("#menu_" + page).addClass("selected");
 
   getValues();
-  window.valuesInterval = setInterval(getValues, 1000);
+  window.valuesInterval = setInterval(function () {
+    if (sessionStorage.getItem('fwFlashInProgress')) return;
+    getValues();
+  }, 1000);
 }
 
 function renderPage(page, page_version) {
@@ -155,6 +158,7 @@ function getValues() {
   query = "getValues";
 
   $.getJSON("./ajax/" + query, (data) => {
+    sessionStorage.removeItem('fwFlashInProgress');
     valuesData = data;
     // parse JSON data to div
 
@@ -343,7 +347,7 @@ function getValues() {
     populateFields("#topstatus", valuesData);
     alert_active_valueserr = false;
   }).fail(function () {
-    if (alert_active_valueserr == false && !fwUpdateInProgress) {
+    if (alert_active_valueserr == false) {
       alert_active_valueserr = true;
       alert("Error: could not update values.");
     }
