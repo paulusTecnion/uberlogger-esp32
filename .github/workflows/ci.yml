@@ -59,9 +59,7 @@ jobs:
             sudo apt-get update && sudo apt-get install -y zip
           fi
           VERSION=$(cut -d= -f2 build_vars)
-          mkdir -p dist
-          cp firmware.bin ota_main.bin ota_filesystem.bin build_vars dist/
-          (cd dist && zip -r "uberlogger-esp32-${VERSION}.zip" firmware.bin ota_main.bin ota_filesystem.bin build_vars)
+          zip -r "uberlogger-esp32-${VERSION}.zip" firmware.bin ota_main.bin ota_filesystem.bin build_vars
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -72,7 +70,7 @@ jobs:
             ota_main.bin
             ota_filesystem.bin
             build_vars
-            dist/uberlogger-esp32-${{ steps.setver.outputs.version }}.zip
+            uberlogger-esp32-${{ steps.setver.outputs.version }}.zip
 
   release:
     name: Create tag & GitHub Release
