@@ -12,6 +12,9 @@
 #include "config.h"
 #include "wifi.h"
 #include "esp_wifi_types.h"
+#include "mbedtls/base64.h"
+#include "freertos/FreeRTOS.h"
+#include "esp_timer.h"
 
 char * endpoint_response_char[] = 
 {
@@ -43,6 +46,71 @@ typedef struct rest_server_context {
 } rest_server_context_t;
 
 httpd_handle_t server = NULL;
+
+static void wifi_update_ap_timer_cb(void *arg)
+{
+    (void)arg;
+    wifi_update_ap();
+}
+
+static void schedule_wifi_update_ap_deferred(void)
+{
+    esp_timer_handle_t timer;
+    const esp_timer_create_args_t timer_args = {
+        .callback = wifi_update_ap_timer_cb,
+        .arg = NULL,
+        .name = "wifi_ap_upd",
+    };
+
+    if (esp_timer_create(&timer_args, &timer) != ESP_OK ||
+        esp_timer_start_once(timer, 250 * 1000) != ESP_OK) {
+        ESP_LOGW(REST_TAG, "Failed to schedule deferred AP update, applying immediately");
+        wifi_update_ap();
+    }
+}
+
+/* HTTP Basic Auth helpers */
+
+bool rest_check_auth(httpd_req_t *req)
+{
+    const char *web_password = settings_get_web_password();
+    if (strlen(web_password) == 0) {
+        return true; // No password configured, allow all access
+    }
+
+    char auth_header[256];
+    if (httpd_req_get_hdr_value_str(req, "Authorization", auth_header, sizeof(auth_header)) != ESP_OK) {
+        return false;
+    }
+
+    if (strncmp(auth_header, "Basic ", 6) != 0) {
+        return false;
+    }
+
+    unsigned char decoded[128];
+    size_t decoded_len = 0;
+    if (mbedtls_base64_decode(decoded, sizeof(decoded) - 1, &decoded_len,
+                               (unsigned char *)(auth_header + 6),
+                               strlen(auth_header + 6)) != 0) {
+        return false;
+    }
+    decoded[decoded_len] = '\0';
+
+    // Expected credentials: "admin:<web_password>"
+    char expected[MAX_WEB_PASSWORD_LEN + 8];
+    snprintf(expected, sizeof(expected), "admin:%s", web_password);
+
+    return (strcmp((char *)decoded, expected) == 0);
+}
+
+esp_err_t rest_send_auth_required(httpd_req_t *req)
+{
+    httpd_resp_set_status(req, "401 Unauthorized");
+    httpd_resp_set_hdr(req, "WWW-Authenticate", "Basic realm=\"Uberlogger\"");
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_send(req, "Unauthorized", HTTPD_RESP_USE_STRLEN);
+    return ESP_FAIL;
+}
 
 // extern SemaphoreHandle_t sdcard_semaphore;
 
@@ -81,6 +149,10 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
 /* Send HTTP response with the contents of the requested file */
 static esp_err_t rest_common_get_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+
     char filepath[FILE_PATH_MAX];
 
     rest_server_context_t *rest_context = (rest_server_context_t *)req->user_ctx;
@@ -193,147 +265,116 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
 
 static esp_err_t logger_getValues_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
-    cJSON * root = cJSON_CreateObject();
-    if (root == NULL)
-    {
-        return ESP_FAIL;
-    }
-     
-    cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
-    
-    cJSON *readings = cJSON_AddObjectToObject(root, "READINGS");
 
-    cJSON *temperature = cJSON_AddObjectToObject(readings, "TEMPERATURE");
-    cJSON_AddStringToObject(temperature, "UNITS", "DEG C");
-    cJSON *tValues = cJSON_AddObjectToObject(temperature, "VALUES");
+    // Static buffer: avoids ~5-8 KB of cJSON heap churn on every 1-second poll.
+    // Max content: 8 ch labels (16B) + values + fixed fields < 1200 B.
+    static char buf[1536];
+    char label[25];
+    int pos = 0;
+    int first;
+    Settings_t *settings = settings_get();
 
-    cJSON *analog = cJSON_AddObjectToObject(readings, "ANALOG");
-    cJSON_AddStringToObject(analog, "UNITS", "Volt");
-    cJSON * aValues = cJSON_AddObjectToObject(analog, "VALUES");
-    
-    char buf[25];
-    for (int i=ADC_CHANNEL_0; i<=ADC_CHANNEL_7; i++)
-    {
-        if (settings_get_adc_channel_enabled(settings_get(),i))
-        {
-            if (settings_get_adc_channel_type(settings_get(), i))
-            {
-                settings_get_ain_chan_label(i, buf);
-                // sprintf(buf,"%s", );
-                
-                cJSON_AddNumberToObject(tValues, buf, (double)live_data.temperatureData[i]/10.0);
-            } else {
-                // sprintf(buf,"AIN%d", i+1);
-                settings_get_ain_chan_label(i, buf);
-                
-                 if (settings_get_adc_channel_range(settings_get(), i))
-                {
-                    cJSON_AddNumberToObject(aValues, buf, (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_60V);
-                } else {
-                    cJSON_AddNumberToObject(aValues, buf, (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_10V);
-                // cJSON_AddStringToObject(aValues, buf, live_data.analogData[i]);
-                }
-            }
+    // Root + TIMESTAMP + open READINGS
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "{\"TIMESTAMP\":%.0f,\"READINGS\":{", (double)live_data.timestamp);
+
+    // --- TEMPERATURE ---
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"TEMPERATURE\":{\"UNITS\":\"DEG C\",\"VALUES\":{");
+    first = 1;
+    for (int i = ADC_CHANNEL_0; i <= ADC_CHANNEL_7; i++) {
+        if (settings_get_adc_channel_enabled(settings, i) &&
+            settings_get_adc_channel_type(settings, i)) {
+            settings_get_ain_chan_label(i, label);
+            pos += snprintf(buf + pos, sizeof(buf) - pos,
+                "%s\"%s\":%.1f", first ? "" : ",",
+                label, (double)live_data.temperatureData[i] / 10.0);
+            first = 0;
         }
-        
-        
     }
-      
-   
-    // // For future use. Always enabled now.
-    // // cJSON_AddNumberToObject(root, "adc_channels_enabled", settings->adc_channels_enabled);
-    
-   cJSON *digital = cJSON_AddObjectToObject(readings, "DIGITAL");
-   cJSON_AddStringToObject(digital, "UNITS", "Level");
-//    cJSON *dValues = cJSON_AddObjectToObject(readings, "VALUES");
-    cJSON * aDigital = cJSON_AddObjectToObject(digital, "VALUES");
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "}},");
 
-
-    for (int i = 0; i<6; i++)
-    {
-        if (settings_get_gpio_channel_enabled(settings_get(), i))
-        {
-            // sprintf(buf, "DI%d", i+1);
-            settings_get_dio_chan_label(i, buf);
-            cJSON_AddNumberToObject(aDigital, buf, live_data.gpioData[i]);
+    // --- ANALOG ---
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"ANALOG\":{\"UNITS\":\"Volt\",\"VALUES\":{");
+    first = 1;
+    for (int i = ADC_CHANNEL_0; i <= ADC_CHANNEL_7; i++) {
+        if (settings_get_adc_channel_enabled(settings, i) &&
+            !settings_get_adc_channel_type(settings, i)) {
+            settings_get_ain_chan_label(i, label);
+            double val = settings_get_adc_channel_range(settings, i)
+                ? (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_60V
+                : (double)live_data.analogData[i] / (double)ADC_MULT_FACTOR_10V;
+            pos += snprintf(buf + pos, sizeof(buf) - pos,
+                "%s\"%s\":%.4f", first ? "" : ",", label, val);
+            first = 0;
         }
-            
     }
-    
-    // cJSON_AddNumberToObject(aDigital, "DI2", live_data.gpioData[1]);
-    // cJSON_AddNumberToObject(aDigital, "DI3", live_data.gpioData[2]);
-    // cJSON_AddNumberToObject(aDigital, "DI4", live_data.gpioData[3]);
-    // cJSON_AddNumberToObject(aDigital, "DI5", live_data.gpioData[4]);
-    // cJSON_AddNumberToObject(aDigital, "DI6", live_data.gpioData[5]);
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "}},");
 
-    // cJSON_AddNumberToObject(root, "TIMESTAMP", live_data.timestamp);
-    if (Logger_getLoggingState() == LOGGING_WAIT_FOR_TRIGGER)
-    {
-        // very dirty and workaround :(
-        cJSON_AddNumberToObject(root, "LOGGER_STATE", LOGTASK_WAITING_FOR_TRIGGER);
-    }    else {
-        cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
+    // --- DIGITAL ---
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"DIGITAL\":{\"UNITS\":\"Level\",\"VALUES\":{");
+    first = 1;
+    for (int i = 0; i < 6; i++) {
+        if (settings_get_gpio_channel_enabled(settings, i)) {
+            settings_get_dio_chan_label(i, label);
+            pos += snprintf(buf + pos, sizeof(buf) - pos,
+                "%s\"%s\":%d", first ? "" : ",", label, live_data.gpioData[i]);
+            first = 0;
+        }
     }
-    cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
-    // cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
-    cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
-    cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", Logger_getLastFreeSpace());
+    // Close VALUES, DIGITAL, READINGS
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "}}},");
 
-    cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
-    
+    // --- Logger state (preserve trigger workaround) ---
+    uint8_t logger_state = (Logger_getLoggingState() == LOGGING_WAIT_FOR_TRIGGER)
+        ? LOGTASK_WAITING_FOR_TRIGGER : (uint8_t)Logger_getState();
+
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"LOGGER_STATE\":%u,\"ERRORCODE\":%u,"
+        "\"FW_VERSION\":\"%s\","
+        "\"SD_CARD_FREE_SPACE\":%u,\"SD_CARD_STATUS\":%d,",
+        (unsigned)logger_state, (unsigned)Logger_getError(),
+        sysinfo_get_fw_version(),
+        (unsigned)Logger_getLastFreeSpace(), (int)esp_sd_card_get_state());
+
+    // --- WiFi ---
     uint8_t wifi_state = 0;
-    if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
-    {
-        if (wifi_is_connected_to_ap())
-        {
-            wifi_state = 3;
+    if (settings_get_wifi_mode() == WIFI_MODE_APSTA) {
+        if      (wifi_is_connected_to_ap())   wifi_state = 3;
+        else if (wifi_ap_connection_failed()) wifi_state = 2;
+        else                                  wifi_state = 1;
+    }
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        "\"WIFI_TEST_STATUS\":%u,", (unsigned)wifi_state);
 
-        } else if (wifi_ap_connection_failed())
-        {
-            wifi_state = 2;
-        } else {
-            wifi_state = 1;
-        }
-    } 
-    
-    cJSON_AddNumberToObject(root, "WIFI_TEST_STATUS", wifi_state);
-    
-    if (wifi_is_connected_to_ap())
-    {
-        char buffer[20];
-        wifi_get_ip(buffer);
-        cJSON_AddStringToObject(root, "WIFI_TEST_IP", buffer);
-        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", wifi_get_rssi());
+    if (wifi_is_connected_to_ap()) {
+        char ip[20];
+        wifi_get_ip(ip);
+        pos += snprintf(buf + pos, sizeof(buf) - pos,
+            "\"WIFI_TEST_IP\":\"%s\",\"WIFI_TEST_RSSI\":%d", ip, (int)wifi_get_rssi());
     } else {
-        cJSON_AddStringToObject(root, "WIFI_TEST_IP", "0.0.0.0");
-        cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", 0);
+        pos += snprintf(buf + pos, sizeof(buf) - pos,
+            "\"WIFI_TEST_IP\":\"0.0.0.0\",\"WIFI_TEST_RSSI\":0");
     }
 
-    
-    const char *settings_json= cJSON_Print(root);
+    // Close root
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "}");
 
-    // if (xSemaphoreTake(sdcard_semaphore, portMAX_DELAY) != pdTRUE)
-    // {
-    //     ESP_LOGE(REST_TAG, "Failed to take semaphore");
-    //     return ESP_FAIL;
-    // } else {
-        httpd_resp_sendstr(req, settings_json);
-        // xSemaphoreGive(sdcard_semaphore);
-    // }
-
-    
-    
-    
-    free((void *)settings_json);
-    cJSON_Delete(root);
-    
+    httpd_resp_sendstr(req, buf);
     return ESP_OK;
-    
 }
 
 static esp_err_t logger_getRawAdc_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
      httpd_resp_set_type(req, "application/json");
     cJSON * root = cJSON_CreateObject();
     if (root == NULL)
@@ -364,13 +405,16 @@ static esp_err_t logger_getRawAdc_handler(httpd_req_t *req)
 
 static esp_err_t logger_getStatus_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
     cJSON * root = cJSON_CreateObject();
     if (root == NULL)
     {
         return ESP_FAIL;
     }
-   
+
     cJSON_AddNumberToObject(root, "LOGGER_STATE", Logger_getState());
     cJSON_AddNumberToObject(root, "ERRORCODE", Logger_getError());
     // cJSON_AddNumberToObject(root, "T_CHIP", sysinfo_get_core_temperature());
@@ -501,7 +545,9 @@ const char * logger_settings_to_json(Settings_t *settings)
     
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
-    cJSON_AddStringToObject(root, "WIFI_PASSWORD", settings->wifi_password);
+    cJSON_AddBoolToObject(root, "WIFI_PASSWORD_SET", strlen(settings->wifi_password) > 0);
+    cJSON_AddBoolToObject(root, "WIFI_PASSWORD_AP_SET", strlen(settings->wifi_password_ap) > 0);
+    cJSON_AddBoolToObject(root, "WEB_PASSWORD_SET", strlen(settings->web_password) > 0);
     if (settings->wifi_mode == WIFI_MODE_AP)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 0);
@@ -518,7 +564,10 @@ const char * logger_settings_to_json(Settings_t *settings)
 }
 
 static esp_err_t logger_calibrate_handler(httpd_req_t *req)
-{   
+{
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
     if (Logger_getState() == LOGTASK_LOGGING)
     {
@@ -549,6 +598,9 @@ static esp_err_t logger_calibrate_handler(httpd_req_t *req)
 
 static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
 
     if (Logger_format_sdcard() == ESP_OK)
@@ -564,6 +616,9 @@ static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 
 static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
     Settings_t settings;
     settings_set_default(&settings);
@@ -583,6 +638,9 @@ static esp_err_t logger_getDefaultConfig(httpd_req_t *req)
 
 static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
     
     // Check if the query parameter for download is present and set to 'true'
@@ -613,6 +671,9 @@ static esp_err_t logger_getConfig_handler(httpd_req_t *req)
 
 static esp_err_t logger_setTime_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
      httpd_resp_set_type(req, "application/json");
     cJSON *settings_in = NULL;
     if (Logger_getState() == LOGTASK_LOGGING)
@@ -698,6 +759,9 @@ error2:
 
 static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
 
     httpd_resp_set_type(req, "application/json");
     cJSON *settings_in = NULL;
@@ -717,6 +781,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     // Store old settings (only to compare old wifi settings)
     Settings_t oldSettings;
     memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
+    bool ap_update_required = false;
 
     int total_len = req->content_len;
     int cur_len = 0;
@@ -995,11 +1060,10 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_wifi_channel(item->valueint) != ESP_OK)
         {
-            
             json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel", HTTPD_400_BAD_REQUEST);
-            // return ESP_FAIL;
             goto error;
         }
+        ap_update_required = true;
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
@@ -1007,13 +1071,31 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_set_wifi_password(item->valuestring) != ESP_OK)
         {
-            
-            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi SSID", HTTPD_400_BAD_REQUEST);
-            // return ESP_FAIL;
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi STA password. Must be empty or 8-19 characters.", HTTPD_400_BAD_REQUEST);
             goto error;
         }
     }
 
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD_AP");
+    if (item != NULL)
+    {
+        if (settings_set_wifi_password_ap(item->valuestring) != ESP_OK)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting AP password. Must be empty (open) or 8-63 characters.", HTTPD_400_BAD_REQUEST);
+            goto error;
+        }
+        ap_update_required = true;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WEB_PASSWORD");
+    if (item != NULL)
+    {
+        if (settings_set_web_password(item->valuestring) != ESP_OK)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting web password. Must be empty (no auth) or up to 31 characters.", HTTPD_400_BAD_REQUEST);
+            goto error;
+        }
+    }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "ADC_RESOLUTION");
     if (item != NULL)
@@ -1092,32 +1174,30 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
         {
-            // wifi_connect_to_ap(); 
-            // Send task to wifi queue to connect to access point
-            // 
-            // Logtask_wifi_connect_ap();
-            wifi_connect_to_ap();
+            Logtask_wifi_connect_ap();
         } else {
-            // send event to wifi to disconnect from access point
-            // Logtask_wifi_disconnect_ap();
-            wifi_disconnect_ap();
+            Logtask_wifi_disconnect_ap();
         }
     } else if // if any wifi setting has changed, then we need to reconnect to the access point when mode is WIFI_MODE_APSTA
-        (settings_get_wifi_mode() == WIFI_MODE_APSTA && 
+        (settings_get_wifi_mode() == WIFI_MODE_APSTA &&
         (
         (wifi_is_connected_to_ap() == false)  ||
-        (oldSettings.wifi_channel != settings_get_wifi_channel()) || 
-        (strcmp(oldSettings.wifi_ssid_ap, settings_get_wifi_ssid_ap()) != 0)  || 
+        (oldSettings.wifi_channel != settings_get_wifi_channel()) ||
+        (strcmp(oldSettings.wifi_ssid_ap, settings_get_wifi_ssid_ap()) != 0)  ||
         (strcmp(oldSettings.wifi_password, settings_get_wifi_password()) !=0 )
         ))
     {
         // a connect event automatically disconnects and reconnects to an access point
-        // Logtask_wifi_connect_ap();
-        wifi_connect_to_ap();
+        Logtask_wifi_connect_ap();
     }
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
+
+    if (ap_update_required)
+    {
+        schedule_wifi_update_ap_deferred();
+    }
     
 
 error:
@@ -1132,6 +1212,9 @@ error2:
 
 esp_err_t reboot_post_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     httpd_resp_set_type(req, "application/json");
 
    if (Logging_restartSystem() != ESP_OK)
@@ -1157,6 +1240,9 @@ esp_err_t reboot_post_handler(httpd_req_t *req)
 
 esp_err_t upload_form_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
 // Send the HTML form as the response
 httpd_resp_set_type(req, "text/html");
 httpd_resp_send(req, UPLOAD_FORM, HTTPD_RESP_USE_STRLEN);
@@ -1165,7 +1251,10 @@ return ESP_OK;
 
 static esp_err_t Logger_start_handler(httpd_req_t *req)
 {
-    
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+
     if (settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL)
     {
         json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot start logger. Logger start/stop controlled by external digital input.", HTTPD_403_FORBIDDEN);
@@ -1185,6 +1274,9 @@ static esp_err_t Logger_start_handler(httpd_req_t *req)
 
 static esp_err_t Logger_stop_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     if (settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL)
     {
         json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot stop logger. Logger start/stop controlled by external digital input.", HTTPD_403_FORBIDDEN);
@@ -1203,6 +1295,9 @@ static esp_err_t Logger_stop_handler(httpd_req_t *req)
 
 esp_err_t  Logger_sdcard_unmount_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
     if(Logger_user_unmount_sdcard() == ESP_OK)
     {
         json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
@@ -1477,15 +1572,12 @@ err:
 
 esp_err_t stop_rest_server(void)
 {
-    httpd_handle_t server = NULL;
-    
     if (server == NULL)
     {
         ESP_LOGE(REST_TAG, "Server not started");
         return ESP_FAIL;
     }
     httpd_stop(server);
-    
     server = NULL;
     return ESP_OK;
 }

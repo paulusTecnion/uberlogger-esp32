@@ -18,6 +18,7 @@
 #include "esp_spiffs.h"
 #include "esp_http_server.h"
 #include "file_server.h"
+#include "rest_server.h"
 #include "esp_sd_card.h"
 #include "firmware-www.h"
 #include "firmwareESP32.h"
@@ -46,6 +47,20 @@ struct file_server_data {
 
 extern SemaphoreHandle_t idle_state;
 static const char *TAG_FILESERVER = "file_server";
+
+/* Drain unread request body so the HTTP error response reaches the client
+ * before the connection closes.  Without this, a TCP RST can race the
+ * error response and the browser sees a network error instead of a 4xx/5xx. */
+static void upload_drain_request(httpd_req_t *req)
+{
+    char *buf = ((struct file_server_data *)req->user_ctx)->scratch;
+    int remaining = req->content_len;
+    while (remaining > 0) {
+        int n = httpd_req_recv(req, buf, MIN(remaining, SCRATCH_BUFSIZE));
+        if (n <= 0) break;
+        remaining -= n;
+    }
+}
 
 // Helper function to get query parameter value from a request
 static char* get_query_param_value(httpd_req_t *req, const char *param_name) {
@@ -273,7 +288,10 @@ static const char* get_path_from_uri(char *dest, const char *base_path, const ch
 /* Handler to download a file kept on the server */
 esp_err_t download_get_handler(httpd_req_t *req)
 {
-   
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+
       if (Logger_getState() == LOGTASK_LOGGING){
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot request files while logging");
         return ESP_FAIL;
@@ -399,6 +417,9 @@ esp_err_t download_get_handler(httpd_req_t *req)
 /* Handler to upload a file onto the server */
 esp_err_t upload_post_handler(httpd_req_t *req)
 {
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
       if (Logger_getState() == LOGTASK_LOGGING ){
         httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Cannot upload files while logging");
         return ESP_FAIL;
@@ -414,6 +435,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
                                              req->uri + sizeof("/upload") - 1, sizeof(filepath));
     if (!filename) {
         /* Respond with 500 Internal Server Error */
+        upload_drain_request(req);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Filename too long");
         goto error;
     }
@@ -421,6 +443,7 @@ esp_err_t upload_post_handler(httpd_req_t *req)
     /* Filename cannot have a trailing '/' */
     if (filename[strlen(filename) - 1] == '/') {
         ESP_LOGE(TAG_FILESERVER, "Invalid filename : %s", filename);
+        upload_drain_request(req);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid filename");
         goto error;
     }
@@ -439,23 +462,21 @@ esp_err_t upload_post_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
                             "File size must be less than "
                             MAX_FILE_SIZE_STR "!");
-        /* Return failure to close underlying connection else the
-         * incoming file content will keep the socket busy */
         goto error;
     }
 
     if (esp_sd_card_mount() != ESP_OK) {
         ESP_LOGE(TAG_FILESERVER, "Failed to mount SD card");
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to mount SD card");
+        upload_drain_request(req);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No SD card detected. Insert an SD card and try again.");
         goto error;
     }
 
     fd = fopen(filepath, "w");
     if (!fd) {
         ESP_LOGE(TAG_FILESERVER, "Failed to create file : %s", filepath);
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file");
+        upload_drain_request(req);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create file on SD card");
         goto error;
     }
     #ifdef DEBUG_FILESERVER
@@ -543,7 +564,10 @@ esp_err_t upload_post_handler(httpd_req_t *req)
 /* Handler to delete a file from the server */
 esp_err_t delete_post_handler(httpd_req_t *req)
 {
-  
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+
       if (Logger_getState() == LOGTASK_LOGGING){
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Cannot delete files while logging");
         return ESP_FAIL;
@@ -630,7 +654,9 @@ esp_err_t delete_post_handler(httpd_req_t *req)
 
 esp_err_t fwupdate_get_handler(httpd_req_t *req)
 {
-    // esp_err_t err;
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
 
     if (strstr(req->uri, "/fwupdate/enable") != NULL)
     {

@@ -1,22 +1,364 @@
 <h1>Configuration</h1>
+
+<!-- Reusable SVG icon symbols -->
+<svg aria-hidden="true" style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="icon-save" viewBox="0 0 24 24">
+    <!-- Floppy disk / save icon (Material Design) -->
+    <path d="M17 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+  </symbol>
+</svg>
+
 <form id="configuration">
   <div class="visible" id="loading">
     <p><i>Loading current configuration, please wait...</i></p>
   </div>
 
   <div class="invisible" id="config">
-    <p>
-      Updating the configuration requires clicking the "Save settings" button to
-      save the configuration and activate it. Intermediate changes will not be
-      saved.
-    </p>
 
-    <h2>Logging settings</h2>
-    <div class="group" id="logging_configuration">
+    <!-- ── Tab navigation ───────────────────────────────────────────── -->
+    <div class="config-tab-nav">
+      <button type="button" class="tab-btn active" data-tab="channels">Channels</button>
+      <button type="button" class="tab-btn" data-tab="acquisition">Acquisition</button>
+      <button type="button" class="tab-btn" data-tab="files">Files</button>
+      <button type="button" class="tab-btn" data-tab="network">Network</button>
+      <button type="button" class="tab-btn" data-tab="system">System</button>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- TAB: CHANNELS                                                  -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="tab-pane active" id="tab-channels">
+
+      <div class="group" id="channel_configuration">
+        <h3>Analog &amp; digital channels</h3>
+        <p>
+          Select the mode used for the analog channels and adjust channel names if
+          necessary.
+        </p>
+        <p>
+          <i><b>Important:</b> ensure the hardware configuration (DIP-switch
+          setting) is equal to the settings below.</i>
+        </p>
+
+        <table class="compact-table" width="100%">
+          <tr>
+            <th>Enable</th>
+            <th>Channel</th>
+            <th>Channel label</th>
+            <th>Mode</th>
+            <th>Range</th>
+          </tr>
+          <!-- Analog Channels -->
+          <tr>
+            <td><input type="checkbox" name="AIN1_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>AIN1</td>
+            <td><input type="text" name="AIN_CHAN_LABEL1" maxlength="16" autocomplete="off" /></td>
+            <td>
+              <select name="NTC1" id="NTC1" class="json-as-bool" onchange="disableAIN('1')">
+                <option value="0">Analog in</option>
+                <option value="1">NTC</option>
+              </select>
+            </td>
+            <td><select name="AIN1_RANGE" id="AIN1_RANGE" class="json-as-bool">
+              <option value="0">+/-10 V</option>
+              <option value="1">+/-60 V</option>
+            </select></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="AIN2_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>AIN2</td>
+            <td><input type="text" name="AIN_CHAN_LABEL2" maxlength="16" autocomplete="off" /></td>
+            <td>
+              <select name="NTC2" id="NTC2" class="json-as-bool" onchange="disableAIN('2')">
+                <option value="0">Analog in</option>
+                <option value="1">NTC</option>
+              </select>
+            </td>
+            <td><select name="AIN2_RANGE" id="AIN2_RANGE" class="json-as-bool">
+              <option value="0">+/-10 V</option>
+              <option value="1">+/-60 V</option>
+            </select></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="AIN3_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>AIN3</td>
+            <td><input type="text" name="AIN_CHAN_LABEL3" maxlength="16" autocomplete="off" /></td>
+            <td>
+              <select name="NTC3" id="NTC3" class="json-as-bool" onchange="disableAIN('3')">
+                <option value="0">Analog in</option>
+                <option value="1">NTC</option>
+              </select>
+            </td>
+            <td><select name="AIN3_RANGE" id="AIN3_RANGE" class="json-as-bool">
+              <option value="0">+/-10 V</option>
+              <option value="1">+/-60 V</option>
+            </select></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="AIN4_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>AIN4</td>
+            <td><input type="text" name="AIN_CHAN_LABEL4" maxlength="16" autocomplete="off" /></td>
+            <td>
+              <select name="NTC4" id="NTC4" class="json-as-bool" onchange="disableAIN('4')">
+                <option value="0">Analog in</option>
+                <option value="1">NTC</option>
+              </select>
+            </td>
+            <td><select name="AIN4_RANGE" id="AIN4_RANGE" class="json-as-bool">
+              <option value="0">+/-10 V</option>
+              <option value="1">+/-60 V</option>
+            </select></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="AIN5_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>AIN5</td>
+            <td><input type="text" name="AIN_CHAN_LABEL5" maxlength="16" autocomplete="off" /></td>
+            <td>
+              <select name="NTC5" id="NTC5" class="json-as-bool" onchange="disableAIN('5')">
+                <option value="0">Analog in</option>
+                <option value="1">NTC</option>
+              </select>
+            </td>
+            <td><select name="AIN5_RANGE" id="AIN5_RANGE" class="json-as-bool">
+              <option value="0">+/-10 V</option>
+              <option value="1">+/-60 V</option>
+            </select></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="AIN6_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>AIN6</td>
+            <td><input type="text" name="AIN_CHAN_LABEL6" maxlength="16" autocomplete="off" /></td>
+            <td>
+              <select name="NTC6" id="NTC6" class="json-as-bool" onchange="disableAIN('6')">
+                <option value="0">Analog in</option>
+                <option value="1">NTC</option>
+              </select>
+            </td>
+            <td><select name="AIN6_RANGE" id="AIN6_RANGE" class="json-as-bool">
+              <option value="0">+/-10 V</option>
+              <option value="1">+/-60 V</option>
+            </select></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="AIN7_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>AIN7</td>
+            <td><input type="text" name="AIN_CHAN_LABEL7" maxlength="16" autocomplete="off" /></td>
+            <td>
+              <select name="NTC7" id="NTC7" class="json-as-bool" onchange="disableAIN('7')">
+                <option value="0">Analog in</option>
+                <option value="1">NTC</option>
+              </select>
+            </td>
+            <td><select name="AIN7_RANGE" id="AIN7_RANGE" class="json-as-bool">
+              <option value="0">+/-10 V</option>
+              <option value="1">+/-60 V</option>
+            </select></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="AIN8_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>AIN8</td>
+            <td><input type="text" name="AIN_CHAN_LABEL8" maxlength="16" autocomplete="off" /></td>
+            <td>
+              <select name="NTC8" id="NTC8" class="json-as-bool" onchange="disableAIN('8')">
+                <option value="0">Analog in</option>
+                <option value="1">NTC</option>
+              </select>
+            </td>
+            <td><select name="AIN8_RANGE" id="AIN8_RANGE" class="json-as-bool">
+              <option value="0">+/-10 V</option>
+              <option value="1">+/-60 V</option>
+            </select></td>
+          </tr>
+          <!-- Digital Inputs -->
+          <tr>
+            <td><input type="checkbox" name="DIN1_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>DIO1</td>
+            <td><input type="text" name="DIO_CHAN_LABEL1" maxlength="16" autocomplete="off" /></td>
+            <td></td><td></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="DIN2_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>DIO2</td>
+            <td><input type="text" name="DIO_CHAN_LABEL2" maxlength="16" autocomplete="off" /></td>
+            <td></td><td></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="DIN3_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>DIO3</td>
+            <td><input type="text" name="DIO_CHAN_LABEL3" maxlength="16" autocomplete="off" /></td>
+            <td></td><td></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="DIN4_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>DIO4</td>
+            <td><input type="text" name="DIO_CHAN_LABEL4" maxlength="16" autocomplete="off" /></td>
+            <td></td><td></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="DIN5_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>DIO5</td>
+            <td><input type="text" name="DIO_CHAN_LABEL5" maxlength="16" autocomplete="off" /></td>
+            <td></td><td></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" name="DIN6_ENABLE" value="1" class="json-as-bool" /></td>
+            <td>DIO6</td>
+            <td><input type="text" name="DIO_CHAN_LABEL6" maxlength="16" autocomplete="off" /></td>
+            <td></td><td></td>
+          </tr>
+        </table>
+      </div><!-- /#channel_configuration -->
+
+      <h3>Analog Calibration</h3>
+      <p>
+        Hit the calibration button below to start zero calibration of the channels.
+      </p>
+      <div id="calibration">
+        <input
+          id="calibrationStart"
+          class="button button-secondary"
+          type="button"
+          onClick="startCalibration()"
+          value="Start calibration"
+        />
+        <p id="calibStatus"></p>
+      </div>
+
+      <div class="button-group" style="margin-top: 20px;">
+        <button type="button" class="button" onclick="setConfig()"><svg class="btn-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><use href="#icon-save"/></svg>Save channel settings</button>
+      </div>
+
+    </div><!-- /#tab-channels -->
+
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- TAB: ACQUISITION                                               -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-acquisition">
+
+      <h3>Sample rate &amp; resolution</h3>
+      <div class="form-grid-container">
+        <div class="form-group">
+          <label for="LOG_SAMPLE_RATE">Select the desired sample rate:</label>
+          <select name="LOG_SAMPLE_RATE" id="LOG_SAMPLE_RATE" class="json-as-number">
+            <option value="0">1 Sample/hour</option>
+            <option value="1">1 Sample/10 minutes</option>
+            <option value="2">1 Sample/5 minutes</option>
+            <option value="3">1 Sample/minute</option>
+            <option value="4">1 Sample/10 seconds</option>
+            <option value="5">1 Sample/s</option>
+            <option value="6">2 Samples/s</option>
+            <option value="7">5 Samples/s</option>
+            <option value="8">10 Samples/s</option>
+            <option value="9">25 Samples/s</option>
+            <option value="10">50 Samples/s</option>
+            <option value="11">100 Samples/s</option>
+            <option value="12">250 Samples/s</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="ADC_RESOLUTION">Select the desired analog resolution:</label>
+          <select name="ADC_RESOLUTION" id="ADC_RESOLUTION" class="json-as-number">
+            <option value="12">12 bits</option>
+            <option value="16">16 bits</option>
+          </select>
+        </div>
+      </div>
+      <p class="note">
+        <i><b>Note:</b> 16-bits will not improve resolution for temperature sensors,
+        as these channels will be scaled down to 12-bits.</i>
+      </p>
+
+      <h3>Averaging</h3>
+      <details>
+        <summary>Click to see the explanation</summary>
+        <div class="explanation-box">
+          <p>
+            For sample frequencies below 1 Hz, you can choose to average the samples
+            over the desired sample frequency or only take one sample at the desired
+            sample rate. For example, if you enable this option with a sample frequency
+            of 1 Sample/minute, the average will be taken over 1 minute of samples
+            using an IIR filter. After 1 minute, the average will be output to the file.
+          </p>
+        </div>
+      </details>
+      <div class="form-grid-container">
+        <div class="form-group">
+          <label for="AVERAGE_SAMPLES">Average sampling mode</label>
+          <select name="AVERAGE_SAMPLES" id="AVERAGE_SAMPLES" class="json-as-number">
+            <option value="0">Normal sampling (default)</option>
+            <option value="1">Average samples over time</option>
+          </select>
+        </div>
+      </div>
+
+      <h3>Measurement Mode</h3>
+      <details>
+        <summary>Click to see the explanation</summary>
+        <div class="explanation-box">
+          <p>Three measurement modes are possible:</p>
+          <ul>
+            <li>
+              <b>Continuous measurement:</b> Instantly start the measurement using
+              the "Start logging" button on the web interface or the physical button
+              on the logger.
+            </li>
+            <li>
+              <b>External trigger:</b> Use the "Start logging" button on the web
+              interface or the physical button on the logger to arm the logger. Then,
+              wait for an external trigger using one of the digital inputs.
+            </li>
+            <li>
+              <b>External control:</b> Logger start and stop is controlled by a
+              digital input. The logger start/stop button and web button are disabled.
+            </li>
+          </ul>
+          <p>
+            <b>Debounce time:</b> Set the time for the trigger input to stabilize or
+            delay the measurement. Maximum debounce time is 60000 ms (60 seconds).
+          </p>
+          <p>
+            <i><b>Note:</b> Currently, only triggers and external control on input
+            <b>HIGH</b> are supported.</i>
+          </p>
+          <p>
+            <i><b>Note 2:</b> The live view is not updating when in external trigger
+            mode and the trigger is low.</i>
+          </p>
+        </div>
+      </details>
+      <div class="form-grid-container">
+        <div class="form-group">
+          <label for="EXT_TRIGGER_MODE">Measurement mode:</label>
+          <select name="EXT_TRIGGER_MODE" id="EXT_TRIGGER_MODE" class="json-as-number"
+                  onchange="toggleTriggerSettings()">
+            <option value="0">Continuous measurement</option>
+            <option value="1">External trigger</option>
+            <option value="2">External control</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="EXT_TRIGGER_PIN">Trigger channel:</label>
+          <select name="EXT_TRIGGER_PIN" id="EXT_TRIGGER_PIN" class="json-as-number">
+            <option value="1">DIO 1</option>
+            <option value="2">DIO 2</option>
+            <option value="3">DIO 3</option>
+            <option value="4">DIO 4</option>
+            <option value="5">DIO 5</option>
+            <option value="6">DIO 6</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="EXT_TRIGGER_DEBOUNCE_TIME">Debounce time in ms:</label>
+          <input type="number" id="EXT_TRIGGER_DEBOUNCE_TIME"
+                 name="EXT_TRIGGER_DEBOUNCE_TIME" min="0" max="60000" step="1" />
+        </div>
+      </div>
+
       <h3>System time</h3>
       <p>
-        To ensure recordings are indicating the correct time, you can
-        synchronize the real time clock with the local time.
+        To ensure recordings indicate the correct time, you can synchronize the
+        real time clock with your local time.
       </p>
       <input
         id="btn_sync_time"
@@ -26,944 +368,344 @@
         value="Synchronize to local time"
         onclick="syncTime()"
       />
-    </div>
 
-    <h2>Channel configuration</h2>
-    <div class="form-grid-container">
-      <div class="form-group">
-        <label for="LOG_SAMPLE_RATE">Select the desired sample rate:</label>
-        <select
-          name="LOG_SAMPLE_RATE"
-          id="LOG_SAMPLE_RATE"
-          class="json-as-number"
-        >
-          <option value="0">1 Sample/hour</option>
-          <option value="1">1 Sample/10 minutes</option>
-          <option value="2">1 Sample/5 minutes</option>
-          <option value="3">1 Sample/minute</option>
-          <option value="4">1 Sample/10 seconds</option>
-          <option value="5">1 Sample/s</option>
-          <option value="6">2 Samples/s</option>
-          <option value="7">5 Samples/s</option>
-          <option value="8">10 Samples/s</option>
-          <option value="9">25 Samples/s</option>
-          <option value="10">50 Samples/s</option>
-          <option value="11">100 Samples/s</option>
-          <option value="12">250 Samples/s</option>
-        </select>
+      <div class="button-group" style="margin-top: 20px;">
+        <button type="button" class="button" onclick="setConfig()"><svg class="btn-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><use href="#icon-save"/></svg>Save acquisition settings</button>
       </div>
 
-      <div class="form-group">
-        <label for="ADC_RESOLUTION"
-          >Select the desired analog resolution:</label
-        >
-        <select
-          name="ADC_RESOLUTION"
-          id="ADC_RESOLUTION"
-          class="json-as-number"
-        >
-          <option value="12">12 bits</option>
-          <option value="16">16 bits</option>
-        </select>
-      </div>
-    </div>
+    </div><!-- /#tab-acquisition -->
 
-    <p class="note">
-      <i
-        ><b>Note:</b> 16-bits will not improve resolution for temperature
-        sensors, as these channels will be scaled down to 12-bits.</i
-      >
-    </p>
 
-    <h4>Averaging</h4>
-    <details>
-      <summary>Click to see the explanation</summary>
-      <div class="explanation-box">
-        <p>
-          For sample frequencies below 1 Hz, you can choose to average the
-          samples over the desired sample frequency or only take one sample at
-          the desired sample rate. For example, if you enable this option with a
-          sample frequency of 1 Sample/minute, the average will be taken over 1
-          minute of samples using an IIR filter. After 1 minute, the average
-          will be output to the file.
-        </p>
-      </div>
-    </details>
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- TAB: FILES                                                     -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-files">
 
-    <div class="form-grid-container">
-      <div class="form-group">
-        <label for="AVERAGE_SAMPLES">Average sampling mode</label>
-        <select
-          name="AVERAGE_SAMPLES"
-          id="AVERAGE_SAMPLES"
-          class="json-as-number"
-        >
-          <option value="0">Normal sampling (default)</option>
-          <option value="1">Average samples over time</option>
-        </select>
-      </div>
-    </div>
+      <h3>File format</h3>
+      <span>
+        <input id="log_mode" name="LOG_MODE" class="element radio json-as-number"
+               type="radio" value="1" checked="true" />
+        <label class="choice" for="log_mode">
+          CSV<br />Write CSV files directly. Recommended for short measurements.
+        </label>
 
-    <h4>Measurement Mode</h4>
-    <details>
-      <summary>Click to see the explanation</summary>
-      <div class="explanation-box">
-        <p>Three measurement modes are possible:</p>
-        <ul>
-          <li>
-            <b>Continuous measurement:</b> Instantly start the measurement using
-            the "Start logging" button on the web interface or the physical
-            button on the logger.
-          </li>
-          <li>
-            <b>External trigger:</b> Use the "Start logging" button on the web
-            interface or the physical button on the logger to arm the logger.
-            Then, wait for an external trigger using one of the digital inputs.
-          </li>
-          <li>
-            <b>External control:</b> Logger start and stop is controlled by a
-            digital input. The logger start/stop button and web button are
-            disabled.
-          </li>
-        </ul>
-        <p>
-          <b>Debounce time:</b> Set the time for the trigger input to stabilize
-          or delay the measurement. If fast oscillations on the trigger input
-          can occur that may quickly enable and disable logging, you can set a
-          debounce time here. Maximum debounce time is 60000 ms (60 seconds).
-        </p>
-        <p>
-          <i
-            ><b>Note:</b> Currently, only triggers and external control on input
-            <b>HIGH</b> are supported.</i
-          >
-        </p>
-        <p>
-          <i
-            ><b>Note 2:</b> The live view is not updating when in external
-            trigger mode and the trigger is low.</i
-          >
-        </p>
-      </div>
-    </details>
+        <input id="log_mode" name="LOG_MODE" class="element radio json-as-number"
+               type="radio" value="0" />
+        <label class="choice" for="log_mode">
+          Raw data<br />Write the raw data and convert the data to a CSV file
+          afterwards. This option is recommended for long measurements that may take
+          hours or days. You can use the Python conversion script or Windows exe tool
+          to convert the .dat files to .csv. Download the Python
+          <a href="convert_raw.py">here</a> or check the Uberlogger website for the
+          Windows tool in the download section.
+        </label>
+      </span>
 
-    <div class="form-grid-container">
-      <div class="form-group">
-        <label for="EXT_TRIGGER_MODE">Measurement mode:</label>
-        <select
-          name="EXT_TRIGGER_MODE"
-          id="EXT_TRIGGER_MODE"
-          class="json-as-number"
-          onchange="toggleTriggerSettings()"
-        >
-          <option value="0">Continuous measurement</option>
-          <option value="1">External trigger</option>
-          <option value="2">External control</option>
-        </select>
+      <h3>File name mode</h3>
+      <span>
+        <input id="FILE_NAME_MODE" name="FILE_NAME_MODE"
+               class="element radio json-as-number" type="radio" value="0" checked="true" />
+        <label class="choice" for="file_name_mode">
+          Sequential<br />File names are written with prefix + sequence number.
+          Example: log0, log1 etc. Existing files will be overwritten.
+        </label>
+
+        <input id="file_name_mode" name="FILE_NAME_MODE"
+               class="element radio json-as-number" type="radio" value="1" />
+        <label class="choice" for="file_name_mode">
+          Timestamp<br />File name will be like YYYYMMDD_Time_File Prefix.
+          Example: 20240312_14-34-34_Logfile.csv. Each split part will have a new
+          timestamp in UTC time.
+        </label>
+      </span>
+
+      <h3>File name &amp; split size</h3>
+      <div class="form-grid-container">
+        <div class="form-group">
+          <label for="file_name_prefix">File name prefix</label>
+          <input type="text" id="file_name_prefix" name="FILE_NAME_PREFIX"
+                 class="json-as-text" maxlength="70" autocomplete="off"
+                 autocorrect="off" autocapitalize="none" value="" />
+        </div>
+        <div class="form-group">
+          <label for="file_split_size">Max size of one log file (200 KB min and 2 GB max)</label>
+          <div class="split-size-container">
+            <input type="number" id="file_split_size" name="FILE_SPLIT_SIZE"
+                   class="json-as-number" max="4194304" step="1"
+                   oninput="validateIntegerInput(this)" />
+            <select name="FILE_SPLIT_SIZE_UNIT" id="file_size_split_size_unit"
+                    class="json-as-number">
+              <option value="0">KB</option>
+              <option value="1">MB</option>
+              <option value="2">GB</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="EXT_TRIGGER_PIN">Trigger channel:</label>
-        <select
-          name="EXT_TRIGGER_PIN"
-          id="EXT_TRIGGER_PIN"
-          class="json-as-number"
-        >
-          <option value="1">DIO 1</option>
-          <option value="2">DIO 2</option>
-          <option value="3">DIO 3</option>
-          <option value="4">DIO 4</option>
-          <option value="5">DIO 5</option>
-          <option value="6">DIO 6</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="EXT_TRIGGER_DEBOUNCE_TIME">Debounce time in ms:</label>
-        <input
-          type="number"
-          id="EXT_TRIGGER_DEBOUNCE_TIME"
-          name="EXT_TRIGGER_DEBOUNCE_TIME"
-          min="0"
-          max="60000"
-          step="1"
-        />
-      </div>
-    </div>
-
-    <div id="configuration_done">
-      <button id="saveForm" type="button" class="button" onClick="setConfig()">
-        Save measurement settings
-      </button>
-    </div>
-
-    <div class="group" id="channel_configuration">
-      <h3>Analog & digital channels</h3>
-      <p>
-        Select the mode used for the analog channels and adjust channel names if
-        necessary.
-      </p>
-      <p>
-        <i
-          ><b>Important:</b> ensure the hardware configuration (DIP-switch
-          setting) is equal to the settings below.</i
-        >
-      </p>
-
-      <table class="compact-table" width="100%">
-        <tr>
-          <th>Enable</th>
-          <th>Channel</th>
-          <th>Channel label</th>
-          <th>Mode</th>
-          <th>Range</th>
-        </tr>
-        <!-- Analog Channels -->
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="AIN1_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>AIN1</td>
-          <td>
-            <input
-              type="text"
-              name="AIN_CHAN_LABEL1"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td>
-            <select
-              name="NTC1"
-              id="NTC1"
-              class="json-as-bool"
-              onchange="disableAIN('1')"
-            >
-              <option value="0">Analog in</option>
-              <option value="1">NTC</option>
-            </select>
-          </td>
-          <td>
-            <select name="AIN1_RANGE" id="AIN1_RANGE" class="json-as-bool">
-              <option value="0">+/-10 V</option>
-              <option value="1">+/-60 V</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="AIN2_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>AIN2</td>
-          <td>
-            <input
-              type="text"
-              name="AIN_CHAN_LABEL2"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td>
-            <select
-              name="NTC2"
-              id="NTC2"
-              class="json-as-bool"
-              onchange="disableAIN('2')"
-            >
-              <option value="0">Analog in</option>
-              <option value="1">NTC</option>
-            </select>
-          </td>
-          <td>
-            <select name="AIN2_RANGE" id="AIN2_RANGE" class="json-as-bool">
-              <option value="0">+/-10 V</option>
-              <option value="1">+/-60 V</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="AIN3_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>AIN3</td>
-          <td>
-            <input
-              type="text"
-              name="AIN_CHAN_LABEL3"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td>
-            <select
-              name="NTC3"
-              id="NTC3"
-              class="json-as-bool"
-              onchange="disableAIN('3')"
-            >
-              <option value="0">Analog in</option>
-              <option value="1">NTC</option>
-            </select>
-          </td>
-          <td>
-            <select name="AIN3_RANGE" id="AIN3_RANGE" class="json-as-bool">
-              <option value="0">+/-10 V</option>
-              <option value="1">+/-60 V</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="AIN4_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>AIN4</td>
-          <td>
-            <input
-              type="text"
-              name="AIN_CHAN_LABEL4"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td>
-            <select
-              name="NTC4"
-              id="NTC4"
-              class="json-as-bool"
-              onchange="disableAIN('4')"
-            >
-              <option value="0">Analog in</option>
-              <option value="1">NTC</option>
-            </select>
-          </td>
-          <td>
-            <select name="AIN4_RANGE" id="AIN4_RANGE" class="json-as-bool">
-              <option value="0">+/-10 V</option>
-              <option value="1">+/-60 V</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="AIN5_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>AIN5</td>
-          <td>
-            <input
-              type="text"
-              name="AIN_CHAN_LABEL5"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td>
-            <select
-              name="NTC5"
-              id="NTC5"
-              class="json-as-bool"
-              onchange="disableAIN('5')"
-            >
-              <option value="0">Analog in</option>
-              <option value="1">NTC</option>
-            </select>
-          </td>
-          <td>
-            <select name="AIN5_RANGE" id="AIN5_RANGE" class="json-as-bool">
-              <option value="0">+/-10 V</option>
-              <option value="1">+/-60 V</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="AIN6_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>AIN6</td>
-          <td>
-            <input
-              type="text"
-              name="AIN_CHAN_LABEL6"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td>
-            <select
-              name="NTC6"
-              id="NTC6"
-              class="json-as-bool"
-              onchange="disableAIN('6')"
-            >
-              <option value="0">Analog in</option>
-              <option value="1">NTC</option>
-            </select>
-          </td>
-          <td>
-            <select name="AIN6_RANGE" id="AIN6_RANGE" class="json-as-bool">
-              <option value="0">+/-10 V</option>
-              <option value="1">+/-60 V</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="AIN7_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>AIN7</td>
-          <td>
-            <input
-              type="text"
-              name="AIN_CHAN_LABEL7"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td>
-            <select
-              name="NTC7"
-              id="NTC7"
-              class="json-as-bool"
-              onchange="disableAIN('7')"
-            >
-              <option value="0">Analog in</option>
-              <option value="1">NTC</option>
-            </select>
-          </td>
-          <td>
-            <select name="AIN7_RANGE" id="AIN7_RANGE" class="json-as-bool">
-              <option value="0">+/-10 V</option>
-              <option value="1">+/-60 V</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="AIN8_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>AIN8</td>
-          <td>
-            <input
-              type="text"
-              name="AIN_CHAN_LABEL8"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td>
-            <select
-              name="NTC8"
-              id="NTC8"
-              class="json-as-bool"
-              onchange="disableAIN('8')"
-            >
-              <option value="0">Analog in</option>
-              <option value="1">NTC</option>
-            </select>
-          </td>
-          <td>
-            <select name="AIN8_RANGE" id="AIN8_RANGE" class="json-as-bool">
-              <option value="0">+/-10 V</option>
-              <option value="1">+/-60 V</option>
-            </select>
-          </td>
-        </tr>
-        <!-- Digital Inputs Rows -->
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="DIN1_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>DIO1</td>
-          <td>
-            <input
-              type="text"
-              name="DIO_CHAN_LABEL1"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="DIN2_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>DIO2</td>
-          <td>
-            <input
-              type="text"
-              name="DIO_CHAN_LABEL2"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="DIN3_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>DIO3</td>
-          <td>
-            <input
-              type="text"
-              name="DIO_CHAN_LABEL3"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="DIN4_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>DIO4</td>
-          <td>
-            <input
-              type="text"
-              name="DIO_CHAN_LABEL4"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="DIN5_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>DIO5</td>
-          <td>
-            <input
-              type="text"
-              name="DIO_CHAN_LABEL5"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td>
-            <input
-              type="checkbox"
-              name="DIN6_ENABLE"
-              value="1"
-              class="json-as-bool"
-            />
-          </td>
-          <td>DIO6</td>
-          <td>
-            <input
-              type="text"
-              name="DIO_CHAN_LABEL6"
-              maxlength="16"
-              autocomplete="off"
-            />
-          </td>
-          <td></td>
-          <td></td>
-        </tr>
-      </table>
-
-      <div id="configuration_done">
-        <input
-          id="saveForm"
-          class="button"
-          type="button"
-          onClick="setConfig()"
-          value="Save channel settings"
-        />
-      </div>
-    </div>
-
-    <h3>Analog Calibration</h3>
-    <p>
-      Hit the calibration button below to start zero calibration of the
-      channels.
-    </p>
-    <div id="calibration">
-      <input
-        id="calibrationStart"
-        class="button button-secondary"
-        type="button"
-        onClick="startCalibration()"
-        value="Start calibration"
-      />
-      <p id="calibStatus"></p>
-    </div>
-
-    <h2>File options</h2>
-
-    <h3>File format</h3>
-    <span>
-      <input
-        id="log_mode"
-        name="LOG_MODE"
-        class="element radio json-as-number"
-        type="radio"
-        value="1"
-        checked="true"
-      />
-      <label class="choice" for="log_mode"
-        >CSV<br />Write CSV files directly. Recommended for short
-        measurements.</label
-      >
-
-      <input
-        id="log_mode"
-        name="LOG_MODE"
-        class="element radio json-as-number"
-        type="radio"
-        value="0"
-      />
-      <label class="choice" for="log_mode"
-        >Raw data<br />Write the raw data and convert the data to a CSV file
-        afterwards. This option is recommended for long measurements that may
-        take hours or days. You can use the Python conversion script or Windows
-        exe tool to convert the .dat files to .csv. Download the Python
-        <a href="convert_raw.py">here</a> or check the Uberlogger website for
-        the Windows tool in the download section.
-      </label>
-    </span>
-
-    <h3>File name mode</h3>
-    <span>
-      <input
-        id="FILE_NAME_MODE"
-        name="FILE_NAME_MODE"
-        class="element radio json-as-number"
-        type="radio"
-        value="0"
-        checked="true"
-      />
-      <label class="choice" for="file_name_mode"
-        >Sequential<br />File names are written with prefix + sequence number.
-        Example: log0, log1 etc. Existing files will be overwritten.</label
-      >
-
-      <input
-        id="file_name_mode"
-        name="FILE_NAME_MODE"
-        class="element radio json-as-number"
-        type="radio"
-        value="1"
-      />
-      <label class="choice" for="file_name_mode"
-        >Timestamp<br />File name will be like YYYYMMDD_Time_File Prefix.
-        Example: 20240312_14-34-34_Logfile.csv. Each split part will have a new
-        timestamp in UTC time.
-      </label>
-    </span>
-
-    <h3>CSV options</h3>
-    <div class="form-grid-container">
-      <label for="file_separator_char"
-        >CSV separator character. Semicolon is recommended for Excel.</label
-      >
-      <select
-        name="FILE_SEPARATOR_CHAR"
-        id="file_separator_char"
-        class="json-as-number"
-      >
-        <option value="0">Comma (,)</option>
-        <option value="1">Semicolon (;)</option>
-      </select>
-      <label for="file_decimal_char"
-        >Decimal notation character. Note: this option does not have effect when
-        using RAW data file format. The conversion script will use the system's
-        default decimal character.</label
-      >
-      <select
-        name="FILE_DECIMAL_CHAR"
-        id="file_decimal_char"
-        class="json-as-number"
-      >
-        <option value="0">Dot (.)</option>
-        <option value="1">Comma (,)</option>
-      </select>
-    </div>
-
-    <h3>File name and split size</h3>
-
-    <div class="form-grid-container">
-      <div class="form-group">
-        <label for="file_name_prefix">File name prefix</label>
-        <input
-          type="text"
-          id="file_name_prefix"
-          name="FILE_NAME_PREFIX"
-          class="json-as-text"
-          maxlength="70"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="none"
-          value=""
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="file_split_size"
-          >Max size of one log file (200 KB min and 2 GB max)</label
-        >
-        <div class="split-size-container">
-          <input
-            type="number"
-            id="file_split_size"
-            name="FILE_SPLIT_SIZE"
-            class="json-as-number"
-            max="4194304"
-            step="1"
-            oninput="validateIntegerInput(this)"
-          />
-
-          <select
-            name="FILE_SPLIT_SIZE_UNIT"
-            id="file_size_split_size_unit"
-            class="json-as-number"
-          >
-            <option value="0">KB</option>
-            <option value="1">MB</option>
-            <option value="2">GB</option>
+      <h3>CSV options</h3>
+      <div class="form-grid-container">
+        <div class="form-group">
+          <label for="file_separator_char">CSV separator character. Semicolon is recommended for Excel.</label>
+          <select name="FILE_SEPARATOR_CHAR" id="file_separator_char" class="json-as-number">
+            <option value="0">Comma (,)</option>
+            <option value="1">Semicolon (;)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="file_decimal_char">
+            Decimal notation character. Note: this option does not have effect when
+            using RAW data format. The conversion script will use the system's default.
+          </label>
+          <select name="FILE_DECIMAL_CHAR" id="file_decimal_char" class="json-as-number">
+            <option value="0">Dot (.)</option>
+            <option value="1">Comma (,)</option>
           </select>
         </div>
       </div>
-    </div>
 
-    <div id="configuration_done">
-      <input
-        id="saveForm"
-        class="button"
-        type="button"
-        onClick="setConfig()"
-        value="Save file options"
-      />
-    </div>
-
-    <h2>Wi-Fi configuration</h2>
-    <div class="group" id="wifi_configuration">
-      <h3>Wi-Fi channel Hotspot</h3>
-      <p>
-        Select the Wi-Fi channel for the hotspot:
-        <select name="WIFI_CHANNEL" id="WIFI_CHANNEL" class="json-as-number">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5</option>
-          <option value="6">6</option>
-          <option value="7">7</option>
-          <option value="8">8</option>
-          <option value="9">9</option>
-          <option value="10">10</option>
-          <option value="11">11</option>
-          <option value="12">12</option>
-          <option value="13">13</option>
-        </select>
-      </p>
-      <p>
-        <i
-          ><b>Note: </b>Please press the reset button manually after saving this
-          setting</i
-        >
-      </p>
-      <h3>Connection mode</h3>
-      <span>
-        <input
-          id="wifi_mode_hotspot"
-          name="WIFI_MODE"
-          class="element radio json-as-number"
-          type="radio"
-          value="0"
-          checked="true"
-          onclick="wifiConfigVisibilityUpdate();"
-        />
-        <label class="choice" for="wifi_mode_hotspot"
-          >Hotspot mode only<br />UberLogger acts as a Wi-Fi-hotspot where you
-          can directly connect to.</label
-        >
-
-        <input
-          id="wifi_mode_client"
-          name="WIFI_MODE"
-          class="element radio json-as-number"
-          type="radio"
-          value="1"
-          onclick="wifiConfigVisibilityUpdate();"
-        />
-        <label class="choice" for="wifi_mode_client"
-          >Hotspot + Client mode<br />Next to Wi-Fi hotspot, the UberLogger
-          connects to your Wi-Fi-network as a client, and you can access the
-          UberLogger through the IP-address that is assigned through your DHCP
-          server.</label
-        >
-      </span>
-
-      <div id="wifi_client_settings">
-        <h3>Client details</h3>
-        <p>
-          Enter the details of your Wi-Fi-network below to allow the UberLogger
-          to connect.
-        </p>
-        <p>
-          <i
-            ><b>Note:</b> in case connecting to Wi-Fi fails, press the MODE
-            button for 5 seconds to enable the hotspot mode.</i
-          >
-        </p>
-        <label for="WIFI_SSID">Network name (SSID)</label>
-        <input
-          id="WIFI_SSID"
-          name="WIFI_SSID"
-          class="element"
-          type="text"
-          maxlength="32"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="none"
-          value=""
-        />
-
-        <label for="WIFI_PASSWORD">Password</label>
-        <input
-          id="WIFI_PASSWORD"
-          name="WIFI_PASSWORD"
-          class="element"
-          type="text"
-          maxlength="64"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="none"
-          value=""
-        />
-
-        <p>
-          After entering the connection details above, you can test the Wi-Fi
-          connection by clicking on the button below.
-        </p>
-        <p>
-          <i
-            ><b>Tip:</b> after configuring, this page will be available via
-            http://IPADDRESS (e.g. http://192.168.1.123).</i
-          >
-        </p>
-
-        <p>
-          Connection:
-          <span id="WIFI_TEST_STATUS" name="WIFI_TEST_STATUS">...</span
-          ><input
-            type="checkbox"
-            name="switch"
-            id="wifi-state-checkbox"
-            class="check"
-            style="display: none"
-          /><br />
-          IP-address:
-          <a
-            href="http://"
-            id="WIFI_TEST_IP"
-            name="WIFI_TEST_IP"
-            target="_blank"
-            >0.0.0.0</a
-          ><br />
-          RSSI: <span id="WIFI_TEST_RSSI" name="WIFI_TEST_RSSI">-</span> dB
-        </p>
-
-        <p>
-          <i
-            ><b>Note:</b> the Wi-Fi-signal strength (RSSI) should be above -80
-            dB for a stable connection (e.g. -75 dB is OK).</i
-          >
-        </p>
+      <div class="button-group" style="margin-top: 20px;">
+        <button type="button" class="button" onclick="setConfig()"><svg class="btn-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><use href="#icon-save"/></svg>Save file settings</button>
       </div>
-      <div>
+
+    </div><!-- /#tab-files -->
+
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- TAB: NETWORK                                                   -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-network">
+
+      <div class="group" id="wifi_configuration">
+
+        <h3>Hotspot settings</h3>
+
+        <!-- Wi-Fi channel: inline label + compact select -->
+        <div class="field-inline">
+          <label for="WIFI_CHANNEL">Wi-Fi channel:</label>
+          <select name="WIFI_CHANNEL" id="WIFI_CHANNEL" class="json-as-number select-inline">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+          </select>
+        </div>
+        <p class="note" style="margin-top:0"><i><b>Note:</b> Press the reset button manually after saving this setting.</i></p>
+
+        <!-- Hotspot security mode + conditional password -->
+        <div class="form-grid-container" style="margin-top: 12px;">
+          <div class="form-group">
+            <label for="WIFI_AP_AUTH_MODE">Hotspot security</label>
+            <select id="WIFI_AP_AUTH_MODE" onchange="updateApSecurityUI()">
+              <option value="open">Open (no password)</option>
+              <option value="wpa2">WPA2 / WPA3</option>
+            </select>
+            <div id="wifi_ap_password_section" style="display:none; margin-top:8px;">
+              <label for="WIFI_PASSWORD_AP">Password</label>
+              <input
+                id="WIFI_PASSWORD_AP"
+                name="WIFI_PASSWORD_AP"
+                class="element"
+                type="password"
+                maxlength="63"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                placeholder="Leave blank to keep current password"
+              />
+              <p class="note"><i>8–63 characters required. Leave blank to keep the current password.</i></p>
+            </div>
+          </div>
+        </div>
+
+        <h3>Connection mode</h3>
+        <span>
+          <input
+            id="wifi_mode_hotspot"
+            name="WIFI_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="0"
+            checked="true"
+            onclick="wifiConfigVisibilityUpdate();"
+          />
+          <label class="choice" for="wifi_mode_hotspot">
+            Hotspot mode only<br />UberLogger acts as a Wi-Fi hotspot where you
+            can directly connect to.
+          </label>
+
+          <input
+            id="wifi_mode_client"
+            name="WIFI_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="1"
+            onclick="wifiConfigVisibilityUpdate();"
+          />
+          <label class="choice" for="wifi_mode_client">
+            Hotspot + Client mode<br />Next to the Wi-Fi hotspot, the UberLogger
+            connects to your Wi-Fi network as a client. You can then also access the
+            UberLogger through the IP address assigned by your DHCP server.
+          </label>
+        </span>
+
+        <div id="wifi_client_settings">
+          <h3>Client details</h3>
+          <p>Enter the details of your Wi-Fi network to allow the UberLogger to connect.</p>
+          <p>
+            <i><b>Note:</b> in case connecting to Wi-Fi fails, press the MODE button
+            for 5 seconds to enable hotspot-only mode.</i>
+          </p>
+          <div class="form-grid-container">
+            <div class="form-group">
+              <label for="WIFI_SSID">Network name (SSID)</label>
+              <input
+                id="WIFI_SSID"
+                name="WIFI_SSID"
+                class="element"
+                type="text"
+                maxlength="32"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                value=""
+              />
+            </div>
+            <div class="form-group">
+              <label for="WIFI_STA_AUTH_MODE">Network security</label>
+              <select id="WIFI_STA_AUTH_MODE" onchange="updateStaSecurityUI()">
+                <option value="open">Open (no password)</option>
+                <option value="password">Password protected</option>
+              </select>
+              <div id="wifi_sta_password_section" style="display:none; margin-top:8px;">
+                <label for="WIFI_PASSWORD">Password</label>
+                <input
+                  id="WIFI_PASSWORD"
+                  name="WIFI_PASSWORD"
+                  class="element"
+                  type="password"
+                  maxlength="64"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="none"
+                  placeholder="Leave blank to keep current password"
+                />
+                <p class="note"><i>Leave blank to keep the current password unchanged.</i></p>
+              </div>
+            </div>
+          </div>
+          <p>
+            After entering the connection details above, save settings to apply the
+            new connection.
+          </p>
+          <p>
+            <i><b>Tip:</b> after configuring, this page will be available via
+            http://IPADDRESS (e.g. http://192.168.1.123).</i>
+          </p>
+          <p>
+            Connection:
+            <span id="WIFI_TEST_STATUS" name="WIFI_TEST_STATUS">...</span>
+            <input type="checkbox" name="switch" id="wifi-state-checkbox"
+                   class="check" style="display: none" /><br />
+            IP-address:
+            <a href="http://" id="WIFI_TEST_IP" name="WIFI_TEST_IP" target="_blank">0.0.0.0</a><br />
+            RSSI: <span id="WIFI_TEST_RSSI" name="WIFI_TEST_RSSI">-</span> dB
+          </p>
+          <p>
+            <i><b>Note:</b> the Wi-Fi signal strength (RSSI) should be above -80 dB
+            for a stable connection (e.g. -75 dB is OK).</i>
+          </p>
+        </div><!-- /#wifi_client_settings -->
+
+        <h3>Web interface security</h3>
+        <div class="form-grid-container">
+          <div class="form-group">
+            <label for="WEB_AUTH_MODE">Web interface login</label>
+            <select id="WEB_AUTH_MODE" onchange="updateWebSecurityUI()">
+              <option value="none">No login required</option>
+              <option value="password">Password protected (username: admin)</option>
+            </select>
+            <div id="web_password_section" style="display:none; margin-top:8px;">
+              <label for="WEB_PASSWORD">Password</label>
+              <input
+                id="WEB_PASSWORD"
+                name="WEB_PASSWORD"
+                class="element"
+                type="password"
+                maxlength="31"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                placeholder="Leave blank to keep current password"
+              />
+              <p class="note"><i>Leave blank to keep the current password unchanged.</i></p>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /#wifi_configuration -->
+
+      <div class="button-group" style="margin-top: 20px;">
+        <button type="button" class="button" onclick="setConfig()"><svg class="btn-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><use href="#icon-save"/></svg>Save network settings</button>
+      </div>
+
+    </div><!-- /#tab-network -->
+
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- TAB: SYSTEM                                                    -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="tab-pane" id="tab-system">
+
+      <h3>Firmware</h3>
+      <p>
+        Current firmware version: <span name="FW_VERSION">-</span><br />
+        <button type="button" class="button" onclick="gotoPage('fwupdate')">Update firmware</button>
+      </p>
+
+      <h3>Import / Export configuration</h3>
+      <p>
+        You can download the current configuration and import it at a later time.
+        When importing, the settings will be saved only after clicking
+        <b>Save all settings</b> below.
+      </p>
+      <div class="button-group">
         <input
-          id="btn_test_wifi_network"
-          class="button"
+          id="btn_import_config"
+          name="btn_import_config"
+          class="button button-secondary"
           type="button"
-          value="Save Wi-Fi settings"
-          onclick="setConfig()"
+          value="Import settings from file..."
+          onclick="importConfigfile()"
         />
+        <input
+          id="file_import_config"
+          name="file_import_config"
+          class="button"
+          type="file"
+          onchange="importConfigFileSelected()"
+          accept=".json"
+          style="visibility: hidden; display: none"
+        />
+        <a href="/ajax/getConfig?download=true" target="_blank">
+          <button class="button button-secondary" type="button">Download current settings</button>
+        </a>
       </div>
-    </div>
 
-    <h2>Backup or restore configuration</h2>
-    <div class="group" id="backuprestoreconfig">
-      <h3 class="first">Restore defaults</h3>
-      <label class="description" style="padding-bottom: 10px"
-        >Restore the default settings by clicking the button below. They will be
-        saved after clicking the save button at the bottom of this page.</label
-      >
+      <h3>Restore defaults</h3>
+      <p>
+        Load the factory default settings into the form. Click <b>Save all settings</b>
+        below to apply them.
+      </p>
       <input
         id="btn_load_defaults"
         class="button button-secondary"
@@ -973,50 +715,11 @@
         onclick="loadFormDefaults()"
       />
 
-      <br />
+      <h3>Save all settings</h3>
+      <p>Saves settings from all tabs at once.</p>
+      <button type="button" class="button" onclick="setConfig()"><svg class="btn-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><use href="#icon-save"/></svg>Save all settings</button>
 
-      <h3>Import/export configuration</h3>
-      <label class="description" style="padding-bottom: 10px"
-        >You can download the current configuration and import it at a later
-        time. When importing, the settings will be saved only after clicking the
-        save button at the bottom of this page.</label
-      >
-      <input
-        id="btn_import_config"
-        name="btn_import_config"
-        class="button button-secondary"
-        type="button"
-        value="Import settings from file..."
-        onclick="importConfigfile()"
-      />
-      <input
-        id="file_import_config"
-        name="file_import_config"
-        class="button"
-        type="file"
-        onchange="importConfigFileSelected()"
-        accept=".json"
-        style="visibility: hidden; display: none"
-      />
-      <a href="/ajax/getConfig?download=true" target="_blank"
-        ><button class="button button-secondary" type="button">
-          Download current settings
-        </button></a
-      >
-      <h3 class="first">Save all settings</h3>
-      <input
-        id="btn_test_wifi_network"
-        class="button"
-        type="button"
-        value="Save all settings"
-        onclick="setConfig()"
-      />
-    </div>
+    </div><!-- /#tab-system -->
 
-    <h2 class="first">Firmware</h2>
-    <p>
-      Current firmware version: <span name="FW_VERSION">-</span><br />
-      <a href="/fwupdate/">Update firmware</a>
-    </p>
-  </div>
+  </div><!-- /#config -->
 </form>

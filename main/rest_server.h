@@ -29,4 +29,10 @@ esp_err_t json_send_resp(httpd_req_t *req, endpoint_response_t type, char * reas
 esp_err_t start_rest_server(const char *base_path);
 esp_err_t stop_rest_server(void);
 
+/// @brief Check HTTP Basic Auth credentials against the configured web_password.
+/// @return true if authorized (no password set, or credentials match), false otherwise.
+bool rest_check_auth(httpd_req_t *req);
+/// @brief Send a 401 Unauthorized response with WWW-Authenticate header.
+esp_err_t rest_send_auth_required(httpd_req_t *req);
+
 #endif

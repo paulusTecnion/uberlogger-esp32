@@ -160,37 +160,44 @@
         <summary>
           Setting continuous measurement or external trigger/control
         </summary>
-        <p>The UberLogger supports three measurement modes:</p>
+        <p>
+          The UberLogger supports three measurement modes. The key difference is
+          who controls start and stop: you, or the external digital input.
+        </p>
         <ul>
           <li>
-            <b>Continuous measurement:</b> Start and stop logging via the web
-            interface or the physical button.
+            <b>Continuous measurement:</b> Normal manual operation. Start and
+            stop logging from the web interface or with the physical button.
           </li>
           <li>
-            <b>External trigger:</b> The logger waits for an external trigger
-            signal to start logging.
+            <b>External trigger:</b> You still arm logging manually
+            (web/button). After arming, the logger waits for the configured EXT
+            pin to go HIGH before samples are recorded.
             <i
-              ><b>Note: </b> Live view is not working when no trigger has
-              trigged a measurement.</i
-            >
+              ><b>Note:</b> While waiting for a trigger, the logger is armed but
+              not yet measuring. Live data appears only after the trigger event.
+            </i>
+            <br />
+            Logging stops when the EXT pin goes LOW again (or when you press
+            Stop).
           </li>
           <li>
-            <b>External control:</b> Start/stop logging is fully controlled via
-            a digital input.
+            <b>External control:</b> Start/stop is fully controlled by the EXT
+            pin.
             <i
-              ><b>Note:</b> The physical start / stop button and the web
-              interface start / stop buttons are <b>not</b> working in external
-              controller mode.</i
-            >
+              ><b>Note:</b> In this mode, web Start/Stop and the physical
+              Start/Stop button are disabled by firmware.
+            </i>
+            <br />
+            EXT pin HIGH starts logging automatically; EXT pin LOW stops
+            logging.
           </li>
         </ul>
         <p>
-          For external trigger and external control, you can also set the
-          <b>trigger debounce time</b> to stabilize the trigger input, reducing
-          noise in trigger signals. By default this is set to 100 ms. But you
-          can also increase it up to 60000 ms to create a delayed measurement.
-          The debouncing timer will reset upon getting to low level within the
-          debounce time, restarting the debounce timer.
+          For both external modes, configure <b>trigger debounce time</b> to
+          filter noisy trigger edges or have delayed measurement starts. Default
+          is 100 ms; adjustable up to 60000 ms. The signal must stay stable for
+          the full debounce time, otherwise the debounce timer restarts.
         </p>
       </details>
     </div>
