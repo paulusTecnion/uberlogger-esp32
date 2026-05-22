@@ -321,6 +321,8 @@ esp_err_t settings_set_default(Settings_t * _inSettings)
     
     strcpy(_inSettings->wifi_ssid, _inSettings->wifi_ssid_ap);
     strcpy(_inSettings->wifi_password, "");
+    strcpy(_inSettings->wifi_password_ap, ""); // AP hotspot open by default
+    strcpy(_inSettings->web_password, "");     // no web UI password by default
     _inSettings->wifi_mode = WIFI_MODE_AP;
     _inSettings->wifi_channel = 1;
 
@@ -906,6 +908,18 @@ esp_err_t settings_load_json(FILE* f)
         _settings.wifi_password[sizeof(_settings.wifi_password) - 1] = '\0'; // Ensure null-terminated
     }
 
+    const cJSON* wifi_password_ap = cJSON_GetObjectItemCaseSensitive(root, "wifi_password_ap");
+    if (cJSON_IsString(wifi_password_ap) && wifi_password_ap->valuestring != NULL) {
+        strncpy(_settings.wifi_password_ap, wifi_password_ap->valuestring, sizeof(_settings.wifi_password_ap) - 1);
+        _settings.wifi_password_ap[sizeof(_settings.wifi_password_ap) - 1] = '\0';
+    }
+
+    const cJSON* web_password = cJSON_GetObjectItemCaseSensitive(root, "web_password");
+    if (cJSON_IsString(web_password) && web_password->valuestring != NULL) {
+        strncpy(_settings.web_password, web_password->valuestring, sizeof(_settings.web_password) - 1);
+        _settings.web_password[sizeof(_settings.web_password) - 1] = '\0';
+    }
+
     const cJSON* wifi_channel = cJSON_GetObjectItemCaseSensitive(root, "wifi_channel");
     if (cJSON_IsNumber(wifi_channel)) {
         _settings.wifi_channel = wifi_channel->valueint;
@@ -1219,7 +1233,9 @@ char * settings_to_json(Settings_t *settings)
     cJSON_AddNumberToObject(root, "wifi_mode", _settings.wifi_mode);
     cJSON_AddStringToObject(root, "wifi_ssid", _settings.wifi_ssid);
     cJSON_AddStringToObject(root, "wifi_ssid_ap", _settings.wifi_ssid_ap);
-    cJSON_AddStringToObject(root, "wifi_password", _settings.wifi_password); 
+    cJSON_AddStringToObject(root, "wifi_password", _settings.wifi_password);
+    cJSON_AddStringToObject(root, "wifi_password_ap", _settings.wifi_password_ap);
+    cJSON_AddStringToObject(root, "web_password", _settings.web_password);
     cJSON_AddNumberToObject(root, "timestamp", _settings.timestamp);
     cJSON_AddNumberToObject(root, "boot_reason", _settings.bootReason);
 
@@ -1285,4 +1301,39 @@ esp_err_t settings_set_wifi_mode(uint8_t mode)
     } else {
         return ESP_FAIL;
     }
+}
+
+char * settings_get_wifi_password_ap()
+{
+    return _settings.wifi_password_ap;
+}
+
+esp_err_t settings_set_wifi_password_ap(char *password)
+{
+    uint8_t passlen = strlen(password);
+    if (passlen == 0 || (passlen >= 8 && passlen < MAX_WIFI_AP_PASSW_LEN))
+    {
+        strncpy(_settings.wifi_password_ap, password, MAX_WIFI_AP_PASSW_LEN - 1);
+        _settings.wifi_password_ap[MAX_WIFI_AP_PASSW_LEN - 1] = '\0';
+        return ESP_OK;
+    }
+    return ESP_FAIL;
+}
+
+
+char * settings_get_web_password()
+{
+    return _settings.web_password;
+}
+
+esp_err_t settings_set_web_password(char *password)
+{
+    uint8_t passlen = strlen(password);
+    if (passlen == 0 || passlen < MAX_WEB_PASSWORD_LEN)
+    {
+        strncpy(_settings.web_password, password, MAX_WEB_PASSWORD_LEN - 1);
+        _settings.web_password[MAX_WEB_PASSWORD_LEN - 1] = '\0';
+        return ESP_OK;
+    }
+    return ESP_FAIL;
 }

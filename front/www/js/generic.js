@@ -1,5 +1,6 @@
 var valuesData = [];
 var alert_active_valueserr = false;
+var fwUpdateInProgress = false;
 var calibrating = false;
 var calibCounter = 0;
 const BYTES_PER_MB = 1024 * 1024;
@@ -18,7 +19,10 @@ function loadPage() {
   $("#menu_" + page).addClass("selected");
 
   getValues();
-  setInterval(getValues, 1000);
+  window.valuesInterval = setInterval(function () {
+    if (sessionStorage.getItem('fwFlashInProgress')) return;
+    getValues();
+  }, 1000);
 }
 
 function renderPage(page, page_version) {
@@ -154,6 +158,7 @@ function getValues() {
   query = "getValues";
 
   $.getJSON("./ajax/" + query, (data) => {
+    sessionStorage.removeItem('fwFlashInProgress');
     valuesData = data;
     // parse JSON data to div
 

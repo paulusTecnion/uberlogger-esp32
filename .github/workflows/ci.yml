@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: idf.py build
         shell: bash
@@ -59,12 +59,10 @@ jobs:
             sudo apt-get update && sudo apt-get install -y zip
           fi
           VERSION=$(cut -d= -f2 build_vars)
-          mkdir -p dist
-          cp firmware.bin ota_main.bin ota_filesystem.bin build_vars dist/
-          (cd dist && zip -r "uberlogger-esp32-${VERSION}.zip" firmware.bin ota_main.bin ota_filesystem.bin build_vars)
+          zip -r "uberlogger-esp32-${VERSION}.zip" firmware.bin ota_main.bin ota_filesystem.bin build_vars
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.setver.outputs.version }}
           path: |
@@ -72,7 +70,7 @@ jobs:
             ota_main.bin
             ota_filesystem.bin
             build_vars
-            dist/uberlogger-esp32-${{ steps.setver.outputs.version }}.zip
+            uberlogger-esp32-${{ steps.setver.outputs.version }}.zip
 
   release:
     name: Create tag & GitHub Release
@@ -82,12 +80,12 @@ jobs:
 
     steps:
       - name: Checkout (full history for tagging)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ${{ needs.build.outputs.version }}
           path: dist

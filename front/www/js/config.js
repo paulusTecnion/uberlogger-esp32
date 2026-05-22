@@ -83,6 +83,7 @@ function loadForm() {
     // parse JSON data to form
     parseConfig(data);
     wifiConfigVisibilityUpdate();
+    initConfigTabs();
 
     document.querySelector("#loading").style.display = "none";
     document.querySelector("#config").style.display = "block";
@@ -119,6 +120,51 @@ function parseConfig(data) {
   populateFields("#channel_configuration", data["DIN_ENABLED"]);
   populateFields("#channel_configuration", data["AIN_CHANNEL_LABELS"]);
   populateFields("#channel_configuration", data["DIO_CHANNEL_LABELS"]);
+
+  // Security mode selectors — initialised from _SET booleans returned by the server.
+  // data-originally-set remembers the server state so setConfig() can avoid sending
+  // unchanged passwords (which would trigger an unnecessary wifi_update_ap() call).
+  var apAuthMode = document.getElementById("WIFI_AP_AUTH_MODE");
+  if (apAuthMode) {
+    var apSet = !!data["WIFI_PASSWORD_AP_SET"];
+    apAuthMode.value = apSet ? "wpa2" : "open";
+    apAuthMode.dataset.originallySet = apSet ? "true" : "false";
+    updateApSecurityUI();
+  }
+  var staAuthMode = document.getElementById("WIFI_STA_AUTH_MODE");
+  if (staAuthMode) {
+    var staSet = !!data["WIFI_PASSWORD_SET"];
+    staAuthMode.value = staSet ? "password" : "open";
+    staAuthMode.dataset.originallySet = staSet ? "true" : "false";
+    updateStaSecurityUI();
+  }
+  var webAuthMode = document.getElementById("WEB_AUTH_MODE");
+  if (webAuthMode) {
+    var webSet = !!data["WEB_PASSWORD_SET"];
+    webAuthMode.value = webSet ? "password" : "none";
+    webAuthMode.dataset.originallySet = webSet ? "true" : "false";
+    updateWebSecurityUI();
+  }
+}
+
+
+// ── Security mode UI toggles ───────────────────────────────────────────────
+function updateApSecurityUI() {
+  var mode    = document.getElementById("WIFI_AP_AUTH_MODE");
+  var section = document.getElementById("wifi_ap_password_section");
+  if (mode && section) section.style.display = (mode.value === "wpa2") ? "block" : "none";
+}
+
+function updateStaSecurityUI() {
+  var mode    = document.getElementById("WIFI_STA_AUTH_MODE");
+  var section = document.getElementById("wifi_sta_password_section");
+  if (mode && section) section.style.display = (mode.value === "password") ? "block" : "none";
+}
+
+function updateWebSecurityUI() {
+  var mode    = document.getElementById("WEB_AUTH_MODE");
+  var section = document.getElementById("web_password_section");
+  if (mode && section) section.style.display = (mode.value === "password") ? "block" : "none";
 }
 
 function testWifiNetwork() {
@@ -423,10 +469,47 @@ function setConfig() {
     DIO_CHANNEL_LABELS: dioChannelLabels,
     WIFI_CHANNEL: input["WIFI_CHANNEL"],
     WIFI_MODE: input["WIFI_MODE"],
-    WIFI_PASSWORD: input["WIFI_PASSWORD"],
     WIFI_SSID: input["WIFI_SSID"],
     TIMESTAMP: Number(new Date()),
   };
+
+  // Password fields — only include in the POST when the user actually changed something.
+  // Sending WIFI_PASSWORD_AP triggers wifi_update_ap() server-side, which reconfigures
+  // the WiFi AP and can drop the current HTTP connection before the response is sent.
+  // Sending unchanged passwords caused the save to silently fail.
+  var apAuthMode = document.getElementById("WIFI_AP_AUTH_MODE");
+  if (apAuthMode) {
+    var apOriginallySet = (apAuthMode.dataset.originallySet === "true");
+    if (apAuthMode.value === "open" && apOriginallySet) {
+      config["WIFI_PASSWORD_AP"] = ""; // user switched from password → open: explicit clear
+    } else if (apAuthMode.value === "wpa2") {
+      var apPwd = $("[name=WIFI_PASSWORD_AP]", "#configuration").val();
+      if (apPwd) config["WIFI_PASSWORD_AP"] = apPwd; // new password typed
+    }
+    // else: already open and staying open → omit (no wifi_update_ap() call)
+  }
+
+  var staAuthMode = document.getElementById("WIFI_STA_AUTH_MODE");
+  if (staAuthMode) {
+    var staOriginallySet = (staAuthMode.dataset.originallySet === "true");
+    if (staAuthMode.value === "open" && staOriginallySet) {
+      config["WIFI_PASSWORD"] = ""; // user switched from password → open: explicit clear
+    } else if (staAuthMode.value === "password") {
+      var staPwd = $("[name=WIFI_PASSWORD]", "#configuration").val();
+      if (staPwd) config["WIFI_PASSWORD"] = staPwd;
+    }
+  }
+
+  var webAuthMode = document.getElementById("WEB_AUTH_MODE");
+  if (webAuthMode) {
+    var webOriginallySet = (webAuthMode.dataset.originallySet === "true");
+    if (webAuthMode.value === "none" && webOriginallySet) {
+      config["WEB_PASSWORD"] = ""; // user switched from password → none: explicit clear
+    } else if (webAuthMode.value === "password") {
+      var webPwd = $("[name=WEB_PASSWORD]", "#configuration").val();
+      if (webPwd) config["WEB_PASSWORD"] = webPwd;
+    }
+  }
 
   $.ajax({
     method: "POST",
@@ -455,6 +538,24 @@ function setConfig() {
       console.log("Failed, response=" + response["responseText"]);
     },
   });
+}
+
+// ── Tab navigation ────────────────────────────────────────────────────────
+function initConfigTabs() {
+  // Use delegated click so it works even if tabs are re-rendered.
+  $(document).off("click.configtab").on("click.configtab", ".tab-btn", function () {
+    var tab = $(this).data("tab");
+    $(".tab-btn").removeClass("active");
+    $(this).addClass("active");
+    $(".tab-pane").removeClass("active");
+    $("#tab-" + tab).addClass("active");
+    try { sessionStorage.setItem("config_tab", tab); } catch (e) {}
+  });
+
+  // Restore the last active tab (default: channels)
+  var lastTab = "channels";
+  try { lastTab = sessionStorage.getItem("config_tab") || "channels"; } catch (e) {}
+  $('[data-tab="' + lastTab + '"]').trigger("click");
 }
 
 function getFormDataAsJsonObject(form) {

@@ -1,0 +1,136 @@
+<h1>Firmware Update</h1>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- PHASE A: File selection                                               -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="fwupdate-phase-select" class="group">
+
+  <p class="note">
+    <b>Before you begin:</b> ensure an SD card is inserted. Do <b>not</b> power
+    off the device during the update.
+  </p>
+
+  <h3>Select firmware files</h3>
+  <p>
+    Select all three binary files produced by the build system. Each file must
+    have the exact filename shown below.
+  </p>
+
+  <div class="fw-file-list">
+
+    <!-- ota_main.bin -->
+    <div class="fw-file-row" id="fw-row-main">
+      <div class="fw-file-info">
+        <span class="fw-file-name">ota_main.bin</span>
+        <span class="fw-file-desc">ESP32 main application</span>
+      </div>
+      <label class="button fw-pick-btn" for="fw-input-main">Choose file</label>
+      <input id="fw-input-main" type="file" accept=".bin"
+             class="fw-hidden-input" data-expected="ota_main.bin" />
+      <span class="fw-chosen-name" id="fw-chosen-main">No file chosen</span>
+      <span class="fw-status-icon"  id="fw-icon-main"></span>
+    </div>
+
+    <!-- ota_support.bin -->
+    <div class="fw-file-row" id="fw-row-support">
+      <div class="fw-file-info">
+        <span class="fw-file-name">ota_support.bin</span>
+        <span class="fw-file-desc">STM32 support chip firmware</span>
+      </div>
+      <label class="button fw-pick-btn" for="fw-input-support">Choose file</label>
+      <input id="fw-input-support" type="file" accept=".bin"
+             class="fw-hidden-input" data-expected="ota_support.bin" />
+      <span class="fw-chosen-name" id="fw-chosen-support">No file chosen</span>
+      <span class="fw-status-icon"  id="fw-icon-support"></span>
+    </div>
+
+    <!-- ota_filesystem.bin -->
+    <div class="fw-file-row" id="fw-row-filesystem">
+      <div class="fw-file-info">
+        <span class="fw-file-name">ota_filesystem.bin</span>
+        <span class="fw-file-desc">SPIFFS filesystem image</span>
+      </div>
+      <label class="button fw-pick-btn" for="fw-input-filesystem">Choose file</label>
+      <input id="fw-input-filesystem" type="file" accept=".bin"
+             class="fw-hidden-input" data-expected="ota_filesystem.bin" />
+      <span class="fw-chosen-name" id="fw-chosen-filesystem">No file chosen</span>
+      <span class="fw-status-icon"  id="fw-icon-filesystem"></span>
+    </div>
+
+  </div><!-- /.fw-file-list -->
+
+  <div id="fwupdate-error" class="fwupdate-error-box" style="display:none;"></div>
+
+  <div class="button-group" style="margin-top:20px;">
+    <button type="button" class="button" id="fw-btn-upload" disabled>
+      Upload &amp; Update
+    </button>
+  </div>
+
+</div><!-- /#fwupdate-phase-select -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- PHASE B: Upload + flash progress                                      -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="fwupdate-phase-progress" style="display:none;" class="group">
+
+  <h3>Update in progress</h3>
+  <p class="note">Do <b>not</b> power off the device.</p>
+
+  <!-- Upload sub-phase -->
+  <div id="fw-upload-section">
+    <div class="fw-progress-label" id="fw-upload-label">Uploading files...</div>
+    <div class="fw-progress-track">
+      <div class="fw-progress-bar" id="fw-upload-bar" style="width:0%"></div>
+    </div>
+    <div class="fw-step-list">
+      <div class="fw-step" id="fw-step-main">
+        <span class="fw-step-dot"></span>
+        <span class="fw-step-text">ota_main.bin</span>
+        <span class="fw-step-pct" id="fw-pct-main">0%</span>
+      </div>
+      <div class="fw-step" id="fw-step-support">
+        <span class="fw-step-dot"></span>
+        <span class="fw-step-text">ota_support.bin</span>
+        <span class="fw-step-pct" id="fw-pct-support">0%</span>
+      </div>
+      <div class="fw-step" id="fw-step-filesystem">
+        <span class="fw-step-dot"></span>
+        <span class="fw-step-text">ota_filesystem.bin</span>
+        <span class="fw-step-pct" id="fw-pct-filesystem">0%</span>
+      </div>
+    </div>
+  </div><!-- /#fw-upload-section -->
+
+  <!-- Flash sub-phase (shown after startupgrade fires) -->
+  <div id="fw-flash-section" style="display:none;">
+    <div class="fw-progress-label" id="fw-flash-label">Flashing firmware...</div>
+    <div class="fw-progress-track">
+      <div class="fw-progress-bar" id="fw-flash-bar" style="width:50%"></div>
+    </div>
+    <div class="fw-progress-label" id="fw-flash-timer" style="font-size:0.9em; color:#888;">The green LED flashes while updating. Your PC may disconnect from the UberLogger Wi-Fi &mdash; reconnect manually if needed. Waiting... 120s</div>
+  </div><!-- /#fw-flash-section -->
+
+</div><!-- /#fwupdate-phase-progress -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- PHASE C: Done / reconnect                                             -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="fwupdate-phase-done" style="display:none;" class="group">
+
+  <h3 id="fw-done-title">Update complete</h3>
+
+  <p id="fw-done-msg">
+    The device has rebooted with the new firmware. Reconnect to the
+    UberLogger Wi-Fi network, then return to the
+    <a href="/">home page</a>.
+  </p>
+
+  <div id="fw-done-error" class="fwupdate-error-box" style="display:none;">
+    <b>Firmware update failed.</b> Reset the device and try again. If the
+    problem persists, contact support.
+  </div>
+
+</div><!-- /#fwupdate-phase-done -->

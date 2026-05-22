@@ -1,4 +1,5 @@
 /build
+/release
 /front/archive
 /front/sample/build
 /front/sample/node_modules

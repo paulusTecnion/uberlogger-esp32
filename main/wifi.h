@@ -33,5 +33,8 @@ esp_err_t wifi_disconnect_ap();
 /// @brief Starts the wifi.
 /// @return ESP_OK if succesfull, ESP_FAIL if not.
 esp_err_t wifi_start();
+/// @brief Updates the AP configuration at runtime (password, hidden SSID, channel).
+/// @return ESP_OK if succesfull, ESP_FAIL if not.
+esp_err_t wifi_update_ap();
 
 #endif

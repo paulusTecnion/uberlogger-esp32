@@ -279,7 +279,7 @@ esp_err_t wifi_start()
             .channel = settings_get_wifi_channel(),
             // .password = wifi_pass,
             .max_connection = EXAMPLE_MAX_STA_CONN,
-            .authmode = WIFI_AUTH_WPA_WPA2_PSK,
+            .authmode = WIFI_AUTH_WPA2_WPA3_PSK,
         },
         // .sta = {
         //     /* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (pasword len => 8).
@@ -295,7 +295,7 @@ esp_err_t wifi_start()
     // always default to Uberlogger
     strcpy((char*)wifi_config.ap.ssid, settings_get_wifi_ssid_ap());
     wifi_config.ap.ssid_len = strlen((const char*)(wifi_config.ap.ssid));
-    strcpy((char*)wifi_config.ap.password, "");
+    strcpy((char*)wifi_config.ap.password, settings_get_wifi_password_ap());
 
     if (strlen((const char*)(wifi_config.ap.password)) == 0) {
         wifi_config.ap.authmode =  WIFI_AUTH_OPEN;
@@ -338,6 +338,27 @@ esp_err_t wifi_start()
 
      return ESP_OK;
 
+}
+
+esp_err_t wifi_update_ap()
+{
+    wifi_config_t wifi_config = {
+        .ap = {
+            .channel = settings_get_wifi_channel(),
+            .max_connection = EXAMPLE_MAX_STA_CONN,
+            .authmode = WIFI_AUTH_WPA2_WPA3_PSK,
+        },
+    };
+
+    strcpy((char*)wifi_config.ap.ssid, settings_get_wifi_ssid_ap());
+    wifi_config.ap.ssid_len = strlen((const char*)(wifi_config.ap.ssid));
+    strcpy((char*)wifi_config.ap.password, settings_get_wifi_password_ap());
+
+    if (strlen((const char*)(wifi_config.ap.password)) == 0) {
+        wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    }
+
+    return esp_wifi_set_config(WIFI_IF_AP, &wifi_config);
 }
 
 int8_t wifi_get_rssi()

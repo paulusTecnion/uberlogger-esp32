@@ -776,7 +776,7 @@ a:hover {
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-start;
   max-width: 800px;
 }
 
@@ -784,6 +784,16 @@ a:hover {
   flex: 1;
   min-width: 220px;
   margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+  .form-group {
+    flex: 0 0 100%;
+    min-width: unset;
+  }
+  .form-grid-container {
+    gap: 10px;
+  }
 }
 
 /* .form-group {
@@ -1060,4 +1070,145 @@ details summary:hover {
   #menu_items {
     display: none;
   }
+}
+
+/* ── Narrow form group (e.g. small selects like Wi-Fi channel) ─────────── */
+.form-group-narrow {
+  flex: 0 0 160px;
+  min-width: unset;
+}
+
+/* ── Inline field row: label + compact select/input on one line ─────────── */
+.field-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.field-inline label {
+  margin-bottom: 0;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.select-inline {
+  width: auto !important;
+  min-width: 80px;
+  flex-shrink: 0;
+  margin-bottom: 0 !important;
+}
+
+/* ── Inline SVG icon inside buttons ────────────────────────────────────── */
+.btn-icon {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  vertical-align: -2px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Config page tabs ─────────────────────────────────────────────────── */
+.config-tab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 16px 20px 0;
+  border-bottom: 2px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.tab-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: 3px solid transparent;
+  padding: 9px 22px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  border-radius: 4px 4px 0 0;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.tab-btn:hover  { color: #f78661; background: #fff3ee; }
+.tab-btn.active { color: #f78661; border-bottom-color: #f78661; background: #fff; }
+
+.tab-pane        { display: none; padding: 20px 20px 30px; }
+.tab-pane.active { display: block; }
+
+@media (max-width: 768px) {
+  .config-tab-nav { padding: 10px 8px 0; gap: 1px; }
+  .tab-btn        { padding: 8px 12px; font-size: 13px; }
+}
+
+/* ── Firmware update page ─────────────────────────────────────────── */
+.fw-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 700px;
+  margin: 16px 0;
+}
+
+.fw-file-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+}
+.fw-file-row.fw-row-ok  { border-color: #4caf50; background: #f1fbf2; }
+.fw-file-row.fw-row-bad { border-color: #e53935; background: #fff5f5; }
+
+.fw-file-info   { flex: 1 1 180px; min-width: 140px; }
+.fw-file-name   { font-family: monospace; font-size: .92rem; font-weight: 700; display: block; }
+.fw-file-desc   { font-size: .8rem; color: #666; }
+
+.fw-hidden-input { display: none; }
+.fw-pick-btn    { cursor: pointer; padding: 8px 14px !important; white-space: nowrap; margin: 0 !important; }
+.fw-chosen-name { flex: 1 1 120px; font-size: .85rem; color: #555; word-break: break-all; }
+.fw-status-icon { font-size: 1.1rem; width: 1.4em; text-align: center; }
+
+.fwupdate-error-box {
+  background: #fff5f5;
+  border: 1px solid #e53935;
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #b71c1c;
+  margin: 12px 0;
+  max-width: 700px;
+  font-size: .9rem;
+}
+
+.fw-progress-track {
+  background: #e0e0e0;
+  border-radius: 4px;
+  height: 10px;
+  max-width: 600px;
+  overflow: hidden;
+  margin: 8px 0 14px;
+}
+.fw-progress-bar   { background: #f78661; height: 100%; border-radius: 4px; transition: width .3s ease; }
+.fw-progress-label { font-weight: 600; margin-bottom: 4px; }
+
+.fw-step-list { display: flex; flex-direction: column; gap: 6px; max-width: 600px; }
+.fw-step      { display: flex; align-items: center; gap: 10px; font-size: .88rem; color: #555; }
+.fw-step.fw-step-active { color: #f78661; font-weight: 600; }
+.fw-step.fw-step-done   { color: #4caf50; }
+.fw-step.fw-step-error  { color: #e53935; }
+
+.fw-step-dot  { width: 10px; height: 10px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+.fw-step.fw-step-active .fw-step-dot { background: #f78661; }
+.fw-step.fw-step-done   .fw-step-dot { background: #4caf50; }
+.fw-step.fw-step-error  .fw-step-dot { background: #e53935; }
+
+.fw-step-pct  { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 600px) {
+  .fw-file-row  { flex-direction: column; align-items: flex-start; }
+  .fw-pick-btn  { width: 100%; text-align: center; box-sizing: border-box; }
 }
