@@ -14,7 +14,7 @@
 #include "esp_wifi_types.h"
 #include "mbedtls/base64.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "esp_timer.h"
 
 char * endpoint_response_char[] = 
 {
@@ -47,25 +47,23 @@ typedef struct rest_server_context {
 
 httpd_handle_t server = NULL;
 
-static void wifi_update_ap_deferred_task(void *arg)
+static void wifi_update_ap_timer_cb(void *arg)
 {
     (void)arg;
-    vTaskDelay(pdMS_TO_TICKS(250));
     wifi_update_ap();
-    vTaskDelete(NULL);
 }
 
 static void schedule_wifi_update_ap_deferred(void)
 {
-    BaseType_t rc = xTaskCreate(
-        wifi_update_ap_deferred_task,
-        "wifi_ap_upd",
-        2048,
-        NULL,
-        tskIDLE_PRIORITY + 1,
-        NULL);
+    esp_timer_handle_t timer;
+    const esp_timer_create_args_t timer_args = {
+        .callback = wifi_update_ap_timer_cb,
+        .arg = NULL,
+        .name = "wifi_ap_upd",
+    };
 
-    if (rc != pdPASS) {
+    if (esp_timer_create(&timer_args, &timer) != ESP_OK ||
+        esp_timer_start_once(timer, 250 * 1000) != ESP_OK) {
         ESP_LOGW(REST_TAG, "Failed to schedule deferred AP update, applying immediately");
         wifi_update_ap();
     }
@@ -1176,28 +1174,21 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     {
         if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
         {
-            // wifi_connect_to_ap(); 
-            // Send task to wifi queue to connect to access point
-            // 
-            // Logtask_wifi_connect_ap();
-            wifi_connect_to_ap();
+            Logtask_wifi_connect_ap();
         } else {
-            // send event to wifi to disconnect from access point
-            // Logtask_wifi_disconnect_ap();
-            wifi_disconnect_ap();
+            Logtask_wifi_disconnect_ap();
         }
     } else if // if any wifi setting has changed, then we need to reconnect to the access point when mode is WIFI_MODE_APSTA
-        (settings_get_wifi_mode() == WIFI_MODE_APSTA && 
+        (settings_get_wifi_mode() == WIFI_MODE_APSTA &&
         (
         (wifi_is_connected_to_ap() == false)  ||
-        (oldSettings.wifi_channel != settings_get_wifi_channel()) || 
-        (strcmp(oldSettings.wifi_ssid_ap, settings_get_wifi_ssid_ap()) != 0)  || 
+        (oldSettings.wifi_channel != settings_get_wifi_channel()) ||
+        (strcmp(oldSettings.wifi_ssid_ap, settings_get_wifi_ssid_ap()) != 0)  ||
         (strcmp(oldSettings.wifi_password, settings_get_wifi_password()) !=0 )
         ))
     {
         // a connect event automatically disconnects and reconnects to an access point
-        // Logtask_wifi_connect_ap();
-        wifi_connect_to_ap();
+        Logtask_wifi_connect_ap();
     }
 
     // only send ack in case wifi mode has not changed. Else the next will get stuck
@@ -1581,15 +1572,12 @@ err:
 
 esp_err_t stop_rest_server(void)
 {
-    httpd_handle_t server = NULL;
-    
     if (server == NULL)
     {
         ESP_LOGE(REST_TAG, "Server not started");
         return ESP_FAIL;
     }
     httpd_stop(server);
-    
     server = NULL;
     return ESP_OK;
 }

@@ -2381,8 +2381,8 @@ void task_logging(void * pvParameters)
             break;
             case LOGTASK_FWUPDATE:          Logtask_fw_update();                break;
             case LOGTASK_FORMAT_SDCARD:     esp_sd_card_format();               break;
-            // case LOGTASK_WIFI_CONNECT_AP:   wifi_connect_to_ap();               break;
-            // case LOGTASK_WIFI_DISCONNECT_AP: wifi_disconnect_ap();              break;
+            case LOGTASK_WIFI_CONNECT_AP:    wifi_connect_to_ap();               break;
+            case LOGTASK_WIFI_DISCONNECT_AP: wifi_disconnect_ap();               break;
 
             default:                                                    
             ESP_LOGE(TAG_LOG, "Unknown task: %d", _currentLogTaskState);        break;
