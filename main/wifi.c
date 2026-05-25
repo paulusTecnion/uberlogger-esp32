@@ -108,10 +108,10 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         // Only when in STA mode, we try to reconnect
         // Else when changing from STA to APSTA mode,
         // we keep connecting after a disconnect.
-		if (settings_get_wifi_mode() == WIFI_MODE_APSTA) 
+		if (settings_get_wifi_mode() == WIFI_MODE_APSTA ||
+            settings_get_wifi_mode() == WIFI_MODE_STA)
         {
             esp_wifi_connect();
-            // Logtask_wifi_connect_ap();s
         }
 		xEventGroupClearBits(wifi_event_group, CONNECTED_BIT | FAIL_BIT);
 
@@ -329,7 +329,14 @@ esp_err_t wifi_start()
 
     wifi_enabled = 1;
 
-     if (settings_get_wifi_mode() == WIFI_MODE_APSTA) {
+     uint8_t mode = settings_get_wifi_mode();
+
+     // Apply the configured mode after AP config has been stored, so a
+     // runtime switch (e.g. via long-press to fall back to AP) still has
+     // a valid AP config waiting in the driver.
+     ESP_ERROR_CHECK(esp_wifi_set_mode(mode));
+
+     if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_STA) {
         #ifdef DEBUG_WIFI
         ESP_LOGI(TAG, "Connecting with AP");
         #endif
@@ -359,6 +366,32 @@ esp_err_t wifi_update_ap()
     }
 
     return esp_wifi_set_config(WIFI_IF_AP, &wifi_config);
+}
+
+esp_err_t wifi_change_mode(uint8_t new_mode)
+{
+    if (new_mode != WIFI_MODE_AP &&
+        new_mode != WIFI_MODE_STA &&
+        new_mode != WIFI_MODE_APSTA)
+    {
+        return ESP_FAIL;
+    }
+
+    esp_err_t err = esp_wifi_set_mode((wifi_mode_t)new_mode);
+    if (err != ESP_OK) return err;
+
+    // If the new mode includes STA, kick off a connection attempt.
+    // If it's AP-only, make sure any pending STA connection is dropped.
+    if (new_mode == WIFI_MODE_APSTA || new_mode == WIFI_MODE_STA)
+    {
+        wifi_connect_to_ap();
+    }
+    else
+    {
+        esp_wifi_disconnect();
+    }
+
+    return ESP_OK;
 }
 
 int8_t wifi_get_rssi()
