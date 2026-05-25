@@ -984,27 +984,32 @@ void Logger_mode_button_pushed()
 
 void Logger_mode_button_long_pushed()
 {
-    if (_currentLogTaskState == LOGTASK_IDLE || 
+    if (_currentLogTaskState == LOGTASK_IDLE ||
         _currentLogTaskState == LOGTASK_ERROR_OCCURED ||
         _currentLogTaskState == LOGTASK_SINGLE_SHOT)
     {
-        if (settings_get_wifi_mode()==WIFI_MODE_APSTA)
+        uint8_t mode = settings_get_wifi_mode();
+        if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_STA)
         {
             settings_set_wifi_mode(WIFI_MODE_AP);
             #ifdef DEBUG_LOGTASK
             ESP_LOGI(TAG_LOG, "Switching to AP mode");
             #endif
-            
-            
-            // Push to queueu
-            // settings_persist_settings();
+
             LoggerState_t t = LOGTASK_PERSIST_SETTINGS;
             xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
 
             wifi_disconnect_ap();
+
+            // For STA-only fallback, the driver must be put back into a
+            // mode that has an AP interface; otherwise the user has no
+            // recovery path until the next reboot.
+            if (mode == WIFI_MODE_STA)
+            {
+                wifi_change_mode(WIFI_MODE_AP);
+            }
         }
     }
-   
 }
 
 esp_err_t Logger_format_sdcard()
