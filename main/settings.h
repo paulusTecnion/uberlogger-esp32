@@ -26,8 +26,9 @@
 #define FILE_NAME_MODE_TIMESTAMP 1
 
 #define MAX_WIFI_SSID_LEN 32
-#define MAX_WIFI_PASSW_LEN 20
-#define MAX_WIFI_AP_PASSW_LEN 64  // WPA2 allows up to 63 chars + null
+#define MAX_WIFI_PASSW_LEN 65         // WPA2 allows up to 63 chars + null (+1 slack)
+#define MAX_WIFI_PASSW_LEN_OLD 20     // legacy size — keep for binary migration of Settings_old_t
+#define MAX_WIFI_AP_PASSW_LEN 64      // WPA2 allows up to 63 chars + null
 #define MAX_WEB_PASSWORD_LEN 32
 
 #define NUM_ADC_CHANNELS 8
@@ -203,7 +204,7 @@ struct Settings_old_t {
 	uint8_t logMode;
 	char wifi_ssid[MAX_WIFI_SSID_LEN];
 	char wifi_ssid_ap[MAX_WIFI_SSID_LEN];
-	char wifi_password[MAX_WIFI_PASSW_LEN];
+	char wifi_password[MAX_WIFI_PASSW_LEN_OLD]; // pinned to old size so legacy binary blobs still parse
 	uint8_t wifi_channel;
 	uint8_t wifi_mode;
 	uint32_t timestamp; // time in BCD format
