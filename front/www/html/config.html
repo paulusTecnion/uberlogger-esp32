@@ -556,6 +556,21 @@
             connects to your Wi-Fi network as a client. You can then also access the
             UberLogger through the IP address assigned by your DHCP server.
           </label>
+
+          <input
+            id="wifi_mode_sta"
+            name="WIFI_MODE"
+            class="element radio json-as-number"
+            type="radio"
+            value="2"
+            onclick="wifiConfigVisibilityUpdate();"
+          />
+          <label class="choice" for="wifi_mode_sta">
+            Client mode only<br />UberLogger connects to your Wi-Fi network as a
+            client and the hotspot is disabled. Access the device through the IP
+            address assigned by your DHCP server. If the network is unreachable,
+            hold the MODE button for 5 seconds to fall back to hotspot-only mode.
+          </label>
         </span>
 
         <div id="wifi_client_settings">

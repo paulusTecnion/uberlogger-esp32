@@ -185,11 +185,12 @@ function testWifiNetwork() {
 function wifiConfigVisibilityUpdate() {
   var show_parameters = $("input[name='WIFI_MODE']:checked").val();
 
-  if (show_parameters == "1") {
+  // Show client (STA) settings for both Hotspot+Client (1) and Client-only (2)
+  if (show_parameters == "1" || show_parameters == "2") {
     document.querySelector("#wifi_client_settings").style.display =
-      "inline-block"; // hide parameters
+      "inline-block";
   } else {
-    document.querySelector("#wifi_client_settings").style.display = "none"; // show parameters
+    document.querySelector("#wifi_client_settings").style.display = "none";
   }
 }
 
