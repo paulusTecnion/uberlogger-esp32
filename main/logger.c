@@ -876,9 +876,27 @@ esp_err_t Logger_syncSettings(uint8_t syncTime)
     return ESP_OK;
 }
 
+// True when the logger is sitting in a settled, non-busy state: idle or a
+// momentary single-shot (which immediately drops back to idle). Used to gate
+// operations that require a known-good state -- settings sync, calibration,
+// firmware update, the external auto-trigger.
+static bool Logger_state_is_settled(void)
+{
+    LoggerState_t s = _currentLogTaskState;
+    return (s == LOGTASK_IDLE) || (s == LOGTASK_SINGLE_SHOT);
+}
+
+// True when the logger is settled OR recovering from an error. Used to gate
+// user-initiated recovery actions that should still work after a fault:
+// start logging, format the SD card, reset credentials.
+static bool Logger_state_allows_recovery_action(void)
+{
+    return Logger_state_is_settled() || (_currentLogTaskState == LOGTASK_ERROR_OCCURED);
+}
+
 esp_err_t Logtask_sync_settings()
 {
-    if (_currentLogTaskState != LOGTASK_IDLE && _currentLogTaskState != LOGTASK_SINGLE_SHOT)
+    if (!Logger_state_is_settled())
     {
         ESP_LOGE(TAG_LOG, "Cannot sync settings while logging or calibration. State = %u", _currentLogTaskState);
         return ESP_FAIL;
@@ -966,9 +984,7 @@ uint8_t Logger_getCsvLog()
 void Logger_mode_button_pushed()
 {
 
-    if ((_currentLogTaskState == LOGTASK_IDLE || 
-        _currentLogTaskState == LOGTASK_ERROR_OCCURED || 
-        _currentLogTaskState == LOGTASK_SINGLE_SHOT) && 
+    if (Logger_state_allows_recovery_action() &&
         (settings_get_ext_trigger_mode() != TRIGGER_MODE_EXTERNAL_CONTROL))
     {
         LogTask_start();
@@ -984,9 +1000,7 @@ void Logger_mode_button_pushed()
 
 bool Logger_mode_button_long_pushed()
 {
-    if (_currentLogTaskState == LOGTASK_IDLE ||
-        _currentLogTaskState == LOGTASK_ERROR_OCCURED ||
-        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
+    if (Logger_state_allows_recovery_action())
     {
         uint8_t mode = settings_get_wifi_mode();
 
@@ -1030,9 +1044,7 @@ bool Logger_mode_button_long_pushed()
 
 esp_err_t Logger_format_sdcard()
 {
-    if (_currentLogTaskState == LOGTASK_IDLE ||
-        _currentLogTaskState == LOGTASK_ERROR_OCCURED || 
-        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
+    if (Logger_state_allows_recovery_action())
     {
         LoggerState_t t = LOGTASK_FORMAT_SDCARD;
         xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
@@ -1045,9 +1057,7 @@ esp_err_t Logger_format_sdcard()
 esp_err_t LogTask_start()
 {
     CLEAR_ERRORS(_errorCode);
-    if ((_currentLogTaskState == LOGTASK_IDLE ||
-        _currentLogTaskState == LOGTASK_ERROR_OCCURED || 
-        _currentLogTaskState == LOGTASK_SINGLE_SHOT) && 
+    if (Logger_state_allows_recovery_action() &&
         xQueue != NULL)
     {
         // gpio_set_level(GPIO_ADC_EN, 1);
@@ -1111,8 +1121,7 @@ size_t Logger_flush_buffer_to_sd_card_uint8(uint8_t * buffer, size_t size)
 esp_err_t Logger_calibrate()
 {
     // #ifdef DEBUG_LOGGING
-    if (_currentLogTaskState == LOGTASK_IDLE || 
-        _currentLogTaskState == LOGTASK_SINGLE_SHOT)
+    if (Logger_state_is_settled())
         {
             ESP_LOGI(TAG_LOG, "Logger_calibrate() called");
 
@@ -1363,8 +1372,7 @@ esp_err_t Logger_flush_to_sdcard()
 
 esp_err_t Logger_startFWupdate()
 {
-    if (((_currentLogTaskState == LOGTASK_IDLE) ||
-        (_currentLogTaskState == LOGTASK_SINGLE_SHOT)))
+    if (Logger_state_is_settled())
     // if (xSemaphoreTake(idle_state, 1000 / portTICK_PERIOD_MS) != pdTRUE)
     {
        // #ifdef DEBUG_LOGGING
@@ -2370,10 +2378,9 @@ void task_logging(void * pvParameters)
             ESP_LOGI(TAG_LOG, "Received task: %d", _currentLogTaskState);
         }
 
-        if (gpio_get_level(GPIO_EXT_PIN) && 
-            (_currentLogTaskState == LOGTASK_IDLE ||
-            _currentLogTaskState == LOGTASK_SINGLE_SHOT) && 
-            settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL && 
+        if (gpio_get_level(GPIO_EXT_PIN) &&
+            Logger_state_is_settled() &&
+            settings_get_ext_trigger_mode() == TRIGGER_MODE_EXTERNAL_CONTROL &&
             _startLogTask == 0 && 
             _systemTimeSet == 1) // first set the system time, else we get the wrong date in our filename
             {
