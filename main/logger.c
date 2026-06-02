@@ -982,34 +982,50 @@ void Logger_mode_button_pushed()
 
 }
 
-void Logger_mode_button_long_pushed()
+bool Logger_mode_button_long_pushed()
 {
     if (_currentLogTaskState == LOGTASK_IDLE ||
         _currentLogTaskState == LOGTASK_ERROR_OCCURED ||
         _currentLogTaskState == LOGTASK_SINGLE_SHOT)
     {
         uint8_t mode = settings_get_wifi_mode();
-        if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_STA)
+
+        // Recovery gesture: reset all access credentials to their defaults
+        // (empty = open hotspot / no web auth) so a user who locked
+        // themselves out can always get back into the device. This must work
+        // in EVERY mode -- including AP-only, which is the most common
+        // lockout case (a hotspot password was set and forgotten).
+        settings_set_wifi_password("");      // STA / client network
+        settings_set_wifi_password_ap("");   // device's own hotspot
+        settings_set_web_password("");        // web UI HTTP auth
+
+        settings_set_wifi_mode(WIFI_MODE_AP);
+        #ifdef DEBUG_LOGTASK
+        ESP_LOGI(TAG_LOG, "Resetting credentials and switching to AP mode");
+        #endif
+
+        LoggerState_t t = LOGTASK_PERSIST_SETTINGS;
+        xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
+
+        wifi_disconnect_ap();
+
+        // If we weren't already AP-only, put the driver into a mode that has
+        // an AP interface up so the user has an immediate recovery path
+        // without a reboot.
+        if (mode != WIFI_MODE_AP)
         {
-            settings_set_wifi_mode(WIFI_MODE_AP);
-            #ifdef DEBUG_LOGTASK
-            ESP_LOGI(TAG_LOG, "Switching to AP mode");
-            #endif
-
-            LoggerState_t t = LOGTASK_PERSIST_SETTINGS;
-            xQueueSend(xQueue, &t, 1000/portTICK_PERIOD_MS);
-
-            wifi_disconnect_ap();
-
-            // For STA-only fallback, the driver must be put back into a
-            // mode that has an AP interface; otherwise the user has no
-            // recovery path until the next reboot.
-            if (mode == WIFI_MODE_STA)
-            {
-                wifi_change_mode(WIFI_MODE_AP);
-            }
+            wifi_change_mode(WIFI_MODE_AP);
         }
+
+        // wifi_change_mode() only sets the mode, not the AP credentials.
+        // Re-apply the (now cleared) AP config so the live hotspot drops its
+        // password and becomes open immediately, without a reboot.
+        wifi_update_ap();
+
+        return true;
     }
+
+    return false;
 }
 
 esp_err_t Logger_format_sdcard()

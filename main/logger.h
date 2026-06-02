@@ -9,6 +9,7 @@
 #include <stdio.h>
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 #include "settings.h"
@@ -261,7 +262,7 @@ uint8_t Logger_setCsvLog(log_mode_t value);
 uint8_t Logger_getCsvLog();
 
 uint8_t Logger_mode_button();
-void Logger_mode_button_long_pushed();
+bool Logger_mode_button_long_pushed();
 void Logger_mode_button_pushed();
 esp_err_t Logger_syncSettings(uint8_t syncTime);
 // External function to be called outside logger task
