@@ -1063,7 +1063,14 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel", HTTPD_400_BAD_REQUEST);
             goto error;
         }
-        ap_update_required = true;
+        // Only restart the AP if the channel actually changed; otherwise a
+        // "Save all settings" that merely echoes the current channel would
+        // needlessly deauth the connected client. Mirrors the STA-reconnect
+        // change-check below.
+        if (oldSettings.wifi_channel != settings_get_wifi_channel())
+        {
+            ap_update_required = true;
+        }
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
@@ -1084,7 +1091,11 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting AP password. Must be empty (open) or 8-63 characters.", HTTPD_400_BAD_REQUEST);
             goto error;
         }
-        ap_update_required = true;
+        // Only restart the AP if the password actually changed (see above).
+        if (strcmp(oldSettings.wifi_password_ap, settings_get_wifi_password_ap()) != 0)
+        {
+            ap_update_required = true;
+        }
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WEB_PASSWORD");
