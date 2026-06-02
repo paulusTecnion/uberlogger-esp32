@@ -1294,7 +1294,7 @@ uint8_t settings_get_wifi_mode()
 
 esp_err_t settings_set_wifi_mode(uint8_t mode)
 {
-    if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_AP)
+    if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_AP || mode == WIFI_MODE_STA)
     {
         _settings.wifi_mode = mode;
         return ESP_OK;

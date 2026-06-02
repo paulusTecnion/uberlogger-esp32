@@ -37,4 +37,10 @@ esp_err_t wifi_start();
 /// @return ESP_OK if succesfull, ESP_FAIL if not.
 esp_err_t wifi_update_ap();
 
+/// @brief Switches the WiFi mode at runtime (AP, APSTA, or STA).
+/// Updates the ESP-IDF driver mode and reconnects/disconnects as needed.
+/// @param new_mode WIFI_MODE_AP, WIFI_MODE_STA, or WIFI_MODE_APSTA
+/// @return ESP_OK if succesfull, ESP_FAIL if not.
+esp_err_t wifi_change_mode(uint8_t new_mode);
+
 #endif

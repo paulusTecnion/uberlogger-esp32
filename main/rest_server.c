@@ -235,6 +235,7 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
 
     char *chunk = rest_context->scratch;
     ssize_t read_bytes;
+    size_t total_sent = 0;  // diagnostic: how far we got before any stall
     do {
         /* Read file in chunks into the scratch buffer */
         read_bytes = read(fd, chunk, SCRATCH_BUFSIZE);
@@ -244,13 +245,15 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
             /* Send the buffer contents as HTTP response chunk */
             if (httpd_resp_send_chunk(req, chunk, read_bytes) != ESP_OK) {
                 close(fd);
-                ESP_LOGE(REST_TAG, "File sending failed!");
+                ESP_LOGE(REST_TAG, "File sending failed: %s (sent %u bytes before stall)",
+                         filepath, (unsigned)total_sent);
                 /* Abort sending file */
                 httpd_resp_sendstr_chunk(req, NULL);
                 /* Respond with 500 Internal Server Error */
                 httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
                 return ESP_FAIL;
             }
+            total_sent += read_bytes;
         }
     } while (read_bytes > 0);
     /* Close file after sending complete */
@@ -1063,7 +1066,14 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting Wifi channel", HTTPD_400_BAD_REQUEST);
             goto error;
         }
-        ap_update_required = true;
+        // Only restart the AP if the channel actually changed; otherwise a
+        // "Save all settings" that merely echoes the current channel would
+        // needlessly deauth the connected client. Mirrors the STA-reconnect
+        // change-check below.
+        if (oldSettings.wifi_channel != settings_get_wifi_channel())
+        {
+            ap_update_required = true;
+        }
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");
@@ -1084,7 +1094,11 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting AP password. Must be empty (open) or 8-63 characters.", HTTPD_400_BAD_REQUEST);
             goto error;
         }
-        ap_update_required = true;
+        // Only restart the AP if the password actually changed (see above).
+        if (strcmp(oldSettings.wifi_password_ap, settings_get_wifi_password_ap()) != 0)
+        {
+            ap_update_required = true;
+        }
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WEB_PASSWORD");
@@ -1390,7 +1404,17 @@ esp_err_t start_rest_server(const char *base_path)
     server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 18;
-    config.task_priority = tskIDLE_PRIORITY+1;
+    // The default httpd task priority (tskIDLE_PRIORITY+1) is the lowest in the
+    // system, so it gets starved by the logger/WiFi tasks and is slow to drain
+    // socket sends. Bump it so responses keep flowing under load.
+    config.task_priority = tskIDLE_PRIORITY+5;
+    // esp_http_server is single-threaded: a blocking send/recv on one stalled
+    // client socket wedges the whole server for the full timeout. The default
+    // is 5s, so an abandoned connection (e.g. the browser navigating away
+    // mid-load while the device is busy calibrating) freezes all other
+    // requests for 5s at a time. Shorten it so the server recovers quickly.
+    config.send_wait_timeout = 2;
+    config.recv_wait_timeout = 2;
     config.uri_match_fn = httpd_uri_match_wildcard;
     // enable the next in order to prevent occasional http response freezes
     config.lru_purge_enable = true;
