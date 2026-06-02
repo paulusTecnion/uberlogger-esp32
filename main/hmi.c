@@ -151,12 +151,23 @@ void task_hmi(void* ignore) {
             case MODEBUTTON_HOLD:
                 // if held for longer than 5 seconds, we will put the system to SoftAP mode
                 // ESP_LOGI(TAG, "Button held for %ld ms", 10*(xTaskGetTickCount() - startTick));
-                if ((xTaskGetTickCount() - startTick) > 500 && 
+                if ((xTaskGetTickCount() - startTick) > 500 &&
                     longPush == 0 )
                 {
-                    Logger_mode_button_long_pushed();  
+                    if (Logger_mode_button_long_pushed())
+                    {
+                        // Credentials were reset to defaults: flash both LEDs
+                        // together a few times so the user gets clear visual
+                        // confirmation that the reset happened.
+                        for (uint8_t i = 0; i < 6; i++)
+                        {
+                            gpio_set_level(GPIO_HMI_LED_GREEN, i & 1);
+                            gpio_set_level(GPIO_HMI_LED_RED, i & 1);
+                            vTaskDelay(150 / portTICK_PERIOD_MS);
+                        }
+                    }
                     longPush = 1;
-                } 
+                }
             break;
 
             case MODEBUTTON_RELEASED:

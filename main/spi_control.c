@@ -96,29 +96,25 @@ esp_err_t spi_ctrl_datardy_int(uint8_t value)
         #ifdef DEBUG_SPI_CONTROL
         ESP_LOGI(TAG_SPI_CTRL, "Enabling data_rdy interrupts");
         #endif
-        // Trigger on up and down edges
-        if (gpio_install_isr_service(ESP_INTR_FLAG_IRAM) != ESP_OK)
-        {
-            ESP_LOGE(TAG_SPI_CTRL, "Unable to install ISR service");
-            return ESP_FAIL;
-        }
+        // The GPIO ISR service is a global, install-once resource and is
+        // installed in spi_ctrl_init(). Here we only (re)attach the per-pin
+        // handler for the data-ready line.
         // gpio_set_intr_type(GPIO_DATA_RDY_PIN, GPIO_INTR_POSEDGE) == ESP_OK &&
         if (gpio_isr_handler_add(GPIO_DATA_RDY_PIN, gpio_handshake_isr_handler, NULL) != ESP_OK)
         {
             ESP_LOGE(TAG_SPI_CTRL, "Unable to add ISR handler");
             return ESP_FAIL;
         }
-    
+
         return ESP_OK;
     } else if (value == 0) {
         #ifdef DEBUG_SPI_CONTROL
         ESP_LOGI(TAG_SPI_CTRL, "Removing ISR handler" );
         #endif
+        // Only detach the per-pin handler. The global ISR service stays
+        // installed for the lifetime of the application (see spi_ctrl_init()),
+        // so we never uninstall it here.
         gpio_isr_handler_remove(GPIO_DATA_RDY_PIN);
-        #ifdef DEBUG_SPI_CONTROL
-        ESP_LOGI(TAG_SPI_CTRL, "Uninstalling ISR service");
-        #endif
-        gpio_uninstall_isr_service();
         return ESP_OK;
     } else {
         return ESP_FAIL;
@@ -165,6 +161,17 @@ esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point)
     };
 
     gpio_config(&io_conf);
+
+    // Install the global GPIO ISR service exactly once, for the lifetime of
+    // the application. Logging start/stop only adds/removes the per-pin
+    // handler (see spi_ctrl_datardy_int), so the service is never uninstalled.
+    // ESP_ERR_INVALID_STATE means it was already installed, which is fine.
+    ret = gpio_install_isr_service(ESP_INTR_FLAG_IRAM);
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE)
+    {
+        ESP_LOGE(TAG_SPI_CTRL, "Unable to install ISR service");
+        return ESP_FAIL;
+    }
 
     gpio_set_drive_capability(STM32_SPI_MOSI, GPIO_DRIVE_CAP_3);
     gpio_set_drive_capability(STM32_SPI_SCLK, GPIO_DRIVE_CAP_3);
