@@ -2,6 +2,7 @@
   "TIMESTAMP": 1673607089000,
   "WIFI_MODE": 1,
   "WIFI_SSID": "test wifi",
+  "WIFI_SSID_HIDDEN": false,
   "WIFI_PASSWORD_SET": true,
   "WIFI_PASSWORD_AP_SET": false,
   "WEB_PASSWORD_SET": false,
