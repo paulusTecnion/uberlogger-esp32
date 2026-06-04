@@ -44,8 +44,15 @@ esp_err_t wifi_update_ap();
 esp_err_t wifi_change_mode(uint8_t new_mode);
 
 /// @brief Forces an immediate SNTP network poll (restarts the poll timer).
-/// Requires SNTP to be running (an STA connection has occurred).
+/// Requires SNTP to be running (enabled and an STA connection has occurred).
 /// @return ESP_OK if requested, ESP_FAIL if SNTP is not started.
 esp_err_t wifi_sntp_poll_now(void);
+
+/// @brief Re-applies the persisted NTP settings (enable/disable + server) at
+/// runtime, restarting SNTP as needed. Call after the user saves config.
+void wifi_sntp_apply_settings(void);
+
+/// @brief Epoch (UTC seconds) of the last successful NTP sync, 0 if never.
+int64_t wifi_ntp_last_sync(void);
 
 #endif

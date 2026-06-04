@@ -326,6 +326,10 @@ esp_err_t settings_set_default(Settings_t * _inSettings)
     _inSettings->wifi_mode = WIFI_MODE_AP;
     _inSettings->wifi_channel = 1;
 
+    // Network time: on by default, public pool. Only acts when connected as STA.
+    _inSettings->ntp_enabled = 1;
+    strcpy(_inSettings->ntp_server, "pool.ntp.org");
+
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
         _inSettings->adc_offsets_12b[i] = (1<<11);
@@ -920,6 +924,17 @@ esp_err_t settings_load_json(FILE* f)
         _settings.web_password[sizeof(_settings.web_password) - 1] = '\0';
     }
 
+    const cJSON* ntp_enabled = cJSON_GetObjectItemCaseSensitive(root, "ntp_enabled");
+    if (cJSON_IsNumber(ntp_enabled)) {
+        _settings.ntp_enabled = ntp_enabled->valueint ? 1 : 0;
+    }
+
+    const cJSON* ntp_server = cJSON_GetObjectItemCaseSensitive(root, "ntp_server");
+    if (cJSON_IsString(ntp_server) && ntp_server->valuestring != NULL) {
+        strncpy(_settings.ntp_server, ntp_server->valuestring, sizeof(_settings.ntp_server) - 1);
+        _settings.ntp_server[sizeof(_settings.ntp_server) - 1] = '\0';
+    }
+
     const cJSON* wifi_channel = cJSON_GetObjectItemCaseSensitive(root, "wifi_channel");
     if (cJSON_IsNumber(wifi_channel)) {
         _settings.wifi_channel = wifi_channel->valueint;
@@ -1236,6 +1251,8 @@ char * settings_to_json(Settings_t *settings)
     cJSON_AddStringToObject(root, "wifi_password", _settings.wifi_password);
     cJSON_AddStringToObject(root, "wifi_password_ap", _settings.wifi_password_ap);
     cJSON_AddStringToObject(root, "web_password", _settings.web_password);
+    cJSON_AddNumberToObject(root, "ntp_enabled", _settings.ntp_enabled);
+    cJSON_AddStringToObject(root, "ntp_server", _settings.ntp_server);
     cJSON_AddNumberToObject(root, "timestamp", _settings.timestamp);
     cJSON_AddNumberToObject(root, "boot_reason", _settings.bootReason);
 
@@ -1336,4 +1353,31 @@ esp_err_t settings_set_web_password(char *password)
         return ESP_OK;
     }
     return ESP_FAIL;
+}
+
+uint8_t settings_get_ntp_enabled()
+{
+    return _settings.ntp_enabled;
+}
+
+esp_err_t settings_set_ntp_enabled(uint8_t enabled)
+{
+    _settings.ntp_enabled = enabled ? 1 : 0;
+    return ESP_OK;
+}
+
+char * settings_get_ntp_server()
+{
+    return _settings.ntp_server;
+}
+
+esp_err_t settings_set_ntp_server(char *server)
+{
+    if (server == NULL || strlen(server) >= MAX_NTP_SERVER_LEN)
+    {
+        return ESP_FAIL;
+    }
+    strncpy(_settings.ntp_server, server, MAX_NTP_SERVER_LEN - 1);
+    _settings.ntp_server[MAX_NTP_SERVER_LEN - 1] = '\0';
+    return ESP_OK;
 }

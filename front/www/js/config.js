@@ -145,6 +145,10 @@ function parseConfig(data) {
     webAuthMode.dataset.originallySet = webSet ? "true" : "false";
     updateWebSecurityUI();
   }
+
+  // NTP enable select + server are populated by populateFields (NTP_ENABLED /
+  // NTP_SERVER); reflect the enabled state in the UI.
+  updateNtpUI();
 }
 
 
@@ -165,6 +169,45 @@ function updateWebSecurityUI() {
   var mode    = document.getElementById("WEB_AUTH_MODE");
   var section = document.getElementById("web_password_section");
   if (mode && section) section.style.display = (mode.value === "password") ? "block" : "none";
+}
+
+// Show the NTP server/sync controls only when NTP is enabled.
+function updateNtpUI() {
+  var mode    = document.getElementById("NTP_ENABLED");
+  var section = document.getElementById("ntp_settings_section");
+  if (mode && section) section.style.display = (mode.value === "1") ? "block" : "none";
+}
+
+// Render the NTP last-sync status (called from the status poll). enabled and
+// lastSync (epoch seconds, 0 = never) come from /ajax/getStatus.
+function updateNtpStatus(enabled, lastSync) {
+  var el = document.getElementById("ntp_last_sync_status");
+  if (!el) return;
+  if (Number(enabled) !== 1) {
+    el.textContent = "disabled";
+  } else if (Number(lastSync) > 0) {
+    el.textContent = new Date(Number(lastSync) * 1000).toLocaleString([], { hour12: false });
+  } else {
+    el.textContent = "waiting for first sync…";
+  }
+}
+
+// "Sync now" button: ask the device to poll its NTP server immediately.
+function ntpSyncNow() {
+  $.ajax({
+    method: "POST",
+    url: "ajax/ntpSync",
+    success: function (response) {
+      if (response && response["resp"] == "ack") {
+        alert("NTP sync requested. The clock will update shortly.");
+      } else {
+        alert("Could not sync: " + (response ? response["reason"] : "no response") + ".");
+      }
+    },
+    error: function () {
+      alert("Error: could not request NTP sync.");
+    },
+  });
 }
 
 function testWifiNetwork() {
@@ -221,6 +264,12 @@ function getStatus() {
         break;
     }
     data["WIFI_TEST_STATUS"] = value;
+
+    // Render NTP status by id, then drop the keys so populateFields doesn't
+    // overwrite the NTP_ENABLED <select> the user may be editing.
+    updateNtpStatus(data["NTP_ENABLED"], data["NTP_LAST_SYNC"]);
+    delete data["NTP_ENABLED"];
+    delete data["NTP_LAST_SYNC"];
 
     // populate form
     populateFields(parent, data);
@@ -510,6 +559,13 @@ function setConfig() {
       var webPwd = $("[name=WEB_PASSWORD]", "#configuration").val();
       if (webPwd) config["WEB_PASSWORD"] = webPwd;
     }
+  }
+
+  var ntpEnabledSel = document.getElementById("NTP_ENABLED");
+  if (ntpEnabledSel) {
+    config["NTP_ENABLED"] = Number(ntpEnabledSel.value);
+    var ntpServer = $("[name=NTP_SERVER]", "#configuration").val();
+    config["NTP_SERVER"] = (ntpServer && ntpServer.trim()) ? ntpServer.trim() : "pool.ntp.org";
   }
 
   $.ajax({

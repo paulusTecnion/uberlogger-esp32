@@ -366,6 +366,11 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
             "\"WIFI_TEST_IP\":\"0.0.0.0\",\"WIFI_TEST_RSSI\":0");
     }
 
+    // --- NTP status --- (enabled flag + epoch seconds of last successful sync, 0 = never)
+    pos += snprintf(buf + pos, sizeof(buf) - pos,
+        ",\"NTP_ENABLED\":%u,\"NTP_LAST_SYNC\":%lld",
+        (unsigned)settings_get_ntp_enabled(), (long long)wifi_ntp_last_sync());
+
     // Close root
     pos += snprintf(buf + pos, sizeof(buf) - pos, "}");
 
@@ -457,6 +462,11 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
         cJSON_AddStringToObject(root, "WIFI_TEST_IP", "0.0.0.0");
         cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", 0);
     }
+
+    // NTP status for the config page: enabled flag + last successful sync (epoch
+    // seconds, 0 = never).
+    cJSON_AddNumberToObject(root, "NTP_ENABLED", settings_get_ntp_enabled());
+    cJSON_AddNumberToObject(root, "NTP_LAST_SYNC", (double)wifi_ntp_last_sync());
 
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
@@ -559,7 +569,10 @@ const char * logger_settings_to_json(Settings_t *settings)
         cJSON_AddNumberToObject(root, "WIFI_MODE", 1);
     }
 
-    
+    cJSON_AddNumberToObject(root, "NTP_ENABLED", settings->ntp_enabled);
+    cJSON_AddStringToObject(root, "NTP_SERVER", settings->ntp_server);
+
+
     strptr = cJSON_Print(root);
     cJSON_Delete(root);
 
@@ -598,6 +611,24 @@ static esp_err_t logger_calibrate_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+
+// Force an immediate NTP network poll (the "Sync now" button). Requires NTP to
+// be enabled and the device connected as a Wi-Fi client.
+static esp_err_t logger_ntpSync_handler(httpd_req_t *req)
+{
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+    httpd_resp_set_type(req, "application/json");
+
+    if (wifi_sntp_poll_now() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK, "NTP sync requested", 0);
+    } else {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "NTP not active. Enable NTP and connect to a Wi-Fi network first.", HTTPD_403_FORBIDDEN);
+    }
+    return ESP_OK;
+}
 
 static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 {
@@ -785,6 +816,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     Settings_t oldSettings;
     memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
     bool ap_update_required = false;
+    bool ntp_update_required = false;
 
     int total_len = req->content_len;
     int cur_len = 0;
@@ -1111,12 +1143,30 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
 
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTP_ENABLED");
+    if (item != NULL)
+    {
+        settings_set_ntp_enabled(cJSON_IsTrue(item) || item->valueint != 0);
+        ntp_update_required = true;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTP_SERVER");
+    if (item != NULL)
+    {
+        if (settings_set_ntp_server(item->valuestring) != ESP_OK)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting NTP server. Must be 1-63 characters.", HTTPD_400_BAD_REQUEST);
+            goto error;
+        }
+        ntp_update_required = true;
+    }
+
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "ADC_RESOLUTION");
     if (item != NULL)
     {
         if (settings_set_resolution(item->valueint) != ESP_OK)
         {
-            
+
             json_send_resp(req, ENDPOINT_RESP_NACK, "ADC resolution missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
@@ -1211,6 +1261,12 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
     if (ap_update_required)
     {
         schedule_wifi_update_ap_deferred();
+    }
+
+    // Re-apply NTP settings (enable/disable + server) if they changed.
+    if (ntp_update_required)
+    {
+        wifi_sntp_apply_settings();
     }
     
 
@@ -1430,6 +1486,14 @@ esp_err_t start_rest_server(const char *base_path)
     };
 
      httpd_register_uri_handler(server, &logger_calibrate_uri);
+
+    httpd_uri_t logger_ntpSync_uri = {
+        .uri = "/ajax/ntpSync",
+        .method = HTTP_POST,
+        .handler = logger_ntpSync_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &logger_ntpSync_uri);
 
     httpd_uri_t logger_formatSdcard_uri = {
         .uri = "/ajax/formatSdcard",
