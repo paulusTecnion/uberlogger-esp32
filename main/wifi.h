@@ -43,4 +43,9 @@ esp_err_t wifi_update_ap();
 /// @return ESP_OK if succesfull, ESP_FAIL if not.
 esp_err_t wifi_change_mode(uint8_t new_mode);
 
+/// @brief Forces an immediate SNTP network poll (restarts the poll timer).
+/// Requires SNTP to be running (an STA connection has occurred).
+/// @return ESP_OK if requested, ESP_FAIL if SNTP is not started.
+esp_err_t wifi_sntp_poll_now(void);
+
 #endif

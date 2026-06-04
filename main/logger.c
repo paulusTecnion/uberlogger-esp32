@@ -131,6 +131,15 @@ int64_t t0, t1,t2,t3;
 uint32_t _errorCode;
 static uint8_t _systemTimeSet = 0;
 
+// Set by Logger_notify_ntp_time() (from the SNTP notification callback) when a
+// network time sync lands. Consumed by the logger task loop, which is the sole
+// owner of the SPI link to the STM32, so the RTC write can never collide with
+// an in-progress logging transaction.
+static volatile bool _ntpTimePending = false;
+// esp_timer timestamp (us) of when the pending NTP sync was raised, so we can
+// report how long the STM32 RTC write was deferred (e.g. across a logging run).
+static volatile int64_t _ntpPendingSinceUs = 0;
+
 // Handle to stm32 task
 extern TaskHandle_t xHandle_stm32;
 
@@ -939,7 +948,17 @@ esp_err_t Logtask_sync_time()
         return ESP_FAIL;
     }
 
-    return ESP_OK;  
+    return ESP_OK;
+}
+
+// Called from the SNTP notification callback (lwIP/tcpip task context). The
+// SNTP module has already set the ESP system clock to UTC; here we only raise a
+// flag. The logger task picks it up and pushes the time to the STM32 RTC when
+// settled, so no SPI work ever happens off the logger task.
+void Logger_notify_ntp_time(void)
+{
+    _ntpPendingSinceUs = esp_timer_get_time();
+    _ntpTimePending = true;
 }
 
 esp_err_t Logtask_wifi_connect_ap()
@@ -2412,11 +2431,39 @@ void task_logging(void * pvParameters)
             case LOGTASK_WIFI_CONNECT_AP:    wifi_connect_to_ap();               break;
             case LOGTASK_WIFI_DISCONNECT_AP: wifi_disconnect_ap();               break;
 
-            default:                                                    
+            default:
             ESP_LOGE(TAG_LOG, "Unknown task: %d", _currentLogTaskState);        break;
         }// end of switch
-        
-      
+
+        // Propagate a pending NTP time sync to the STM32 RTC. We only do this
+        // while settled (idle / single-shot), never during logging: this is the
+        // sole task that drives the SPI link, and Logtask_logging() never
+        // returns until a session ends, so reaching here guarantees the SPI bus
+        // is free. If still logging, the flag stays set and we retry next loop
+        // (deferred, exactly like a browser-initiated time sync).
+        if (_ntpTimePending && Logger_state_is_settled())
+        {
+            int64_t deferred_ms = (esp_timer_get_time() - _ntpPendingSinceUs) / 1000;
+            _ntpTimePending = false;
+            time_t now = 0;
+            time(&now);
+            if (now >= 946684800) // sanity: >= year 2000
+            {
+                settings_set_timestamp((uint64_t)now * 1000ULL);
+                if (Logger_syncSettings(1) != ESP_OK)
+                {
+                    ESP_LOGW(TAG_LOG, "NTP: failed to push network time to STM32 RTC (deferred %lld ms)", (long long)deferred_ms);
+                }
+                else
+                {
+                    ESP_LOGI(TAG_LOG, "NTP: STM32 RTC updated from network time (deferred %lld ms)", (long long)deferred_ms);
+                }
+            }
+            else
+            {
+                ESP_LOGW(TAG_LOG, "NTP: system clock not valid yet, skipping STM32 RTC write");
+            }
+        }
 
     } // end of while(1)
      

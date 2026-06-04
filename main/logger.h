@@ -269,6 +269,11 @@ esp_err_t Logger_syncSettings(uint8_t syncTime);
 esp_err_t Logtask_sync_settings();
 esp_err_t Logtask_sync_time();
 
+// Flag that an SNTP/network time sync has occurred. Safe to call from any task
+// (e.g. the SNTP notification callback): it only sets a flag. The logger task
+// later propagates the system clock to the STM32 RTC when it is not logging.
+void Logger_notify_ntp_time(void);
+
 void Logtask_fw_update_exit();
 
 esp_err_t Logtask_wifi_connect_ap();
