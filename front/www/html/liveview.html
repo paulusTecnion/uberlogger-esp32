@@ -6,6 +6,15 @@
   </div>
 
   <div id="plot" class="greybox">
+    <div id="plotctrl" style="font-size: smaller; margin-bottom: 6px;">
+      Live window:
+      <button type="button" onclick="setLiveWindow(60000)">1m</button>
+      <button type="button" onclick="setLiveWindow(300000)">5m</button>
+      <button type="button" onclick="setLiveWindow(900000)">15m</button>
+      <button type="button" onclick="setLiveWindow(3600000)">1h</button>
+      <button type="button" onclick="setLiveWindow(0)" title="Shows all retained history (max ~6 hours)">All (&le;6h)</button>
+      <span id="plotmode"></span>
+    </div>
     <div id="plotly"></div>
   </div>
 </div>
