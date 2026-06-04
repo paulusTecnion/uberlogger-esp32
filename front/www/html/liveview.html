@@ -13,6 +13,8 @@
       <button type="button" onclick="setLiveWindow(900000)">15m</button>
       <button type="button" onclick="setLiveWindow(3600000)">1h</button>
       <button type="button" onclick="setLiveWindow(0)" title="Shows all retained history (max ~6 hours)">All (&le;6h)</button>
+      &nbsp;|&nbsp;
+      <button type="button" onclick="clearLiveView()" title="Empty the live-view history buffer (also clears saved history)">Clear</button>
       <span id="plotmode"></span>
     </div>
     <div id="plotly"></div>

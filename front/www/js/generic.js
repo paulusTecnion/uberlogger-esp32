@@ -1,5 +1,9 @@
 var valuesData = [];
 var alert_active_valueserr = false;
+// Tracks whether the most recent getValues() poll succeeded, so the live-view
+// status dot can show green (connected) / red (connection lost). Starts true to
+// avoid a red flash before the first poll completes.
+var liveConnected = true;
 var fwUpdateInProgress = false;
 var calibrating = false;
 var calibCounter = 0;
@@ -47,6 +51,26 @@ function accumulateReadings(data) {
     });
   });
   saveDataPoints(false);
+}
+
+// Empty the live-view history buffer and its persisted snapshot. The live value
+// table keeps updating from new polls; this only wipes the accumulated history
+// shown on the chart. The plot redraw is handled by clearLiveView() in
+// liveview.js (it owns the Plotly state).
+function clearDataPoints() {
+  // Empty each series IN PLACE rather than replacing dataPoints, so the trace
+  // objects Plotly already holds stay valid. New points then append to these
+  // same arrays and render normally, and the chart/rangeslider stay alive.
+  Object.keys(dataPoints).forEach(function (k) {
+    dataPoints[k].x.length = 0;
+    dataPoints[k].y.length = 0;
+  });
+  lastHistorySaveAt = 0;
+  try {
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
+  } catch (e) {
+    /* ignore storage errors */
+  }
 }
 
 // Compact, storage-friendly snapshot. All channels share one poll timestamp, so
@@ -563,7 +587,9 @@ function getValues() {
     }
     populateFields("#topstatus", valuesData);
     alert_active_valueserr = false;
+    liveConnected = true;
   }).fail(function () {
+    liveConnected = false;
     if (alert_active_valueserr == false) {
       alert_active_valueserr = true;
       alert("Error: could not update values.");

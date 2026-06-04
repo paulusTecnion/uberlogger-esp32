@@ -21,6 +21,9 @@ const divPlot = "plotly";
 var liveWindowMs = 5 * 60 * 1000; // 5 minutes
 var followLive = true;
 var suppressRelayout = false; // guards our own programmatic relayouts
+// Plotly preserves pan/zoom/rangeslider state while this token is unchanged.
+// Clearing bumps it once so the stale view is dropped and the chart re-anchors.
+var uiRevision = "liveview";
 
 function sanitizeCategoryName(category) {
   switch (category) {
@@ -91,6 +94,7 @@ function renderValueList() {
   $("#values>#valuelist").html(htmlstring);
 
   plotDataPoints();
+  updatePlotModeLabel(); // refresh live/connection dot every poll
 }
 
 // Most recent timestamp across the buffer (the live edge of the chart).
@@ -179,14 +183,43 @@ function onPlotRelayout(ev) {
 function updatePlotModeLabel() {
   var el = document.getElementById("plotmode");
   if (!el) return;
-  if (!followLive) {
+  // The status dot reflects the live connection: green when the last poll
+  // succeeded, red when it failed (set by getValues in generic.js).
+  var connected = typeof liveConnected === "undefined" ? true : liveConnected;
+  var dot =
+    '<span style="color:' +
+    (connected ? "#2ecc40" : "#ff4136") +
+    '">&#9679;</span>';
+
+  if (!connected) {
+    el.innerHTML = " &nbsp;" + dot + " connection lost";
+  } else if (!followLive) {
     el.innerHTML =
       " &nbsp;&#10073;&#10073; paused (zoomed) &ndash; pick a window or double-click to resume live";
   } else if (liveWindowMs > 0) {
-    el.innerHTML = " &nbsp;&#9679; live";
+    el.innerHTML = " &nbsp;" + dot + " live";
   } else {
-    el.innerHTML = " &nbsp;&#9679; live (all retained, max ~6h)";
+    el.innerHTML = " &nbsp;" + dot + " live (all retained, max ~6h)";
   }
+}
+
+// Empty the history buffer + persisted snapshot and blank the chart. The trace
+// objects are kept (emptied in place by clearDataPoints), so new polls keep
+// appending to them and the chart/rangeslider stay live.
+function clearLiveView() {
+  if (typeof clearDataPoints === "function") clearDataPoints();
+  followLive = true;
+  // New uirevision token => Plotly discards the stale pan/zoom/rangeslider view
+  // for this redraw, then keeps preserving the (reset) view on later ticks.
+  uiRevision = "liveview-" + Number(new Date());
+  if (plot_drawn_state === 1 && window.Plotly) {
+    Plotly.update(divPlot, Object.values(dataPoints), {
+      datarevision: Number(new Date()),
+      uirevision: uiRevision,
+    });
+    applyFollow();
+  }
+  updatePlotModeLabel();
 }
 
 // On narrow screens the default right-hand vertical legend (22 series) crushes
@@ -236,9 +269,13 @@ function plotDataPoints() {
   };
 
   if (plot_drawn_state == 0) {
+    // Don't draw an empty plot: Plotly.update (used on later ticks) can't add
+    // traces, so a newPlot with 0 traces would leave the chart permanently
+    // empty. Wait until the first poll has populated at least one series.
+    if (dataPointsArray.length === 0) return;
     let layout = {
       datarevision: Number(new Date()),
-      uirevision: "liveview", // preserve the user's zoom across data updates
+      uirevision: uiRevision, // preserve the user's zoom across data updates
       margin: { l: 75, r: 15, t: 45, pad: 0 },
       title: {
         text: "Measured data",
@@ -262,7 +299,7 @@ function plotDataPoints() {
   } else {
     // We have a plot; the trace objects are shared with Plotly, so just bump
     // datarevision to redraw the appended points, then re-apply the window.
-    let layout = { datarevision: Number(new Date()), uirevision: "liveview" };
+    let layout = { datarevision: Number(new Date()), uirevision: uiRevision };
     Plotly.update(divPlot, dataPointsArray, layout, config);
     applyFollow();
   }
