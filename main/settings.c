@@ -325,6 +325,7 @@ esp_err_t settings_set_default(Settings_t * _inSettings)
     strcpy(_inSettings->web_password, "");     // no web UI password by default
     _inSettings->wifi_mode = WIFI_MODE_AP;
     _inSettings->wifi_channel = 1;
+    _inSettings->wifi_ssid_ap_hidden = 0; // SoftAP SSID visible by default
 
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)
     {
@@ -646,6 +647,17 @@ esp_err_t settings_set_wifi_channel(uint8_t channel)
     }
 }
 
+uint8_t settings_get_wifi_ssid_ap_hidden()
+{
+    return _settings.wifi_ssid_ap_hidden;
+}
+
+esp_err_t settings_set_wifi_ssid_ap_hidden(uint8_t hidden)
+{
+    _settings.wifi_ssid_ap_hidden = hidden ? 1 : 0;
+    return ESP_OK;
+}
+
 char * settings_get_wifi_password()
 {
     return _settings.wifi_password;
@@ -925,6 +937,11 @@ esp_err_t settings_load_json(FILE* f)
         _settings.wifi_channel = wifi_channel->valueint;
     }
 
+    const cJSON* wifi_ssid_ap_hidden = cJSON_GetObjectItemCaseSensitive(root, "wifi_ssid_ap_hidden");
+    if (cJSON_IsNumber(wifi_ssid_ap_hidden)) {
+        _settings.wifi_ssid_ap_hidden = wifi_ssid_ap_hidden->valueint ? 1 : 0;
+    }
+
     const cJSON* wifi_mode = cJSON_GetObjectItemCaseSensitive(root, "wifi_mode");
     if (cJSON_IsNumber(wifi_mode)) {
         _settings.wifi_mode = wifi_mode->valueint;
@@ -1145,6 +1162,7 @@ esp_err_t settings_print()
     ESP_LOGI(TAG_SETTINGS, "Wifi SSID %s", _settings.wifi_ssid);
     ESP_LOGI(TAG_SETTINGS, "Wifi AP SSID %s", _settings.wifi_ssid_ap);
     ESP_LOGI(TAG_SETTINGS, "Wifi channel %d", _settings.wifi_channel);
+    ESP_LOGI(TAG_SETTINGS, "Wifi AP SSID hidden %d", _settings.wifi_ssid_ap_hidden);
     
     return ESP_OK;
 }
@@ -1231,6 +1249,7 @@ char * settings_to_json(Settings_t *settings)
     cJSON_AddNumberToObject(root, "settings_format_version", _settings.settings_format_version);
     cJSON_AddNumberToObject(root, "wifi_channel", _settings.wifi_channel);
     cJSON_AddNumberToObject(root, "wifi_mode", _settings.wifi_mode);
+    cJSON_AddNumberToObject(root, "wifi_ssid_ap_hidden", _settings.wifi_ssid_ap_hidden);
     cJSON_AddStringToObject(root, "wifi_ssid", _settings.wifi_ssid);
     cJSON_AddStringToObject(root, "wifi_ssid_ap", _settings.wifi_ssid_ap);
     cJSON_AddStringToObject(root, "wifi_password", _settings.wifi_password);

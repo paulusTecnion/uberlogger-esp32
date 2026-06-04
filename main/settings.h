@@ -193,6 +193,7 @@ struct Settings_t {
 	/* Security settings */
 	char wifi_password_ap[MAX_WIFI_AP_PASSW_LEN]; // password for the device's own WiFi AP hotspot
 	char web_password[MAX_WEB_PASSWORD_LEN];       // password for web UI HTTP Basic Auth
+	uint8_t wifi_ssid_ap_hidden;                   // 0 = SoftAP SSID broadcast (default), 1 = hidden
 };
 
 struct Settings_old_t {
@@ -297,6 +298,9 @@ esp_err_t settings_set_logmode(log_mode_t mode);
 
 uint8_t settings_get_wifi_channel();
 esp_err_t settings_set_wifi_channel(uint8_t channel);
+
+uint8_t settings_get_wifi_ssid_ap_hidden();
+esp_err_t settings_set_wifi_ssid_ap_hidden(uint8_t hidden);
 
 char * settings_get_wifi_password();
 esp_err_t settings_set_wifi_password(char *password);
