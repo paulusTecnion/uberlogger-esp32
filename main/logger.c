@@ -1012,6 +1012,7 @@ bool Logger_mode_button_long_pushed()
         settings_set_wifi_password("");      // STA / client network
         settings_set_wifi_password_ap("");   // device's own hotspot
         settings_set_web_password("");        // web UI HTTP auth
+        settings_set_wifi_ssid_ap_hidden(0);  // un-hide hotspot so it reappears in scans
 
         settings_set_wifi_mode(WIFI_MODE_AP);
         #ifdef DEBUG_LOGTASK
@@ -1033,7 +1034,8 @@ bool Logger_mode_button_long_pushed()
 
         // wifi_change_mode() only sets the mode, not the AP credentials.
         // Re-apply the (now cleared) AP config so the live hotspot drops its
-        // password and becomes open immediately, without a reboot.
+        // password (becomes open) and un-hides its SSID immediately, without a
+        // reboot.
         wifi_update_ap();
 
         return true;
