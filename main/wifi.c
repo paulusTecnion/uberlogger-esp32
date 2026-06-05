@@ -21,6 +21,8 @@
 #include "config.h"
 #include "sdkconfig.h"
 #include "esp_netif.h"
+#include "esp_netif_sntp.h"
+#include "esp_sntp.h"
 // #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
 #include "protocol_examples_common.h"
@@ -98,6 +100,110 @@ esp_netif_t *ap_netif;
 
 static int s_retry_num = 0;
 static uint8_t wifi_enabled = 0;
+
+// SNTP is initialised exactly once for the lifetime of the app. IP_EVENT_STA_GOT_IP
+// fires on every (re)connection, so without this guard a Wi-Fi blip would call
+// esp_netif_sntp_init() again, which asserts ("already initialised") and aborts.
+static bool s_sntp_initialized = false;
+// Epoch (UTC seconds) of the last successful NTP sync; 0 = never synced.
+static volatile time_t s_ntp_last_sync = 0;
+
+// SNTP "time synced" notification. Runs in the lwIP/tcpip task (small stack), so
+// it must stay trivial: the SNTP module has already set the system clock to UTC;
+// we record the time and raise a flag. The logger task does the actual STM32 RTC
+// write, off this context, when it is not logging.
+static void wifi_sntp_time_sync_cb(struct timeval *tv)
+{
+    s_ntp_last_sync = tv ? tv->tv_sec : 0;
+    // Fires on every successful poll (~hourly), in the lwIP/tcpip task. Keep it
+    // light: one log line + a flag. If this fires while logging, you will see
+    // this line appear, but NOT the "STM32 RTC updated" line until logging stops
+    // -- that gap is the deferral working as intended.
+    ESP_LOGI(TAG, "SNTP: network time received (utc=%lld) -> queued for STM32 RTC",
+             (long long)s_ntp_last_sync);
+    Logger_notify_ntp_time();
+}
+
+// Start SNTP polling (STA mode only -- this is called from GOT_IP, which never
+// fires in SoftAP). Non-blocking: it kicks off DNS + the first poll in the
+// background and returns immediately, so it never stalls the event handler.
+// Honours the persisted ntp_enabled / ntp_server settings.
+static void wifi_start_sntp(void)
+{
+    if (s_sntp_initialized)
+    {
+        return;
+    }
+    if (!settings_get_ntp_enabled())
+    {
+        ESP_LOGI(TAG, "SNTP disabled in settings; not starting");
+        return;
+    }
+
+    const char *server = settings_get_ntp_server();
+    esp_sntp_config_t cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG(server);
+    cfg.start = true;                     // begin polling as soon as initialised
+    cfg.server_from_dhcp = false;         // use the configured server above
+    cfg.sync_cb = wifi_sntp_time_sync_cb; // trivial flag-setter, see above
+
+    esp_err_t err = esp_netif_sntp_init(&cfg);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "SNTP init failed: %s", esp_err_to_name(err));
+        return;
+    }
+
+    s_sntp_initialized = true;
+    ESP_LOGI(TAG, "SNTP started (%s, poll interval %d ms)", server, CONFIG_LWIP_SNTP_UPDATE_DELAY);
+}
+
+// Re-apply NTP settings at runtime (after the user saves config). Tears down and
+// restarts SNTP so an enable/disable or server change takes effect immediately.
+// If enabled but not yet connected as STA, it starts on the next GOT_IP.
+void wifi_sntp_apply_settings(void)
+{
+    if (s_sntp_initialized)
+    {
+        esp_netif_sntp_deinit();
+        s_sntp_initialized = false;
+    }
+
+    if (!settings_get_ntp_enabled())
+    {
+        ESP_LOGI(TAG, "SNTP disabled");
+        return;
+    }
+
+    if (wifi_is_connected_to_ap())
+    {
+        wifi_start_sntp();
+    }
+    else
+    {
+        ESP_LOGI(TAG, "SNTP enabled; will start once connected as STA");
+    }
+}
+
+// Force an immediate SNTP poll (instead of waiting for the hourly interval).
+// Requires SNTP to have been started (i.e. enabled and connected as STA).
+esp_err_t wifi_sntp_poll_now(void)
+{
+    if (!s_sntp_initialized)
+    {
+        ESP_LOGW(TAG, "SNTP not started (disabled or no STA connection?)");
+        return ESP_FAIL;
+    }
+    esp_sntp_restart();
+    ESP_LOGI(TAG, "SNTP: immediate network poll requested");
+    return ESP_OK;
+}
+
+// Epoch (UTC seconds) of the last successful NTP sync, or 0 if never synced.
+int64_t wifi_ntp_last_sync(void)
+{
+    return (int64_t)s_ntp_last_sync;
+}
+
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 								int32_t event_id, void* event_data)
 {
@@ -123,7 +229,10 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 	} else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
 		ESP_LOGI(TAG, "IP_EVENT_STA_GOT_IP");
 		xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-	} 
+		// We now have an IP (STA mode): start network time sync. Guarded so it
+		// only initialises once, even across reconnects.
+		wifi_start_sntp();
+	}
 }
 
 
@@ -296,6 +405,7 @@ esp_err_t wifi_start()
     strcpy((char*)wifi_config.ap.ssid, settings_get_wifi_ssid_ap());
     wifi_config.ap.ssid_len = strlen((const char*)(wifi_config.ap.ssid));
     strcpy((char*)wifi_config.ap.password, settings_get_wifi_password_ap());
+    wifi_config.ap.ssid_hidden = settings_get_wifi_ssid_ap_hidden();
 
     if (strlen((const char*)(wifi_config.ap.password)) == 0) {
         wifi_config.ap.authmode =  WIFI_AUTH_OPEN;
@@ -360,6 +470,7 @@ esp_err_t wifi_update_ap()
     strcpy((char*)wifi_config.ap.ssid, settings_get_wifi_ssid_ap());
     wifi_config.ap.ssid_len = strlen((const char*)(wifi_config.ap.ssid));
     strcpy((char*)wifi_config.ap.password, settings_get_wifi_password_ap());
+    wifi_config.ap.ssid_hidden = settings_get_wifi_ssid_ap_hidden();
 
     if (strlen((const char*)(wifi_config.ap.password)) == 0) {
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;

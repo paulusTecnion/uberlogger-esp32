@@ -74,8 +74,14 @@ function importConfigFileSelected() {
 }
 
 function loadForm() {
-  // get FW version
-  queryData("getStatus", "#config");
+  // get FW version (and other status) into #config. Strip NTP_ENABLED /
+  // NTP_LAST_SYNC first -- like getStatus() does -- so this populate can't
+  // clobber the mode-driven NTP availability state set below.
+  $.getJSON("ajax/getStatus", function (d) {
+    delete d["NTP_ENABLED"];
+    delete d["NTP_LAST_SYNC"];
+    populateFields("#config", d);
+  });
 
   // get other stuff
   console.log("Retrieving settings...");
@@ -113,6 +119,9 @@ function loadFormDefaults() {
 }
 
 function parseConfig(data) {
+  if (typeof data["WIFI_MODE"] !== "undefined") {
+    wifiModeOriginal = String(data["WIFI_MODE"]);
+  }
   populateFields("#configuration", data);
   populateFields("#channel_configuration", data["NTC_SELECT"]);
   populateFields("#channel_configuration", data["AIN_RANGE_SELECT"]);
@@ -145,6 +154,10 @@ function parseConfig(data) {
     webAuthMode.dataset.originallySet = webSet ? "true" : "false";
     updateWebSecurityUI();
   }
+
+  // NTP enable select + server are populated by populateFields (NTP_ENABLED /
+  // NTP_SERVER); reflect the enabled state in the UI.
+  updateNtpUI();
 }
 
 
@@ -165,6 +178,112 @@ function updateWebSecurityUI() {
   var mode    = document.getElementById("WEB_AUTH_MODE");
   var section = document.getElementById("web_password_section");
   if (mode && section) section.style.display = (mode.value === "password") ? "block" : "none";
+}
+
+// Show the NTP server/sync controls only when NTP is enabled.
+function updateNtpUI() {
+  var mode    = document.getElementById("NTP_ENABLED");
+  var section = document.getElementById("ntp_settings_section");
+  if (mode && section) section.style.display = (mode.value === "1") ? "block" : "none";
+}
+
+// True when the currently selected Wi-Fi connection mode is "Hotspot only" (0),
+// in which case the device has no upstream and NTP cannot work.
+function ntpWifiIsHotspotOnly() {
+  return $("input[name='WIFI_MODE']:checked").val() === "0";
+}
+
+// NTP only works with an upstream connection (Hotspot+Client or Client mode).
+// In hotspot-only mode, force the control to Disabled, grey out the NTP inputs
+// and the Sync-now button, and show a notice explaining why.
+function updateNtpModeAvailability() {
+  var apOnly  = ntpWifiIsHotspotOnly();
+  var enable  = document.getElementById("NTP_ENABLED");
+  var server  = document.getElementById("NTP_SERVER");
+  var syncBtn = document.getElementById("ntp_sync_now_btn");
+  var notice  = document.getElementById("ntp_mode_notice");
+
+  if (apOnly && enable) enable.value = "0"; // NTP can't run here -> show Disabled
+  if (enable)  enable.disabled  = apOnly;
+  if (server)  server.disabled  = apOnly;
+  if (syncBtn) syncBtn.disabled = apOnly;
+  if (notice)  notice.style.display = apOnly ? "block" : "none";
+
+  updateNtpUI(); // reflect the (possibly forced) enabled/disabled section
+}
+
+// Tracks the NTP enabled state that is actually saved on the device (from the
+// status poll), as opposed to the unsaved <select> value the user may be
+// editing. "Sync now" only works once the setting is saved and active.
+var ntpDeviceEnabled = false;
+
+// The WIFI_MODE value the device booted with (from getConfig). A mode change
+// reboots the device to apply it (a live switch strands the web UI), so
+// setConfig() compares against this to show the reboot/reconnect notice.
+var wifiModeOriginal = null;
+
+// Render the NTP last-sync status (called from the status poll). enabled and
+// lastSync (epoch seconds, 0 = never) come from /ajax/getStatus.
+function updateNtpStatus(enabled, lastSync) {
+  ntpDeviceEnabled = Number(enabled) === 1;
+  var el = document.getElementById("ntp_last_sync_status");
+  if (!el) return;
+  // Don't clobber a transient "syncing…" message with the periodic poll until
+  // a real sync timestamp arrives.
+  if (el.dataset.syncing === "1" && !(Number(lastSync) > 0)) return;
+  el.dataset.syncing = "";
+  if (Number(enabled) !== 1) {
+    el.textContent = "disabled";
+  } else if (Number(lastSync) > 0) {
+    el.textContent = "last sync: " + new Date(Number(lastSync) * 1000).toLocaleString([], { hour12: false });
+  } else {
+    el.textContent = "waiting for first sync…";
+  }
+}
+
+// "Sync now" button: ask the device to poll its NTP server immediately.
+function ntpSyncNow() {
+  // NTP needs an upstream connection; it cannot work in hotspot-only mode.
+  if (ntpWifiIsHotspotOnly()) {
+    alert("Automatic time sync is unavailable in Hotspot-only mode. Switch the connection mode to 'Hotspot + Client' or 'Client mode' (and save) to use it.");
+    return;
+  }
+  var mode = document.getElementById("NTP_ENABLED");
+  // If the dropdown shows Enabled but that isn't saved on the device yet, the
+  // poll would fail with a confusing error. Tell the user to save first.
+  if (mode && mode.value === "1" && !ntpDeviceEnabled) {
+    alert("Save your settings first. Click 'Save' to enable automatic time sync, then use 'Sync now'.");
+    return;
+  }
+  if (!ntpDeviceEnabled) {
+    alert("Automatic time sync is disabled. Enable it and save your settings first.");
+    return;
+  }
+
+  var el = document.getElementById("ntp_last_sync_status");
+  $.ajax({
+    method: "POST",
+    url: "ajax/ntpSync",
+    success: function (response) {
+      if (response && response["resp"] == "ack") {
+        if (el) {
+          el.dataset.syncing = "1";
+          el.textContent = "syncing…";
+        }
+        // Refresh the status a few times so the new sync time shows up.
+        setTimeout(getStatus, 1500);
+        setTimeout(getStatus, 4000);
+      } else {
+        alert("Could not sync: " + (response ? response["reason"] : "no response") +
+              ".\n\nIf you just enabled NTP, click 'Save' first, then try 'Sync now'.");
+      }
+    },
+    error: function () {
+      alert("Could not request NTP sync. If you just enabled automatic time sync, " +
+            "click 'Save' to apply the setting first, then try 'Sync now' again. " +
+            "Also make sure the device is connected to Wi-Fi.");
+    },
+  });
 }
 
 function testWifiNetwork() {
@@ -192,6 +311,9 @@ function wifiConfigVisibilityUpdate() {
   } else {
     document.querySelector("#wifi_client_settings").style.display = "none";
   }
+
+  // NTP availability depends on the connection mode.
+  updateNtpModeAvailability();
 }
 
 function getStatus() {
@@ -221,6 +343,12 @@ function getStatus() {
         break;
     }
     data["WIFI_TEST_STATUS"] = value;
+
+    // Render NTP status by id, then drop the keys so populateFields doesn't
+    // overwrite the NTP_ENABLED <select> the user may be editing.
+    updateNtpStatus(data["NTP_ENABLED"], data["NTP_LAST_SYNC"]);
+    delete data["NTP_ENABLED"];
+    delete data["NTP_LAST_SYNC"];
 
     // populate form
     populateFields(parent, data);
@@ -335,6 +463,84 @@ function validateChannelNames(channelNames) {
     }
   }
   return true;
+}
+
+// Shown after saving a Wi-Fi mode change: the device reboots to apply it.
+// newMode is the REST value being saved (0=Hotspot-only, 1=Hotspot+Client,
+// 2=Client-only). We only auto-reload when the device will still be reachable
+// at the address the browser is currently using; if the mode change drops that
+// network (e.g. you're on the router IP and switch to Hotspot-only, or you're
+// on the hotspot and switch to Client-only) polling the same address can never
+// succeed, so instead we tell the user where to reconnect.
+function showWifiRebootNotice(newMode) {
+  if (document.getElementById("reboot_overlay")) return;
+
+  // The device hotspot is always 192.168.4.x; any other host means we reached
+  // the device over the client (STA) network (the router-assigned IP).
+  var onHotspot = /^192\.168\.4\./.test(location.hostname);
+  var newHasAP = newMode === 0 || newMode === 1; // Hotspot-only or Hotspot+Client
+  var newHasSTA = newMode === 1 || newMode === 2; // Hotspot+Client or Client-only
+  var stillReachable = onHotspot ? newHasAP : newHasSTA;
+
+  var instructions, showStatus;
+  if (stillReachable) {
+    instructions = "This page will reload automatically when the device is back.";
+    showStatus = true;
+  } else if (newHasAP) {
+    // Was on the client network; device drops STA and keeps only its hotspot.
+    instructions =
+      "This device is leaving your network. Connect your computer to the device " +
+      "Wi-Fi hotspot (<b>Uberlogger-…</b>), then open " +
+      "<a href='http://192.168.4.1' style='color:#7fd1ff;'>http://192.168.4.1</a>.";
+    showStatus = false;
+  } else {
+    // Client-only: the hotspot turns off; the device gets an IP from your router.
+    instructions =
+      "The device hotspot is switching off. Reconnect your computer to your main " +
+      "Wi-Fi network, then open the device's new address (check your router for its IP).";
+    showStatus = false;
+  }
+
+  var html =
+    '<div id="reboot_overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);' +
+    'color:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;' +
+    'text-align:center;padding:24px;font-size:16px;">' +
+    '<div style="max-width:480px;line-height:1.5;">' +
+    '<h2 style="margin-top:0;">Applying new network mode…</h2>' +
+    "<p>The device is restarting (about 10&nbsp;seconds).</p>" +
+    "<p>" + instructions + "</p>" +
+    (showStatus
+      ? '<p id="reboot_status" style="opacity:0.85;">Waiting for the device to come back…</p>' +
+        '<p><button type="button" onclick="location.reload()" ' +
+        'style="padding:8px 16px;font-size:15px;cursor:pointer;">Reload now</button></p>'
+      : "") +
+    "</div></div>";
+  $("body").append(html);
+
+  if (!showStatus) return; // different network — nothing to poll for, no auto-reload
+
+  var tries = 0;
+  function poll() {
+    tries++;
+    $.ajax({ url: "ajax/getConfig", method: "GET", timeout: 3000, cache: false })
+      .done(function () {
+        $("#reboot_status").text("Device is back — reloading…");
+        setTimeout(function () { location.reload(); }, 600);
+      })
+      .fail(function () {
+        if (tries < 40) {
+          setTimeout(poll, 1500);
+        } else {
+          $("#reboot_status").text(
+            "Still unreachable. If you changed networks, reconnect Wi-Fi and reload."
+          );
+        }
+      });
+  }
+  // Give the device time to actually go down before we start polling, so a
+  // stale success from the still-up server doesn't reload too early. The
+  // reboot path waits ~3s before restarting, then boot takes a few seconds.
+  setTimeout(poll, 6000);
 }
 
 function setConfig() {
@@ -469,6 +675,7 @@ function setConfig() {
     AIN_CHANNEL_LABELS: ainChannelLabels,
     DIO_CHANNEL_LABELS: dioChannelLabels,
     WIFI_CHANNEL: input["WIFI_CHANNEL"],
+    WIFI_SSID_HIDDEN: input["WIFI_SSID_HIDDEN"],
     WIFI_MODE: input["WIFI_MODE"],
     WIFI_SSID: input["WIFI_SSID"],
     TIMESTAMP: Number(new Date()),
@@ -512,6 +719,15 @@ function setConfig() {
     }
   }
 
+  var ntpEnabledSel = document.getElementById("NTP_ENABLED");
+  if (ntpEnabledSel) {
+    // NTP cannot work in hotspot-only mode (no upstream), so persist it off
+    // when that mode is selected, regardless of the (greyed) select's value.
+    config["NTP_ENABLED"] = ntpWifiIsHotspotOnly() ? 0 : Number(ntpEnabledSel.value);
+    var ntpServer = $("[name=NTP_SERVER]", "#configuration").val();
+    config["NTP_SERVER"] = (ntpServer && ntpServer.trim()) ? ntpServer.trim() : "pool.ntp.org";
+  }
+
   $.ajax({
     method: "POST",
     url: "ajax/setConfig",
@@ -523,6 +739,23 @@ function setConfig() {
 
     success: function (response) {
       if (response["resp"] == "ack") {
+        // A Wi-Fi mode change reboots the device to apply it. Show the
+        // reboot/reconnect notice instead of the normal "saved" alert.
+        var modeChanged =
+          wifiModeOriginal !== null &&
+          typeof config["WIFI_MODE"] !== "undefined" &&
+          String(config["WIFI_MODE"]) !== String(wifiModeOriginal);
+        if (modeChanged) {
+          showWifiRebootNotice(Number(config["WIFI_MODE"]));
+          return;
+        }
+        // The device has now applied the settings, including NTP. Reflect the
+        // saved NTP enabled state immediately so "Sync now" works without a
+        // page refresh (the periodic status poll does not run on this page).
+        if (typeof config["NTP_ENABLED"] !== "undefined") {
+          ntpDeviceEnabled = Number(config["NTP_ENABLED"]) === 1;
+        }
+        setTimeout(getStatus, 300);
         alert("Settings saved successfully.");
       } else {
         alert(

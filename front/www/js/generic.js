@@ -1,28 +1,255 @@
 var valuesData = [];
 var alert_active_valueserr = false;
+// Tracks whether the most recent getValues() poll succeeded, so the live-view
+// status dot can show green (connected) / red (connection lost). Starts true to
+// avoid a red flash before the first poll completes.
+var liveConnected = true;
 var fwUpdateInProgress = false;
 var calibrating = false;
 var calibCounter = 0;
 const BYTES_PER_MB = 1024 * 1024;
 
-// load correct page after document is ready and highlight correct item in menu
-function loadPage() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const page = urlParams.get("page");
+// --- Live-view history -------------------------------------------------------
+// Kept here (not in liveview.js) so it accumulates on EVERY page: getValues()
+// polls on all tabs, so leaving the live view for File browser/Config/Manual no
+// longer creates a gap. Polling is ~1 pt/s per channel. MAX_POINTS bounds both
+// in-memory size and the localStorage footprint so the page is safe to leave
+// running for a long time. ~21600 points = ~6 hours per channel.
+var dataPoints = {};
+const MAX_POINTS = 21600;
+const HISTORY_STORAGE_KEY = "liveview.history.v1";
+const SAVE_EVERY_MS = 10000;
+let lastHistorySaveAt = 0;
 
-  if (page == "" || page == undefined) {
-    renderPage("liveview", page_version);
-  } else {
-    renderPage(page, page_version);
+function storeDataPoint(category, channel, timestamp, value) {
+  var inputTime = new Date(timestamp);
+  if (inputTime.getFullYear() < 2000) return; // ignore pre-RTC-sync timestamps
+
+  var key = category + "." + channel;
+  if (typeof dataPoints[key] == "undefined") {
+    dataPoints[key] = { x: [], y: [], type: "scatter", name: key };
   }
 
-  $("#menu_" + page).addClass("selected");
+  var series = dataPoints[key];
+  series.x.push(inputTime);
+  series.y.push(value);
+
+  // Keep a bounded sliding window so memory/storage stay safe over long runs.
+  if (series.x.length > MAX_POINTS) {
+    series.x.splice(0, series.x.length - MAX_POINTS);
+    series.y.splice(0, series.y.length - MAX_POINTS);
+  }
+}
+
+// Pull every reading out of a getValues() response into the history buffer.
+function accumulateReadings(data) {
+  if (!data || !data["READINGS"] || typeof data["TIMESTAMP"] == "undefined") return;
+  var ts = data["TIMESTAMP"];
+  $.each(data["READINGS"], function (category, category_values) {
+    $.each(category_values["VALUES"], function (channel, channel_value) {
+      storeDataPoint(category, channel, ts, channel_value);
+    });
+  });
+  saveDataPoints(false);
+}
+
+// Empty the live-view history buffer and its persisted snapshot. The live value
+// table keeps updating from new polls; this only wipes the accumulated history
+// shown on the chart. The plot redraw is handled by clearLiveView() in
+// liveview.js (it owns the Plotly state).
+function clearDataPoints() {
+  // Empty each series IN PLACE rather than replacing dataPoints, so the trace
+  // objects Plotly already holds stay valid. New points then append to these
+  // same arrays and render normally, and the chart/rangeslider stay alive.
+  Object.keys(dataPoints).forEach(function (k) {
+    dataPoints[k].x.length = 0;
+    dataPoints[k].y.length = 0;
+  });
+  lastHistorySaveAt = 0;
+  try {
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
+  } catch (e) {
+    /* ignore storage errors */
+  }
+}
+
+// Compact, storage-friendly snapshot. All channels share one poll timestamp, so
+// we store the timestamps once (t) and only per-channel values (ch). This keeps
+// ~6h of ~22 channels comfortably under the localStorage quota.
+function buildHistoryPayload() {
+  let t = [];
+  const ch = {};
+  Object.keys(dataPoints).forEach(function (name) {
+    const dp = dataPoints[name];
+    if (!dp || !dp.y || dp.y.length === 0) return;
+    ch[name] = dp.y;
+    if (dp.x.length > t.length) t = dp.x; // longest series defines the axis
+  });
+  if (t.length === 0) return null;
+  return {
+    v: 1,
+    t: t.map(function (d) {
+      return d.getTime();
+    }),
+    ch: ch,
+  };
+}
+
+function trimHistory(keep) {
+  Object.keys(dataPoints).forEach(function (name) {
+    const dp = dataPoints[name];
+    if (dp.x.length > keep) {
+      dp.x.splice(0, dp.x.length - keep);
+      dp.y.splice(0, dp.y.length - keep);
+    }
+  });
+}
+
+// Persist to localStorage. Throttled to SAVE_EVERY_MS unless forced (on unload).
+// Handles quota errors by trimming the oldest half and retrying once.
+function saveDataPoints(force) {
+  const now = Date.now();
+  if (!force && now - lastHistorySaveAt < SAVE_EVERY_MS) return;
+  lastHistorySaveAt = now;
+
+  const payload = buildHistoryPayload();
+  if (!payload) return;
+
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn("Live history save failed, trimming buffer:", e);
+    trimHistory(Math.floor(MAX_POINTS / 2));
+    const trimmed = buildHistoryPayload();
+    try {
+      if (trimmed) localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
+    } catch (e2) {
+      console.warn("Live history save failed after trim, clearing:", e2);
+      localStorage.removeItem(HISTORY_STORAGE_KEY);
+    }
+  }
+}
+
+// Load a previously saved snapshot back into dataPoints. Timestamps are aligned
+// to the tail of each series so channels that started part-way through line up.
+function restoreDataPoints() {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!saved || !Array.isArray(saved.t) || !saved.ch) return;
+    const t = saved.t;
+    Object.keys(saved.ch).forEach(function (name) {
+      const y = saved.ch[name];
+      if (!Array.isArray(y) || y.length === 0) return;
+      const offset = t.length - y.length;
+      const xs = t.slice(offset < 0 ? 0 : offset).map(function (ms) {
+        return new Date(ms);
+      });
+      dataPoints[name] = { x: xs, y: y.slice(), type: "scatter", name: name };
+    });
+  } catch (e) {
+    console.warn("Could not restore live history:", e);
+  }
+}
+
+// --- Single-page tab navigation ---------------------------------------------
+// The main menu tabs are mounted as panels under #render and switched by
+// hide/show (no full page reload), so polling and the live chart stay alive and
+// jQuery/Plotly are downloaded only once. Each panel is mounted lazily on first
+// visit and its JS loads exactly once, which sidesteps re-entrancy issues
+// (duplicate intervals/listeners, const redeclaration).
+//
+// fwupdate is intentionally NOT a SPA tab: it is reached from the Config page
+// and ends in a device reboot, so it keeps using a full page load.
+const MENU_PAGES = ["liveview", "log", "config", "home"];
+var loadedPanels = {}; // page -> jQuery Deferred for its mount (fragment + JS)
+var currentPage = null;
+
+// load correct page after document is ready and highlight correct item in menu
+function loadPage() {
+  // Restore history saved by a previous page load before anything renders, and
+  // flush it on exit so a refresh / tab switch keeps the accumulated live data.
+  restoreDataPoints();
+  window.addEventListener("beforeunload", function () {
+    saveDataPoints(true);
+  });
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") saveDataPoints(true);
+  });
+
+  const urlParams = new URLSearchParams(window.location.search);
+  let page = urlParams.get("page");
+  if (page == "" || page == undefined) page = "liveview";
+
+  if (MENU_PAGES.indexOf(page) === -1) {
+    // Non-tab page (e.g. fwupdate): keep the classic single-render behaviour.
+    renderPage(page, page_version);
+    $("#menu_" + page).addClass("selected");
+  } else {
+    showPage(page, true);
+    if (history.replaceState) history.replaceState({ page: page }, "", "?page=" + page);
+    window.addEventListener("popstate", function (e) {
+      var p = (e.state && e.state.page) || "liveview";
+      if (MENU_PAGES.indexOf(p) !== -1) showPage(p, true);
+    });
+  }
 
   getValues();
   window.valuesInterval = setInterval(function () {
     if (sessionStorage.getItem('fwFlashInProgress')) return;
     getValues();
   }, 1000);
+}
+
+// Mount a tab panel once: fetch its HTML fragment into a hidden panel div, then
+// load its JS (which self-initialises exactly once). Returns a Deferred.
+function mountPanel(page) {
+  if (loadedPanels[page]) return loadedPanels[page];
+
+  var d = $.Deferred();
+  loadedPanels[page] = d;
+
+  $("#render").append(
+    '<div class="page-panel" id="panel-' + page + '" style="display:none"></div>'
+  );
+
+  $.get("html/" + page + ".html?version=" + page_version)
+    .done(function (data) {
+      $("#panel-" + page).html(data);
+      // home has no JS; load the others (panel is in the DOM so init can run).
+      $.getScript("js/" + page + ".js?version=" + page_version)
+        .always(function () {
+          d.resolve();
+        });
+    })
+    .fail(function () {
+      d.resolve(); // still show whatever mounted
+    });
+
+  return d;
+}
+
+// Switch the visible tab. fromHistory suppresses the pushState (used on initial
+// load and on browser back/forward).
+function showPage(page, fromHistory) {
+  mountPanel(page).always(function () {
+    $("#render > .page-panel").hide();
+    $("#panel-" + page).show();
+
+    $("[id^='menu_']").removeClass("selected");
+    $("#menu_" + page).addClass("selected");
+    $("#menu_" + page + "_mobile").addClass("selected");
+
+    currentPage = page;
+    if (!fromHistory && history.pushState) {
+      history.pushState({ page: page }, "", "?page=" + page);
+    }
+
+    // The panel may have been mounted/updated while hidden (0 size); nudge
+    // responsive plots (Plotly) to recompute now that it is visible.
+    window.dispatchEvent(new Event("resize"));
+  });
 }
 
 function renderPage(page, page_version) {
@@ -36,7 +263,16 @@ function renderPage(page, page_version) {
 }
 
 function gotoPage(page, version) {
-  location.href = "index.html?page=" + page;
+  // Close the mobile hamburger menu after a selection (SPA nav no longer
+  // reloads the page, so it would otherwise stay open).
+  var menu = document.getElementById("menu_items");
+  if (menu) menu.classList.remove("show");
+
+  if (MENU_PAGES.indexOf(page) === -1) {
+    location.href = "index.html?page=" + page; // fwupdate etc. -> full reload
+    return;
+  }
+  showPage(page, false);
 }
 
 function toggleMenu() {
@@ -169,6 +405,11 @@ function getValues() {
     valuesData["TIMESTAMPSTR"] = datetimestr.toLocaleString([], {
       hour12: false,
     });
+    // Accumulate readings into the history buffer on every poll, regardless of
+    // which page is showing. Done before the fields below are reformatted (this
+    // only reads READINGS + TIMESTAMP, which are left untouched).
+    accumulateReadings(valuesData);
+
     valuesData["SD_CARD_FREE_SPACE"] =
       (valuesData["SD_CARD_FREE_SPACE"] / BYTES_PER_MB).toFixed(3) + " MB";
 
@@ -346,7 +587,9 @@ function getValues() {
     }
     populateFields("#topstatus", valuesData);
     alert_active_valueserr = false;
+    liveConnected = true;
   }).fail(function () {
+    liveConnected = false;
     if (alert_active_valueserr == false) {
       alert_active_valueserr = true;
       alert("Error: could not update values.");

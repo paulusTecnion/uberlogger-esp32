@@ -353,6 +353,27 @@ input[type="radio"] {
   flex-basis: 480px;
 }
 
+/* Value blocks (Temperature/Analog/Digital): equal-width responsive cards that
+   reflow cleanly on mobile instead of uneven inline-blocks. */
+#valuelist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+#valuelist .block.greybox {
+  display: block;
+  width: auto;
+  max-width: none;
+  margin: 0;
+}
+/* The "Timestamp of data" line is also a child of #valuelist; keep it on its
+   own full-width row above the cards instead of taking a grid cell. */
+#valuelist > p {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+}
+
 #plot {
   flex-grow: 2;
   flex-basis: 800px;
@@ -438,8 +459,9 @@ body {
 }
 
 #topmenubar button.selected {
-  background-color: #fff;
-  color: black;
+  background-color: #ff5b23;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 #topmenubar button:hover {
@@ -459,8 +481,9 @@ body {
 }
 
 #topmenubar button.selected {
-  background-color: #ffffff; /* White for selected */
-  color: #191932; /* Dark blue text */
+  background-color: #ff5b23; /* Strong orange = active tab */
+  color: #ffffff;
+  font-weight: 700;
 }
 
 #topmenubar button:hover {
@@ -724,8 +747,16 @@ select:focus {
     padding: 10px;
   }
 
+  /* Scale the whole heading hierarchy down together on mobile; without h2/h3
+     here, h2 stayed 2rem and matched the shrunken h1 (no visual hierarchy). */
   h1 {
     font-size: 2rem;
+  }
+  h2 {
+    font-size: 1.5rem;
+  }
+  h3 {
+    font-size: 1.2rem;
   }
 
   .button {
@@ -962,6 +993,12 @@ details summary:hover {
 
 #menu_items button:hover {
   background-color: #ff7f50;
+}
+
+#menu_items button.selected {
+  background-color: #ff5b23; /* Strong orange = active tab */
+  color: #ffffff;
+  font-weight: 700;
 }
 
 #menu_items.hidden {

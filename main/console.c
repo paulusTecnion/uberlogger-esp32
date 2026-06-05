@@ -103,6 +103,107 @@ static int cmd_logger(int argc, char **argv)
 }
 
 
+// Configure the STA (client) Wi-Fi from the console and connect, for testing.
+// Credentials are applied in RAM only (not persisted to NVS) to keep this
+// simple and avoid racing the logger task's settings persistence -- they are
+// lost on reboot, which is fine for a test. Switches to APSTA so the device's
+// own "Uberlogger" AP stays reachable as a fallback.
+//   wifi ssid <name>     set STA SSID    (quote names with spaces)
+//   wifi pass <password> set STA password
+//   wifi connect         apply APSTA mode and connect to the STA SSID
+//   wifi status          print mode / SSID / connection / IP
+static int cmd_wifi(int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        printf("usage: wifi <ssid|pass|connect|status> [value]\n");
+        return 1;
+    }
+
+    if (!strcmp(argv[1], "ssid"))
+    {
+        if (argc < 3) { printf("usage: wifi ssid <name>\n"); return 1; }
+        if (settings_set_wifi_ssid(argv[2]) != ESP_OK) { printf("failed to set ssid\n"); return 1; }
+        printf("STA SSID set to '%s'\n", argv[2]);
+        return 0;
+    }
+    else if (!strcmp(argv[1], "pass"))
+    {
+        if (argc < 3) { printf("usage: wifi pass <password>\n"); return 1; }
+        if (settings_set_wifi_password(argv[2]) != ESP_OK) { printf("failed to set password\n"); return 1; }
+        printf("STA password set (%d chars)\n", (int)strlen(argv[2]));
+        return 0;
+    }
+    else if (!strcmp(argv[1], "connect"))
+    {
+        settings_set_wifi_mode(WIFI_MODE_APSTA);
+        printf("Connecting to '%s' (APSTA, AP stays up)...\n", settings_get_wifi_ssid());
+        if (wifi_change_mode(WIFI_MODE_APSTA) != ESP_OK) { printf("wifi_change_mode failed\n"); return 1; }
+        return 0;
+    }
+    else if (!strcmp(argv[1], "status"))
+    {
+        printf("mode=%d sta_ssid='%s' connected=%d\n",
+               settings_get_wifi_mode(), settings_get_wifi_ssid(), wifi_is_connected_to_ap());
+        wifi_print_ip();
+        return 0;
+    }
+
+    printf("unknown subcommand '%s'\n", argv[1]);
+    return 1;
+}
+
+// Force a real, immediate NTP network poll (vs. the hourly interval or the
+// simulated 'ntpsync'). Useful for testing the genuine network path on demand.
+static int cmd_ntppoll(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    if (wifi_sntp_poll_now() != ESP_OK)
+    {
+        printf("NTP poll not started -- is the device connected to a wifi AP (STA)?\n");
+        return 1;
+    }
+    printf("Immediate NTP network poll requested.\n");
+    return 0;
+}
+
+static void register_ntppoll(void)
+{
+    const esp_console_cmd_t cmd = {
+        .command = "ntppoll",
+        .help = "Force an immediate real NTP network poll (requires STA connection).",
+        .hint = NULL,
+        .func = &cmd_ntppoll
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+static void register_wifi_cmd(void)
+{
+    const esp_console_cmd_t cmd = {
+        .command = "wifi",
+        .help = "Configure STA wifi: wifi ssid <name> | pass <pw> | connect | status",
+        .hint = NULL,
+        .func = &cmd_wifi
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
+// Simulate an NTP time-sync event from the console. Raises the exact same flag
+// the real SNTP callback sets, using the current system clock as the "network"
+// time, so the deferral + STM32-RTC-write path can be exercised on demand --
+// run it during a heavy logging session and watch that the "STM32 RTC updated"
+// log only appears once logging stops.
+static int cmd_ntpsync(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    Logger_notify_ntp_time();
+    printf("NTP sync flag raised. If logging, the STM32 RTC write is deferred until logging stops.\n");
+    return 0;
+}
+
 static void register_calibrate(void)
 {
     const esp_console_cmd_t cmd = {
@@ -211,6 +312,17 @@ static void register_stm32_sync(void)
 //     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 // }
 
+static void register_ntpsync(void)
+{
+    const esp_console_cmd_t cmd = {
+        .command = "ntpsync",
+        .help = "Simulate an NTP time-sync event (raises the SNTP flag). Run while logging to observe deferral.",
+        .hint = NULL,
+        .func = &cmd_ntpsync
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
+}
+
 static void register_update_stm32(){
     const esp_console_cmd_t cmd = {
         .command = "update-stm32",
@@ -275,6 +387,9 @@ void init_console(){
     register_settings_sample_rate();
     // register_singleshot();
     register_stm32_sync();
+    register_wifi_cmd();
+    register_ntpsync();
+    register_ntppoll();
     // register_update_esp32();
     register_update_stm32();
     // register_update_www();

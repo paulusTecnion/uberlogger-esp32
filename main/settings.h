@@ -30,6 +30,7 @@
 #define MAX_WIFI_PASSW_LEN_OLD 20     // legacy size — keep for binary migration of Settings_old_t
 #define MAX_WIFI_AP_PASSW_LEN 64      // WPA2 allows up to 63 chars + null
 #define MAX_WEB_PASSWORD_LEN 32
+#define MAX_NTP_SERVER_LEN 64         // NTP server hostname (e.g. pool.ntp.org)
 
 #define NUM_ADC_CHANNELS 8
 #define NUM_DIO_CHANNELS 6
@@ -193,6 +194,10 @@ struct Settings_t {
 	/* Security settings */
 	char wifi_password_ap[MAX_WIFI_AP_PASSW_LEN]; // password for the device's own WiFi AP hotspot
 	char web_password[MAX_WEB_PASSWORD_LEN];       // password for web UI HTTP Basic Auth
+	uint8_t wifi_ssid_ap_hidden;                   // 0 = SoftAP SSID broadcast (default), 1 = hidden
+	/* Network time (NTP) */
+	uint8_t ntp_enabled;                  // 1 = sync clock from NTP when connected as Wi-Fi client (STA)
+	char ntp_server[MAX_NTP_SERVER_LEN];  // NTP server hostname, default "pool.ntp.org"
 };
 
 struct Settings_old_t {
@@ -298,6 +303,9 @@ esp_err_t settings_set_logmode(log_mode_t mode);
 uint8_t settings_get_wifi_channel();
 esp_err_t settings_set_wifi_channel(uint8_t channel);
 
+uint8_t settings_get_wifi_ssid_ap_hidden();
+esp_err_t settings_set_wifi_ssid_ap_hidden(uint8_t hidden);
+
 char * settings_get_wifi_password();
 esp_err_t settings_set_wifi_password(char *password);
 
@@ -338,6 +346,11 @@ esp_err_t settings_set_wifi_password_ap(char *password);
 
 char * settings_get_web_password();
 esp_err_t settings_set_web_password(char *password);
+
+uint8_t settings_get_ntp_enabled();
+esp_err_t settings_set_ntp_enabled(uint8_t enabled);
+char * settings_get_ntp_server();
+esp_err_t settings_set_ntp_server(char *server);
 
 
 #endif

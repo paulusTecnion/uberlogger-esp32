@@ -2,6 +2,7 @@
   "TIMESTAMP": 1673607089000,
   "WIFI_MODE": 0,
   "WIFI_SSID": "default wifi",
+  "WIFI_SSID_HIDDEN": false,
   "WIFI_PASSWORD": "default password",
   "LOG_MODE": 0,
   "LOG_SAMPLE_RATE": 3,
@@ -25,5 +26,7 @@
     "AIN6_RANGE": false,
     "AIN7_RANGE": false,
     "AIN8_RANGE": true
-  }
+  },
+  "NTP_ENABLED": 1,
+  "NTP_SERVER": "pool.ntp.org"
 }
