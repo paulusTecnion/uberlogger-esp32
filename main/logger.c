@@ -641,7 +641,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
         t.tm_mon =  live_data_buffer.timeData.month-1;
         t.tm_mday = live_data_buffer.timeData.date;    
 
-    dataOutput->timestamp  = (uint64_t)mktime(&t) * 1000LL;    
+    dataOutput->timestamp  = (uint64_t)mktime(&t) * 1000LL;
     dataOutput->timestamp = dataOutput->timestamp + (uint64_t)(live_data_buffer.timeData.subseconds);
     // ESP_LOGI(TAG_LOG, "%lld, %d-%d-%d %d:%d:%d",  dataOutput->timestamp, t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 }
@@ -2418,8 +2418,13 @@ void task_logging(void * pvParameters)
                 iir_set_samplefreq(settings_get_samplerate());                  break;
             case LOGTASK_SYNC_SETTINGS:     Logger_syncSettings(0);             break;
             case LOGTASK_SYNC_TIME:         Logger_syncSettings(1);             break;
-            case LOGTASK_LOGGING:           
-                Logtask_logging();                  
+            case LOGTASK_LOGGING:
+                // Note: the STM32 RTC is NOT (re)synced here. The idle
+                // deferred-write below already pushes network time to the RTC
+                // within ~200 ms of any NTP sync, so a session started from idle
+                // begins on correct time. Forcing a settings/mode cycle right
+                // before streaming starts corrupts the first data buffer.
+                Logtask_logging();
                 _startLogTask = 0;
                 break;
             case LOGTASK_REBOOT_SYSTEM:

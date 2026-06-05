@@ -675,6 +675,11 @@
               <option value="1">Enabled</option>
               <option value="0">Disabled</option>
             </select>
+            <p id="ntp_mode_notice" class="note" style="display:none;color:#c0392b;margin-top:8px;">
+              <i>Automatic time sync is unavailable in <b>Hotspot-only</b> mode.
+              Switch the connection mode to <b>Hotspot + Client</b> or
+              <b>Client mode</b> (and save) to use it.</i>
+            </p>
             <div id="ntp_settings_section" style="margin-top:8px;">
               <label for="NTP_SERVER">NTP server</label>
               <input
@@ -693,7 +698,7 @@
               "Hotspot + Client" or "Client mode".</i></p>
               <p>
                 Last sync: <span id="ntp_last_sync_status">never</span>
-                <button type="button" class="button button-secondary" onclick="ntpSyncNow()" style="margin-left:8px;">Sync now</button>
+                <button type="button" id="ntp_sync_now_btn" class="button button-secondary" onclick="ntpSyncNow()" style="margin-left:8px;">Sync now</button>
               </p>
             </div>
           </div>

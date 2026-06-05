@@ -1177,7 +1177,8 @@ esp_err_t settings_persist_settings()
         #ifdef DEBUG_SETTINGS
         ESP_LOGI(TAG_SETTINGS, "Settings persisted");
         #endif
-        return ESP_OK;     
+        free((void *)json);   // success path also owns the buffer
+        return ESP_OK;
     }
 
 
