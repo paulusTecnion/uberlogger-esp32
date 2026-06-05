@@ -265,6 +265,10 @@ function plotDataPoints() {
   let config = {
     responsive: true,
     displayModeBar: true,
+    // Mouse-wheel zoom on the chart. A wheel-zoom changes xaxis.range, which
+    // fires plotly_relayout -> onPlotRelayout pauses live-follow (same as a
+    // drag-zoom); double-click autoranges and resumes following.
+    scrollZoom: true,
     modeBarButtonsToRemove: ["lasso2d"],
   };
 
