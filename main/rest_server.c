@@ -558,6 +558,7 @@ const char * logger_settings_to_json(Settings_t *settings)
     
     cJSON_AddStringToObject(root, "WIFI_SSID", settings->wifi_ssid);
     cJSON_AddNumberToObject(root, "WIFI_CHANNEL", settings->wifi_channel);
+    cJSON_AddBoolToObject(root, "WIFI_SSID_HIDDEN", settings->wifi_ssid_ap_hidden);
     cJSON_AddBoolToObject(root, "WIFI_PASSWORD_SET", strlen(settings->wifi_password) > 0);
     cJSON_AddBoolToObject(root, "WIFI_PASSWORD_AP_SET", strlen(settings->wifi_password_ap) > 0);
     cJSON_AddBoolToObject(root, "WEB_PASSWORD_SET", strlen(settings->web_password) > 0);
@@ -1088,6 +1089,14 @@ static esp_err_t setConfig_apply_json(httpd_req_t *req, cJSON *settings_in,
         {
             *ap_update_required = true;
         }
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_SSID_HIDDEN");
+    if (item != NULL)
+    {
+        // Takes effect on next reset (mirrors the channel "press reset after
+        // saving" guidance), so we deliberately do NOT set ap_update_required.
+        settings_set_wifi_ssid_ap_hidden(cJSON_IsTrue(item) ? 1 : 0);
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_PASSWORD");

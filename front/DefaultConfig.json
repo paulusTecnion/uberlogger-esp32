@@ -6,6 +6,7 @@
 
 	"WIFI_SSID": "wifi network name",
 	"WIFI_PASSWORD": "wifi password",
+	"WIFI_SSID_HIDDEN": false,
 
 	"ENABLE_CONFIGPAGE": 1,
     "CONFIGPAGE_PASSWORD": "",

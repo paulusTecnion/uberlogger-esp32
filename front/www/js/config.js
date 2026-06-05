@@ -675,6 +675,7 @@ function setConfig() {
     AIN_CHANNEL_LABELS: ainChannelLabels,
     DIO_CHANNEL_LABELS: dioChannelLabels,
     WIFI_CHANNEL: input["WIFI_CHANNEL"],
+    WIFI_SSID_HIDDEN: input["WIFI_SSID_HIDDEN"],
     WIFI_MODE: input["WIFI_MODE"],
     WIFI_SSID: input["WIFI_SSID"],
     TIMESTAMP: Number(new Date()),
