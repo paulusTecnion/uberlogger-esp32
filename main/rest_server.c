@@ -69,6 +69,7 @@ static void schedule_wifi_update_ap_deferred(void)
     }
 }
 
+
 /* HTTP Basic Auth helpers */
 
 bool rest_check_auth(httpd_req_t *req)
@@ -366,6 +367,10 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
             "\"WIFI_TEST_IP\":\"0.0.0.0\",\"WIFI_TEST_RSSI\":0");
     }
 
+    // NTP status is reported via /ajax/getStatus (used by the config page), not
+    // here: getValues is polled ~1/s and populated into forms, which would
+    // clobber the NTP enable <select> while the user is editing it.
+
     // Close root
     pos += snprintf(buf + pos, sizeof(buf) - pos, "}");
 
@@ -457,6 +462,11 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
         cJSON_AddStringToObject(root, "WIFI_TEST_IP", "0.0.0.0");
         cJSON_AddNumberToObject(root, "WIFI_TEST_RSSI", 0);
     }
+
+    // NTP status for the config page: enabled flag + last successful sync (epoch
+    // seconds, 0 = never).
+    cJSON_AddNumberToObject(root, "NTP_ENABLED", settings_get_ntp_enabled());
+    cJSON_AddNumberToObject(root, "NTP_LAST_SYNC", (double)wifi_ntp_last_sync());
 
     const char *settings_json= cJSON_Print(root);
     httpd_resp_sendstr(req, settings_json);
@@ -557,9 +567,15 @@ const char * logger_settings_to_json(Settings_t *settings)
     } else if (settings->wifi_mode == WIFI_MODE_APSTA)
     {
         cJSON_AddNumberToObject(root, "WIFI_MODE", 1);
+    } else if (settings->wifi_mode == WIFI_MODE_STA)
+    {
+        cJSON_AddNumberToObject(root, "WIFI_MODE", 2);
     }
 
-    
+    cJSON_AddNumberToObject(root, "NTP_ENABLED", settings->ntp_enabled);
+    cJSON_AddStringToObject(root, "NTP_SERVER", settings->ntp_server);
+
+
     strptr = cJSON_Print(root);
     cJSON_Delete(root);
 
@@ -598,6 +614,34 @@ static esp_err_t logger_calibrate_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+
+// Force an immediate NTP network poll (the "Sync now" button). Requires NTP to
+// be enabled and the device connected as a Wi-Fi client.
+static esp_err_t logger_ntpSync_handler(httpd_req_t *req)
+{
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+    httpd_resp_set_type(req, "application/json");
+
+    // Automatic time sync needs an upstream connection, which only exists in
+    // "Hotspot + Client" or "Client" mode. In hotspot-only mode there is no path
+    // to an NTP server, so give a clear, mode-specific reason rather than the
+    // generic "not active" message.
+    if (settings_get_wifi_mode() == WIFI_MODE_AP)
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Automatic time sync is unavailable in Hotspot-only mode. Switch to 'Hotspot + Client' or 'Client mode' first.", HTTPD_403_FORBIDDEN);
+        return ESP_OK;
+    }
+
+    if (wifi_sntp_poll_now() == ESP_OK)
+    {
+        json_send_resp(req, ENDPOINT_RESP_ACK, "NTP sync requested", 0);
+    } else {
+        json_send_resp(req, ENDPOINT_RESP_NACK, "NTP not active. Enable NTP and connect to a Wi-Fi network first.", HTTPD_403_FORBIDDEN);
+    }
+    return ESP_OK;
+}
 
 static esp_err_t logger_formatSdcard_handler(httpd_req_t *req)
 {
@@ -760,55 +804,18 @@ error2:
 }
 
 
-static esp_err_t logger_setConfig_handler(httpd_req_t *req)
+// Parse, validate and apply a settings JSON document into the in-RAM settings
+// struct. On the first invalid field it sends the NACK response itself and
+// returns ESP_FAIL (the caller then rolls the settings back to a snapshot, so a
+// failed save never half-applies). On success it returns ESP_OK with the
+// settings updated and *ap_update_required / *ntp_update_required set when those
+// subsystems must be re-applied by the caller. oldSettings is the pre-request
+// snapshot, used to detect Wi-Fi changes that require an AP restart.
+static esp_err_t setConfig_apply_json(httpd_req_t *req, cJSON *settings_in,
+                                      const Settings_t *oldSettings,
+                                      bool *ap_update_required,
+                                      bool *ntp_update_required)
 {
-    if (!rest_check_auth(req)) {
-        return rest_send_auth_required(req);
-    }
-
-    httpd_resp_set_type(req, "application/json");
-    cJSON *settings_in = NULL;
-    if (Logger_getState() == LOGTASK_LOGGING)
-    {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging", HTTPD_403_FORBIDDEN);
-        
-        return ESP_OK;
-    }
-    cJSON * root = cJSON_CreateObject();
-    if (root == NULL)
-    {
-        return ESP_FAIL;
-    }
-
-
-    // Store old settings (only to compare old wifi settings)
-    Settings_t oldSettings;
-    memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
-    bool ap_update_required = false;
-
-    int total_len = req->content_len;
-    int cur_len = 0;
-    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
-    int received = 0;
-    if (total_len >= SCRATCH_BUFSIZE) {
-        /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
-        // return ESP_FAIL;
-        goto error2;
-    }
-    while (cur_len < total_len) {
-        received = httpd_req_recv(req, buf + cur_len, total_len);
-        if (received <= 0) {
-            /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
-            // return ESP_FAIL;
-            goto error2;
-        }
-        cur_len += received;
-    }
-    buf[total_len] = '\0';
-
-    settings_in = cJSON_Parse(buf);
     cJSON * item = NULL;
 
     
@@ -896,6 +903,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                             snprintf(error_message, sizeof(error_message), "Invalid AIN channel name. Only hyphens and underscores allowed. Max length = %d", MAX_CHANNEL_NAME_LEN);
 
                             json_send_resp(req, ENDPOINT_RESP_NACK, error_message, HTTPD_400_BAD_REQUEST);
+                            goto error;
                         }
                     } else if (j == 5) {
                         if (i < 6)
@@ -907,6 +915,7 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
                                 snprintf(error_message, sizeof(error_message), "Invalid DIO channel name. Only hyphens and underscores allowed. Max length = %d", MAX_CHANNEL_NAME_LEN);
 
                                 json_send_resp(req, ENDPOINT_RESP_NACK, error_message, HTTPD_400_BAD_REQUEST);
+                                goto error;
                             }
                         }
                     }
@@ -1056,6 +1065,11 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             // Wifi ap/station mode
             settings_set_wifi_mode(WIFI_MODE_APSTA);
         }
+        else if (item->valueint == 2)
+        {
+            // Client-only (station) mode
+            settings_set_wifi_mode(WIFI_MODE_STA);
+        }
     }
 
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "WIFI_CHANNEL");
@@ -1070,9 +1084,9 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         // "Save all settings" that merely echoes the current channel would
         // needlessly deauth the connected client. Mirrors the STA-reconnect
         // change-check below.
-        if (oldSettings.wifi_channel != settings_get_wifi_channel())
+        if (oldSettings->wifi_channel != settings_get_wifi_channel())
         {
-            ap_update_required = true;
+            *ap_update_required = true;
         }
     }
 
@@ -1095,9 +1109,9 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
             goto error;
         }
         // Only restart the AP if the password actually changed (see above).
-        if (strcmp(oldSettings.wifi_password_ap, settings_get_wifi_password_ap()) != 0)
+        if (strcmp(oldSettings->wifi_password_ap, settings_get_wifi_password_ap()) != 0)
         {
-            ap_update_required = true;
+            *ap_update_required = true;
         }
     }
 
@@ -1111,12 +1125,30 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
         }
     }
 
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTP_ENABLED");
+    if (item != NULL)
+    {
+        settings_set_ntp_enabled(cJSON_IsTrue(item) || item->valueint != 0);
+        *ntp_update_required = true;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(settings_in, "NTP_SERVER");
+    if (item != NULL)
+    {
+        if (settings_set_ntp_server(item->valuestring) != ESP_OK)
+        {
+            json_send_resp(req, ENDPOINT_RESP_NACK, "Error setting NTP server. Must be 1-63 characters.", HTTPD_400_BAD_REQUEST);
+            goto error;
+        }
+        *ntp_update_required = true;
+    }
+
     item = cJSON_GetObjectItemCaseSensitive(settings_in, "ADC_RESOLUTION");
     if (item != NULL)
     {
         if (settings_set_resolution(item->valueint) != ESP_OK)
         {
-            
+
             json_send_resp(req, ENDPOINT_RESP_NACK, "ADC resolution missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
@@ -1175,53 +1207,144 @@ static esp_err_t logger_setConfig_handler(httpd_req_t *req)
 
  
 
-    if (Logtask_sync_settings() == ESP_FAIL)
+    return ESP_OK;
+
+error:
+    // A field was invalid; the failing branch above already sent the NACK.
+    return ESP_FAIL;
+}
+
+static esp_err_t logger_setConfig_handler(httpd_req_t *req)
+{
+    if (!rest_check_auth(req)) {
+        return rest_send_auth_required(req);
+    }
+
+    httpd_resp_set_type(req, "application/json");
+
+    if (Logger_getState() == LOGTASK_LOGGING)
     {
-        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings. STM busy", HTTPD_400_BAD_REQUEST);
-        // return ESP_FAIL;
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Cannot set settings while logging", HTTPD_403_FORBIDDEN);
+        return ESP_OK;
+    }
+
+    cJSON *settings_in = NULL;
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL)
+    {
+        return ESP_FAIL;
+    }
+
+    // Snapshot the current settings so we can roll back if applying fails. Every
+    // settings_set_*() mutates the in-RAM struct immediately, so a mid-way
+    // failure (an invalid field, or the STM32 sync command not being queueable)
+    // would otherwise leave a partially-applied, unpersisted state -- e.g.
+    // NTP_ENABLED reading 1 while SNTP was never started. Restoring the snapshot
+    // keeps the reported state consistent with what was actually applied.
+    Settings_t oldSettings;
+    memcpy(&oldSettings, settings_get(), sizeof(Settings_t));
+    bool ap_update_required = false;
+    bool ntp_update_required = false;
+
+    // Read the request body into the scratch buffer.
+    int total_len = req->content_len;
+    int cur_len = 0;
+    char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+    int received = 0;
+    if (total_len >= SCRATCH_BUFSIZE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        goto error2;
+    }
+    while (cur_len < total_len) {
+        received = httpd_req_recv(req, buf + cur_len, total_len);
+        if (received <= 0) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+            goto error2;
+        }
+        cur_len += received;
+    }
+    buf[total_len] = '\0';
+
+    settings_in = cJSON_Parse(buf);
+
+    // Apply all fields (atomic). On any validation failure, roll the in-RAM
+    // settings back to the snapshot -- the helper already sent the NACK.
+    if (setConfig_apply_json(req, settings_in, &oldSettings,
+                             &ap_update_required, &ntp_update_required) != ESP_OK)
+    {
+        memcpy(settings_get(), &oldSettings, sizeof(Settings_t));
         goto error;
     }
 
+    // Commit: queue the persist-to-flash + STM32 sync. If it can't be queued
+    // (system not idle / queue full), roll back too so nothing is half-applied.
+    if (Logtask_sync_settings() == ESP_FAIL)
+    {
+        memcpy(settings_get(), &oldSettings, sizeof(Settings_t));
+        json_send_resp(req, ENDPOINT_RESP_NACK, "Error storing settings. STM busy", HTTPD_400_BAD_REQUEST);
+        goto error;
+    }
 
     // First check if old wifi mode != new mode
+    bool wifi_reboot_required = false;
     if (oldSettings.wifi_mode != settings_get_wifi_mode())
     {
-        if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
-        {
-            Logtask_wifi_connect_ap();
-        } else {
-            Logtask_wifi_disconnect_ap();
-        }
-    } else if // if any wifi setting has changed, then we need to reconnect to the access point when mode is WIFI_MODE_APSTA
-        (settings_get_wifi_mode() == WIFI_MODE_APSTA &&
+        // Reboot to apply a mode change. A live esp_wifi_set_mode() reconfigures
+        // the Wi-Fi driver underneath the active HTTP connection and strands the
+        // web UI (sends hang with EAGAIN). The new mode was already queued to
+        // flash above; the boot path applies it cleanly and connects as needed.
+        wifi_reboot_required = true;
+    } else if // mode unchanged but a STA-relevant setting changed -> reconnect.
+              // Applies to both Hotspot+Client (APSTA) and Client-only (STA).
+        ((settings_get_wifi_mode() == WIFI_MODE_APSTA || settings_get_wifi_mode() == WIFI_MODE_STA) &&
         (
         (wifi_is_connected_to_ap() == false)  ||
-        (oldSettings.wifi_channel != settings_get_wifi_channel()) ||
-        (strcmp(oldSettings.wifi_ssid_ap, settings_get_wifi_ssid_ap()) != 0)  ||
-        (strcmp(oldSettings.wifi_password, settings_get_wifi_password()) !=0 )
+        (strcmp(oldSettings.wifi_ssid, settings_get_wifi_ssid()) != 0)  ||
+        (strcmp(oldSettings.wifi_password, settings_get_wifi_password()) != 0) ||
+        // AP-side changes only matter when the AP interface is up (APSTA).
+        (settings_get_wifi_mode() == WIFI_MODE_APSTA &&
+            ((oldSettings.wifi_channel != settings_get_wifi_channel()) ||
+             (strcmp(oldSettings.wifi_ssid_ap, settings_get_wifi_ssid_ap()) != 0)))
         ))
     {
-        // a connect event automatically disconnects and reconnects to an access point
+        // a connect event automatically disconnects and reconnects to the network
         Logtask_wifi_connect_ap();
     }
 
-    // only send ack in case wifi mode has not changed. Else the next will get stuck
     json_send_resp(req, ENDPOINT_RESP_ACK, NULL, 0);
 
-    if (ap_update_required)
+    // When the mode changed we reboot to apply it, so skip the live AP/NTP
+    // re-apply (moot, and we don't want to churn Wi-Fi before the ACK flushes).
+    if (wifi_reboot_required)
     {
-        schedule_wifi_update_ap_deferred();
+        // Reboot via the logger queue (LOGTASK_REBOOT_SYSTEM) rather than a
+        // wall-clock timer. The new settings were queued to flash above
+        // (Logtask_sync_settings); FIFO ordering guarantees that persist runs
+        // before this reboot, so the new mode survives. The reboot path also
+        // delays ~3s before esp_restart(), giving the ACK time to flush. A live
+        // esp_wifi_set_mode() would strand the web UI (sends hang on EAGAIN),
+        // so the boot path applies the new mode instead.
+        Logging_restartSystem();
     }
-    
+    else
+    {
+        if (ap_update_required)
+        {
+            schedule_wifi_update_ap_deferred();
+        }
+
+        // Re-apply NTP settings (enable/disable + server) if they changed.
+        if (ntp_update_required)
+        {
+            wifi_sntp_apply_settings();
+        }
+    }
 
 error:
     free((void*)settings_in);
 error2:
     cJSON_Delete(root);
-    
-
     return ESP_OK;
-   
 }
 
 esp_err_t reboot_post_handler(httpd_req_t *req)
@@ -1403,7 +1526,7 @@ esp_err_t start_rest_server(const char *base_path)
 
     server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 18;
+    config.max_uri_handlers = 20;
     // The default httpd task priority (tskIDLE_PRIORITY+1) is the lowest in the
     // system, so it gets starved by the logger/WiFi tasks and is slow to drain
     // socket sends. Bump it so responses keep flowing under load.
@@ -1430,6 +1553,14 @@ esp_err_t start_rest_server(const char *base_path)
     };
 
      httpd_register_uri_handler(server, &logger_calibrate_uri);
+
+    httpd_uri_t logger_ntpSync_uri = {
+        .uri = "/ajax/ntpSync",
+        .method = HTTP_POST,
+        .handler = logger_ntpSync_handler,
+        .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &logger_ntpSync_uri);
 
     httpd_uri_t logger_formatSdcard_uri = {
         .uri = "/ajax/formatSdcard",

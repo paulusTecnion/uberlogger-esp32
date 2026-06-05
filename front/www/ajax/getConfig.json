@@ -27,5 +27,7 @@
     "AIN6_RANGE": false,
     "AIN7_RANGE": false,
     "AIN8_RANGE": true
-  }
+  },
+  "NTP_ENABLED": 1,
+  "NTP_SERVER": "pool.ntp.org"
 }
