@@ -233,6 +233,11 @@ uint8_t Logger_mode_button();
 bool Logger_mode_button_long_pushed();
 void Logger_mode_button_pushed();
 esp_err_t Logger_syncSettings(uint8_t syncTime);
+/* Phase 2A: boot-time / first-contact handshake. Asks the STM32 for its
+ * UL_PROTOCOL_VERSION and verifies it matches this firmware. On mismatch it sets
+ * ERR_LOGGER_STM32_PROTOCOL_MISMATCH (UI-surfaceable via Logger_getError) and
+ * returns ESP_FAIL; logging start is gated on this. */
+esp_err_t Logger_checkProtocolVersion(void);
 // External function to be called outside logger task
 esp_err_t Logtask_sync_settings();
 esp_err_t Logtask_sync_time();

@@ -24,6 +24,9 @@
 #define ERR_LOGGER_SDCARD_UNABLE_TO_OPEN_FILE (0x000000400U)
 #define ERR_LOGGER_SDCARD_UNABLE_TO_CLOSE_FILE (0x000000800U)
 #define ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED (0x000001000U)
+/* STM32 reports a SPI protocol version that does not match this firmware's
+ * UL_PROTOCOL_VERSION. Logging is refused (we never parse mismatched frames). */
+#define ERR_LOGGER_STM32_PROTOCOL_MISMATCH (0x000002000U)
 
 
 #endif

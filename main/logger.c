@@ -43,6 +43,7 @@ static void setExpectedMessagePart(uint8_t part);
 static void updateSdCardRows(size_t dataLen);
 static bool isValidStartByte(uint8_t *bytes, uint8_t byte1, uint8_t byte2);
 static bool isValidStopByte(uint8_t *bytes, uint8_t byte1, uint8_t byte2);
+static esp_err_t decodeV2Frame(const uint8_t *frame);
 uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, size_t dataRows);
 
 
@@ -89,6 +90,19 @@ typedef struct
 } live_data_t;
 
 live_data_t live_data_buffer;
+
+/* v2 frame decode target. The received SPI transaction now carries one v2
+ * ul_frame_hdr_t + fixed-stride payload (Phase 2A). decodeV2Frame() expands it
+ * into this v1-shaped spi_msg_1_t (timeData[]/gpioData[]/adcData16[], dataLen)
+ * so the existing downstream consumers (filter/averaging, live buffer, the
+ * Task-5-owned SD writers) keep their interface untouched. Sized >= a full
+ * capacity frame; spi_msg_1_t holds DATA_LINES_PER_SPI_TRANSACTION (70) lines,
+ * which matches the STM frame capacity (UL_LINES_MAX = 70). */
+static spi_msg_1_t v2_decode_msg;
+
+/* Set true once the STM32 reports a matching UL_PROTOCOL_VERSION. Logging is
+ * gated on this (see Logtask_logging INIT) so we never parse mismatched frames. */
+static bool _protocolVersionOk = false;
 
 uint8_t msg_part = 0, expected_msg_part = 0;
 
@@ -381,39 +395,34 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
             (sampleRate == ADC_SAMPLE_RATE_EVERY_10S && iirFilterSecondsCounter >= 10))
             {
                
-                spi_msg_2_t *msg2 = (spi_msg_2_t *)msg;
-                    
+                // Phase 2A: each received transaction is now a single decoded v2
+                // frame presented as a spi_msg_1_t (msgType == 0). The aggregated
+                // (averaged/decimated) point for the elapsed interval is built from
+                // the current frame's LAST valid line, exactly as the v1 path built
+                // it from the trailing msg2 half. Source the frame as a spi_msg_1_t
+                // so this works regardless of msgType.
+                spi_msg_1_t *src = (spi_msg_1_t *)msg;
+
                 // Create a new spi_msg_slow_freq_1_t structure
                 spi_msg_1_t tempMsg1;
 
-                // Now we need to create a message and copy it into the sdcard buffer if the msgType = 1 (spi_msg_2_t)
-                if (msgType == 1)
+                tempMsg1.startByte[0] = 0xFA;
+                tempMsg1.startByte[1] = 0xFB;
+                tempMsg1.dataLen = 1;
+                tempMsg1.timeData[0] = src->timeData[src->dataLen-1];
+                // Either we take the sampled point or the filtered value (average) from the iir filter depending on the user setting
+                if (settings_get_averageSample())
                 {
-                    // copy data from msgType 2 to msgType 1. 
-                    // Assuming msg is of type spi_msg_slow_freq_2_t
-                    tempMsg1.startByte[0] = 0xFA;
-                    tempMsg1.startByte[1] = 0xFB;
-                    tempMsg1.dataLen = 1;
-                    tempMsg1.timeData[0] = msg2->timeData[msg2->dataLen-1];
-                    // Either we take the sampled point or the filtered value (average) from the iir filter depending on the user setting
-                    if (settings_get_averageSample())
-                    {
-                        memcpy(tempMsg1.adcData16, y_state, sizeof(y_state));
-                    } else {
-                        memcpy(tempMsg1.adcData16, msg2->adcData+((msg2->dataLen - 1)*8*2), 8*2);
-                    }
-
-                    // for (int i = 0; i< msg2->dataLen; i++)
-                    // {
-                    //     ESP_LOGI(TAG_LOG, "msg2.gpiodata[%d] %d", i, msg2->gpioData[i]);
-                    // }
-
-                    tempMsg1.gpioData[0] = msg2->gpioData[msg2->dataLen-1];
-                    // Update msg pointer to the new tempMsg1
-                    msg = &tempMsg1;
-                    msgSize = calculateMessageSizeForMsg1(&tempMsg1);
-                    msgType = 0; // Update msgType to reflect the change
+                    memcpy(tempMsg1.adcData16, y_state, sizeof(y_state));
+                } else {
+                    memcpy(tempMsg1.adcData16, &src->adcData16[(src->dataLen - 1)*8], 8*2);
                 }
+
+                tempMsg1.gpioData[0] = src->gpioData[src->dataLen-1];
+                // Update msg pointer to the new tempMsg1
+                msg = &tempMsg1;
+                msgSize = calculateMessageSizeForMsg1(&tempMsg1);
+                msgType = 0;
 
                 // ESP_LOGI(TAG_LOG, "tempMsg1.gpioData[0]: %d, msgSize: %d", tempMsg1.gpioData[0], msgSize);
                 if (shouldLogRaw(msgSize)) {
@@ -465,6 +474,103 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
 }
 
     
+
+/* Reconstruct line i's wall-clock time (microseconds since unix epoch) from the
+ * per-frame base captured by the STM. All math is 64-bit to avoid overflow:
+ * base_epoch (s) -> us is ~1.6e15 well before 2^63. The Q16 fractional second is
+ * converted with a multiply-then-shift so no float is needed. */
+static inline uint64_t ul_line_us(const ul_frame_hdr_t *h, uint32_t i)
+{
+    uint64_t base = (uint64_t)h->base_epoch * 1000000ull
+                  + (((uint64_t)h->base_subsec * 1000000ull) >> 16);   /* Q16 frac -> us */
+    return base + (uint64_t)i * ul_period_us(h->fs_code);
+}
+
+/* Convert reconstructed epoch-microseconds into the v1 per-line s_date_time_t the
+ * downstream expects: UTC calendar fields (year offset from 2000, month 1-12) plus
+ * `subseconds` carrying the milliseconds-within-second (matching how the v1 STM
+ * filled it and how Logger_GetSingleConversion consumes it: ms added to mktime*1000). */
+/* NOTE: relies on the system TZ being UTC (no tzset/TZ is set). gmtime_r here and
+ * mktime in Logger_GetSingleConversion are exact inverses only under UTC; setting a
+ * local TZ for SNTP would silently skew reconstructed timestamps. */
+static void ul_us_to_datetime(uint64_t us, s_date_time_t *out)
+{
+    time_t secs = (time_t)(us / 1000000ull);
+    uint32_t ms = (uint32_t)((us % 1000000ull) / 1000ull);
+    struct tm tmv;
+    gmtime_r(&secs, &tmv);
+
+    out->year       = (uint8_t)(tmv.tm_year - 100); /* tm_year is from 1900; wire year is from 2000 */
+    out->month      = (uint8_t)(tmv.tm_mon + 1);
+    out->date       = (uint8_t)tmv.tm_mday;
+    out->hours      = (uint8_t)tmv.tm_hour;
+    out->minutes    = (uint8_t)tmv.tm_min;
+    out->seconds    = (uint8_t)tmv.tm_sec;
+    out->padding1   = 0;
+    out->padding2   = 0;
+    out->subseconds = ms;
+}
+
+/* Decode one received v2 SPI transaction (raw bytes in `frame`) into the v1-shaped
+ * v2_decode_msg (spi_msg_1_t) so the unchanged downstream sees an equivalent
+ * per-line stream, now driven by reconstructed timestamps. Validates the frame
+ * markers and protocol version; drops (returns ESP_FAIL) on mismatch. */
+static esp_err_t decodeV2Frame(const uint8_t *frame)
+{
+    const ul_frame_hdr_t *h = (const ul_frame_hdr_t *)frame;
+
+    if (h->start[0] != UL_FRAME_START0 || h->start[1] != UL_FRAME_START1)
+    {
+        ESP_LOGE(TAG_LOG, "v2 frame bad markers: %02X %02X", h->start[0], h->start[1]);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+        return ESP_FAIL;
+    }
+    if (h->protocol_version != UL_PROTOCOL_VERSION)
+    {
+        ESP_LOGE(TAG_LOG, "v2 frame version mismatch: got %u, expected %u",
+                 h->protocol_version, (unsigned)UL_PROTOCOL_VERSION);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_PROTOCOL_MISMATCH);
+        return ESP_FAIL;
+    }
+
+    uint8_t line_count = h->line_count;
+    uint8_t capacity   = h->capacity;
+    if (capacity == 0 || capacity > DATA_LINES_PER_SPI_TRANSACTION ||
+        line_count > capacity || line_count > DATA_LINES_PER_SPI_TRANSACTION)
+    {
+        ESP_LOGE(TAG_LOG, "v2 frame bad counts: line_count=%u capacity=%u",
+                 line_count, capacity);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+        return ESP_FAIL;
+    }
+
+    /* Block layout: header (14 B) then adc[capacity*8] (uint16) then gpio[capacity].
+     * `capacity` is the stride for the adc->gpio offset. recvbuf0 is DMA_ATTR
+     * aligned and the adc block starts at the even offset 14, so the uint16 reads
+     * are 2-byte aligned (M0+/S2 friendly). */
+    const uint16_t *adc  = (const uint16_t *)(frame + sizeof(ul_frame_hdr_t));
+    const uint8_t  *gpio = frame + sizeof(ul_frame_hdr_t) + (uint32_t)capacity * UL_ADC_CH * 2;
+
+    /* Produce the v1 in-memory representation: one spi_msg_1_t with line_count
+     * lines. The start markers / dataLen mirror what the v1 msg_1 path expected so
+     * the existing isValidStartByte / dataLen logic and the SD writers (Task 5)
+     * keep working. */
+    v2_decode_msg.startByte[0] = UL_FRAME_START0;
+    v2_decode_msg.startByte[1] = UL_FRAME_START1;
+    v2_decode_msg.dataLen      = line_count;
+
+    for (uint32_t i = 0; i < line_count; i++)
+    {
+        ul_us_to_datetime(ul_line_us(h, i), &v2_decode_msg.timeData[i]);
+        v2_decode_msg.gpioData[i] = gpio[i];
+        for (uint32_t ch = 0; ch < UL_ADC_CH; ch++)
+        {
+            v2_decode_msg.adcData16[i * UL_ADC_CH + ch] = adc[i * UL_ADC_CH + ch];
+        }
+    }
+
+    return ESP_OK;
+}
 
 static esp_err_t processSlowFrequencyMessage() {
     if (isValidStartByte(spi_msg_slow_freq_1_ptr->startByte, 0xFA, 0xFB) && expected_msg_part == 0) {
@@ -695,6 +801,51 @@ void  Logger_resetSTM32()
     vTaskDelay(300 / portTICK_PERIOD_MS);
     gpio_set_level(GPIO_STM32_NRESET, 1);
     vTaskDelay(300 / portTICK_PERIOD_MS);
+}
+
+esp_err_t Logger_checkProtocolVersion(void)
+{
+    spi_cmd_t cmd;
+
+    spi_buffer = spi_ctrl_getRxData();
+
+    cmd.command = STM32_CMD_GET_PROTOCOL_VERSION;
+    cmd.data0   = 0;
+
+    if (spi_ctrl_cmd(STM32_CMD_GET_PROTOCOL_VERSION, &cmd, sizeof(spi_cmd_t)) != ESP_OK)
+    {
+        ESP_LOGE(TAG_LOG, "Protocol version handshake: no response from STM32");
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_NO_RESPONSE);
+        _protocolVersionOk = false;
+        return ESP_FAIL;
+    }
+
+    // Response mirrors the command/response convention: byte 0 echoes the command,
+    // byte 1 (resp.data) carries the STM32's UL_PROTOCOL_VERSION.
+    if (spi_buffer[0] != STM32_CMD_GET_PROTOCOL_VERSION)
+    {
+        ESP_LOGE(TAG_LOG, "Protocol version handshake: bad echo %u", spi_buffer[0]);
+        spi_ctrl_print_rx_buffer(spi_buffer);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_NO_RESPONSE);
+        _protocolVersionOk = false;
+        return ESP_FAIL;
+    }
+
+    uint8_t stm_version = spi_buffer[1];
+    if (stm_version != UL_PROTOCOL_VERSION)
+    {
+        ESP_LOGE(TAG_LOG, "STM32 protocol version mismatch: STM=%u, ESP32=%u. Refusing to log.",
+                 stm_version, (unsigned)UL_PROTOCOL_VERSION);
+        SET_ERROR(_errorCode, ERR_LOGGER_STM32_PROTOCOL_MISMATCH);
+        _protocolVersionOk = false;
+        return ESP_FAIL;
+    }
+
+    #ifdef DEBUG_LOGGING
+    ESP_LOGI(TAG_LOG, "STM32 protocol version OK (%u)", stm_version);
+    #endif
+    _protocolVersionOk = true;
+    return ESP_OK;
 }
 
 esp_err_t Logger_syncSettings(uint8_t syncTime)
@@ -1470,6 +1621,28 @@ void LogTask_reset()
 
 esp_err_t Logger_processData()
 {
+    /* Phase 2A: the received transaction is now one v2 frame (header + fixed-stride
+     * payload), not the alternating v1 spi_msg_1/spi_msg_2 halves. Decode it into
+     * the v1-shaped v2_decode_msg and present it to the existing path as a single
+     * "msg_1" (start-byte) record per frame. Reconstructed per-line timestamps,
+     * gpio and adc feed the unchanged downstream (filter/averaging, live buffer,
+     * the Task-5 SD writers). */
+    if (decodeV2Frame(spi_buffer) != ESP_OK)
+    {
+        /* decodeV2Frame already logged and set the appropriate error bit. Drop the
+         * frame rather than parse garbage. */
+        return ESP_FAIL;
+    }
+
+    /* Point the v1 slow/high-speed processing at the decoded frame. Every v2 frame
+     * is a single layout, so we always drive the msg_part == 0 (start-byte) branch
+     * and keep the parser's part-alternation state consistent. */
+    spi_msg_slow_freq_1_ptr  = &v2_decode_msg;
+    spi_msg_slow_freq_2_ptr  = (spi_msg_2_t *)&v2_decode_msg;
+    spi_msg_1_adc_only_ptr   = (spi_msg_1_adc_only_t *)&v2_decode_msg;
+    spi_msg_2_adc_only_ptr   = (spi_msg_2_adc_only_t *)&v2_decode_msg;
+    expected_msg_part = 0;
+
     if (settings_get_samplerate() <= ADC_SAMPLE_RATE_250Hz)
     {
         if (processSlowFrequencyMessage() != ESP_OK)
@@ -1977,6 +2150,17 @@ void Logtask_logging()
         switch (_currentLogTaskLoggingState)
         {
             case LOGTASK_LOGGING_INIT:
+                // Phase 2A: refuse to start logging unless the STM32 reports a
+                // matching protocol version. The handshake is re-checked on each
+                // logging-start attempt until it succeeds (_protocolVersionOk),
+                // so a slow STM bring-up does not permanently block logging.
+                if (!_protocolVersionOk && Logger_checkProtocolVersion() != ESP_OK)
+                {
+                    ESP_LOGE(TAG_LOG, "Refusing to log: STM32 protocol version not confirmed");
+                    SET_ERROR(_errorCode, ERR_LOGGER_STM32_PROTOCOL_MISMATCH);
+                    return;
+                }
+
                 if (esp_sdcard_is_mounted() )
                 {
 
@@ -2354,7 +2538,15 @@ void task_logging(void * pvParameters)
 
     // Reset the STM32
     Logger_resetSTM32();
-    
+
+    // Phase 2A: boot-time protocol handshake before any settings sync. A version
+    // mismatch sets ERR_LOGGER_STM32_PROTOCOL_MISMATCH (surfaced to the UI) and
+    // logging start stays gated on _protocolVersionOk (see Logtask_logging INIT),
+    // so we never parse mismatched frames.
+    if (Logger_checkProtocolVersion() != ESP_OK)
+    {
+        ESP_LOGE(TAG_LOG, "STM32 protocol handshake FAILED");
+    }
 
      if (Logger_syncSettings(0) != ESP_OK)
         {
