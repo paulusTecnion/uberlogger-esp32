@@ -90,6 +90,7 @@ typedef enum stm32cmd {
     STM32_CMD_SET_RANGE,
     STM32_CMD_SET_TRIGGER_MODE,
     STM32_CMD_GET_PROTOCOL_VERSION,   /* v2: ESP32 reads STM's UL_PROTOCOL_VERSION at boot */
+    STM32_CMD_GET_OVERRUN,   /* v2: ESP32 reads STM's sticky ring-overrun flag (0/1) */
     CMD_UNKNOWN
 } stm32cmd_t;
 

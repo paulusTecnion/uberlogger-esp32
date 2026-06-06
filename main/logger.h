@@ -243,6 +243,10 @@ esp_err_t Logger_syncSettings(uint8_t syncTime);
  * ERR_LOGGER_STM32_PROTOCOL_MISMATCH (UI-surfaceable via Logger_getError) and
  * returns ESP_FAIL; logging start is gated on this. */
 esp_err_t Logger_checkProtocolVersion(void);
+/* Phase 2A: returns the STM32's sticky ring-overrun flag (0/1) cached from the
+ * last finalized logging session. Read-only and lock-free (single byte), safe
+ * to call from the HTTP-server context (e.g. /ajax/getStatus). */
+uint8_t Logger_getOverrun(void);
 // External function to be called outside logger task
 esp_err_t Logtask_sync_settings();
 esp_err_t Logtask_sync_time();

@@ -104,6 +104,12 @@ static spi_msg_1_t v2_decode_msg;
  * gated on this (see Logtask_logging INIT) so we never parse mismatched frames. */
 static bool _protocolVersionOk = false;
 
+/* Phase 2A: cached copy of the STM32's sticky ring-overrun flag for the
+ * just-finished logging session. Reset to 0 at logging start; refreshed once
+ * at session finalize (see Logtask_logging FINAL) by querying the STM while it
+ * is back in IDLE. Exposed read-only via Logger_getOverrun() / getStatus. */
+static uint8_t _stmOverrun = 0;
+
 uint8_t msg_part = 0, expected_msg_part = 0;
 
 // struct {
@@ -937,6 +943,47 @@ esp_err_t Logger_checkProtocolVersion(void)
     #endif
     _protocolVersionOk = true;
     return ESP_OK;
+}
+
+/* Phase 2A: query the STM32's sticky ring-overrun flag and cache it in
+ * _stmOverrun. Mirrors Logger_checkProtocolVersion's command/response
+ * convention: byte 0 echoes the command, byte 1 carries the 0/1 flag. MUST be
+ * called from the logger task only (issues an SPI command) and only when the
+ * STM is back in IDLE and idle on SPI (i.e. after frame streaming has ceased),
+ * never mid-stream and never from the HTTP-server context. */
+static void Logger_queryOverrun(void)
+{
+    spi_cmd_t cmd;
+
+    spi_buffer = spi_ctrl_getRxData();
+
+    cmd.command = STM32_CMD_GET_OVERRUN;
+    cmd.data0   = 0;
+
+    if (spi_ctrl_cmd(STM32_CMD_GET_OVERRUN, &cmd, sizeof(spi_cmd_t)) != ESP_OK)
+    {
+        ESP_LOGE(TAG_LOG, "Overrun query: no response from STM32");
+        return;
+    }
+
+    // Response mirrors the command/response convention: byte 0 echoes the
+    // command, byte 1 carries the STM32's sticky ring-overrun flag (0/1).
+    if (spi_buffer[0] != STM32_CMD_GET_OVERRUN)
+    {
+        ESP_LOGE(TAG_LOG, "Overrun query: bad echo %u", spi_buffer[0]);
+        spi_ctrl_print_rx_buffer(spi_buffer);
+        return;
+    }
+
+    _stmOverrun = spi_buffer[1] ? 1 : 0;
+    #ifdef DEBUG_LOGGING
+    ESP_LOGI(TAG_LOG, "STM32 overrun flag = %u", _stmOverrun);
+    #endif
+}
+
+uint8_t Logger_getOverrun(void)
+{
+    return _stmOverrun;
 }
 
 esp_err_t Logger_syncSettings(uint8_t syncTime)
@@ -2294,6 +2341,9 @@ void Logtask_logging()
                     // Reset and start the logging statemachine
                     ESP_LOGI(TAG_LOG, "Current log file %s", fileman_get_current_file_name());
                     LogTask_reset();
+                    /* Phase 2A: fresh session starts clean; the STM clears its
+                     * sticky overrun flag via frame_reset() on this start. */
+                    _stmOverrun = 0;
                     Logging_reset();
                     Logging_start();
                     _nextLogTaskLoggingState = LOGTASK_LOGGING_BUSY;
@@ -2408,6 +2458,16 @@ void Logtask_logging()
                     // esp_sd_card_unmount();
                     vTaskDelay(500 / portTICK_PERIOD_MS);
                 }
+
+                /* Phase 2A: the session is finalized and frame streaming has
+                 * ceased — the STM is back in IDLE and idle on SPI, and its
+                 * sticky overrun flag still reflects the just-finished session
+                 * (it is only cleared at the NEXT logging start). Query it now,
+                 * from the logger-task context, so /ajax/getStatus can report
+                 * OVERRUN. Done before the state transition so the value is
+                 * captured for both the stop (DONE) and external-retrigger
+                 * (re-INIT) paths, ahead of any new session reset. */
+                Logger_queryOverrun();
 
                  if (_stopLogging)
                     {
