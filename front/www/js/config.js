@@ -5,8 +5,53 @@ $(document).ready(function () {
   document
     .getElementById("LOG_SAMPLE_RATE")
     .addEventListener("change", updateAverageSamplesField);
+  document
+    .getElementById("LOG_SAMPLE_RATE")
+    .addEventListener("change", updateHighRateAvailability);
   updateAverageSamplesField(); // Call initially to set the correct state on load
+  updateHighRateAvailability(); // Reflect any loaded high-rate config on load
 });
+
+// Above 250 Hz only 12-bit RAW logging is supported (firmware rejects 16-bit
+// or CSV at these rates). The sample-rate <select> encodes the firmware rate
+// code as its value; codes >= 13 are 500 Hz / 1000 Hz (> 250 Hz). Keep this in
+// sync with the backend guard (rest_server.c: fs_code >= 13).
+function isHighRate(rateCode) {
+  return Number(rateCode) >= 13;
+}
+
+// When a high sample rate (>250 Hz) is selected, disable + grey the 16-bit
+// resolution option and the CSV log-mode option, forcing 12-bit + RAW, and show
+// an explanatory note. When the rate drops back to <=250 Hz, restore both
+// options and hide the notes. Mirrors the NTP reachability-note pattern.
+function updateHighRateAvailability() {
+  var rateSel = document.getElementById("LOG_SAMPLE_RATE");
+  if (!rateSel) return;
+  var high = isHighRate(rateSel.value);
+
+  // Resolution: disable the 16-bit option; if it was selected, force 12-bit.
+  var resSel  = document.getElementById("ADC_RESOLUTION");
+  var res16    = document.getElementById("ADC_RESOLUTION_16");
+  if (res16) res16.disabled = high;
+  if (high && resSel && resSel.value === "16") resSel.value = "12";
+
+  // Log mode: disable the CSV radio + grey its label; if it was selected, force RAW.
+  var csvRadio = document.getElementById("log_mode_csv");
+  var csvLabel = document.getElementById("log_mode_csv_label");
+  var rawRadio = document.getElementById("log_mode_raw");
+  if (csvRadio) csvRadio.disabled = high;
+  if (csvLabel) csvLabel.style.opacity = high ? "0.5" : "";
+  if (high && csvRadio && csvRadio.checked && rawRadio) {
+    rawRadio.checked = true;
+  }
+
+  // Notes (one near resolution on the Acquisition tab, one near log mode on the
+  // Files tab) — toggled like the NTP mode notice.
+  var noteRes = document.getElementById("high_rate_notice");
+  var noteLog = document.getElementById("high_rate_logmode_notice");
+  if (noteRes) noteRes.style.display = high ? "block" : "none";
+  if (noteLog) noteLog.style.display = high ? "block" : "none";
+}
 
 function updateAverageSamplesField() {
   const logSampleRate = document.getElementById("LOG_SAMPLE_RATE").value;
@@ -158,6 +203,11 @@ function parseConfig(data) {
   // NTP enable select + server are populated by populateFields (NTP_ENABLED /
   // NTP_SERVER); reflect the enabled state in the UI.
   updateNtpUI();
+
+  // The sample-rate select has just been populated; reflect any high-rate
+  // (>250 Hz) restriction (grey 16-bit + CSV, force 12-bit + RAW, show note).
+  updateAverageSamplesField();
+  updateHighRateAvailability();
 }
 
 
