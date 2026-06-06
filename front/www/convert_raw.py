@@ -1,8 +1,15 @@
 import sys
-import struct 
+import struct
+import datetime
 
-VERSION_STRING = "V1.1"
-RAW_FORMAT_VERSION = 2
+VERSION_STRING = "V2.0"
+RAW_FORMAT_VERSION = 2          # v1 frames (alternating spi_msg_1 / spi_msg_2)
+RAW_FORMAT_VERSION_V2 = 3       # v2 frames (ul_frame_hdr_t + adc block + gpio block)
+SUPPORTED_FORMAT_VERSIONS = (RAW_FORMAT_VERSION, RAW_FORMAT_VERSION_V2)
+MAX_CAPACITY = 70               # capacity byte is untrusted; bound it for offsets
+# v2 RAW: fs_code -> per-line period in microseconds (0/unknown -> no fixed period)
+PERIOD_US = {5:1000000, 6:500000, 7:200000, 8:100000, 9:40000, 10:20000,
+             11:10000, 12:4000, 13:2000, 14:1000}
 NUM_ADC_CHANNELS = 8
 NUM_DIO_CHANNELS = 6  # Assuming 6 DIO channels as per your requirements
 ADC_MULT_FACTOR_16B_TEMP = 1000000
@@ -439,6 +446,65 @@ def read_spi_msg_2(file, data_len, rows_remaining):
     return data_len, time_data, gpio_data, adc_data, rows_remaining
 
 
+def reconstruct_times(base_epoch, base_subsec_q16, fs_code, line_count):
+    """Reconstruct per-line UTC timestamps for a v2 frame into the tuple shape
+    csv_write() expects: (year-2000, month, day, hours, minutes, seconds, 0, 0, ms).
+    csv_write formats year as 20{year:02d} and subseconds as {:03d} (milliseconds)."""
+    base_us = base_epoch * 1_000_000 + (base_subsec_q16 * 1_000_000) // 65536
+    per = PERIOD_US.get(fs_code, 0)
+    out = []
+    for i in range(line_count):
+        t_us = base_us + i * per
+        dt = datetime.datetime.utcfromtimestamp(t_us / 1_000_000)
+        ms = int((t_us % 1_000_000) / 1000)
+        out.append((dt.year - 2000, dt.month, dt.day, dt.hour, dt.minute,
+                    dt.second, 0, 0, ms))
+    return out
+
+
+def read_v2_frame(file, rows_remaining):
+    """Read one v2 frame: 14-byte ul_frame_hdr_t + adc[capacity*8] uint16 LE +
+    gpio[capacity] uint8. Returns the first line_count valid lines in the same
+    (data_len, time_data, gpio_data, adc_data, rows_remaining) shape the v1 readers
+    return, so the main loop and csv_write are unchanged."""
+    hdr = file.read(14)
+    if not hdr:
+        return -1  # End of file reached
+    if len(hdr) < 14:
+        return -1  # trailing rowcount / EOF
+    # start[2], protocol_version u8, flags u8, base_epoch u32 LE, base_subsec u16 LE,
+    # fs_code u8, line_count u8, capacity u8, pad u8
+    (s0, s1, proto, flags, base_epoch, base_subsec,
+     fs_code, line_count, capacity, _pad) = struct.unpack('<BBBBIHBBBB', hdr)
+
+    if not (s0 == 0xFA and s1 == 0xFB):
+        return "Unexpected start bytes for v2 frame."
+    if proto != 2:
+        return f"Unexpected protocol_version {proto} for v2 frame."
+    # capacity byte is untrusted -> bound it before computing block sizes
+    if not (0 < capacity <= MAX_CAPACITY):
+        return "Unexpected capacity for v2 frame"
+    if line_count > capacity:
+        line_count = capacity  # never read past the adc/gpio blocks
+
+    # ADC block: capacity * 8 channels * uint16 LE
+    adc_block = file.read(capacity * 8 * 2)
+    if len(adc_block) < capacity * 8 * 2:
+        return -1
+    # GPIO block: capacity * uint8
+    gpio_block = file.read(capacity)
+    if len(gpio_block) < capacity:
+        return -1
+
+    # Keep only the first line_count valid lines.
+    adc_data = decode_adc_data(adc_block[:line_count * 8 * 2], line_count)
+    gpio_data = decode_gpio_data(gpio_block[:line_count])
+    time_data = reconstruct_times(base_epoch, base_subsec, fs_code, line_count)
+
+    rows_remaining = rows_remaining - line_count
+    return line_count, time_data, gpio_data, adc_data, rows_remaining
+
+
 print(f"*** Uberlogger raw data conversion tool {VERSION_STRING}. Tecnion Technologies 2024 (C) ***\r\n")
 if len(sys.argv) < 2:
     print("Usage: python convert_raw.py <file_path>")
@@ -462,9 +528,11 @@ settings_names = ["File format version", "adc_channel_range", "adc_channel_type"
 # Print the settings
 for i, setting in enumerate(decoded_settings):
     print(f"{i+1}. {settings_names[i]}: {setting}")
-    if (i == 0 and setting != RAW_FORMAT_VERSION):
+    if (i == 0 and setting not in SUPPORTED_FORMAT_VERSIONS):
         print(f"ERROR: cannot convert {file_path}. This data file is made with an older and incompatible Uberlogger firmware version.")
         exit()
+
+file_format_version = decoded_settings[0]
 
 print("ADC Offsets:", decoded_adc_offsets)
 adc_channel_range = decoded_settings[1]
@@ -490,9 +558,17 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
     # Write the CSV header with labels
     fcsv.write(generate_header(adc_channel_enabled, gpio_channel_enabled, adc_channel_labels, dio_channel_labels, file_separator_char) + '\r')
 
-    message_type = 1  # Start with spi_msg_1
+    message_type = 1  # Start with spi_msg_1 (v1 only)
     while True:
-        if message_type == 1:
+        if file_format_version == RAW_FORMAT_VERSION_V2:
+            # v2: every frame is self-describing (ul_frame_hdr_t). No alternation.
+            result = read_v2_frame(file, rows_remaining)
+            if result == -1:
+                break  # End of file reached
+            elif isinstance(result, str):
+                print(result)  # Error message
+                sys.exit(1)
+        elif message_type == 1:
             result = read_spi_msg_1(file, rows_remaining)
             if result == -1:
                 break  # End of file reached
