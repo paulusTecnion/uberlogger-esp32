@@ -96,6 +96,11 @@ typedef struct {
     uint8_t numSpiMessages;
     uint32_t msgSize;
     uint64_t total_datarows;
+    /* Phase 2A RAW v2: running byte count of v2 frames packed into spi_data for the
+     * current flush window. Unlike the legacy fixed-stride msgSize*numSpiMessages
+     * model, v2 frames are variable length (full-capacity direct frames vs 1-line
+     * aggregates), so the RAW flush writes exactly this many bytes. Reset per flush. */
+    uint32_t raw_bytes;
 } sdcard_data_t;
 
 

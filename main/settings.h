@@ -94,9 +94,9 @@ typedef enum adc_sample_rate_e {
 	ADC_SAMPLE_RATE_25Hz,
 	ADC_SAMPLE_RATE_50Hz,
 	ADC_SAMPLE_RATE_100Hz,
-	ADC_SAMPLE_RATE_250Hz,
-	// ADC_SAMPLE_RATE_500Hz,
-	// ADC_SAMPLE_RATE_1000Hz,
+	ADC_SAMPLE_RATE_250Hz,        // index 12
+	ADC_SAMPLE_RATE_500Hz,        // index 13 -> ul_period_us 2000us = 500Hz
+	ADC_SAMPLE_RATE_1000Hz,       // index 14 -> ul_period_us 1000us = 1000Hz
 	// ADC_SAMPLE_RATE_2500Hz,
 	// ADC_SAMPLE_RATE_5000Hz,
 	// ADC_SAMPLE_RATE_10000Hz,

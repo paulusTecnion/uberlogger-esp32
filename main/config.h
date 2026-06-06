@@ -129,7 +129,12 @@ DEBUG OUTPUT CONFIGURATION
 #define V_OFFSET_60V 126774848
 #define V_OFFSET_10V 151699029
 
-/* File format settings */
-#define RAW_FILE_FORMAT_VERSION 2
+/* File format settings.
+ * Phase 2A: the RAW .dat body is now v2 frames; the container version byte is
+ * bumped to the shared single-source-of-truth value (UL_RAW_FILE_FORMAT_VERSION
+ * == 3 in ul_protocol.h). convert_raw.py reads this byte to pick the frame parser
+ * (2 = legacy spi_msg_1/2, 3 = v2 frames). */
+#include "ul_protocol.h"
+#define RAW_FILE_FORMAT_VERSION UL_RAW_FILE_FORMAT_VERSION
 
 #endif

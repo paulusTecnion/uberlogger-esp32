@@ -210,6 +210,90 @@ static bool shouldLogRaw(size_t dataLen)
     return dataLen > 0 && dataLen < 70 && (settings_get_logmode() == LOGMODE_RAW);
 }
 
+/* Phase 2A RAW v2 helpers ----------------------------------------------------
+ * The RAW .dat body is now [container hdr v3][v2 frame][v2 frame]...[uint64 rows].
+ * v2 frames are variable length, so we pack their raw bytes into sdcard_data.spi_data
+ * with a running byte offset (sdcard_data.raw_bytes) instead of the legacy
+ * fixed-stride msgSize*log_counter model, and the flush writes raw_bytes bytes. */
+
+/* Append `len` raw v2-frame bytes from `frame` into the SD staging buffer. */
+static void appendV2FrameToSdBuffer(const uint8_t *frame, uint16_t len)
+{
+    if ((size_t)sdcard_data.raw_bytes + len > sizeof(sdcard_data.spi_data))
+    {
+        ESP_LOGE(TAG_LOG, "RAW v2 staging overflow: have %lu + %u > %u",
+                 (unsigned long)sdcard_data.raw_bytes, (unsigned)len,
+                 (unsigned)sizeof(sdcard_data.spi_data));
+        return;
+    }
+    memcpy(sdcard_data.spi_data + sdcard_data.raw_bytes, frame, len);
+    sdcard_data.raw_bytes += len;
+}
+
+/* Invert ul_us_to_datetime: a v1-shaped s_date_time_t (UTC calendar, subseconds in
+ * ms) back to epoch seconds + ms. Mirrors Logger_GetSingleConversion's mktime path,
+ * so the v2-frame round-trip (decode -> aggregate -> re-encode) is exact under the
+ * UTC-only TZ invariant Task 4 documented. */
+static uint32_t s_date_time_to_epoch_ms(const s_date_time_t *dt, uint16_t *ms_out)
+{
+    struct tm t = {0};
+    t.tm_year = dt->year + 100;   /* wire year is from 2000; tm_year is from 1900 */
+    t.tm_mon  = dt->month - 1;
+    t.tm_mday = dt->date;
+    t.tm_hour = dt->hours;
+    t.tm_min  = dt->minutes;
+    t.tm_sec  = dt->seconds;
+    if (ms_out) *ms_out = (uint16_t)(dt->subseconds % 1000u);
+    return (uint32_t)mktime(&t);
+}
+
+/* Serialize a v1-shaped aggregate (dataLen lines) into a v2 frame and append it to
+ * the open RAW .dat staging buffer. base = timeData[0]; per-line times reconstruct
+ * as base + i*period(fs_code). For the averaging aggregate dataLen==1, so only the
+ * base matters. capacity == line_count keeps each written frame self-describing. */
+static void writeV2FrameFromMsg1(const spi_msg_1_t *m)
+{
+    uint8_t buf[sizeof(ul_frame_hdr_t) + DATA_LINES_PER_SPI_TRANSACTION * UL_LINE_BYTES];
+    ul_frame_hdr_t *h = (ul_frame_hdr_t *)buf;
+    uint8_t n = (uint8_t)m->dataLen;   /* <= DATA_LINES_PER_SPI_TRANSACTION */
+
+    h->start[0] = UL_FRAME_START0;
+    h->start[1] = UL_FRAME_START1;
+    h->protocol_version = UL_PROTOCOL_VERSION;
+    h->flags = (settings_get_resolution() == ADC_16_BITS) ? UL_FLAG_RES16 : 0;
+
+    uint16_t ms = 0;
+    h->base_epoch  = s_date_time_to_epoch_ms(&m->timeData[0], &ms);
+    h->base_subsec = (uint16_t)(((uint32_t)ms * 65536u) / 1000u);
+    h->fs_code     = (uint8_t)settings_get_samplerate();
+    h->line_count  = n;
+    h->capacity    = n;
+    h->pad         = 0;
+
+    uint16_t *adc  = (uint16_t *)(buf + sizeof(ul_frame_hdr_t));
+    uint8_t  *gpio = buf + sizeof(ul_frame_hdr_t) + (uint32_t)n * UL_ADC_CH * 2;
+    for (uint8_t i = 0; i < n; i++)
+    {
+        memcpy(&adc[i * UL_ADC_CH], &m->adcData16[i * 8], UL_ADC_CH * 2);
+        gpio[i] = m->gpioData[i];
+    }
+
+    uint16_t len = sizeof(ul_frame_hdr_t) + (uint16_t)((uint32_t)n * UL_LINE_BYTES);
+    appendV2FrameToSdBuffer(buf, len);
+}
+
+/* Append the ORIGINAL received v2 frame (verbatim) from the persistent SPI DMA
+ * buffer to the RAW staging buffer. The valid frame is the first
+ * 14 + capacity*17 bytes of spi_buffer; trailing bytes of the fixed 2048-byte SPI
+ * transaction are junk and must NOT be written. capacity is read from the received
+ * header. This preserves the STM's exact base timestamp and avoids a re-encode. */
+static void writeV2FrameFromSpiBuffer(void)
+{
+    const ul_frame_hdr_t *h = (const ul_frame_hdr_t *)spi_buffer;
+    uint16_t len = sizeof(ul_frame_hdr_t) + (uint16_t)((uint32_t)h->capacity * UL_LINE_BYTES);
+    appendV2FrameToSdBuffer(spi_buffer, len);
+}
+
 static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
 {
     // const uint8_t *src = (const uint8_t *)msg;
@@ -382,6 +466,10 @@ static uint16_t filterSlowData(uint8_t msgType) {
 static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg, uint16_t *adcData16) {
     uint8_t sampleRate = settings_get_samplerate();
     size_t dataLen;
+    /* Phase 2A: RAW now appends v2 frames (verbatim received frame for the direct
+     * path, serialized 1-line frame for the aggregate), so the legacy byte-count
+     * msgSize is no longer consumed here. Kept in the signature for the callers. */
+    (void)msgSize;
 
     // If sample rate is < 1 Hz, apply IIR filtering first
     if (sampleRate < ADC_SAMPLE_RATE_1Hz) {
@@ -419,14 +507,11 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
                 }
 
                 tempMsg1.gpioData[0] = src->gpioData[src->dataLen-1];
-                // Update msg pointer to the new tempMsg1
-                msg = &tempMsg1;
-                msgSize = calculateMessageSizeForMsg1(&tempMsg1);
-                msgType = 0;
 
-                // ESP_LOGI(TAG_LOG, "tempMsg1.gpioData[0]: %d, msgSize: %d", tempMsg1.gpioData[0], msgSize);
-                if (shouldLogRaw(msgSize)) {
-                    copyDataToSdCard((void*)&tempMsg1, msgSize, msgType);
+                if (settings_get_logmode() == LOGMODE_RAW) {
+                    /* Phase 2A: the aggregate is a synthesized point (not a received
+                     * frame), so serialize a 1-line v2 frame and append it. */
+                    writeV2FrameFromMsg1(&tempMsg1);
                 } else {
                     if (asyncCopyDataToSdCard((void*)&tempMsg1, sizeof(spi_msg_1_t)) != ESP_OK) {
                         ESP_LOGE("LOGGER", "Failed to copy data to SD card asynchronously");
@@ -455,8 +540,11 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
         }
 
         // Log raw or asynchronously copy data to SD card
-        if (shouldLogRaw(dataLen)) {
-            copyDataToSdCard(msg, msgSize, msgType);
+        if (settings_get_logmode() == LOGMODE_RAW) {
+            /* Phase 2A: append the ORIGINAL received v2 frame verbatim (first
+             * 14 + capacity*17 bytes of spi_buffer), preserving the STM base
+             * timestamp and avoiding a re-encode from the v1-shaped struct. */
+            writeV2FrameFromSpiBuffer();
         } else {
             // That we override msgSize here with sizeof(spi_msg_1_t) (which is == sizeof(spi_msg_2_t)) is ugly, but it is because with asyncCopyDataToSdCard we will copy the whole struct variable including padding bytes for fastness.
             // need to make this nicer. 
@@ -559,9 +647,24 @@ static esp_err_t decodeV2Frame(const uint8_t *frame)
     v2_decode_msg.startByte[1] = UL_FRAME_START1;
     v2_decode_msg.dataLen      = line_count;
 
+    /* Phase 2A perf: per-line timestamp reconstruction (ul_us_to_datetime ->
+     * gmtime_r) is the dominant per-frame cost. At >250 Hz the frame is always
+     * written verbatim from spi_buffer (writeV2FrameFromSpiBuffer); the ONLY
+     * consumer of the reconstructed timeData[] is updateLiveBuffer(), which reads
+     * exactly timeData[0] (msg_part is always 0 for v2). CSV (every line) and the
+     * averaging aggregate (last line) are unreachable above 250 Hz, so the other
+     * timeData[i] are discarded there. Reconstruct only timeData[0] in the
+     * high-speed path; keep the full per-line loop at <=250 Hz where CSV/averaging
+     * actually consume every line. The cheap gpio/adc copies are kept for both
+     * paths (updateLiveBuffer reads line 0; cost is negligible vs gmtime_r). */
+    bool high_speed = settings_get_samplerate() > ADC_SAMPLE_RATE_250Hz;
+
     for (uint32_t i = 0; i < line_count; i++)
     {
-        ul_us_to_datetime(ul_line_us(h, i), &v2_decode_msg.timeData[i]);
+        if (!high_speed || i == 0)
+        {
+            ul_us_to_datetime(ul_line_us(h, i), &v2_decode_msg.timeData[i]);
+        }
         v2_decode_msg.gpioData[i] = gpio[i];
         for (uint32_t ch = 0; ch < UL_ADC_CH; ch++)
         {
@@ -595,38 +698,26 @@ static esp_err_t processSlowFrequencyMessage() {
     return ESP_OK;
 }
 
+/* Phase 2A: high-speed (>250 Hz) path. A high-speed frame is the SAME uniform v2
+ * frame as any other rate. CSV and 16-bit are rejected by the Step-5 backend guard
+ * at config time, so only 12-bit RAW ever reaches here. We do NOT average and do
+ * NOT attempt CSV: append the original received v2 frame verbatim to the RAW .dat
+ * staging buffer (preserving the STM base timestamp, no re-encode) and accumulate
+ * row counts by line_count. The live buffer is updated by Logger_processData's
+ * updateLiveBuffer() call, sourced from the same decoded v2 frame. This path runs
+ * at 1000 Hz, so it is kept minimal: a single bounded memcpy plus counters. */
 static esp_err_t processHighSpeedMessage()
 {
-    if (isValidStartByte(spi_msg_1_adc_only_ptr->startByte, 0xFA, 0xFB) && expected_msg_part == 0)
-    {
-        msg_part = 0;
-        setExpectedMessagePart(1);
+    uint16_t line_count = spi_msg_slow_freq_1_ptr->dataLen; /* = v2_decode_msg.dataLen */
 
-        if (asyncCopyDataToSdCard(spi_msg_1_adc_only_ptr, sizeof(spi_msg_1_adc_only_t)) != ESP_OK)
-        {
-            return ESP_FAIL;
-        }
+    msg_part = 0;
+    setExpectedMessagePart(0);
 
-        updateSdCardRows(spi_msg_1_adc_only_ptr->dataLen);
-    }
-    else if (isValidStopByte(spi_msg_2_adc_only_ptr->stopByte, 0xFB, 0xFA) && expected_msg_part == 1)
-    {
-        msg_part = 1;
-        setExpectedMessagePart(0);
+    writeV2FrameFromSpiBuffer();
 
-        if (asyncCopyDataToSdCard(spi_msg_2_adc_only_ptr, sizeof(spi_msg_2_adc_only_t)) != ESP_OK)
-        {
-            return ESP_FAIL;
-        }
-
-        updateSdCardRows(spi_msg_2_adc_only_ptr->dataLen);
-    }
-    else
-    {
-        ESP_LOGE("LOGGER", "No start or stop byte found for high-speed message");
-        SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
-        return ESP_FAIL;
-    }
+    updateSdCardData(line_count, log_counter, spi_msg_slow_freq_1_ptr->adcData16);
+    log_counter++;
+    sdcard_data.numSpiMessages = log_counter;
 
     return ESP_OK;
 }
@@ -1491,7 +1582,9 @@ esp_err_t Logger_flush_to_sdcard()
         }
     } else {
         
-        size_t len = Logger_flush_buffer_to_sd_card_uint8(sdcard_data.spi_data, sdcard_data.msgSize*sdcard_data.numSpiMessages);
+        // Phase 2A RAW v2: frames are variable length and packed with a running
+        // byte offset; write exactly raw_bytes (not the legacy msgSize*numSpiMessages).
+        size_t len = Logger_flush_buffer_to_sd_card_uint8(sdcard_data.spi_data, sdcard_data.raw_bytes);
         // if (len != SD_BUFFERSIZE)
         if (len != 1)
         {
@@ -1598,6 +1691,8 @@ void LogTask_resetCounter()
     log_counter = 0;
     sdcard_data.datarows = 0;
     sdcard_data.total_datarows = 0;
+    sdcard_data.raw_bytes = 0;
+    sdcard_data.numSpiMessages = 0;
     expected_msg_part = 0;
     msg_part = 0;
     iirFilterSecondsCounter = 0;
@@ -2249,6 +2344,7 @@ void Logtask_logging()
                     log_counter = 0;
                     sdcard_data.datarows = 0;
                     sdcard_data.numSpiMessages = 0;
+                    sdcard_data.raw_bytes = 0;
                 }
 
                 // Keep in mind we are talking about _currentLoggingState here, not _CurrentLogTaskState!

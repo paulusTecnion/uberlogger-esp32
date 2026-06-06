@@ -293,21 +293,15 @@ esp_err_t fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *a
     uint16_t i = 0;
 
     spi_msg_1_t *t_spi_msg_1;// = (spi_msg_1_t *)(sdcard_data->spi_data);
-    spi_msg_2_t *t_spi_msg_2;// = (spi_msg_2_t *)(sdcard_data->spi_data);
     // ret = fileman_csv_write(adcData,  spi_msg->gpioData,  spi_msg->timeData, spi_msg->dataLen);
         for (i = 0; i < sdcard_data->numSpiMessages; i++)
         {
-            if (i % 2 != 0 )
-            {
-                t_spi_msg_2 = (spi_msg_2_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_2_t));
-                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_2->gpioData, t_spi_msg_2->timeData, t_spi_msg_2->dataLen);
-            } else 
-            {
-                t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_1_t));
-                ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_1->gpioData, t_spi_msg_1->timeData, t_spi_msg_1->dataLen);
-            }
-           
-            
+            // v2 stages EVERY message as a spi_msg_1_t-shaped struct, so always
+            // interpret each staged message at spi_msg_1_t offsets (stride sizeof(spi_msg_1_t)).
+            t_spi_msg_1 = (spi_msg_1_t *)(sdcard_data->spi_data + i * sizeof(spi_msg_1_t));
+            ret = fileman_csv_write(adcData + i * ADC_VALUES_PER_SPI_TRANSACTION, t_spi_msg_1->gpioData, t_spi_msg_1->timeData, t_spi_msg_1->dataLen);
+
+
             // Abort mission when failure occured..
             if (ret < 0)
                 return ESP_FAIL;

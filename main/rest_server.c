@@ -1193,11 +1193,26 @@ static esp_err_t setConfig_apply_json(httpd_req_t *req, cJSON *settings_in,
     {
         if (settings_set_logmode(item->valueint) != ESP_OK)
         {
-            
+
             json_send_resp(req, ENDPOINT_RESP_NACK, "Log mode missing or wrong value", HTTPD_400_BAD_REQUEST);
             // return ESP_FAIL;
             goto error;
         }
+    }
+
+    // Phase 2A authoritative >250 Hz guard. Above 250 Hz (fs_code >= 13) only
+    // 12-bit RAW logging is supported: CSV's per-sample formatting and 16-bit's
+    // doubled byte rate cannot keep up at 500/1000 Hz. The sample rate, resolution
+    // and log mode have all been applied above, so validate the effective combo.
+    // Rejecting here returns ESP_FAIL, which rolls back the in-RAM settings. The
+    // STM has a backstop; the frontend disable is a separate follow-up.
+    if (ul_is_high_rate((uint8_t)settings_get_samplerate()) &&
+        (settings_get_resolution() == ADC_16_BITS || settings_get_logmode() == LOGMODE_CSV))
+    {
+        json_send_resp(req, ENDPOINT_RESP_NACK,
+                       "Above 250 Hz only 12-bit RAW logging is supported",
+                       HTTPD_400_BAD_REQUEST);
+        goto error;
     }
 
 
