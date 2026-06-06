@@ -13,6 +13,7 @@
 #include <string.h>
 #include "common.h"
 #include "esp_err.h"
+#include "ul_protocol.h"  // shared SPI protocol: stm32cmd_t, spi_cmd_t, stm32resp_t
 
 typedef enum uint8_t {
     RXDATA_STATE_NODATA = 0,
@@ -20,39 +21,8 @@ typedef enum uint8_t {
     RXDATA_STATE_DATA_OVERRUN
 } rxdata_state_t;
 
-typedef enum stm32cmd {
-    STM32_CMD_NOP=0x00,
-    STM32_CMD_SETTINGS_MODE,
-    STM32_CMD_SETTINGS_SYNC,
-    STM32_CMD_MEASURE_MODE,
-    STM32_CMD_SET_RESOLUTION,
-    STM32_CMD_SET_SAMPLE_RATE,
-    STM32_CMD_SET_ADC_CHANNELS_ENABLED,
-    STM32_CMD_SET_DATETIME,
-    STM32_CMD_SINGLE_SHOT_MEASUREMENT,
-    STM32_CMD_SEND_LAST_ADC_BYTES,
-    STM32_CMD_SET_LOGMODE,
-    STM32_CMD_SET_RANGE,
-    STM32_CMD_SET_TRIGGER_MODE,
-	CMD_UNKNOWN
-} stm32cmd_t;
-
-typedef enum stm32resp {
-    STM32_RESP_OK = 1,
-    STM32_RESP_NOK
- } stm32resp_t;
-
- // Struct for sending SPI commands to the STM32
-typedef struct {
-    uint8_t command;
-    uint8_t data0;
-    uint8_t data1;
-    uint8_t data2;
-    uint8_t data3;
-    uint8_t data4;
-    uint8_t data5;
-    uint8_t data6;
-} spi_cmd_t;
+// stm32cmd_t (command enum), spi_cmd_t (8-byte command struct) and stm32resp_t
+// (STM32_RESP_OK/NOK) now live in the shared single source of truth ul_protocol.h.
 
 esp_err_t spi_ctrl_init(uint8_t spicontroller, uint8_t gpio_data_ready_point);
 esp_err_t spi_ctrl_cmd(stm32cmd_t cmd, spi_cmd_t* cmd_data, size_t rx_data_length);

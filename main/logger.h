@@ -16,16 +16,15 @@
 #include "firmware-www.h"
 #include "firmwareESP32.h"
 #include "firmwareSTM32.h"
+#include "ul_protocol.h"  // shared layout #defines + spi_msg_1_t/spi_msg_2_t
 
 // **********************************************************************************************
 // DON'T TOUCH NEXT LINES PLEASE UNTIL NEXT ASTERIX LINES
 //
-#define DATA_LINES_PER_SPI_TRANSACTION  70
-#define ADC_VALUES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*8 // Number of ADC uint16_t per transaction.
-#define ADC_BYTES_PER_SPI_TRANSACTION ADC_VALUES_PER_SPI_TRANSACTION*2
-#define GPIO_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION
-#define TIME_BYTES_PER_SPI_TRANSACTION  DATA_LINES_PER_SPI_TRANSACTION*12
-#define START_STOP_NUM_BYTES            2
+// The SPI transaction layout #defines (DATA_LINES_PER_SPI_TRANSACTION,
+// ADC_*_PER_SPI_TRANSACTION, GPIO/TIME_BYTES_PER_SPI_TRANSACTION,
+// START_STOP_NUM_BYTES) and the spi_msg_1_t / spi_msg_2_t structs now live in
+// the shared single source of truth ul_protocol.h (included above).
 
 // the ADC value 0xFFFF is not possible, so we take that as start and stop bytes
 #define START_STOP_BYTE_VALUE    0xFFFF
@@ -38,38 +37,7 @@
 #define SD_BUFFERSIZE (DATA_TRANSACTIONS_PER_SD_FLUSH*STM_DATA_BUFFER_SIZE_PER_TRANSACTION) 
 
 // It's essential to have the padding bytes in the right place manually, else the ADC DMA writes over the padding bytes
-
-typedef struct {
-    uint8_t startByte[START_STOP_NUM_BYTES]; // 2
-    uint16_t dataLen;
-    uint8_t padding0[12];
-    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION]; //12*70 = 840
-    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION]; // 70
-    uint8_t padding1[2];
-    union 
-    {
-        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION]; // 1120
-        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
-    };
-    
-} spi_msg_1_t;
-
-// int i = sizeof(spi_msg_1_t);
-
-typedef struct {
-    union {
-        uint8_t adcData[ADC_BYTES_PER_SPI_TRANSACTION];
-        uint16_t adcData16[ADC_VALUES_PER_SPI_TRANSACTION];
-    };    
-    uint8_t padding1[2];
-    uint8_t gpioData[GPIO_BYTES_PER_SPI_TRANSACTION];
-    s_date_time_t timeData[DATA_LINES_PER_SPI_TRANSACTION];
-    uint8_t padding0[12];
-    uint16_t dataLen;
-    uint8_t stopByte[START_STOP_NUM_BYTES];
-} spi_msg_2_t;
-
-// int j = sizeof(spi_msg_2_t);
+// spi_msg_1_t / spi_msg_2_t are defined in the shared ul_protocol.h (included above).
 
 // This should align with 4 bytes FIFO. Alternatively, one could use __attribute__((aligned(4))) spi_msg_1_t;
 // Since the size of this struct is 2048 it can quickly flush the data to the sd card. 
