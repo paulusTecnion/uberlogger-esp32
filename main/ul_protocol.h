@@ -31,7 +31,7 @@
  *   - uberlogger-stm32 : Core/Inc/ul_protocol.h
  *   - uberlogger-esp32 : main/ul_protocol.h
  * The two copies MUST be diff-clean. UL_PROTOCOL_VERSION is the sync tripwire:
- * each repo has a build-visible _Static_assert(UL_PROTOCOL_VERSION == 1, ...)
+ * each repo has a build-visible _Static_assert(UL_PROTOCOL_VERSION == N, ...)
  * so a stale copy fails the build. Prose companion: see
  * uberlogger-stm32/docs/protocol/uberlogger-spi-protocol.md.
  *
@@ -67,8 +67,8 @@
 
 /* Protocol contract version. Bump ONLY with an intentional wire change.
  * Both vendored copies must carry the same value; each repo asserts it. */
-#define UL_PROTOCOL_VERSION 1
-_Static_assert(UL_PROTOCOL_VERSION == 1, "ul_protocol.h: unexpected UL_PROTOCOL_VERSION");
+#define UL_PROTOCOL_VERSION 2
+_Static_assert(UL_PROTOCOL_VERSION == 2, "ul_protocol.h: unexpected UL_PROTOCOL_VERSION");
 
 /* ===========================================================================
  * Command set (ESP32 -> STM32 command path)
@@ -89,6 +89,7 @@ typedef enum stm32cmd {
     STM32_CMD_SET_LOGMODE,
     STM32_CMD_SET_RANGE,
     STM32_CMD_SET_TRIGGER_MODE,
+    STM32_CMD_GET_PROTOCOL_VERSION,   /* v2: ESP32 reads STM's UL_PROTOCOL_VERSION at boot */
     CMD_UNKNOWN
 } stm32cmd_t;
 
@@ -211,5 +212,81 @@ _Static_assert(offsetof(spi_msg_2_t, timeData) == 1192, "spi_msg_2_t.timeData mo
 _Static_assert(offsetof(spi_msg_2_t, padding0) == 2032, "spi_msg_2_t.padding0 moved");
 _Static_assert(offsetof(spi_msg_2_t, dataLen)  == 2044, "spi_msg_2_t.dataLen moved");
 _Static_assert(offsetof(spi_msg_2_t, stopByte) == 2046, "spi_msg_2_t.stopByte moved");
+
+/* ===========================================================================
+ * v2 STREAMING FRAME (UL_PROTOCOL_VERSION 2) — per-transaction base timestamp.
+ *
+ * One SPI transaction = one frame: a 14-byte header + a fixed-stride payload of
+ *   adc[capacity * 8] (uint16) then gpio[capacity] (uint8).
+ * Only the first `line_count` lines are valid; `capacity` is the per-session
+ * stride (LINES_PER_FRAME). Block layout (adc block, then gpio block) keeps the
+ * uint16 ADC block 2-byte aligned (M0+ friendly) and is what the ADC DMA
+ * produces (sub-project C ready). Each line's time is reconstructed on the
+ * ESP32 as t_i = base_epoch + base_subsec/65536 + i * period_us(fs_code).
+ * ===========================================================================*/
+#define UL_ADC_CH                 8
+#define UL_FRAME_START0           0xFA
+#define UL_FRAME_START1           0xFB
+
+/* RAW .dat CONTAINER versioning. The existing .dat container is KEPT as-is (see
+ * uberlogger-esp32 front/www/convert_raw.py — the inverse reader): a 4-byte
+ * header_length, then 9 settings bytes where settings[0] = "File format version",
+ * then 8 x int32 adc_offsets, then channel labels; frames follow; a trailing
+ * uint64 total-row-count ends the file. The adc_offsets + labels + ranges in that
+ * header are REQUIRED by the offline count->voltage conversion and are unchanged.
+ * v2 bumps ONLY settings[0] from 2 -> 3 to signal the new frame body inside;
+ * convert_raw.py detects 2 (old spi_msg_1/2 frames) vs 3 (new v2 frames). No new
+ * magic is introduced. (The per-frame start markers + protocol_version below are
+ * the SPI-stream resync/guard, independent of the file container.) */
+#define UL_RAW_FILE_FORMAT_VERSION   3
+
+/* flags byte */
+#define UL_FLAG_RES16             (1u << 0)     /* 0 = 12-bit, 1 = 16-bit */
+/* bits 1..7 reserved for sub-projects B/C (raw-ADC/DMA-direct, triggered) */
+
+/* v2 frame header — exactly 14 bytes on the wire (packed; uint32 base_epoch
+ * would otherwise force a 4-byte struct alignment and pad sizeof to 16). The
+ * `pad` field keeps the 13 meaningful bytes + 1 reserved byte = 14. */
+typedef struct __attribute__((packed)) {
+    uint8_t  start[2];          /* UL_FRAME_START0, UL_FRAME_START1 */
+    uint8_t  protocol_version;  /* = UL_PROTOCOL_VERSION (2) */
+    uint8_t  flags;             /* UL_FLAG_RES16 | reserved */
+    uint32_t base_epoch;        /* unix seconds at line 0 (RTC, once per frame) */
+    uint16_t base_subsec;       /* Q16 fractional second (units of 1/65536 s) */
+    uint8_t  fs_code;           /* adc_sample_rate_e index -> ul_period_us() */
+    uint8_t  line_count;        /* valid lines in this frame (<= capacity) */
+    uint8_t  capacity;          /* per-session stride = LINES_PER_FRAME */
+    uint8_t  pad;               /* alignment / reserved */
+} ul_frame_hdr_t;
+
+_Static_assert(sizeof(ul_frame_hdr_t) == 14, "ul_frame_hdr_t must be 14 bytes on the wire");
+_Static_assert(offsetof(ul_frame_hdr_t, base_epoch) == 4,  "ul_frame_hdr_t.base_epoch moved");
+_Static_assert(offsetof(ul_frame_hdr_t, base_subsec) == 8, "ul_frame_hdr_t.base_subsec moved");
+_Static_assert(offsetof(ul_frame_hdr_t, fs_code) == 10,    "ul_frame_hdr_t.fs_code moved");
+
+/* Per-line wire size: 8 ADC uint16 (16 B, in the adc block) + 1 GPIO byte. */
+#define UL_LINE_BYTES   (UL_ADC_CH * 2 + 1)   /* = 17 */
+
+/* fs_code (== adc_sample_rate_e index) -> per-line period in microseconds.
+ * 0 = sub-1Hz averaging path / unknown (no fixed period). Shared by both repos
+ * so the ESP32 reconstruction and the STM >250Hz guard agree. */
+static inline uint32_t ul_period_us(uint8_t fs_code) {
+    switch (fs_code) {
+        case 5:  return 1000000u; /* 1 Hz   */
+        case 6:  return 500000u;  /* 2 Hz   */
+        case 7:  return 200000u;  /* 5 Hz   */
+        case 8:  return 100000u;  /* 10 Hz  */
+        case 9:  return 40000u;   /* 25 Hz  */
+        case 10: return 20000u;   /* 50 Hz  */
+        case 11: return 10000u;   /* 100 Hz */
+        case 12: return 4000u;    /* 250 Hz */
+        case 13: return 2000u;    /* 500 Hz */
+        case 14: return 1000u;    /* 1000 Hz*/
+        default: return 0u;       /* averaging / unknown */
+    }
+}
+
+/* True for rates that are 12-bit-RAW-only (CSV + 16-bit disabled). */
+static inline int ul_is_high_rate(uint8_t fs_code) { return fs_code >= 13; }
 
 #endif /* UL_PROTOCOL_H */
