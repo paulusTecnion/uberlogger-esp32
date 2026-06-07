@@ -259,7 +259,16 @@ static uint32_t s_date_time_to_epoch_ms(const s_date_time_t *dt, uint16_t *ms_ou
  * base matters. capacity == line_count keeps each written frame self-describing. */
 static void writeV2FrameFromMsg1(const spi_msg_1_t *m)
 {
-    uint8_t buf[sizeof(ul_frame_hdr_t) + DATA_LINES_PER_SPI_TRANSACTION * UL_LINE_BYTES];
+    /* File-scope static, NOT on-stack: this function is inlined into
+     * handleFilteringAndLogging, which already reserves a ~2KB spi_msg_1_t on the
+     * stack of the 4500-byte task_logging task. A 1204-byte on-stack buf here blows
+     * that budget on the averaging path (the worst-case chain overflows into adjacent
+     * TLSF heap metadata, faulting a later alloc/free in a network task). The logger
+     * task is the sole caller, and buf is fully rewritten (header + n lines) before
+     * use each call, so static reuse is safe. */
+    static uint8_t buf[sizeof(ul_frame_hdr_t) + DATA_LINES_PER_SPI_TRANSACTION * UL_LINE_BYTES];
+    _Static_assert(sizeof(ul_frame_hdr_t) + DATA_LINES_PER_SPI_TRANSACTION * UL_LINE_BYTES == 1204,
+                   "v2 frame slot size changed; re-check task_logging stack budget");
     ul_frame_hdr_t *h = (ul_frame_hdr_t *)buf;
     uint8_t n = (uint8_t)m->dataLen;   /* <= DATA_LINES_PER_SPI_TRANSACTION */
 
