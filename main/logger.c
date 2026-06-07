@@ -629,7 +629,7 @@ static esp_err_t decodeV2Frame(const uint8_t *frame)
 
     uint8_t line_count = h->line_count;
     uint8_t capacity   = h->capacity;
-    if (capacity == 0 || capacity > DATA_LINES_PER_SPI_TRANSACTION ||
+    if (capacity == 0 || line_count == 0 || capacity > DATA_LINES_PER_SPI_TRANSACTION ||
         line_count > capacity || line_count > DATA_LINES_PER_SPI_TRANSACTION)
     {
         ESP_LOGE(TAG_LOG, "v2 frame bad counts: line_count=%u capacity=%u",
