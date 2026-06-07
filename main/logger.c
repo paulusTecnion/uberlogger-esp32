@@ -109,9 +109,7 @@ static bool _protocolVersionOk = false;
  * at session finalize (see Logtask_logging FINAL) by querying the STM while it
  * is back in IDLE. Exposed read-only via Logger_getOverrun() / getStatus. */
 static uint8_t _stmOverrun = 0;
-static uint32_t _resyncCount = 0;          /* cumulative SPI-tear resyncs this session */
-static uint32_t _resyncWindowStart = 0;    /* ms, start of the current 1s tear-storm window */
-static uint32_t _resyncWindowCount = 0;    /* resyncs within the current window */
+static uint8_t _faultStop = 0;   /* set when a fault edge stopped the session */
 
 uint8_t msg_part = 0, expected_msg_part = 0;
 
@@ -962,10 +960,7 @@ esp_err_t Logger_checkProtocolVersion(void)
  * convention: byte 0 echoes the command, byte 1 carries the 0/1 flag. MUST be
  * called from the logger task only (issues an SPI command) and only when the
  * STM is back in IDLE and idle on SPI (i.e. after frame streaming has ceased),
- * never mid-stream and never from the HTTP-server context.
- * EXCEPTION: the fault handler in LOGTASK_LOGGING_BUSY calls this mid-stream
- * (up to 3x) to disambiguate overrun vs SPI tear; it tolerates the -1 failure
- * return in that context. */
+ * never mid-stream and never from the HTTP-server context. */
 static int Logger_queryOverrun(void)
 {
     spi_cmd_t cmd;
@@ -993,11 +988,6 @@ static int Logger_queryOverrun(void)
 uint8_t Logger_getOverrun(void)
 {
     return _stmOverrun;
-}
-
-uint32_t Logger_getResyncCount(void)
-{
-    return _resyncCount;
 }
 
 esp_err_t Logger_syncSettings(uint8_t syncTime)
@@ -1961,9 +1951,7 @@ esp_err_t Logger_logging()
             // enable data rdy interrupt pin
             spi_ctrl_datardy_int(1);
             spi_ctrl_fault_int(1);
-            _resyncCount = 0;
-            _resyncWindowStart = 0;
-            _resyncWindowCount = 0;
+            _faultStop = 0;
             // Enable logging at STM32
             #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "Enabling ADC_EN");
@@ -2378,41 +2366,17 @@ void Logtask_logging()
             case LOGTASK_LOGGING_BUSY:
                 if (spi_ctrl_fault_pending())
                 {
-                    // STM signalled ring-overrun or SPI tear out-of-band. Discard
-                    // any partial frame and disambiguate via the sticky overrun flag.
+                    // STM raised the out-of-band fault line (ring overrun or SPI tear).
+                    // A lost/torn frame is a hard fault on a DAQ device: discard the
+                    // partial frame and stop the session. The exact cause (overrun vs
+                    // tear) is determined at FINAL via the overrun query, which is only
+                    // valid once the STM is back in MAIN_IDLE. We never poll the STM
+                    // over SPI mid-stream and never resync/continue.
                     _dataReceived = 0;
                     spi_ctrl_reset_rx_state();
-                    int ov = -1;
-                    for (int i = 0; i < 3 && ov < 0; i++)
-                    {
-                        if (Logger_queryOverrun() == 0) ov = Logger_getOverrun();
-                    }
-                    if (ov == 1)
-                    {
-                        // Ring overrun: STM stopped and returned to IDLE. Finalize cleanly.
-                        SET_ERROR(_errorCode, ERR_LOGGER_DATA_OVERRUN);
-                        LogTask_stop();
-                        finalwrite = 1;
-                    }
-                    else
-                    {
-                        // SPI tear (ov==0) or query unreadable (ov<0): discard + resync.
-                        _resyncCount++;
-                        uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
-                        if (now_ms - _resyncWindowStart > 1000)
-                        {
-                            _resyncWindowStart = now_ms;
-                            _resyncWindowCount = 0;
-                        }
-                        if (++_resyncWindowCount > 10)
-                        {
-                            // Tear storm: link is unusable -> fail loudly.
-                            ESP_LOGE(TAG_LOG, "Fault: tear storm (>10/s), stopping");
-                            SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
-                            LogTask_stop();
-                            finalwrite = 1;
-                        }
-                    }
+                    _faultStop = 1;
+                    LogTask_stop();
+                    finalwrite = 1;
                 }
                 if (_dataReceived)
                 {
@@ -2527,6 +2491,14 @@ void Logtask_logging()
                 if (Logger_queryOverrun() != 0)
                 {
                     ESP_LOGW(TAG_LOG, "FINAL overrun query failed; OVERRUN may be stale");
+                }
+                if (_faultStop)
+                {
+                    // Fault-driven stop: report the cause now that the STM is IDLE and
+                    // the overrun flag has been read. Ring overran -> DATA_OVERRUN;
+                    // otherwise the frame was torn -> FAULTY_DATA.
+                    SET_ERROR(_errorCode, Logger_getOverrun() ? ERR_LOGGER_DATA_OVERRUN
+                                                              : ERR_LOGGER_STM32_FAULTY_DATA);
                 }
 
                  if (_stopLogging)

@@ -247,7 +247,6 @@ esp_err_t Logger_checkProtocolVersion(void);
  * last finalized logging session. Read-only and lock-free (single byte), safe
  * to call from the HTTP-server context (e.g. /ajax/getStatus). */
 uint8_t Logger_getOverrun(void);
-uint32_t Logger_getResyncCount(void);
 // External function to be called outside logger task
 esp_err_t Logtask_sync_settings();
 esp_err_t Logtask_sync_time();
