@@ -15,6 +15,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "logger.h"
+#include "spi_control.h"
 
 #define TAG "FW-STM32"
 #define FILE_STM32 "/sdcard/ota_support.bin"
@@ -383,6 +384,10 @@ esp_err_t flash_stm32()
 
      
 
+    // IO4 is shared with the STM fault line during logging. Release its edge ISR
+    // before the bootloader UART claims the pin as TX.
+    spi_ctrl_fault_int(0);
+
     ESP_ERROR_CHECK(uart_driver_install(UART_PORT, 256, 256, 0, NULL, 0));
     ESP_ERROR_CHECK(uart_param_config(UART_PORT, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(UART_PORT, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
@@ -483,6 +488,9 @@ error:
     free(buffer);
 
     uart_driver_delete(UART_PORT);
+    // Return IO4 from the bootloader UART back to a plain GPIO so the next
+    // logging session can re-arm the fault edge ISR (spi_ctrl_fault_int(1)).
+    gpio_reset_pin(GPIO_STM32_FAULT);
         #ifdef DEBUG_FIRMWARE_STM32
         ESP_LOGI(TAG, "Booting STM32G030 into normal mode...");
         #endif
