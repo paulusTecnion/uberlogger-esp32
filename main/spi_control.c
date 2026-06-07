@@ -89,6 +89,54 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
     portYIELD_FROM_ISR(xYieldRequired);
 }
 
+/* Out-of-band STM fault line (IO4). Set by an edge ISR; consumed by the logger
+ * task. The same task notification wakes the logger as the data-ready handshake,
+ * so the task distinguishes the two by checking spi_ctrl_fault_pending() first. */
+static volatile uint8_t s_fault_pending = 0;
+
+static void IRAM_ATTR gpio_fault_isr_handler(void* arg)
+{
+    BaseType_t xYieldRequired = pdFALSE;
+    s_fault_pending = 1;
+    vTaskNotifyGiveFromISR(xHandle_stm32, &xYieldRequired);
+    portYIELD_FROM_ISR(xYieldRequired);
+}
+
+esp_err_t spi_ctrl_fault_int(uint8_t enable)
+{
+    if (enable == 1)
+    {
+        gpio_config_t io_conf = {
+            .intr_type    = GPIO_INTR_POSEDGE,
+            .mode         = GPIO_MODE_INPUT,
+            .pin_bit_mask = (1ULL << GPIO_STM32_FAULT),
+            .pull_down_en = 1,   // idle LOW when STM not driving / in reset
+            .pull_up_en   = 0,
+        };
+        gpio_config(&io_conf);
+        s_fault_pending = 0;
+        if (gpio_isr_handler_add(GPIO_STM32_FAULT, gpio_fault_isr_handler, NULL) != ESP_OK)
+        {
+            ESP_LOGE(TAG_SPI_CTRL, "Unable to add fault ISR handler");
+            return ESP_FAIL;
+        }
+        return ESP_OK;
+    }
+    else
+    {
+        gpio_isr_handler_remove(GPIO_STM32_FAULT);
+        s_fault_pending = 0;
+        return ESP_OK;
+    }
+}
+
+uint8_t spi_ctrl_fault_pending(void)
+{
+    uint8_t v = s_fault_pending;
+    s_fault_pending = 0;
+    return v;
+}
+
 esp_err_t spi_ctrl_datardy_int(uint8_t value) 
 {
     if (value == 1)

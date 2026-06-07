@@ -31,6 +31,12 @@ esp_err_t spi_ctrl_disable();
 esp_err_t spi_ctrl_getError();
 uint8_t * spi_ctrl_getRxData();
 esp_err_t spi_ctrl_datardy_int(uint8_t value);
+
+/* Enable (1) / disable (0) the IO4 STM-fault edge ISR. */
+esp_err_t spi_ctrl_fault_int(uint8_t enable);
+
+/* Read-and-clear the fault-pending flag (set by the IO4 edge ISR). */
+uint8_t spi_ctrl_fault_pending(void);
 void spi_ctrl_reset_rx_state();
 void spi_ctrl_loop();
 

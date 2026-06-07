@@ -70,8 +70,13 @@ DEBUG OUTPUT CONFIGURATION
 #define GPIO_STM32_BOOT0 21
 #define GPIO_STM32_NRESET 26
 
-#define GPIO_STM32_UART_TX  3 
+#define GPIO_STM32_UART_TX  3
 #define GPIO_STM32_UART_RX  4
+
+// STM fault line (= GPIO_STM32_UART_RX / IO4, net STM_USART_RX). During logging
+// the STM drives this HIGH on ring-overrun or SPI tear; the ESP reads it as an
+// edge-ISR input. Time-shared with the bootloader UART RX during firmware update.
+#define GPIO_STM32_FAULT 4
 
 /* HMI DISPLAY */
 #define GPIO_OLED_SDA 41
