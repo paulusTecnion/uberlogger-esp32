@@ -433,6 +433,7 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 
     cJSON_AddNumberToObject(root, "OVERRUN", Logger_getOverrun());
+    cJSON_AddNumberToObject(root, "RESYNC_COUNT", Logger_getResyncCount());
 
      uint8_t wifi_state = 0;
     if (settings_get_wifi_mode() == WIFI_MODE_APSTA)
