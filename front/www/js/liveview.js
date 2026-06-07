@@ -208,6 +208,17 @@ function updatePlotModeLabel() {
 // appending to them and the chart/rangeslider stay live.
 function clearLiveView() {
   if (typeof clearDataPoints === "function") clearDataPoints();
+  // Re-seed each series with the latest reading so every channel keeps one live
+  // point. Without this the traces are momentarily empty and Plotly drops their
+  // legend entries, so the signal labels vanish until the next poll (~1s later).
+  if (
+    typeof accumulateReadings === "function" &&
+    typeof valuesData !== "undefined" &&
+    valuesData &&
+    valuesData["READINGS"]
+  ) {
+    accumulateReadings(valuesData);
+  }
   followLive = true;
   // New uirevision token => Plotly discards the stale pan/zoom/rangeslider view
   // for this redraw, then keeps preserving the (reset) view on later ticks.
