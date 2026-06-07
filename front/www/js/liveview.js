@@ -311,10 +311,26 @@ function plotDataPoints() {
         font: { size: 16 },
         x: 0.5,
       },
+      // Hover a signal to read its value; crosshair spikelines drop to the time
+      // and value axes so you can pinpoint where the cursor is.
+      hovermode: "closest",
       xaxis: {
         title: { text: "Time", font: { size: 14 } },
         type: "date",
         rangeslider: { visible: true, thickness: 0.08 },
+        showspikes: true,
+        spikemode: "across",
+        spikesnap: "cursor",
+        spikethickness: 1,
+        spikedash: "dot",
+        spikecolor: "#888",
+      },
+      yaxis: {
+        showspikes: true,
+        spikemode: "across",
+        spikethickness: 1,
+        spikedash: "dot",
+        spikecolor: "#888",
       },
     };
     Plotly.newPlot(divPlot, dataPointsArray, layout, config);
