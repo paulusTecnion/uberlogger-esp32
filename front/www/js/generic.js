@@ -21,13 +21,54 @@ const HISTORY_STORAGE_KEY = "liveview.history.v1";
 const SAVE_EVERY_MS = 10000;
 let lastHistorySaveAt = 0;
 
+// --- Channel labels ----------------------------------------------------------
+// The live value table and chart legend show the user's configured channel
+// labels (e.g. "Inlet (T1)") instead of the raw reading keys (T1, AIN5, DI1).
+// Labels live in the config, not in getValues, so we fetch them from getConfig
+// and refresh on page load and when switching to the live view (so renames
+// saved on the Config page show up). channelLabels keeps them in config key
+// form: AIN_CHAN_LABEL1..8 for analog/temperature channels, DIO_CHAN_LABEL1..6
+// for digital channels.
+var channelLabels = { ain: {}, dio: {} };
+
+function loadChannelLabels() {
+  $.getJSON("ajax/getConfig", function (cfg) {
+    channelLabels = {
+      ain: cfg && cfg["AIN_CHANNEL_LABELS"] ? cfg["AIN_CHANNEL_LABELS"] : {},
+      dio: cfg && cfg["DIO_CHANNEL_LABELS"] ? cfg["DIO_CHANNEL_LABELS"] : {},
+    };
+  });
+}
+
+// Map a reading's category + channel to "Label (channel)", or the raw channel
+// key when no label is set. T#/AIN# (same physical input) use the analog
+// labels; DI# uses the digital labels.
+function channelDisplayLabel(category, channel) {
+  var m = String(channel).match(/(\d+)$/);
+  if (!m) return channel;
+  var i = m[1];
+  var lbl =
+    category === "DIGITAL"
+      ? channelLabels.dio["DIO_CHAN_LABEL" + i]
+      : channelLabels.ain["AIN_CHAN_LABEL" + i];
+  if (lbl && String(lbl).trim() !== "") return lbl + " (" + channel + ")";
+  return channel;
+}
+
 function storeDataPoint(category, channel, timestamp, value) {
   var inputTime = new Date(timestamp);
   if (inputTime.getFullYear() < 2000) return; // ignore pre-RTC-sync timestamps
 
+  // The map key stays category.channel (stable id for history/persistence); the
+  // trace name is the human label shown in the legend.
   var key = category + "." + channel;
   if (typeof dataPoints[key] == "undefined") {
-    dataPoints[key] = { x: [], y: [], type: "scatter", name: key };
+    dataPoints[key] = {
+      x: [],
+      y: [],
+      type: "scatter",
+      name: channelDisplayLabel(category, channel),
+    };
   }
 
   var series = dataPoints[key];
@@ -171,6 +212,7 @@ function loadPage() {
   // Restore history saved by a previous page load before anything renders, and
   // flush it on exit so a refresh / tab switch keeps the accumulated live data.
   restoreDataPoints();
+  loadChannelLabels(); // fetch channel labels for the live value table + legend
   window.addEventListener("beforeunload", function () {
     saveDataPoints(true);
   });
@@ -233,6 +275,9 @@ function mountPanel(page) {
 // Switch the visible tab. fromHistory suppresses the pushState (used on initial
 // load and on browser back/forward).
 function showPage(page, fromHistory) {
+  // Refresh channel labels when entering the live view so labels renamed on the
+  // Config page are reflected in the value table and chart legend.
+  if (page === "liveview") loadChannelLabels();
   mountPanel(page).always(function () {
     $("#render > .page-panel").hide();
     $("#panel-" + page).show();

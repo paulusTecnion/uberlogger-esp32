@@ -63,10 +63,15 @@ function renderValueList() {
     let n = 0;
     $.each(category_values["VALUES"], function (channel, channel_value) {
       n++;
-      let truncatedChannel =
-        channel.length > 4 ? channel.substring(0, 4) + ".." : channel;
+      // Show the configured label ("Inlet (T1)") when set, else the raw key.
+      let label =
+        typeof channelDisplayLabel === "function"
+          ? channelDisplayLabel(category, channel)
+          : channel;
+      let displayChannel =
+        label.length > 22 ? label.substring(0, 22) + "…" : label;
 
-      htmlstring += "<tr><td>" + truncatedChannel + "</td>";
+      htmlstring += "<tr><td>" + displayChannel + "</td>";
 
       if (typeof channel_value === "number") {
         if (category === "TEMPERATURE") {
@@ -271,6 +276,14 @@ function applyResponsiveLayout() {
 }
 
 function plotDataPoints() {
+  // Keep each trace's legend name in sync with the latest channel labels, so
+  // labels that load after the first poll (or change on a config save) show up.
+  Object.keys(dataPoints).forEach(function (key) {
+    var dot = key.indexOf(".");
+    if (dot > 0 && typeof channelDisplayLabel === "function") {
+      dataPoints[key].name = channelDisplayLabel(key.slice(0, dot), key.slice(dot + 1));
+    }
+  });
   const dataPointsArray = Object.values(dataPoints);
 
   let config = {
