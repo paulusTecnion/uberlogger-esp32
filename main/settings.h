@@ -94,6 +94,13 @@ typedef enum adc_sample_rate_e {
 	ADC_SAMPLE_RATE_50Hz,
 	ADC_SAMPLE_RATE_100Hz,
 	ADC_SAMPLE_RATE_250Hz,
+	/* 250 Hz is the max SUPPORTED rate. The higher rates below were prototyped
+	 * (branch feature/phase2a-protocol-timestamp, 2026-06) but found UNRELIABLE on
+	 * this hardware: at 500/1000 Hz the STM->ESP SPI frame handoff tears under
+	 * concurrent web/API load (single-core ESP32-S2 can't drain SPI + serve HTTP +
+	 * write SD fast enough), and the STM ring overruns. The feature was abandoned.
+	 * Do NOT re-enable these without first solving the SPI-throughput / handoff
+	 * limit (e.g. larger SPI bursts, DMA double-buffering, or a faster link). */
 	// ADC_SAMPLE_RATE_500Hz,
 	// ADC_SAMPLE_RATE_1000Hz,
 	// ADC_SAMPLE_RATE_2500Hz,
