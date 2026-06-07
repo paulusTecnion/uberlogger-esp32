@@ -109,6 +109,9 @@ static bool _protocolVersionOk = false;
  * at session finalize (see Logtask_logging FINAL) by querying the STM while it
  * is back in IDLE. Exposed read-only via Logger_getOverrun() / getStatus. */
 static uint8_t _stmOverrun = 0;
+static uint32_t _resyncCount = 0;          /* cumulative SPI-tear resyncs this session */
+static uint32_t _resyncWindowStart = 0;    /* ms, start of the current 1s tear-storm window */
+static uint32_t _resyncWindowCount = 0;    /* resyncs within the current window */
 
 uint8_t msg_part = 0, expected_msg_part = 0;
 
@@ -959,40 +962,42 @@ esp_err_t Logger_checkProtocolVersion(void)
  * convention: byte 0 echoes the command, byte 1 carries the 0/1 flag. MUST be
  * called from the logger task only (issues an SPI command) and only when the
  * STM is back in IDLE and idle on SPI (i.e. after frame streaming has ceased),
- * never mid-stream and never from the HTTP-server context. */
-static void Logger_queryOverrun(void)
+ * never mid-stream and never from the HTTP-server context.
+ * EXCEPTION: the fault handler in LOGTASK_LOGGING_BUSY calls this mid-stream
+ * (up to 3x) to disambiguate overrun vs SPI tear; it tolerates the -1 failure
+ * return in that context. */
+static int Logger_queryOverrun(void)
 {
     spi_cmd_t cmd;
-
     spi_buffer = spi_ctrl_getRxData();
-
     cmd.command = STM32_CMD_GET_OVERRUN;
     cmd.data0   = 0;
-
     if (spi_ctrl_cmd(STM32_CMD_GET_OVERRUN, &cmd, sizeof(spi_cmd_t)) != ESP_OK)
     {
         ESP_LOGE(TAG_LOG, "Overrun query: no response from STM32");
-        return;
+        return -1;
     }
-
-    // Response mirrors the command/response convention: byte 0 echoes the
-    // command, byte 1 carries the STM32's sticky ring-overrun flag (0/1).
     if (spi_buffer[0] != STM32_CMD_GET_OVERRUN)
     {
         ESP_LOGE(TAG_LOG, "Overrun query: bad echo %u", spi_buffer[0]);
         spi_ctrl_print_rx_buffer(spi_buffer);
-        return;
+        return -1;
     }
-
     _stmOverrun = spi_buffer[1] ? 1 : 0;
     #ifdef DEBUG_LOGGING
     ESP_LOGI(TAG_LOG, "STM32 overrun flag = %u", _stmOverrun);
     #endif
+    return 0;
 }
 
 uint8_t Logger_getOverrun(void)
 {
     return _stmOverrun;
+}
+
+uint32_t Logger_getResyncCount(void)
+{
+    return _resyncCount;
 }
 
 esp_err_t Logger_syncSettings(uint8_t syncTime)
@@ -1832,6 +1837,7 @@ void Logger_disableADCen_and_Interrupt()
     #endif
     gpio_set_level(GPIO_ADC_EN, 0);
     spi_ctrl_datardy_int(0);
+    spi_ctrl_fault_int(0);
 }
 
 void Logging_reset()
@@ -1954,6 +1960,10 @@ esp_err_t Logger_logging()
             stm32TimerTimeout = esp_timer_get_time();
             // enable data rdy interrupt pin
             spi_ctrl_datardy_int(1);
+            spi_ctrl_fault_int(1);
+            _resyncCount = 0;
+            _resyncWindowStart = 0;
+            _resyncWindowCount = 0;
             // Enable logging at STM32
             #ifdef DEBUG_LOGGING
             ESP_LOGI(TAG_LOG, "Enabling ADC_EN");
@@ -2366,7 +2376,45 @@ void Logtask_logging()
             break;
 
             case LOGTASK_LOGGING_BUSY:
-                if (_dataReceived)           
+                if (spi_ctrl_fault_pending())
+                {
+                    // STM signalled ring-overrun or SPI tear out-of-band. Discard
+                    // any partial frame and disambiguate via the sticky overrun flag.
+                    _dataReceived = 0;
+                    spi_ctrl_reset_rx_state();
+                    int ov = -1;
+                    for (int i = 0; i < 3 && ov < 0; i++)
+                    {
+                        if (Logger_queryOverrun() == 0) ov = Logger_getOverrun();
+                    }
+                    if (ov == 1)
+                    {
+                        // Ring overrun: STM stopped and returned to IDLE. Finalize cleanly.
+                        SET_ERROR(_errorCode, ERR_LOGGER_DATA_OVERRUN);
+                        LogTask_stop();
+                        finalwrite = 1;
+                    }
+                    else
+                    {
+                        // SPI tear (ov==0) or query unreadable (ov<0): discard + resync.
+                        _resyncCount++;
+                        uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                        if (now_ms - _resyncWindowStart > 1000)
+                        {
+                            _resyncWindowStart = now_ms;
+                            _resyncWindowCount = 0;
+                        }
+                        if (++_resyncWindowCount > 10)
+                        {
+                            // Tear storm: link is unusable -> fail loudly.
+                            ESP_LOGE(TAG_LOG, "Fault: tear storm (>10/s), stopping");
+                            SET_ERROR(_errorCode, ERR_LOGGER_STM32_FAULTY_DATA);
+                            LogTask_stop();
+                            finalwrite = 1;
+                        }
+                    }
+                }
+                if (_dataReceived)
                 {
                     #ifdef DEBUG_LOGTASK_RX
                     ESP_LOGI(TAG_LOG, "Logtask: _dataReceived = 1");
@@ -2476,7 +2524,10 @@ void Logtask_logging()
                  * OVERRUN. Done before the state transition so the value is
                  * captured for both the stop (DONE) and external-retrigger
                  * (re-INIT) paths, ahead of any new session reset. */
-                Logger_queryOverrun();
+                if (Logger_queryOverrun() != 0)
+                {
+                    ESP_LOGW(TAG_LOG, "FINAL overrun query failed; OVERRUN may be stale");
+                }
 
                  if (_stopLogging)
                     {
