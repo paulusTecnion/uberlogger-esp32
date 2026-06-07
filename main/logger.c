@@ -2436,6 +2436,10 @@ void Logtask_logging()
                 {
                     // Now either we already received the last message, which is indicated by _dataReceived
                     // or we will have to retrieve it.
+                    // A fault already stopped the session; never process a frame that
+                    // arrived concurrent with the fault edge (it would OR a spurious
+                    // FAULTY_DATA bit over the clean overrun error set at FINAL).
+                    if (_faultStop) { _dataReceived = 0; }
                     if (_dataReceived)
                     {
         #ifdef DEBUG_LOGTASK
@@ -2499,6 +2503,7 @@ void Logtask_logging()
                     // otherwise the frame was torn -> FAULTY_DATA.
                     SET_ERROR(_errorCode, Logger_getOverrun() ? ERR_LOGGER_DATA_OVERRUN
                                                               : ERR_LOGGER_STM32_FAULTY_DATA);
+                    _faultStop = 0;
                 }
 
                  if (_stopLogging)
