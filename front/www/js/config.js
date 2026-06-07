@@ -235,7 +235,7 @@ function updateNtpStatus(enabled, lastSync) {
   if (Number(enabled) !== 1) {
     el.textContent = "disabled";
   } else if (Number(lastSync) > 0) {
-    el.textContent = "last sync: " + new Date(Number(lastSync) * 1000).toLocaleString([], { hour12: false });
+    el.textContent = new Date(Number(lastSync) * 1000).toLocaleString([], { hour12: false });
   } else {
     el.textContent = "waiting for first sync…";
   }

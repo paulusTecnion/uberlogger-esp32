@@ -327,8 +327,10 @@ esp_err_t settings_set_default(Settings_t * _inSettings)
     _inSettings->wifi_channel = 1;
     _inSettings->wifi_ssid_ap_hidden = 0; // SoftAP SSID visible by default
 
-    // Network time: on by default, public pool. Only acts when connected as STA.
-    _inSettings->ntp_enabled = 1;
+    // Network time: off by default. A factory device is hotspot-only with no
+    // network to reach, so NTP can't act until the user sets up a Wi-Fi client
+    // connection and enables it. Default server is the public pool.
+    _inSettings->ntp_enabled = 0;
     strcpy(_inSettings->ntp_server, "pool.ntp.org");
 
     for (int i = 0; i < NUM_ADC_CHANNELS; i++)

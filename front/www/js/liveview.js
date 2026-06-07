@@ -63,10 +63,15 @@ function renderValueList() {
     let n = 0;
     $.each(category_values["VALUES"], function (channel, channel_value) {
       n++;
-      let truncatedChannel =
-        channel.length > 4 ? channel.substring(0, 4) + ".." : channel;
+      // Show the configured label ("Inlet (T1)") when set, else the raw key.
+      // Long labels wrap inside the value card via CSS (no truncation here, so
+      // the "(channel)" suffix is never clipped).
+      let displayChannel =
+        typeof channelDisplayLabel === "function"
+          ? channelDisplayLabel(category, channel)
+          : channel;
 
-      htmlstring += "<tr><td>" + truncatedChannel + "</td>";
+      htmlstring += "<tr><td>" + displayChannel + "</td>";
 
       if (typeof channel_value === "number") {
         if (category === "TEMPERATURE") {
@@ -208,6 +213,17 @@ function updatePlotModeLabel() {
 // appending to them and the chart/rangeslider stay live.
 function clearLiveView() {
   if (typeof clearDataPoints === "function") clearDataPoints();
+  // Re-seed each series with the latest reading so every channel keeps one live
+  // point. Without this the traces are momentarily empty and Plotly drops their
+  // legend entries, so the signal labels vanish until the next poll (~1s later).
+  if (
+    typeof accumulateReadings === "function" &&
+    typeof valuesData !== "undefined" &&
+    valuesData &&
+    valuesData["READINGS"]
+  ) {
+    accumulateReadings(valuesData);
+  }
   followLive = true;
   // New uirevision token => Plotly discards the stale pan/zoom/rangeslider view
   // for this redraw, then keeps preserving the (reset) view on later ticks.
@@ -260,6 +276,14 @@ function applyResponsiveLayout() {
 }
 
 function plotDataPoints() {
+  // Keep each trace's legend name in sync with the latest channel labels, so
+  // labels that load after the first poll (or change on a config save) show up.
+  Object.keys(dataPoints).forEach(function (key) {
+    var dot = key.indexOf(".");
+    if (dot > 0 && typeof channelDisplayLabel === "function") {
+      dataPoints[key].name = channelDisplayLabel(key.slice(0, dot), key.slice(dot + 1));
+    }
+  });
   const dataPointsArray = Object.values(dataPoints);
 
   let config = {
@@ -287,10 +311,26 @@ function plotDataPoints() {
         font: { size: 16 },
         x: 0.5,
       },
+      // Hover a signal to read its value; crosshair spikelines drop to the time
+      // and value axes so you can pinpoint where the cursor is.
+      hovermode: "closest",
       xaxis: {
         title: { text: "Time", font: { size: 14 } },
         type: "date",
         rangeslider: { visible: true, thickness: 0.08 },
+        showspikes: true,
+        spikemode: "across",
+        spikesnap: "cursor",
+        spikethickness: 1,
+        spikedash: "dot",
+        spikecolor: "#888",
+      },
+      yaxis: {
+        showspikes: true,
+        spikemode: "across",
+        spikethickness: 1,
+        spikedash: "dot",
+        spikecolor: "#888",
       },
     };
     Plotly.newPlot(divPlot, dataPointsArray, layout, config);
