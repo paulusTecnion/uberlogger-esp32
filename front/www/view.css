@@ -373,6 +373,12 @@ input[type="radio"] {
   grid-column: 1 / -1;
   margin: 0 0 4px;
 }
+/* Let long channel labels (e.g. "Inlet_fdgfd_gfdg (T1)") wrap inside the value
+   card instead of overflowing past the box / widening the grid column. */
+#valuelist .block.greybox td:first-child {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 
 #plot {
   flex-grow: 2;
@@ -1248,4 +1254,11 @@ details summary:hover {
 @media (max-width: 600px) {
   .fw-file-row  { flex-direction: column; align-items: flex-start; }
   .fw-pick-btn  { width: 100%; text-align: center; box-sizing: border-box; }
+}
+
+/* Small screens: the body otherwise keeps a desktop min-width that forces
+   horizontal scrolling on narrow phones (the live-view chart and tables then
+   run off-screen). Let it shrink to the viewport so everything reflows to fit. */
+@media (max-width: 600px) {
+  body { min-width: 0; }
 }

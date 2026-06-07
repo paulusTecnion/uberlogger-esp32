@@ -64,12 +64,12 @@ function renderValueList() {
     $.each(category_values["VALUES"], function (channel, channel_value) {
       n++;
       // Show the configured label ("Inlet (T1)") when set, else the raw key.
-      let label =
+      // Long labels wrap inside the value card via CSS (no truncation here, so
+      // the "(channel)" suffix is never clipped).
+      let displayChannel =
         typeof channelDisplayLabel === "function"
           ? channelDisplayLabel(category, channel)
           : channel;
-      let displayChannel =
-        label.length > 22 ? label.substring(0, 22) + "…" : label;
 
       htmlstring += "<tr><td>" + displayChannel + "</td>";
 
