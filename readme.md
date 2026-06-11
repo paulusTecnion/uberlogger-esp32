@@ -1,10 +1,13 @@
 # 🧠 Uberlogger – ESP32 Development Instructions
 
-![Uberlogger UL01](https://github.com/user-attachments/assets/0152f741-67ca-4d7e-8d23-f9b1f567e315)
+| | |
+|---|---|
+| ![Uberlogger UL01](https://github.com/user-attachments/assets/0152f741-67ca-4d7e-8d23-f9b1f567e315) | ![cropped_to_2000x1500_477230259-9cfe64ff-2d1a-40d0-abcc-8224dfc5fa30](https://github.com/user-attachments/assets/6eb20049-7d64-4672-af0b-c1cea997191f)|
+
 
 Welcome to the repository for the [Uberlogger](https://www.uberlogger.com), a simple yet powerful ESP32-based & STM32 WiFi enabled logging device. The logger can log 8 analog channels and 6 digital channels at maximum 250 Hz at 16 or 12 bits to CSV or raw data file on an SD card and is fully stand-alone. The analog channels can be set as either NTC inputs or normal analog inputs with input ranges varying from -10V to +10V DC or from -60V to + 60V DC. There is a web UI interface to configure the device and see live data and an [API](https://docs.uberlogger.com/api) to retrieve data using your own scripts or devices.
 
-The software of this device was not open source, since I spent a lot of time on it and I'm still selling the device. 50% of the profits go to EDELAC, a school for the poorest children in the city Xela of Guatemala. Through this product, I am helping them a bit with getting education and you, the end user, with logging your data. You can find more information about the school [here](https://edelac.org/).
+50% of the profits go to EDELAC, a school for the poorest children in the city Xela of Guatemala. Through this product, I am helping them a bit with getting education and you, the end user, with logging your data. You can find more information about the school [here](https://edelac.org/).
 
 I decided to make this open source, since I have little time to make more features alone by myself, and next to that I notice there are hobbyists and research people who might be interested in using or adjusting the code to their needs. Since I value innovation and education, it made sense to make this open source. The source is what it is, with all the things that are nice and not so nice :-) I'm not at full-time programmer, so I was also learning along the way. What makes it a challenge to debug is that it needs to be stable over long periods over time and it uses 2 chips, from which the documentation was not always completely right. I don't have time to give support for new features you might want to add, but you are free to adjust or contribute and do whatever you want with it.
 
@@ -85,6 +88,7 @@ Sometimes the `sdkconfig` file lacks some important ESP32-S2 settings. After clo
 - Turn on the Uberlogger
 - Then hold the "mode" and "reset" button simultaneously and release the "reset" button. A new COM port should pop on your PC.
 - Use `idf.py build flash` to build and flash the Uberlogger or add the `-p COMPORT` parameter where COMPORT is the COM port name/location, to flash directly without using auto-detect.
+- After flashing is done, you need to manually press the reset button again to make the new software active. 
 
 ---
 
