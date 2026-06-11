@@ -24,6 +24,9 @@
 #include <time.h>
 #include "wifi.h"
 
+/* Vendored-protocol guard: ul_protocol.h must stay byte-identical with the
+ * STM32 copy; a stale copy bumps the version and fails this build. */
+_Static_assert(UL_PROTOCOL_VERSION == 2, "ul_protocol.h copies are out of sync");
 
 // Function prototypes for static helper functions
 static esp_err_t processSlowFrequencyMessage(void);
