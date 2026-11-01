@@ -6,6 +6,9 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+#include <ctype.h>
+#include <stdlib.h>
 #include <sys/param.h>
 #include <sys/unistd.h>
 #include <sys/stat.h>
@@ -258,6 +261,22 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filena
 
 /* Copies the full path into destination buffer and returns
  * pointer to path (skipping the preceding base path) */
+/* Decode %XX escapes in place (the web UI URL-encodes file names). */
+static void uri_decode_inplace(char *s)
+{
+    char *o = s;
+    for (char *p = s; *p; p++) {
+        if (p[0] == '%' && isxdigit((unsigned char)p[1]) && isxdigit((unsigned char)p[2])) {
+            char hex[3] = { p[1], p[2], 0 };
+            *o++ = (char)strtol(hex, NULL, 16);
+            p += 2;
+        } else {
+            *o++ = *p;
+        }
+    }
+    *o = 0;
+}
+
 static const char* get_path_from_uri(char *dest, const char *base_path, const char *uri, size_t destsize)
 {
     const size_t base_pathlen = strlen(base_path);
@@ -280,6 +299,13 @@ static const char* get_path_from_uri(char *dest, const char *base_path, const ch
     /* Construct full path (base + path) */
     strcpy(dest, base_path);
     strlcpy(dest + base_pathlen, uri, pathlen + 1);
+    uri_decode_inplace(dest + base_pathlen);
+
+    /* Refuse paths that try to leave the base directory */
+    const char *p = dest + base_pathlen;
+    if (strstr(p, "/../") || (strlen(p) >= 3 && strcmp(p + strlen(p) - 3, "/..") == 0)) {
+        return NULL;
+    }
 
     /* Return pointer to path, skipping the base */
     return dest + base_pathlen;
@@ -638,7 +664,12 @@ esp_err_t delete_post_handler(httpd_req_t *req)
     ESP_LOGI(TAG_FILESERVER, "%s", filepath);
 
     /* Delete file */
-    unlink(filepath);
+    if (unlink(filepath) != 0) {
+        ESP_LOGE(TAG_FILESERVER, "Failed to delete %s (errno %d)", filepath, errno);
+        /* Respond with 500 Internal Server Error */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to delete file");
+        return ESP_FAIL;
+    }
 
     // esp_sd_card_unmount();
     /* Redirect onto root to see the updated file list */

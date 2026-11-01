@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <unistd.h>
 #include "esp_log.h"
 #include "esp_async_memcpy.h"
 #include "errorcodes.h"
@@ -2225,6 +2226,19 @@ void Logtask_fw_update()
 
             case LOGGER_FW_ERROR:
             case LOGGER_FW_DONE:
+                // After a successful update the uploaded files are no longer needed;
+                // after a failed one they stay on the card so the update can be checked.
+                if (_currentFWState == LOGGER_FW_DONE)
+                {
+                    const char *update_files[] = { "/sdcard/ota_main.bin", "/sdcard/ota_support.bin", "/sdcard/ota_filesystem.bin" };
+                    for (int i = 0; i < 3; i++)
+                    {
+                        if (unlink(update_files[i]) != 0)
+                        {
+                            ESP_LOGW(TAG_LOG, "Could not remove %s", update_files[i]);
+                        }
+                    }
+                }
                 esp_sd_card_unmount();
 
                 settings_clear_bootreason();

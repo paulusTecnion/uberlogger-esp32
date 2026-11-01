@@ -291,6 +291,13 @@ uint8_t esp_sd_card_check_for_card(){
     return gpio_get_level(PIN_SD_CD);        
 }
 
+static uint32_t total_space_kib = 0;
+
+uint32_t esp_sd_card_get_total_space()
+{
+    return total_space_kib;
+}
+
 uint32_t esp_sd_card_get_free_space()
 {
         if (!esp_sd_card_check_for_card())
@@ -314,6 +321,7 @@ uint32_t esp_sd_card_get_free_space()
             /* Get total sectors and free sectors */
             // tot_sect = (fs->n_fatent - 2) * fs->csize;
             fre_sect = fre_clust * fs->csize;
+            total_space_kib = (uint32_t)(((uint64_t)(fs->n_fatent - 2) * fs->csize) / 2);
             /* Print the free space (assuming 512 bytes/sector) */
             // ESP_LOGI(TAG, "%10u KiB total drive space.\r\n%10u KiB available.\r\n%10u free clust.\r\n",tot_sect / 2, fre_sect / 2,fre_clust);
 

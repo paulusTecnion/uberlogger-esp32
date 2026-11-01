@@ -343,10 +343,10 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     pos += snprintf(buf + pos, sizeof(buf) - pos,
         "\"LOGGER_STATE\":%u,\"ERRORCODE\":%u,"
         "\"FW_VERSION\":\"%s\","
-        "\"SD_CARD_FREE_SPACE\":%u,\"SD_CARD_STATUS\":%d,",
+        "\"SD_CARD_FREE_SPACE\":%u,\"SD_CARD_TOTAL_SPACE\":%u,\"SD_CARD_STATUS\":%d,",
         (unsigned)logger_state, (unsigned)Logger_getError(),
         sysinfo_get_fw_version(),
-        (unsigned)Logger_getLastFreeSpace(), (int)esp_sd_card_get_state());
+        (unsigned)Logger_getLastFreeSpace(), (unsigned)esp_sd_card_get_total_space(), (int)esp_sd_card_get_state());
 
     // --- WiFi ---
     uint8_t wifi_state = 0;
@@ -430,6 +430,7 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
     
     cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", Logger_getLastFreeSpace());
+    cJSON_AddNumberToObject(root, "SD_CARD_TOTAL_SPACE", esp_sd_card_get_total_space());
     
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 

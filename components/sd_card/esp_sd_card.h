@@ -16,4 +16,6 @@ uint8_t esp_sdcard_is_mounted(void);
 uint8_t esp_sd_card_check_for_card();
 esp_err_t esp_sd_card_format();
 uint32_t esp_sd_card_get_free_space(void);
+// Total size of the card in KiB, as found by the last esp_sd_card_get_free_space() (0 if unknown).
+uint32_t esp_sd_card_get_total_space(void);
 sdcard_state_t esp_sd_card_get_state(void);
