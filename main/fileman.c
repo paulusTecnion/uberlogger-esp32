@@ -10,6 +10,7 @@
 #include "fileman.h"
 #include "settings.h"
 #include "config.h"
+#include "csv_format.h"
 
 
 #define MOUNT_POINT "/sdcard"
@@ -313,136 +314,48 @@ esp_err_t fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *a
                 return ESP_FAIL;
         }
 
+    // One flush per batch of SPI messages instead of one per CSV row.
+    if (f != NULL)
+    {
+        fflush(f);
+    }
+
     return ESP_OK;
 }
 
 int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio, const s_date_time_t *date_time_ptr, size_t datarows)
 {
-    int j = 0;
-    uint32_t writeptr = 0;
+    // Read the settings once per batch instead of once per field.
+    const Settings_t *s = settings_get();
+    const csv_row_format_t fmt = {
+        .adc_enabled = s->adc_channels_enabled,
+        .adc_ntc = s->adc_channel_type,
+        .adc_range60 = s->adc_channel_range,
+        .gpio_enabled = s->gpio_channels_enabled,
+        .decimal = (settings_get_file_decimal_char() == FILE_DECIMAL_CHAR_COMMA) ? ',' : '.',
+        .separator = (settings_get_file_separator_char() == FILE_SEPARATOR_CHAR_COMMA) ? ',' : ';',
+    };
 
-    const size_t buffer_size = sizeof(filestrbuffer);
-    const char *decimal_char = (settings_get_file_decimal_char() == FILE_DECIMAL_CHAR_COMMA) ? "," : ".";
-    const char *separator_char = (settings_get_file_separator_char() == FILE_SEPARATOR_CHAR_COMMA) ? "," : ";";
+    if (f == NULL)
+    {
+        return 0;
+    }
 
     for (int i = 0; i < datarows; i++)
     {
-        bool first_field = true; // Used to manage separators
+        size_t len = csv_format_row(filestrbuffer, &fmt, dataAdc + i * NUM_ADC_CHANNELS,
+                                    dataGpio[i], &date_time_ptr[i],
+                                    ADC_MULT_FACTOR_16B_TEMP, ADC_MULT_FACTOR_60V, ADC_MULT_FACTOR_10V);
 
-        // Print timestamp
-        int ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr,
-                           "20%02d-%02d-%02d %02d:%02d:%02d.%03lu",
-                           date_time_ptr[j].year,
-                           date_time_ptr[j].month,
-                           date_time_ptr[j].date,
-                           date_time_ptr[j].hours,
-                           date_time_ptr[j].minutes,
-                           date_time_ptr[j].seconds,
-                           date_time_ptr[j].subseconds);
-
-        if (ret < 0 || (writeptr + ret) >= buffer_size)
-            return -1; // Buffer overflow or error
-        writeptr += ret;
-
-        first_field = false;
-
-        // ADC channels
-        for (int x = 0; x < NUM_ADC_CHANNELS; x++)
+        // No per-row fflush: let the 8 KiB stdio buffer (setvbuf) batch rows into
+        // large SD writes. The caller flushes once per batch.
+        if (fwrite(filestrbuffer, 1, len, f) != len)
         {
-            // Check if the channel is enable, else skip it
-            if (!settings_get_adc_channel_enabled(settings_get(), x))
-                continue;
-            // Don't write any separator before the first field
-            if (!first_field) {
-                ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr, "%s", separator_char);
-                if (ret < 0 || (writeptr + ret) >= buffer_size)
-                    return -1;
-                writeptr += ret;
-            }
-
-            if ((settings_get()->adc_channel_type & (1 << x)))
-            {
-                // Only 1 digit after decimal point for temperature
-                ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr, "%s%d%s%01d",
-                               (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",
-                               abs(dataAdc[i * NUM_ADC_CHANNELS + x] / ADC_MULT_FACTOR_16B_TEMP),
-                               decimal_char,
-                               abs(dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_16B_TEMP));
-            }
-             // if range is 60V...
-            else if ((settings_get()->adc_channel_range & (1 << x)))
-            {
-                // We need 6 digits after comma for +/-60V
-                ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr, "%s%d%s%06d",
-                               (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",
-                               abs(dataAdc[i * NUM_ADC_CHANNELS + x] / ADC_MULT_FACTOR_60V),
-                               decimal_char,
-                               abs(dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_60V));
-            }
-            else
-            {
-                // We need 7 digits after comma for +/-10V
-                ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr, "%s%d%s%07d",
-                               (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",
-                               abs(dataAdc[i * NUM_ADC_CHANNELS + x] / ADC_MULT_FACTOR_10V),
-                               decimal_char,
-                               abs(dataAdc[i * NUM_ADC_CHANNELS + x] % ADC_MULT_FACTOR_10V));
-            }
-
-            if (ret < 0 || (writeptr + ret) >= buffer_size)
-                return -1;
-            writeptr += ret;
-
-            first_field = false;
-        }
-
-        // GPIO channels
-        for (int x = 0; x < 6; x++)
-        {
-            if (!settings_get_gpio_channel_enabled(settings_get(), x))
-                continue;
-
-            if (!first_field) {
-                ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr, "%s", separator_char);
-                if (ret < 0 || (writeptr + ret) >= buffer_size)
-                    return -1;
-                writeptr += ret;
-            }
-
-            ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr, "%d",
-                           (dataGpio[j] & (0x04 << x)) ? 1 : 0);
-
-            if (ret < 0 || (writeptr + ret) >= buffer_size)
-                return -1;
-            writeptr += ret;
-
-            first_field = false;
-        }
-
-        // New line
-        ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr, "\r\n");
-        if (ret < 0 || (writeptr + ret) >= buffer_size)
             return -1;
-        writeptr += ret;
-
-        j++;
-
-        if (f == NULL)
-        {
-            return 0;
         }
-
-        int len = fputs((const char*)filestrbuffer, f);
-        fflush(f);
         vTaskDelay(pdTICKS_TO_MS(0));
 
-        if (len < 0)
-        {
-            return len;
-        }
-
-        file_bytes_written += strlen(filestrbuffer);
-        writeptr = 0;
+        file_bytes_written += len;
     }
 
     return datarows;
