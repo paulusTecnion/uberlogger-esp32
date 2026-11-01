@@ -30,8 +30,10 @@ let lastHistorySaveAt = 0;
 // form: AIN_CHAN_LABEL1..8 for analog/temperature channels, DIO_CHAN_LABEL1..6
 // for digital channels.
 var channelLabels = { ain: {}, dio: {} };
+var channelLabelsRequestedAt = 0;
 
 function loadChannelLabels() {
+  channelLabelsRequestedAt = Date.now();
   $.getJSON("ajax/getConfig", function (cfg) {
     channelLabels = {
       ain: cfg && cfg["AIN_CHANNEL_LABELS"] ? cfg["AIN_CHANNEL_LABELS"] : {},
@@ -55,6 +57,23 @@ function channelDisplayLabel(category, channel) {
   if (lbl && String(lbl).trim() !== "" && String(lbl).trim().toUpperCase() !== String(channel).toUpperCase())
     return lbl + " (" + channel + ")";
   return channel;
+}
+
+// getValues keys each reading by its channel label ("V_in"), not by its channel
+// ("AIN2"). Map the label back to the channel so the order and the history stay
+// with the input when the label is renamed. Returns null for a label that is not
+// in the loaded labels (renamed since): the labels are reloaded and the reading
+// is skipped until then.
+function channelForLabel(category, label) {
+  var digital = category === "DIGITAL";
+  var labels = digital ? channelLabels.dio : channelLabels.ain;
+  var count = digital ? 6 : 8;
+  for (var i = 1; i <= count; i++) {
+    if (labels[(digital ? "DIO_CHAN_LABEL" : "AIN_CHAN_LABEL") + i] === label) return (digital ? "DIO" : "AIN") + i;
+  }
+  if (new RegExp("^" + (digital ? "DIO" : "AIN") + "[1-" + count + "]$").test(label)) return label;
+  if (Date.now() - channelLabelsRequestedAt > 5000) loadChannelLabels();
+  return null;
 }
 
 function storeDataPoint(category, channel, timestamp, value) {
@@ -89,8 +108,9 @@ function accumulateReadings(data) {
   if (!data || !data["READINGS"] || typeof data["TIMESTAMP"] == "undefined") return;
   var ts = data["TIMESTAMP"];
   $.each(data["READINGS"], function (category, category_values) {
-    $.each(category_values["VALUES"], function (channel, channel_value) {
-      storeDataPoint(category, channel, ts, channel_value);
+    $.each(category_values["VALUES"], function (label, channel_value) {
+      var channel = channelForLabel(category, label);
+      if (channel) storeDataPoint(category, channel, ts, channel_value);
     });
   });
   saveDataPoints(false);
@@ -183,6 +203,8 @@ function restoreDataPoints() {
     if (!saved || !Array.isArray(saved.t) || !saved.ch) return;
     const t = saved.t;
     Object.keys(saved.ch).forEach(function (name) {
+      // v1.3.4 stored channels under their label; drop those, they cannot be mapped back
+      if (!/\.(AIN|DIO)\d$/.test(name)) return;
       const y = saved.ch[name];
       if (!Array.isArray(y) || y.length === 0) return;
       const offset = t.length - y.length;

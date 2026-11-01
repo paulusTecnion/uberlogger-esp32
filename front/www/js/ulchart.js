@@ -397,8 +397,10 @@
         [3600 * 24, "{MM}-{DD}", "\n{YYYY}", null, null, null, null, null, 1],
         [3600, "{HH}:{mm}", "\n{YYYY}-{MM}-{DD}", null, "\n{MM}-{DD}", null, null, null, 1],
         [60, "{HH}:{mm}", "\n{YYYY}-{MM}-{DD}", null, "\n{MM}-{DD}", null, null, null, 1],
-        [1, ":{ss}", "\n{YYYY}-{MM}-{DD} {HH}:{mm}", null, "\n{MM}-{DD} {HH}:{mm}", null, "\n{HH}:{mm}", null, 1],
-        [0.001, ":{ss}.{fff}", "\n{YYYY}-{MM}-{DD} {HH}:{mm}", null, "\n{MM}-{DD} {HH}:{mm}", null, "\n{HH}:{mm}", null, 1],
+        // second ticks: only {HH}:{mm} under the first tick, a date there runs into the
+        // next minute label (the legend shows the full date and time)
+        [1, ":{ss}", "\n{HH}:{mm}", null, "\n{MM}-{DD} {HH}:{mm}", null, "\n{HH}:{mm}", null, 1],
+        [0.001, ":{ss}.{fff}", "\n{HH}:{mm}", null, "\n{MM}-{DD} {HH}:{mm}", null, "\n{HH}:{mm}", null, 1],
       ],
     });
     // Legend values: the sample under the cursor, else the pinned sample, else
