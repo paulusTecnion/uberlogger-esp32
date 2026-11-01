@@ -401,8 +401,7 @@ esp_err_t flash_stm32()
     {
         ESP_LOGI(TAG, "Failed to activate STM32G030 bootloader");
         err = ESP_FAIL;
-        while(1);
-        goto error;
+        goto error;   // abort the update: the logger restarts normally instead of hanging
     }
 
     // Write unprotect flash

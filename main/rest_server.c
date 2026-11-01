@@ -181,15 +181,15 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
         strlcat(filepath, "index.html", sizeof(filepath));
     }
 
+    // The web UI is stored gzipped (front/build_www.py): when name is not found, serve
+    // name.gz with the content type of name and Content-Encoding: gzip.
+    bool gzipped = false;
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
-        // ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
-        if (CHECK_FILE_EXTENSION(filepath, ".js"))
-        {
-            strlcat(filepath, ".gz", sizeof(filepath));
-        }
-        // ESP_LOGE(REST_TAG, "Trying %s", filepath);
-        fd = open(filepath, O_RDONLY, 0);
+        char gzpath[FILE_PATH_MAX];
+        strlcpy(gzpath, filepath, sizeof(gzpath));
+        strlcat(gzpath, ".gz", sizeof(gzpath));
+        fd = open(gzpath, O_RDONLY, 0);
 
         if (fd == -1)
         {
@@ -197,11 +197,12 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
             return ESP_FAIL;
         }
+        gzipped = true;
     }
 
     set_content_type_from_file(req, filepath);
 
-    if (CHECK_FILE_EXTENSION(filepath, ".gz"))
+    if (gzipped || CHECK_FILE_EXTENSION(filepath, ".gz"))
     {
         httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
     }
@@ -342,10 +343,10 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     pos += snprintf(buf + pos, sizeof(buf) - pos,
         "\"LOGGER_STATE\":%u,\"ERRORCODE\":%u,"
         "\"FW_VERSION\":\"%s\","
-        "\"SD_CARD_FREE_SPACE\":%u,\"SD_CARD_STATUS\":%d,",
+        "\"SD_CARD_FREE_SPACE\":%u,\"SD_CARD_TOTAL_SPACE\":%u,\"SD_CARD_STATUS\":%d,",
         (unsigned)logger_state, (unsigned)Logger_getError(),
         sysinfo_get_fw_version(),
-        (unsigned)Logger_getLastFreeSpace(), (int)esp_sd_card_get_state());
+        (unsigned)Logger_getLastFreeSpace(), (unsigned)esp_sd_card_get_total_space(), (int)esp_sd_card_get_state());
 
     // --- WiFi ---
     uint8_t wifi_state = 0;
@@ -429,6 +430,7 @@ static esp_err_t logger_getStatus_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "FW_VERSION", sysinfo_get_fw_version());
     
     cJSON_AddNumberToObject(root, "SD_CARD_FREE_SPACE", Logger_getLastFreeSpace());
+    cJSON_AddNumberToObject(root, "SD_CARD_TOTAL_SPACE", esp_sd_card_get_total_space());
     
     cJSON_AddNumberToObject(root, "SD_CARD_STATUS", esp_sd_card_get_state());
 

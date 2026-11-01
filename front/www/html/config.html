@@ -383,15 +383,15 @@
 
       <h3>File format</h3>
       <span>
-        <input id="log_mode" name="LOG_MODE" class="element radio json-as-number"
+        <input id="log_mode_csv" name="LOG_MODE" class="element radio json-as-number"
                type="radio" value="1" checked="true" />
-        <label class="choice" for="log_mode">
+        <label class="choice" for="log_mode_csv">
           CSV<br />Write CSV files directly. Recommended for short measurements.
         </label>
 
-        <input id="log_mode" name="LOG_MODE" class="element radio json-as-number"
+        <input id="log_mode_raw" name="LOG_MODE" class="element radio json-as-number"
                type="radio" value="0" />
-        <label class="choice" for="log_mode">
+        <label class="choice" for="log_mode_raw">
           Raw data<br />Write the raw data and convert the data to a CSV file
           afterwards. This option is recommended for long measurements that may take
           hours or days. You can use the Python conversion script or Windows exe tool
@@ -403,16 +403,16 @@
 
       <h3>File name mode</h3>
       <span>
-        <input id="FILE_NAME_MODE" name="FILE_NAME_MODE"
+        <input id="file_name_mode_seq" name="FILE_NAME_MODE"
                class="element radio json-as-number" type="radio" value="0" checked="true" />
-        <label class="choice" for="file_name_mode">
+        <label class="choice" for="file_name_mode_seq">
           Sequential<br />File names are written with prefix + sequence number.
           Example: log0, log1 etc. Existing files will be overwritten.
         </label>
 
-        <input id="file_name_mode" name="FILE_NAME_MODE"
+        <input id="file_name_mode_ts" name="FILE_NAME_MODE"
                class="element radio json-as-number" type="radio" value="1" />
-        <label class="choice" for="file_name_mode">
+        <label class="choice" for="file_name_mode_ts">
           Timestamp<br />File name will be like YYYYMMDD_Time_File Prefix.
           Example: 20240312_14-34-34_Logfile.csv. Each split part will have a new
           timestamp in UTC time.

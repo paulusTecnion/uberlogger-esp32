@@ -6,6 +6,7 @@
 
   // ── Constants ─────────────────────────────────────────────────────────────
   var MAX_FILE_BYTES = 1200 * 1024; // 1.17 MB — matches backend limit
+  var LOGTASK_FWUPDATE = 8;         // LoggerState while the logger is flashing
 
   // File descriptor table
   var FILES = [
@@ -81,11 +82,31 @@
     } else {
       $icon.text("\u2714");
       $row.removeClass("fw-row-bad").addClass("fw-row-ok");
+      if (f.expected === "ota_main.bin") { readFirmwareVersion(file); }
       // Clear error only if all remaining rows are OK
       if (allFilesValid()) { clearError(); }
     }
 
     updateUploadButton();
+  }
+
+  // The firmware embeds its version once as "x.y.z_YYYY.MM.DD.hh.mm"; remember it so
+  // we can check after the reboot that the new firmware is really running.
+  var expectedVersion = null;
+
+  function readFirmwareVersion(file) {
+    expectedVersion = null;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var bytes = new Uint8Array(reader.result);
+      var text = "";
+      for (var i = 0; i < bytes.length; i += 8192) {
+        text += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+      }
+      var m = text.match(/\d+\.\d+\.\d+_\d{4}\.\d\d\.\d\d\.\d\d\.\d\d/);
+      expectedVersion = m ? m[0] : null;
+    };
+    reader.readAsArrayBuffer(file);
   }
 
   function allFilesValid() {
@@ -150,6 +171,7 @@
     if (!allFilesValid()) { return; }
     if (!confirm(
       "You are about to flash your UberLogger.\n\n" +
+      "Disconnect all sensors and signals from the inputs (AIN / NTC and DIO) first.\n" +
       "Do NOT power off the device during the update.\n\n" +
       "Continue?"
     )) { return; }
@@ -332,15 +354,26 @@
         return;
       }
       var xhr = new XMLHttpRequest();
-      xhr.open("GET", "/", true);
+      xhr.open("GET", "/ajax/getStatus", true);
       xhr.timeout = 2000;
       xhr.onload = function () {
+        if (done || xhr.status !== 200) { return; }
+        var status;
+        try { status = JSON.parse(xhr.responseText); } catch (e) { return; }
+        if (status.LOGGER_STATE === LOGTASK_FWUPDATE) { return; } // still flashing
         done = true;
         clearInterval(pollTimer);
         clearInterval(clockTimer);
         sessionStorage.removeItem('fwFlashInProgress');
         fwUpdateInProgress = false;
-        showDonePhase(false);
+        var running = status.FW_VERSION || "";
+        if (expectedVersion && running.indexOf(expectedVersion) !== 0) {
+          $("#fw-done-error-detail").text("The logger still runs " + running + " instead of " + expectedVersion + ".");
+          showDonePhase(true);
+        } else {
+          $("#fw-done-version").text(running ? "Now running " + running + "." : "");
+          showDonePhase(false);
+        }
       };
       xhr.send();
     }, 3000);

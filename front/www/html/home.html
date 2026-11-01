@@ -1,454 +1,480 @@
-<h1>Quick user manual</h1>
+<div class="page-head"><h1>Manual</h1></div>
 
-<div class="container">
-  <!-- Overview Section -->
-  <h2 class="first">Overview</h2>
-  <p>
-    The UberLogger control panel allows you to manage and monitor your logging
-    device. The key functionalities include:
-  </p>
-
-  <ul>
-    <li>Plotting live data streams via the "Live data" page</li>
-    <li>Starting and stopping SD-card logging via the "Logging" page</li>
-    <li>
-      Configuring logger settings, input channels, sample rate, resolution, and
-      WiFi functionality via the "Configuration" page
-    </li>
-  </ul>
-
-  <p>
-    <i
-      ><b>Note:</b> It is essential to configure the logger and its input
-      channels correctly before starting any measurements to ensure accurate
-      data.</i
-    >
-  </p>
-
-  <div class="flexcontainer">
-    <!-- WiFi Configuration -->
-    <div class="flexdiv-md greybox">
-      <h3>WiFi configuration</h3>
-      <details>
-        <summary>How to configure WiFi</summary>
-        <p>The UberLogger can operate in two modes:</p>
-        <ol>
-          <li>
-            <b>Hotspot mode:</b> Connect directly to the UberLogger via a device
-            with WiFi. Access the control panel via
-            <a href="http://192.168.4.1">http://192.168.4.1</a>.
-          </li>
-          <li>
-            <b>Client + Hotspot mode:</b> Configure the logger to connect to a
-            WiFi network. Access the control panel via the IP address assigned
-            through the DHCP server.
-          </li>
-        </ol>
-        <p>
-          You can configure the WiFi settings in the "Configuration" page under
-          the "Network" tab.
-        </p>
-        <p>
-          <b>Hotspot security:</b> The device's own access point can be left
-          open (no password) or secured with WPA2/WPA3. When secured, set a
-          password of 8–63 characters. Clients connecting to the hotspot will
-          then need this password.
-        </p>
-        <p>
-          <b>Network security (client mode):</b> When connecting the logger to
-          an existing WiFi network, choose between an open network or a
-          password-protected one.
-        </p>
-        <p>
-          <i>
-            <b>Note:</b> When connecting to your access point, only 2.4 GHz
-            Wi-Fi WPA2/WPA3 networks are supported.
-          </i>
-        </p>
-      </details>
+<div class="manual">
+  <nav class="manual-toc" aria-label="Contents">
+    <div class="toc-group">
+      <div class="toc-cat">Getting started</div>
+      <ul>
+        <li><a href="#m-overview" data-target="m-overview">Overview</a></li>
+        <li><a href="#m-live-data" data-target="m-live-data">Live data &amp; CSV viewer</a></li>
+        <li><a href="#m-files-page" data-target="m-files-page">Files page</a></li>
+      </ul>
     </div>
-
-    <!-- Web Interface Security -->
-    <div class="flexdiv-md greybox">
-      <h3>Web interface security</h3>
-      <details>
-        <summary>Protect the web interface with a login</summary>
-        <p>
-          The web interface (and all REST/file endpoints) can be protected with
-          HTTP Basic Authentication. Configure this under the
-          <b>Network</b> tab on the Configuration page.
-        </p>
-        <ul>
-          <li>
-            <b>No login required:</b> Anyone with network access to the device
-            can use the web interface. This is the default.
-          </li>
-          <li>
-            <b>Password protected:</b> The browser shows a native login dialog
-            when navigating to the device. The username is fixed as
-            <b>admin</b>; set the password yourself.
-          </li>
-        </ul>
-        <p>
-          <i>
-            <b>Note:</b> Basic Auth is sent in clear text over HTTP. Treat the
-            password as a deterrent against casual access on a shared network,
-            not as strong protection.
-          </i>
-        </p>
-      </details>
+    <div class="toc-group">
+      <div class="toc-cat">Measuring</div>
+      <ul>
+        <li><a href="#m-channel-configuration" data-target="m-channel-configuration">Channel configuration</a></li>
+        <li><a href="#m-sampling-settings" data-target="m-sampling-settings">Sampling settings</a></li>
+        <li><a href="#m-averaging" data-target="m-averaging">Averaging</a></li>
+        <li><a href="#m-measurement-mode" data-target="m-measurement-mode">Measurement mode</a></li>
+        <li><a href="#m-calibration" data-target="m-calibration">Calibration</a></li>
+      </ul>
     </div>
-
-    <!-- Firmware Update -->
-    <div class="flexdiv-md greybox">
-      <h3>Firmware update</h3>
-      <details>
-        <summary>Updating the UberLogger firmware</summary>
-        <p>
-          Firmware updates are performed via the dedicated
-          <b>Firmware Update</b> page in the web interface. The page accepts the
-          three binaries produced by the build system:
-        </p>
-        <ul>
-          <li><b>ota_main.bin</b> — ESP32 main application</li>
-          <li><b>ota_support.bin</b> — STM32 support chip firmware</li>
-          <li><b>ota_filesystem.bin</b> — SPIFFS filesystem image (web interface assets)</li>
-        </ul>
-        <p>
-          Select all three files, then start the update. Live progress is shown
-          during upload and flashing. Once flashing completes, the device
-          restarts and the page waits for it to come back online before
-          reporting success.
-        </p>
-        <p>
-          <i>
-            <b>Note:</b> Do not power down the device during an update. Active
-            logging is paused for the duration of the update.
-          </i>
-        </p>
-      </details>
+    <div class="toc-group">
+      <div class="toc-cat">Files &amp; time</div>
+      <ul>
+        <li><a href="#m-file-options" data-target="m-file-options">File options</a></li>
+        <li><a href="#m-time-synchronization" data-target="m-time-synchronization">Time synchronization</a></li>
+      </ul>
     </div>
-
-    <!-- Channel Configuration -->
-    <div class="flexdiv-md greybox">
-      <h3>Channel configuration</h3>
-      <details>
-        <summary>Setting analog inputs</summary>
-        <p>
-          The UberLogger can measure temperature, analog voltage, and digital
-          signals. Ensure the correct configuration for accurate results:
-        </p>
-        <ul>
-          <li>
-            <b>Enabling channels:</b> You can enable or disable or signal using
-            the enable checkbox. Disabling channels leads to smaller log files.
-            Ideal for long measurements.
-          </li>
-          <li>
-            <b>Custom labels:</b> You can give each label a custom name. The
-            maximum length is 16 characters and cannot contain any space or
-            special characters, except hyphens '-' and underscores '_'.
-          </li>
-          <li>
-            <b>NTCx/AINx selection:</b> Choose between temperature or voltage
-            for each channel using both the hardware DIP-switch <b>and</b> the
-            configuration page.
-          </li>
-          <li>
-            <b>AINx range selection:</b> Adjust the input voltage range (-10V
-            ... +10V or -60V ... +60V) for better resolution and reduced noise.
-            This should also be set using the DIP-switch and the configuration
-            page.
-          </li>
-        </ul>
-      </details>
+    <div class="toc-group">
+      <div class="toc-cat">Network &amp; system</div>
+      <ul>
+        <li><a href="#m-wi-fi-configuration" data-target="m-wi-fi-configuration">Wi-Fi configuration</a></li>
+        <li><a href="#m-web-interface-security" data-target="m-web-interface-security">Web interface security</a></li>
+        <li><a href="#m-firmware-update" data-target="m-firmware-update">Firmware update</a></li>
+        <li><a href="#m-import-export-configuration" data-target="m-import-export-configuration">Import / export configuration</a></li>
+        <li><a href="#m-rest-api" data-target="m-rest-api">REST API</a></li>
+      </ul>
     </div>
-
-    <!-- Sampling Settings -->
-    <div class="flexdiv-md greybox">
-      <h3>Sampling settings</h3>
-      <details>
-        <summary>Choosing the right sample rate</summary>
-        <p>
-          The UberLogger allows configurable sampling rates and resolutions to
-          capture data accurately. The sample rate affects:
-        </p>
-        <ul>
-          <li>
-            <b>Maximum frequency:</b> The higher the sample rate, the higher the
-            frequency the logger can capture.
-          </li>
-          <li>
-            <b>Storage space:</b> Higher sample rates require more space on the
-            SD card.
-          </li>
-          <li>
-            <b>Frequency requirements: </b> The appropriate sampling frequency
-            for your measurements depends on the signal you wish to capture
-            accurately. It is recommended to set the sample rate at least twice
-            the maximum frequency of the signal of interest. For instance, if
-            your signal's highest frequency is 50 Hz, logging at 100 Hz will
-            prevent aliasing (signal distortion due to a too low sample rate).
-            For temperature logging, most applications can achieve satisfactory
-            results with sampling frequencies as low as 1 Hz or 5 Hz. This
-            ensures sufficient data points for precise temperature measurements
-            without significantly increasing data storage requirements.
-          </li>
-        </ul>
-        <p>
-          The resolution can be set to 12-bit or 16-bit. Higher resolutions
-          improve accuracy but may impact performance at high sample rates.
-        </p>
-      </details>
+    <div class="toc-group">
+      <div class="toc-cat">Reference</div>
+      <ul>
+        <li><a href="#m-specifications" data-target="m-specifications">Specifications</a></li>
+      </ul>
     </div>
+  </nav>
 
-    <!-- Averaging -->
-    <div class="flexdiv-md greybox">
-      <h3>Averaging</h3>
-      <details>
-        <summary>How averaging works</summary>
-        <p>
-          For sample frequencies below 1 Hz, you can choose to average the
-          samples over the desired sample frequency or only take one sample at
-          the desired sample rate. For example, if you enable this option with a
-          sample frequency of 1 Sample/minute, the average will be taken over 1
-          minute of samples using an IIR filter. After 1 minute, the average
-          will be output to the file.
-        </p>
-        <p>
-          <i>
-            <b>Note:</b> Averaging is performed using a 25 Hz sample rate and an
-            IIR low-pass filter with a -3 dB cut-off frequency at the desired
-            output sample rate.</i
-          >
-        </p>
-      </details>
-    </div>
-
-    <!-- Measurement Mode -->
-    <div class="flexdiv-md greybox">
-      <h3>Measurement Mode</h3>
-      <details>
-        <summary>
-          Setting continuous measurement or external trigger/control
-        </summary>
-        <p>
-          The UberLogger supports three measurement modes. The key difference is
-          who controls start and stop: you, or the external digital input.
-        </p>
-        <ul>
-          <li>
-            <b>Continuous measurement:</b> Normal manual operation. Start and
-            stop logging from the web interface or with the physical button.
-          </li>
-          <li>
-            <b>External trigger:</b> You still arm logging manually
-            (web/button). After arming, the logger waits for the configured EXT
-            pin to go HIGH before samples are recorded.
-            <i
-              ><b>Note:</b> While waiting for a trigger, the logger is armed but
-              not yet measuring. Live data appears only after the trigger event.
-            </i>
-            <br />
-            Logging stops when the EXT pin goes LOW again (or when you press
-            Stop).
-          </li>
-          <li>
-            <b>External control:</b> Start/stop is fully controlled by the EXT
-            pin.
-            <i
-              ><b>Note:</b> In this mode, web Start/Stop and the physical
-              Start/Stop button are disabled by firmware.
-            </i>
-            <br />
-            EXT pin HIGH starts logging automatically; EXT pin LOW stops
-            logging.
-          </li>
-        </ul>
-        <p>
-          For both external modes, configure <b>trigger debounce time</b> to
-          filter noisy trigger edges or have delayed measurement starts. Default
-          is 100 ms; adjustable up to 60000 ms. The signal must stay stable for
-          the full debounce time, otherwise the debounce timer restarts.
-        </p>
-      </details>
-    </div>
-
-    <!-- Time Synchronization -->
-    <div class="flexdiv-md greybox">
-      <h3>Time synchronization</h3>
-      <details>
-        <summary>Synchronize the Uberlogger time with your local time</summary>
-        <p>
-          The UberLogger features an internal real-time clock (RTC) that tracks
-          time, even during power off (if the battery is installed, which it is
-          by default). You can synchronize the RTC with your local time via the
-          "Configuration" page. This ensures accurate timestamps for recorded
-          data.
-        </p>
-        <p>
+  <article class="manual-body">
+    <div class="manual-cat" id="c-getting-started">Getting started</div>
+    <section id="m-overview" class="manual-section">
+      <h2>Overview</h2>
+      <p>
+        The Uberlogger control panel lets you configure, monitor and control your logger:
+      </p>
+      <ul>
+        <li><b>Live data</b>: watch all channels live and view CSV log files</li>
+        <li><b>Files</b>: browse, download or delete log files, unmount or format the SD card</li>
+        <li><b>Configuration</b>: channels, sample rate and resolution, file options, Wi-Fi and firmware updates</li>
+        <li><b>Start logging</b> (top right) starts and stops a recording from any page</li>
+      </ul>
+      <p>
           <i
-            ><b>Note:</b> Data is saved in Coordinated Universal Time (UTC),
-            which helps merge datasets easily across time zones.</i
+            ><b>Note:</b> It is essential to configure the logger and its input
+            channels correctly before starting any measurements to ensure accurate
+            data.</i
           >
         </p>
-      </details>
-    </div>
+    </section>
 
-    <div class="flexdiv-md greybox">
-      <h3 class="first">File options</h3>
-      <details>
-        <summary>Customize file names and size</summary>
-        <p>
-          The <b>File Options</b> section allows you to configure how the
-          UberLogger saves its data.
-        </p>
-        <p>
-          <b>File Format:</b>
-        </p>
-        <ul>
-          <li>
-            <b>CSV:</b> CSV format writes data directly to CSV files, ideal for
-            low sample rates or short measurement durations. CSV files are
-            easily readable in tools like Excel.
-          </li>
-          <li>
-            <b>Raw Data:</b> Raw format records raw data for long measurements,
-            which can be later converted into CSV files using the provided
-            Python or Windows conversion tools. Raw data is more storage
-            efficient for long recordings.
-          </li>
-        </ul>
+    <section id="m-live-data" class="manual-section">
+      <h2>Live data &amp; CSV viewer</h2>
+      <p>
+        The <b>Live data</b> page shows all enabled channels in one chart: voltages on the left axis,
+        temperatures (NTC) on the right axis and the digital inputs as separate lanes below.
+        The values under the chart are the live readings of each channel; they update every second.
+      </p>
+      <ul>
+        <li><b>Time window:</b> choose 1m, 5m, 15m, 1h or All. The browser keeps about 6 hours of
+          history, also when you switch pages or reload.</li>
+        <li><b>Inspect:</b> hover the chart to read the values at that moment. Click (or click and hold)
+          to freeze the chart and pin that moment. Drag or scroll to zoom, Shift+drag to pan; on a phone
+          use two fingers to zoom.</li>
+        <li><b>Back to live:</b> after zooming or clicking, the <b>Back to live</b> button (next to Clear)
+          follows the newest data again. Double-clicking the chart does the same.</li>
+        <li><b>Channels:</b> click a channel name under the chart to hide or show it.</li>
+      </ul>
+      <h3>Viewing CSV files</h3>
+      <p>
+        Use <b>Open CSV…</b> on the Live data page, or drop a CSV file anywhere on the page, to view a
+        log file from your computer in the same chart (download it first from the <b>Files</b> page).
+        The file is processed in your browser; nothing is uploaded to the logger. Times in the file are
+        UTC. Gaps in the timestamps are marked with red lines. Very large files need a lot of memory:
+        the viewer warns you before opening a file that may be too large for your device.
+      </p>
+    </section>
 
-        <p>
-          <b>File Name Mode:</b>
-        </p>
-        <ul>
-          <li>
-            <b>Sequential:</b> Generates filenames in a sequential order (e.g.,
-            `log0`, `log1`, etc.), overwriting existing files with the same
-            name.
-          </li>
-          <li>
-            <b>Timestamp:</b> Generates filenames with a timestamp in the format
-            `YYYYMMDD_Time_FilePrefix.csv`. This avoids overwriting and helps
-            track when files were created.
-          </li>
-        </ul>
+    <section id="m-files-page" class="manual-section">
+      <h2>Files page</h2>
+      <p>
+        The <b>Files</b> page lists the folders and files on the SD card, with their size and the
+        free space on the card. Click a folder to open it; use the path above the list to go back.
+      </p>
+      <ul>
+        <li><b>Download:</b> click the download icon next to a file to save it on your computer.
+          Open it on the Live data page with <b>Open CSV…</b> to view it.</li>
+        <li><b>Delete:</b> click the trash icon and confirm. If the file cannot be deleted, a message
+          tells you so.</li>
+        <li><b>Refresh</b> reloads the list.</li>
+        <li><b>Unmount</b> (or the eject icon in the top bar) unmounts the SD card so you can remove it
+          safely. To mount it again, take it out and reinsert it.</li>
+        <li><b>Format…</b> erases all files on the SD card.</li>
+      </ul>
+      <p>
+        <i><b>Note:</b> unmounting and formatting are only possible while the logger is idle, so not
+        while logging, calibrating or formatting.</i>
+      </p>
 
-        <p>
-          <b>File name and split size:</b>
-        </p>
-        <ul>
-          <li>
-            <b>Prefix:</b> Set your own prefix for a filename. No special
-            characters can be used and maximum of 70 length characters is
-            allowed.
-          </li>
-          <li>
-            <b>File split size:</b> automatically split files into smaller
-            files. Configurable with kB, MB, or GB sizes. Maximum split size 4
-            GB.
-          </li>
-        </ul>
-      </details>
-    </div>
+    </section>
+    <div class="manual-cat" id="c-measuring">Measuring</div>
+    <section id="m-channel-configuration" class="manual-section">
+      <h2>Channel configuration</h2>
+      <p>
+        The UberLogger can measure temperature, analog voltage, and digital
+        signals. Ensure the correct configuration for accurate results:
+      </p>
+      <ul>
+        <li>
+          <b>Enabling channels:</b> You can enable or disable or signal using
+          the enable checkbox. Disabling channels leads to smaller log files.
+          Ideal for long measurements.
+        </li>
+        <li>
+          <b>Custom labels:</b> You can give each label a custom name. The
+          maximum length is 16 characters and cannot contain any space or
+          special characters, except hyphens '-' and underscores '_'.
+        </li>
+        <li>
+          <b>NTCx/AINx selection:</b> Choose between temperature or voltage
+          for each channel using both the hardware DIP-switch <b>and</b> the
+          configuration page.
+        </li>
+        <li>
+          <b>AINx range selection:</b> Adjust the input voltage range (-10V
+          ... +10V or -60V ... +60V) for better resolution and reduced noise.
+          This should also be set using the DIP-switch and the configuration
+          page.
+        </li>
+      </ul>
 
-    <div class="flexdiv-md greybox">
-      <h3 class="first">Calibration</h3>
-      <details>
-        <summary>Zero calibrating your Uberlogger</summary>
-        <p>
-          The <b>Calibration</b> section allows you to perform zero-calibration
-          of the analog channels.
-        </p>
-        <p>
-          Zero calibration ensures that each analog input reads 0 when no signal
-          is present. It is essential for accurate measurements.
-        </p>
-        <p>
-          You can initiate calibration by pressing the "Start Calibration"
-          button. Ensure that all analog and temperature inputs are all
-          disconnected and all channels are configured as analog inputs both
-          with the DIP switches as well in on the Configuration page before
-          starting calibration, to get accurate results.
-        </p>
-      </details>
-    </div>
+    </section>
 
-    <div class="flexdiv-md greybox">
-      <h3 class="first">Import/Export Configuration</h3>
-      <details>
-        <summary>Back and restore settings</summary>
-        <p>
-          The <b>Import/Export Configuration</b> section allows you to save or
-          load the configuration settings of the UberLogger.
-        </p>
-        <p>
-          <b>Export Configuration:</b> You can download the current
-          configuration settings to a JSON file for backup or to apply to
-          another device later.
-        </p>
-        <p>
-          <b>Import Configuration:</b> This allows you to load a previously
-          saved JSON configuration file to restore settings or replicate
-          configurations across multiple devices.
-        </p>
-      </details>
-    </div>
+    <section id="m-sampling-settings" class="manual-section">
+      <h2>Sampling settings</h2>
+      <p>
+        The UberLogger allows configurable sampling rates and resolutions to
+        capture data accurately. The sample rate affects:
+      </p>
+      <ul>
+        <li>
+          <b>Maximum frequency:</b> The higher the sample rate, the higher the
+          frequency the logger can capture.
+        </li>
+        <li>
+          <b>Storage space:</b> Higher sample rates require more space on the
+          SD card.
+        </li>
+        <li>
+          <b>Frequency requirements: </b> The appropriate sampling frequency
+          for your measurements depends on the signal you wish to capture
+          accurately. It is recommended to set the sample rate at least twice
+          the maximum frequency of the signal of interest. For instance, if
+          your signal's highest frequency is 50 Hz, logging at 100 Hz will
+          prevent aliasing (signal distortion due to a too low sample rate).
+          For temperature logging, most applications can achieve satisfactory
+          results with sampling frequencies as low as 1 Hz or 5 Hz. This
+          ensures sufficient data points for precise temperature measurements
+          without significantly increasing data storage requirements.
+        </li>
+      </ul>
+      <p>
+        The resolution can be set to 12-bit or 16-bit. Higher resolutions
+        improve accuracy but may impact performance at high sample rates.
+      </p>
 
-    <div class="flexdiv-md greybox">
-      <h3 class="first">File Browser</h3>
-      <details>
-        <summary>Browsing through files</summary>
-        <p>
-          The <b>File Browser</b> allows you to manage the data files stored on
-          the SD card.
-        </p>
-        <p>
-          You can download, delete, or refresh the list of files. Formatting the
-          SD card and unmounting it are only possible when the logger is not
-          actively logging data.
-        </p>
-        <ul>
-          <li>
-            <b>Download:</b> Click on "Download" to retrieve a file from the SD
-            card to your local machine.
-          </li>
-          <li>
-            <b>Delete:</b> Select "Delete" to remove the file from the SD card.
-          </li>
-          <li>
-            <b>Format SD-card:</b> This option will erase all contents from the
-            SD card and prepare it for fresh data logging.
-          </li>
-          <li>
-            <b>Unmount SD-card:</b> Safely unmount the SD card to remove it
-            without causing data corruption.
-          </li>
-        </ul>
-      </details>
-    </div>
+    </section>
 
-    <div class="flexdiv-md greybox">
-      <h3 class="first">REST API</h3>
-      <details>
-        <summary>Control your Uberlogger remotely</summary>
-        <p>
-          With the <b>REST API</b> endpoints you can control and manage your
-          Uberlogger remotely.
-        </p>
-        <p>
-          The whole list of REST API endpoints is too long to be mentioned here,
-          but you can check it out
-          <a href="https://docs.uberlogger.com/api" target="_blank">here</a>
-        </p>
-      </details>
-    </div>
+    <section id="m-averaging" class="manual-section">
+      <h2>Averaging</h2>
+      <p>
+        For sample frequencies below 1 Hz, you can choose to average the
+        samples over the desired sample frequency or only take one sample at
+        the desired sample rate. For example, if you enable this option with a
+        sample frequency of 1 Sample/minute, the average will be taken over 1
+        minute of samples using an IIR filter. After 1 minute, the average
+        will be output to the file.
+      </p>
+      <p>
+        <i>
+          <b>Note:</b> Averaging is performed using a 25 Hz sample rate and an
+          IIR low-pass filter with a -3 dB cut-off frequency at the desired
+          output sample rate.</i
+        >
+      </p>
 
-    <!-- Specifications Section -->
-    <div class="flexdiv-lg greybox">
-      <h3>Specifications</h3>
+    </section>
+
+    <section id="m-measurement-mode" class="manual-section">
+      <h2>Measurement mode</h2>
+      <p>
+        The UberLogger supports three measurement modes. The key difference is
+        who controls start and stop: you, or the external digital input.
+      </p>
+      <ul>
+        <li>
+          <b>Continuous measurement:</b> Normal manual operation. Start and
+          stop logging from the web interface or with the physical button.
+        </li>
+        <li>
+          <b>External trigger:</b> You still arm logging manually
+          (web/button). After arming, the logger waits for the configured EXT
+          pin to go HIGH before samples are recorded.
+          <i
+            ><b>Note:</b> While waiting for a trigger, the logger is armed but
+            not yet measuring. Live data appears only after the trigger event.
+          </i>
+          <br />
+          Logging stops when the EXT pin goes LOW again (or when you press
+          Stop).
+        </li>
+        <li>
+          <b>External control:</b> Start/stop is fully controlled by the EXT
+          pin.
+          <i
+            ><b>Note:</b> In this mode, web Start/Stop and the physical
+            Start/Stop button are disabled by firmware.
+          </i>
+          <br />
+          EXT pin HIGH starts logging automatically; EXT pin LOW stops
+          logging.
+        </li>
+      </ul>
+      <p>
+        For both external modes, configure <b>trigger debounce time</b> to
+        filter noisy trigger edges or have delayed measurement starts. Default
+        is 100 ms; adjustable up to 60000 ms. The signal must stay stable for
+        the full debounce time, otherwise the debounce timer restarts.
+      </p>
+
+    </section>
+
+    <section id="m-calibration" class="manual-section">
+      <h2>Calibration</h2>
+      <p>
+        The <b>Calibration</b> section allows you to perform zero-calibration
+        of the analog channels.
+      </p>
+      <p>
+        Zero calibration ensures that each analog input reads 0 when no signal
+        is present. It is essential for accurate measurements.
+      </p>
+      <p>
+        You can initiate calibration by pressing the "Start Calibration"
+        button. Ensure that all analog and temperature inputs are all
+        disconnected and all channels are configured as analog inputs both
+        with the DIP switches as well in on the Configuration page before
+        starting calibration, to get accurate results.
+      </p>
+
+    </section>
+    <div class="manual-cat" id="c-files-and-time">Files &amp; time</div>
+    <section id="m-file-options" class="manual-section">
+      <h2>File options</h2>
+      <p>
+        The <b>File Options</b> section allows you to configure how the
+        UberLogger saves its data.
+      </p>
+      <p>
+        <b>File Format:</b>
+      </p>
+      <ul>
+        <li>
+          <b>CSV:</b> CSV format writes data directly to CSV files, ideal for
+          low sample rates or short measurement durations. CSV files are
+          easily readable in tools like Excel.
+        </li>
+        <li>
+          <b>Raw Data:</b> Raw format records raw data for long measurements,
+          which can be later converted into CSV files using the provided
+          Python or Windows conversion tools. Raw data is more storage
+          efficient for long recordings.
+        </li>
+      </ul>
+
+      <p>
+        <b>File Name Mode:</b>
+      </p>
+      <ul>
+        <li>
+          <b>Sequential:</b> Generates filenames in a sequential order (e.g.,
+          `log0`, `log1`, etc.), overwriting existing files with the same
+          name.
+        </li>
+        <li>
+          <b>Timestamp:</b> Generates filenames with a timestamp in the format
+          `YYYYMMDD_Time_FilePrefix.csv`. This avoids overwriting and helps
+          track when files were created.
+        </li>
+      </ul>
+
+      <p>
+        <b>File name and split size:</b>
+      </p>
+      <ul>
+        <li>
+          <b>Prefix:</b> Set your own prefix for a filename. No special
+          characters can be used and maximum of 70 length characters is
+          allowed.
+        </li>
+        <li>
+          <b>File split size:</b> automatically split files into smaller
+          files. Configurable with kB, MB, or GB sizes. Maximum split size 4
+          GB.
+        </li>
+      </ul>
+
+    </section>
+
+    <section id="m-time-synchronization" class="manual-section">
+      <h2>Time synchronization</h2>
+      <p>
+        The UberLogger features an internal real-time clock (RTC) that tracks
+        time, even during power off (if the battery is installed, which it is
+        by default). You can synchronize the RTC with your local time via the
+        "Configuration" page. This ensures accurate timestamps for recorded
+        data.
+      </p>
+      <p>
+        <i
+          ><b>Note:</b> Data is saved in Coordinated Universal Time (UTC),
+          which helps merge datasets easily across time zones.</i
+        >
+      </p>
+
+    </section>
+    <div class="manual-cat" id="c-network-and-system">Network &amp; system</div>
+    <section id="m-wi-fi-configuration" class="manual-section">
+      <h2>Wi-Fi configuration</h2>
+      <p>The UberLogger can operate in two modes:</p>
+      <ol>
+        <li>
+          <b>Hotspot mode:</b> Connect directly to the UberLogger via a device
+          with WiFi. Access the control panel via
+          <a href="http://192.168.4.1">http://192.168.4.1</a>.
+        </li>
+        <li>
+          <b>Client + Hotspot mode:</b> Configure the logger to connect to a
+          WiFi network. Access the control panel via the IP address assigned
+          through the DHCP server.
+        </li>
+      </ol>
+      <p>
+        You can configure the WiFi settings in the "Configuration" page under
+        the "Network" tab.
+      </p>
+      <p>
+        <b>Hotspot security:</b> The device's own access point can be left
+        open (no password) or secured with WPA2/WPA3. When secured, set a
+        password of 8–63 characters. Clients connecting to the hotspot will
+        then need this password.
+      </p>
+      <p>
+        <b>Network security (client mode):</b> When connecting the logger to
+        an existing WiFi network, choose between an open network or a
+        password-protected one.
+      </p>
+      <p>
+        <i>
+          <b>Note:</b> When connecting to your access point, only 2.4 GHz
+          Wi-Fi WPA2/WPA3 networks are supported.
+        </i>
+      </p>
+
+    </section>
+
+    <section id="m-web-interface-security" class="manual-section">
+      <h2>Web interface security</h2>
+      <p>
+        The web interface (and all REST/file endpoints) can be protected with
+        HTTP Basic Authentication. Configure this under the
+        <b>Network</b> tab on the Configuration page.
+      </p>
+      <ul>
+        <li>
+          <b>No login required:</b> Anyone with network access to the device
+          can use the web interface. This is the default.
+        </li>
+        <li>
+          <b>Password protected:</b> The browser shows a native login dialog
+          when navigating to the device. The username is fixed as
+          <b>admin</b>; set the password yourself.
+        </li>
+      </ul>
+      <p>
+        <i>
+          <b>Note:</b> Basic Auth is sent in clear text over HTTP. Treat the
+          password as a deterrent against casual access on a shared network,
+          not as strong protection.
+        </i>
+      </p>
+
+    </section>
+
+    <section id="m-firmware-update" class="manual-section">
+      <h2>Firmware update</h2>
+      <p>
+        Firmware updates are performed via the dedicated
+        <b>Firmware Update</b> page in the web interface. The page accepts the
+        three binaries produced by the build system:
+      </p>
+      <ul>
+        <li><b>ota_main.bin</b> — ESP32 main application</li>
+        <li><b>ota_support.bin</b> — STM32 support chip firmware</li>
+        <li><b>ota_filesystem.bin</b> — SPIFFS filesystem image (web interface assets)</li>
+      </ul>
+      <p>
+        Select all three files, then start the update. Live progress is shown
+        during upload and flashing. Once flashing completes, the device
+        restarts and the page waits for it to come back online before
+        reporting success.
+      </p>
+      <p>
+        <i>
+          <b>Note:</b> Disconnect all sensors and signals from the inputs
+          (AIN / NTC and DIO) before updating: signals on the inputs can stop
+          the support chip from being updated. Do not power down the device
+          during an update. Active logging is paused for the duration of the
+          update.
+        </i>
+      </p>
+
+    </section>
+
+    <section id="m-import-export-configuration" class="manual-section">
+      <h2>Import / export configuration</h2>
+      <p>
+        The <b>Import/Export Configuration</b> section allows you to save or
+        load the configuration settings of the UberLogger.
+      </p>
+      <p>
+        <b>Export Configuration:</b> You can download the current
+        configuration settings to a JSON file for backup or to apply to
+        another device later.
+      </p>
+      <p>
+        <b>Import Configuration:</b> This allows you to load a previously
+        saved JSON configuration file to restore settings or replicate
+        configurations across multiple devices.
+      </p>
+
+    </section>
+
+    <section id="m-rest-api" class="manual-section">
+      <h2>REST API</h2>
+      <p>
+        With the <b>REST API</b> endpoints you can control and manage your
+        Uberlogger remotely.
+      </p>
+      <p>
+        The whole list of REST API endpoints is too long to be mentioned here,
+        but you can check it out
+        <a href="https://docs.uberlogger.com/api" target="_blank">here</a>
+      </p>
+
+    </section>
+    <div class="manual-cat" id="c-reference">Reference</div>
+    <section id="m-specifications" class="manual-section">
+      <h2>Specifications</h2>
       <p>
         Below are the key electrical and input characteristics of the
         UberLogger.
@@ -539,6 +565,7 @@
           </tr>
         </tbody>
       </table>
-    </div>
-  </div>
+
+    </section>
+  </article>
 </div>
