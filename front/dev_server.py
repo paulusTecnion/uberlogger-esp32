@@ -60,19 +60,35 @@ LOGGING = {"on": False}   # toggled by /ajax/loggerStart and /ajax/loggerStop
 MOCK_ERROR = {"code": 0}   # dev only: POST /ajax/devSetError {"code": 8} to preview an error
 
 
+# Channel labels as on the bench logger. The device keys getValues by these labels,
+# not by channel name, so the mock does too (labels equal to the channel name are
+# the defaults).
+AIN_LABELS = ["V_in", "T_env", "V_out", "AIN4", "AIN5", "AIN6", "AIN7", "AIN8"]
+DIO_LABELS = ["DIO1", "DIO2", "DIO3", "DIO4", "DIO5", "DIO6"]
+
+
+def make_get_config():
+    """ajax/getConfig.json with the channel labels and AIN2 as NTC."""
+    with open(os.path.join(SRC_WWW_DIR, "ajax", "getConfig.json")) as f:
+        cfg = json.load(f)
+    cfg["AIN_CHANNEL_LABELS"] = {f"AIN_CHAN_LABEL{i}": v for i, v in enumerate(AIN_LABELS, start=1)}
+    cfg["DIO_CHANNEL_LABELS"] = {f"DIO_CHAN_LABEL{i}": v for i, v in enumerate(DIO_LABELS, start=1)}
+    return cfg
+
+
 def make_get_values():
-    """Mimic /ajax/getValues like the real device: only enabled channels, keyed
-    AIN<n> (temperature channels too) and DIO<n>, digital values as 0/1.
+    """Mimic /ajax/getValues like the real device: only enabled channels, keyed by
+    their channel label (temperature channels too), digital values as 0/1.
 
     AIN1 steps 0 / 2.5 / 5 / 7.5 V every 10 s, AIN2 is an NTC around 20 degC,
     AIN3..8 are small signals, DIO1 toggles every 5 s (like the bench test)."""
     now_ms = int(time.time() * 1000)
     ain1, ntc, ain3, small, dio1 = demo_signals(time.time())
-    analog = {"AIN1": ain1, "AIN3": ain3}
+    analog = {AIN_LABELS[0]: ain1, AIN_LABELS[2]: ain3}
     for i, v in enumerate(small, start=4):
-        analog[f"AIN{i}"] = v
-    temps = {"AIN2": round(ntc, 1)}
-    digital = {f"DIO{i}": (dio1 if i == 1 else 0) for i in range(1, 7)}
+        analog[AIN_LABELS[i - 1]] = v
+    temps = {AIN_LABELS[1]: round(ntc, 1)}
+    digital = {DIO_LABELS[i - 1]: (dio1 if i == 1 else 0) for i in range(1, 7)}
     return {
         "TIMESTAMP": now_ms,
         "READINGS": {
@@ -140,6 +156,9 @@ class Handler(BaseHTTPRequestHandler):
         # Live, moving mock of the device values endpoint.
         if path.rstrip("/") == "/ajax/getValues":
             self._send_json(make_get_values())
+            return
+        if path.rstrip("/") == "/ajax/getConfig":
+            self._send_json(make_get_config())
             return
 
         # Mock SD-card file browser: list + downloads of generated sample CSVs.
