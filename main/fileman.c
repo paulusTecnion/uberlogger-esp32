@@ -313,6 +313,12 @@ esp_err_t fileman_csv_write_spi_msg(sdcard_data_t *sdcard_data, const int32_t *a
                 return ESP_FAIL;
         }
 
+    // One flush per batch of SPI messages instead of one per CSV row.
+    if (f != NULL)
+    {
+        fflush(f);
+    }
+
     return ESP_OK;
 }
 
@@ -432,8 +438,9 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio, const s_d
             return 0;
         }
 
+        // No per-row fflush: let the 8 KiB stdio buffer (setvbuf) batch rows into
+        // large SD writes. The caller flushes once per batch.
         int len = fputs((const char*)filestrbuffer, f);
-        fflush(f);
         vTaskDelay(pdTICKS_TO_MS(0));
 
         if (len < 0)
