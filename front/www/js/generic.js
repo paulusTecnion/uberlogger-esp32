@@ -51,7 +51,9 @@ function channelDisplayLabel(category, channel) {
     category === "DIGITAL"
       ? channelLabels.dio["DIO_CHAN_LABEL" + i]
       : channelLabels.ain["AIN_CHAN_LABEL" + i];
-  if (lbl && String(lbl).trim() !== "") return lbl + " (" + channel + ")";
+  // the default labels equal the channel names ("AIN1"): don't show "AIN1 (AIN1)"
+  if (lbl && String(lbl).trim() !== "" && String(lbl).trim().toUpperCase() !== String(channel).toUpperCase())
+    return lbl + " (" + channel + ")";
   return channel;
 }
 
@@ -206,6 +208,9 @@ function restoreDataPoints() {
 const MENU_PAGES = ["liveview", "log", "config", "home"];
 var loadedPanels = {}; // page -> jQuery Deferred for its mount (fragment + JS)
 var currentPage = null;
+// True while a non-tab page (fwupdate) is rendered directly into #render. Its
+// content is not a tab panel, so leaving it needs a full reload, not a tab switch.
+var nonPanelPage = false;
 
 // load correct page after document is ready and highlight correct item in menu
 function loadPage() {
@@ -226,6 +231,7 @@ function loadPage() {
 
   if (MENU_PAGES.indexOf(page) === -1) {
     // Non-tab page (e.g. fwupdate): keep the classic single-render behaviour.
+    nonPanelPage = true;
     renderPage(page, page_version);
     $("#menu_" + page).addClass("selected");
   } else {
@@ -284,7 +290,6 @@ function showPage(page, fromHistory) {
 
     $("[id^='menu_']").removeClass("selected");
     $("#menu_" + page).addClass("selected");
-    $("#menu_" + page + "_mobile").addClass("selected");
 
     currentPage = page;
     if (!fromHistory && history.pushState) {
@@ -313,8 +318,10 @@ function gotoPage(page, version) {
   var menu = document.getElementById("menu_items");
   if (menu) menu.classList.remove("show");
 
-  if (MENU_PAGES.indexOf(page) === -1) {
-    location.href = "index.html?page=" + page; // fwupdate etc. -> full reload
+  if (MENU_PAGES.indexOf(page) === -1 || nonPanelPage) {
+    // fwupdate etc. -> full reload; and leaving fwupdate for a tab reloads too, so
+    // its content (not a tab panel) and its timers are gone
+    location.href = "index.html?page=" + page;
     return;
   }
   showPage(page, false);
@@ -455,8 +462,9 @@ function getValues() {
     // only reads READINGS + TIMESTAMP, which are left untouched).
     accumulateReadings(valuesData);
 
-    valuesData["SD_CARD_FREE_SPACE"] =
-      (valuesData["SD_CARD_FREE_SPACE"] / BYTES_PER_MB).toFixed(3) + " MB";
+    var freeKib = Number(valuesData["SD_CARD_FREE_SPACE"]) || 0;
+    var totalKib = Number(valuesData["SD_CARD_TOTAL_SPACE"]) || 0;   // newer firmware only
+    valuesData["SD_CARD_FREE_SPACE"] = formatFreeSpace(freeKib);
 
     // sanitize data
     switch (data["WIFI_TEST_STATUS"]) {
@@ -501,28 +509,9 @@ function getValues() {
         break;
     }
 
-    switch (valuesData["ERRORCODE"]) {
-      case 0:
-        valuesData["ERRORCODE"] = "No error";
-
-        break;
-
-      case 128:
-        valuesData["ERRORCODE"] = "Mount error";
-        valuesData["SD_CARD_STATUS"] = "Mount errror";
-        break;
-
-      case 512:
-        valuesData["ERRORCODE"] = "No free space";
-        break;
-
-      case 4096:
-        valuesData["ERRORCODE"] = "Max file size reached";
-        break;
-
-      default:
-        break;
-    }
+    var errorCode = Number(valuesData["ERRORCODE"]) || 0;
+    if (errorCode & 0x80) valuesData["SD_CARD_STATUS"] = "Mount error";
+    valuesData["ERRORCODE"] = errorText(errorCode);
 
     switch (valuesData["LOGGER_STATE"]) {
       case 0:
@@ -584,33 +573,27 @@ function getValues() {
       valuesData["LOGGER_STATE"] == "IDLE" &&
       valuesData["SD_CARD_STATUS"] == "MOUNTED"
     ) {
-      $("#btn_logger_start").removeAttr("disabled");
-      $("#start_logging_button").attr("onclick", "loggerStart();");
+      $("#start_logging_button").attr("onclick", "loggerStart();").attr("data-mode", "start");
       $("#start_logging_button").html(
-        '<span class="button-icon">&#9658;</span><span class="button-text">Start logging</span>'
+        '<span class="button-icon">&#9679;</span><span class="button-text">Start logging</span>'
       );
-    } else {
-      $("#btn_logger_start").attr("disabled", true);
     }
 
     if (
       valuesData["LOGGER_STATE"] == "IDLE" &&
       valuesData["SD_CARD_STATUS"] == "EJECTED"
     ) {
-      $("#start_logging_button").attr("onclick", "");
+      $("#start_logging_button").attr("onclick", "").attr("data-mode", "nosd");
       $("#start_logging_button").html(
-        '<span class="button-text">No sd card</span>'
+        '<span class="button-text">No SD card</span>'
       );
     }
 
     if (valuesData["LOGGER_STATE"] == "LOGGING") {
-      $("#btn_logger_stop").removeAttr("disabled");
-      $("#start_logging_button").attr("onclick", "loggerStop();");
+      $("#start_logging_button").attr("onclick", "loggerStop();").attr("data-mode", "stop");
       $("#start_logging_button").html(
-        '<span class="button-icon">&#9209;</span><span class="button-text">Stop logging</span>'
+        '<span class="button-icon">&#9632;</span><span class="button-text">Stop logging</span>'
       );
-    } else {
-      $("#btn_logger_stop").attr("disabled", true);
     }
 
     // Enable Refresh file list, format and unmount buttons in case SD card status is mounted.
@@ -631,6 +614,9 @@ function getValues() {
       $("#btn_unmount_sdcard_top").attr("disabled", true);
     }
     populateFields("#topstatus", valuesData);
+    $("#status-logger").attr("data-state", String(valuesData["LOGGER_STATE"]).toLowerCase().replace(/\s+/g, "-"));
+    $("#status-error").attr("data-error", errorCode ? "1" : "0");
+    updateSdStatus(valuesData["SD_CARD_STATUS"], freeKib, totalKib);
     alert_active_valueserr = false;
     liveConnected = true;
   }).fail(function () {
@@ -641,6 +627,67 @@ function getValues() {
     }
     console.log("Data query failed.");
   });
+}
+
+// The logger reports SD card free space in KiB (esp_sd_card_get_free_space).
+function formatFreeSpace(kib) {
+  var mib = Number(kib) / 1024;
+  if (!isFinite(mib)) return "-";
+  return mib >= 1024 ? (mib / 1024).toFixed(2) + " GB" : mib.toFixed(0) + " MB";
+}
+
+// Header SD card item: capacity bar + free space when mounted, else the state as text.
+function updateSdStatus(state, freeKib, totalKib) {
+  var item = document.getElementById("status-sd");
+  if (!item) return;
+  var mounted = state === "MOUNTED";
+  item.setAttribute("data-mounted", mounted ? "1" : "0");
+  var texts = { EJECTED: "No SD card", UNMOUNTED: "Unmounted", "Mount error": "Mount error" };
+  $("#sd-state-text").text(mounted ? "" : (texts[state] || state));
+  var bar = document.getElementById("sd-bar");
+  if (!mounted || !totalKib) { item.setAttribute("data-bar", "0"); return; }
+  var used = Math.max(0, Math.min(1, 1 - freeKib / totalKib));
+  item.setAttribute("data-bar", "1");
+  item.setAttribute("data-level", used > 0.97 ? "full" : used > 0.9 ? "high" : "ok");
+  bar.firstElementChild.style.width = (used * 100).toFixed(1) + "%";
+  item.title = formatFreeSpace(freeKib) + " free of " + formatFreeSpace(totalKib) + " (" + Math.round(used * 100) + "% used)";
+}
+
+// Logger error codes are bit flags (main/errorcodes.h); show text plus the number.
+const ERROR_TEXTS = {
+  0x0001: "Cannot open file",
+  0x0002: "Data overrun",
+  0x0004: "No response from STM32",
+  0x0008: "Faulty data from STM32",
+  0x0010: "SD card write error",
+  0x0020: "STM32 sync error",
+  0x0040: "SPI control error",
+  0x0080: "SD card mount error",
+  0x0100: "STM32 timeout",
+  0x0200: "No free space",
+  0x0400: "Cannot open file on SD card",
+  0x0800: "Cannot close file on SD card",
+  0x1000: "Max file size reached",
+};
+function errorText(code) {
+  if (!code) return "No error";
+  var parts = [];
+  Object.keys(ERROR_TEXTS).forEach(function (bit) {
+    if (code & Number(bit)) parts.push(ERROR_TEXTS[bit]);
+  });
+  return (parts.length ? parts.join(", ") : "Unknown error") + " (" + code + ")";
+}
+
+// Light/dark theme: follows the system setting until the user picks one.
+function toggleTheme() {
+  var root = document.documentElement;
+  var current = root.getAttribute("data-theme") ||
+    (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  var next = current === "dark" ? "light" : "dark";
+  root.setAttribute("data-theme", next);
+  try { localStorage.setItem("ui.theme", next); } catch (e) {}
+  // charts read their colours from CSS variables when built
+  window.dispatchEvent(new Event("ul-theme"));
 }
 
 // assign to a form to avoid submit on enter press

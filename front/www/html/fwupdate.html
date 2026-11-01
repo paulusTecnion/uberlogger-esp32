@@ -5,10 +5,15 @@
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <div id="fwupdate-phase-select" class="group">
 
-  <p class="note">
-    <b>Before you begin:</b> ensure an SD card is inserted. Do <b>not</b> power
-    off the device during the update.
-  </p>
+  <div class="update-warning">
+    <b>Before you begin:</b>
+    <ul>
+      <li><b>Disconnect all sensors and signals</b> from the inputs (AIN / NTC and DIO).
+        Signals on the inputs can stop the support chip from being updated.</li>
+      <li>Stop logging and make sure an SD card is inserted.</li>
+      <li>Do <b>not</b> power off the device during the update.</li>
+    </ul>
+  </div>
 
   <h3>Select firmware files</h3>
   <p>
@@ -126,10 +131,13 @@
     The device has rebooted with the new firmware. Reconnect to the
     UberLogger Wi-Fi network, then return to the
     <a href="/">home page</a>.
+    <span id="fw-done-version"></span>
   </p>
 
   <div id="fw-done-error" class="fwupdate-error-box" style="display:none;">
-    <b>Firmware update failed.</b> Reset the device and try again. If the
+    <b>Firmware update failed.</b> <span id="fw-done-error-detail"></span>
+    Disconnect all sensors and signals from the AIN/NTC and DIO inputs,
+    switch the logger off and on again, and retry the update. If the
     problem persists, contact support.
   </div>
 

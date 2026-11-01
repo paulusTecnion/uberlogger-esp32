@@ -1,103 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=0.75, user-scalable=0, target-densityDpi=device-dpi"
-    />
-    <title>UberLogger One - control and configuration</title>
-    <link rel="stylesheet" type="text/css" href="view.css" media="all" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Uberlogger One</title>
+    <link rel="stylesheet" type="text/css" href="view.css?version=16" media="all" />
+    <script>
+      var page_version = "16";
+      // Apply the saved light/dark choice before the page paints (no flash).
+      (function () {
+        try {
+          var t = localStorage.getItem("ui.theme");
+          if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {}
+      })();
+    </script>
   </head>
-
-  <script>
-    var page_version = "15";
-  </script>
 
   <body onload="loadPage();">
     <div id="content">
       <div id="window">
-        <div id="top">
+        <header id="top">
+          <!-- one bar: logo · tabs · status · theme · start/stop logging -->
           <div id="toptitle">
-            <div class="left"><img src="logo.png" /></div>
+            <div class="left"><img src="logo.png" alt="Uberlogger" /></div>
+
+            <nav id="topmenubar">
+              <div id="left_buttons">
+                <button id="menu_liveview" onclick="gotoPage('liveview');">Live data</button>
+                <button id="menu_log" onclick="gotoPage('log');">Files</button>
+                <button id="menu_config" onclick="gotoPage('config');">Configuration</button>
+                <button id="menu_home" onclick="gotoPage('home');">Manual</button>
+              </div>
+            </nav>
+
             <div class="status" id="topstatus">
-              <table>
-                <tr>
-                  <td>Logger time:</td>
-                  <td><span name="TIMESTAMPSTR">-</span></td>
-                  <td>SD-card status:</td>
-                  <td>
-                    <span id="WIFI_TEST_RSSI" name="SD_CARD_STATUS">-</span>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>Logger status:</td>
-                  <td><span name="LOGGER_STATE">-</span></td>
-                  <td>Unmount card</td>
-                  <td>
-                    <button
-                      onclick="ejectCard()"
-                      id="btn_unmount_sdcard_top"
-                      name="btn_unmount_sdcard_top"
-                    >
-                      &#9167;
-                    </button>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>Logger error:</td>
-                  <td><span name="ERRORCODE">-</span></td>
-                  <td>SD-card free space:</td>
-                  <td><span name="SD_CARD_FREE_SPACE">-</span></td>
-                </tr>
-              </table>
+              <div class="status-item" id="status-logger">
+                <span class="status-label">Logger</span>
+                <span class="status-value"><span class="dot"></span><span name="LOGGER_STATE">-</span></span>
+              </div>
+              <div class="status-item" id="status-sd">
+                <span class="status-label">SD card</span>
+                <span class="status-value">
+                  <!-- mounted: capacity bar + free space; otherwise the state as text -->
+                  <span class="sd-state" id="sd-state-text"></span>
+                  <span class="sd-bar" id="sd-bar"><span class="sd-bar-fill"></span></span>
+                  <span class="sd-free"><span name="SD_CARD_FREE_SPACE">-</span> free</span>
+                  <button onclick="ejectCard()" id="btn_unmount_sdcard_top" name="btn_unmount_sdcard_top" class="icon-button" title="Unmount SD card (so it can be removed safely)" aria-label="Unmount SD card">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5l7 8.5H5z"/><rect x="5" y="16" width="14" height="3" rx="1"/></svg>
+                  </button>
+                </span>
+              </div>
+              <div class="status-item" id="status-time">
+                <span class="status-label">Logger time</span>
+                <span class="status-value"><span name="TIMESTAMPSTR">-</span></span>
+              </div>
+              <div class="status-item" id="status-error">
+                <span class="status-label">Error</span>
+                <span class="status-value"><span name="ERRORCODE">-</span></span>
+              </div>
             </div>
-          </div>
 
-          <div id="topmenubar">
-            <!-- Hamburger menu toggle for mobile -->
-            <button id="menu_toggle" onclick="toggleMenu()">☰</button>
-          
-            <!-- Desktop menu items -->
-            <div id="left_buttons">
-              <button id="menu_liveview" onclick="gotoPage('liveview');">Live data</button>
-              <button id="menu_log" onclick="gotoPage('log');">File browser</button>
-              <button id="menu_config" onclick="gotoPage('config');">Configuration</button>
-              <button id="menu_home" onclick="gotoPage('home');">Quick user manual</button>
-            </div>
-          
-            <!-- Mobile menu items -->
-            <div id="menu_items">
-              <button id="close_menu" onclick="toggleMenu()">&#10006;</button> <!-- Close Button -->
-              <button id="menu_liveview_mobile" onclick="gotoPage('liveview');">Live data</button>
-              <button id="menu_log_mobile" onclick="gotoPage('log');">File browser</button>
-              <button id="menu_config_mobile" onclick="gotoPage('config');">Configuration</button>
-              <button id="menu_home_mobile" onclick="gotoPage('home');">Quick user manual</button>
-            </div>
-          
-            <!-- Start logging button -->
+            <button id="theme_toggle" class="icon-button" onclick="toggleTheme()" title="Switch light / dark mode" aria-label="Switch light / dark mode">
+              <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+              <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1"/></svg>
+            </button>
+
             <div id="right_buttons">
-              <button id="start_logging_button">
-                <span class="button-icon">&#9658;</span>
+              <button id="start_logging_button" data-mode="start">
+                <span class="button-icon">&#9679;</span>
                 <span class="button-text">Start logging</span>
               </button>
             </div>
           </div>
-          
-          
-          
-          
+        </header>
 
-        <div id="render"></div>
+        <main id="render"></main>
 
-        <div id="footer"><b>UberLogger</b> by Tecnion</div>
+        <footer id="footer"><b>Uberlogger</b> by Tecnion</footer>
       </div>
     </div>
 
     <!--- JavaScript includes --->
     <script src="js/jquery-3.6.4.min.js"></script>
-    <script src="js/generic.js"></script>
+    <script src="js/generic.js?version=16"></script>
   </body>
 </html>

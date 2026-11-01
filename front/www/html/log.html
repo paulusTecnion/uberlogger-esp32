@@ -1,81 +1,23 @@
-<h1>File browser</h1>
-
 <div id="log">
-  <div id="logger">
-    <h2 class="first">Logger status</h2>
-    <p>Logger time: <span name="TIMESTAMPSTR">-</span></p>
-    <p>Logger status: <span name="LOGGER_STATE">-</span></p>
-    <p>Logger error: <span name="ERRORCODE">-</span></p>
-    <p style="border-style: solid; border-color: red; max-width: 600px">
-      <i
-        ><b>Note:</b> ensure you have configured the channels correctly before
-        starting logging!</i
-      >
-    </p>
-    <div id="log_logger_buttons">
-      <input
-        id="btn_logger_start"
-        class="button"
-        type="button"
-        name="btn_logger_start"
-        disabled
-        value="&checkmark; Start logging"
-        onclick="loggerStart()"
-      />
-      <input
-        id="btn_logger_stop"
-        class="button"
-        type="button"
-        name="btn_logger_stop"
-        disabled
-        value="&cross; Stop logging"
-        onclick="loggerStop()"
-      />
-    </div>
+  <div class="page-head">
+    <h1>Files</h1>
+    <span class="sd-summary muted"><span name="SD_CARD_FREE_SPACE">-</span> free</span>
   </div>
 
-  <div id="filebrowser">
-    <h2>Files</h2>
-    <p>SD card status: <span name="SD_CARD_STATUS">-</span></p>
-    <p>SD card free space: <span name="SD_CARD_FREE_SPACE">-</span></p>
-    <p>
-      <b
-        >Note that the file browser functionality (browsing, downloading,
-        deleting, formatting) only works when the logger is idle.</b
-      >
-    </p>
-    <div
-      id="filelist"
-      style="display: block; max-width: 800px; border: 0; margin-top: 20px"
-    >
-      Loading list of files...
+  <div class="card" id="filebrowser">
+    <div class="files-toolbar">
+      <div id="file-path" class="breadcrumb">SD card</div>
+      <div class="toolbar-spacer"></div>
+      <button id="btn_refresh_sdcard" name="btn_refresh_sdcard" type="button" class="button button-secondary button-small" onclick="filebrowserRefresh(currentFilePath)">&#8635; Refresh</button>
+      <button id="btn_unmount_sdcard" name="btn_unmount_sdcard" type="button" class="button button-secondary button-small" onclick="ejectCard()" title="Unmount the SD card so it can be removed safely">&#9167; Unmount</button>
+      <button id="btn_format_sdcard" name="btn_format_sdcard" type="button" class="button button-danger button-small" onclick="formatSdcard()" title="Erase all files on the SD card">Format…</button>
     </div>
 
-    <div id="log_filebrowser_buttons">
-      <input
-        id="btn_refresh_sdcard"
-        class="button"
-        type="button"
-        name="btn_refresh_sdcard"
-        value="&circlearrowleft; Refresh file list"
-        onclick="filebrowserRefresh('/')"
-      />
-      <input
-        id="btn_format_sdcard"
-        class="button"
-        type="button"
-        name="btn_format_sdcard"
-        value="Format SD-card..."
-        onclick="formatSdcard()"
-      />
-      <input
-        id="btn_unmount_sdcard"
-        class="button"
-        type="button"
-        name="btn_unmount_sdcard"
-        value="&#9167; Unmount SD-card"
-        onclick="ejectCard()"
-      />
-    </div>
+    <div id="filelist" class="muted">Loading list of files…</div>
+
+    <p class="files-note muted">
+      Downloading, deleting and formatting only work while the logger is idle.
+      To view a CSV file, download it and open it in <b>Live data → Open CSV…</b>
+    </p>
   </div>
 </div>
