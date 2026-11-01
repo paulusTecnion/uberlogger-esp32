@@ -181,15 +181,15 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
         strlcat(filepath, "index.html", sizeof(filepath));
     }
 
+    // The web UI is stored gzipped (front/build_www.py): when name is not found, serve
+    // name.gz with the content type of name and Content-Encoding: gzip.
+    bool gzipped = false;
     int fd = open(filepath, O_RDONLY, 0);
     if (fd == -1) {
-        // ESP_LOGE(REST_TAG, "Failed to open file : %s", filepath);
-        if (CHECK_FILE_EXTENSION(filepath, ".js"))
-        {
-            strlcat(filepath, ".gz", sizeof(filepath));
-        }
-        // ESP_LOGE(REST_TAG, "Trying %s", filepath);
-        fd = open(filepath, O_RDONLY, 0);
+        char gzpath[FILE_PATH_MAX];
+        strlcpy(gzpath, filepath, sizeof(gzpath));
+        strlcat(gzpath, ".gz", sizeof(gzpath));
+        fd = open(gzpath, O_RDONLY, 0);
 
         if (fd == -1)
         {
@@ -197,11 +197,12 @@ static esp_err_t rest_common_get_handler(httpd_req_t *req)
             httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to read existing file");
             return ESP_FAIL;
         }
+        gzipped = true;
     }
 
     set_content_type_from_file(req, filepath);
 
-    if (CHECK_FILE_EXTENSION(filepath, ".gz"))
+    if (gzipped || CHECK_FILE_EXTENSION(filepath, ".gz"))
     {
         httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
     }
