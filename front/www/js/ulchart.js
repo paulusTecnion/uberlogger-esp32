@@ -234,6 +234,7 @@
   }
   function fmtBytes(b) { return b > 1e9 ? (b / 1e9).toFixed(2) + " GB" : b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : (b / 1e3).toFixed(0) + " kB"; }
   function fmtDur(s) {
+    if (s >= 60) s = Math.round(s); // whole seconds, so 899.98 s reads "15 min 0 s", not "14 min 60 s"
     var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
     return (h ? h + " h " : "") + (h || m ? m + " min " : "") + x.toFixed(h || m ? 0 : 1) + " s";
   }
