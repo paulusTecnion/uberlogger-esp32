@@ -95,7 +95,9 @@ var CATEGORY_ORDER = { TEMPERATURE: 0, ANALOG: 0, DIGITAL: 1 };
 
 // Turn the shared dataPoints buffer into a column dataset for the chart.
 function buildLiveDataset() {
-  var keys = Object.keys(dataPoints).filter(function (k) { return dataPoints[k].x.length; });
+  var keys = Object.keys(dataPoints).filter(function (k) {
+    return dataPoints[k].x.length && (!liveChannelKeys || liveChannelKeys.indexOf(k) >= 0);
+  });
   keys.sort(function (a, b) {
     var ca = a.split(".")[0], cb = b.split(".")[0];
     var na = Number((a.match(/(\d+)$/) || [0, 0])[1]), nb = Number((b.match(/(\d+)$/) || [0, 0])[1]);
