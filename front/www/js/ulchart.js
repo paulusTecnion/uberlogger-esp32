@@ -467,7 +467,7 @@
       };
       var od = Object.assign(common(), {
         width: w,
-        height: 44 + digital.length * 22,
+        height: 66 + digital.length * 22,   // the time axis below takes ~66 px; 22 px per lane
         scales: dscales,
         axes: [xAxis, gutter(3, leftSize)].concat(rightSize ? [gutter(1, rightSize)] : []),
         series: [xSeries].concat(digital.map(function (k, i) {
