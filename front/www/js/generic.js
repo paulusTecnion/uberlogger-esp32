@@ -103,16 +103,26 @@ function storeDataPoint(category, channel, timestamp, value) {
   }
 }
 
+// Keys (category.channel) in the latest getValues response. The device only sends
+// enabled channels, so the live view shows just these: a channel that was disabled
+// (or switched between NTC and voltage) keeps its history but is not drawn.
+var liveChannelKeys = null;
+
 // Pull every reading out of a getValues() response into the history buffer.
 function accumulateReadings(data) {
   if (!data || !data["READINGS"] || typeof data["TIMESTAMP"] == "undefined") return;
   var ts = data["TIMESTAMP"];
+  var keys = [], unknown = false;
   $.each(data["READINGS"], function (category, category_values) {
     $.each(category_values["VALUES"], function (label, channel_value) {
       var channel = channelForLabel(category, label);
-      if (channel) storeDataPoint(category, channel, ts, channel_value);
+      if (channel) {
+        storeDataPoint(category, channel, ts, channel_value);
+        keys.push(category + "." + channel);
+      } else unknown = true;
     });
   });
+  if (keys.length && !unknown) liveChannelKeys = keys; // a just-renamed label: keep the previous set
   saveDataPoints(false);
 }
 
