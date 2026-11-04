@@ -65,7 +65,8 @@ int32_t q_div(int32_t a, int32_t b);
 // Next table comes from following link
 // https://www.sebulli.com/ntc/index.php?lang=en&points=1024&unit=0.1&resolution=12+Bit&circuit=pullup&resistor=10000&r25=10000&beta=3950&test_resistance=10000&tmin=-40&tmax=120
 
-int NTC_table[1025] = {
+// const: lookup table lives in flash instead of being copied to RAM (4 KB)
+const int NTC_table[1025] = {
 4140, 3521, 2902, 2593, 2394, 2249, 2136,
 2045, 1969, 1903, 1846, 1795, 1750, 1709,
 1672, 1638, 1607, 1578, 1550, 1525, 1501,

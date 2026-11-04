@@ -19,7 +19,8 @@ static uint32_t file_seq_num=0;
 static uint32_t file_seq_subnum=0;
 static FILE* f = NULL;
 char _file_name[120];
-char filestrbuffer[4900];
+// One CSV row (csv_format_row writes at most CSV_ROW_MAX_LEN bytes)
+static char filestrbuffer[CSV_ROW_MAX_LEN];
 char _prefix[105];
 uint32_t file_bytes_written = 0;
 uint8_t raw_file_format_version = RAW_FILE_FORMAT_VERSION;
