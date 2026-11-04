@@ -16,6 +16,10 @@
 #include "cJSON.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
 
 #include "esp_vfs.h"
 #include "esp_spiffs.h"
@@ -311,6 +315,142 @@ static const char* get_path_from_uri(char *dest, const char *base_path, const ch
     return dest + base_pathlen;
 }
 
+/* ---- Double-buffered file download ----
+ * A reader task fills one buffer from the SD card while the httpd task sends
+ * the other over Wi-Fi, so SD and network latency overlap instead of adding.
+ * Buffers circulate between two queues: free_q (empty, owned by reader) and
+ * full_q (filled, owned by sender). A chunk with len == 0 marks EOF, len < 0
+ * a read error; after posting it the reader never touches the context again. */
+
+#define DL_READER_STACK_SIZE 4096
+#define DL_NUM_BUFFERS       2
+
+typedef struct {
+    char *buf;
+    int len;
+} dl_chunk_t;
+
+typedef struct {
+    FILE *fd;
+    QueueHandle_t free_q;
+    QueueHandle_t full_q;
+    TaskHandle_t parent;
+    volatile bool abort;
+} dl_ctx_t;
+
+static void dl_reader_task(void *arg)
+{
+    dl_ctx_t *ctx = (dl_ctx_t *)arg;
+    /* Copy what we need after the final queue post: ctx lives on the
+     * sender's stack and may be gone once the terminal chunk is received. */
+    TaskHandle_t parent = ctx->parent;
+    QueueHandle_t full_q = ctx->full_q;
+    dl_chunk_t c;
+
+    for (;;) {
+        xQueueReceive(ctx->free_q, &c, portMAX_DELAY);
+        if (ctx->abort) {
+            c.len = 0;
+            break;
+        }
+        size_t n = fread(c.buf, 1, SCRATCH_BUFSIZE, ctx->fd);
+        if (n == 0) {
+            c.len = ferror(ctx->fd) ? -1 : 0;
+            break;
+        }
+        c.len = (int)n;
+        xQueueSend(full_q, &c, portMAX_DELAY);
+    }
+
+#ifdef DEBUG_FILESERVER
+    ESP_LOGI(TAG_FILESERVER, "dl_reader stack high-water mark: %u bytes",
+             (unsigned)uxTaskGetStackHighWaterMark(NULL));
+#endif
+    xQueueSend(full_q, &c, portMAX_DELAY);
+    xTaskNotifyGive(parent);
+    vTaskDelete(NULL);
+}
+
+/* Sequential fallback, used if the reader task or second buffer can't be allocated */
+static esp_err_t send_file_sequential(httpd_req_t *req, FILE *fd, char *chunk)
+{
+    size_t chunksize;
+    while ((chunksize = fread(chunk, 1, SCRATCH_BUFSIZE, fd)) > 0) {
+        if (httpd_resp_send_chunk(req, chunk, chunksize) != ESP_OK) {
+            return ESP_FAIL;
+        }
+    }
+    return ferror(fd) ? ESP_FAIL : ESP_OK;
+}
+
+static esp_err_t send_file_double_buffered(httpd_req_t *req, FILE *fd, char *scratch)
+{
+    char *second = heap_caps_malloc(SCRATCH_BUFSIZE, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+    dl_ctx_t ctx = {
+        .fd = fd,
+        .free_q = xQueueCreate(DL_NUM_BUFFERS, sizeof(dl_chunk_t)),
+        .full_q = xQueueCreate(DL_NUM_BUFFERS + 1, sizeof(dl_chunk_t)),
+        .parent = xTaskGetCurrentTaskHandle(),
+        .abort = false,
+    };
+
+#ifdef DEBUG_FILESERVER
+    ESP_LOGI(TAG_FILESERVER, "Download start: free heap %u, largest block %u, min ever %u",
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT));
+#endif
+    if (!second || !ctx.free_q || !ctx.full_q) {
+        ESP_LOGW(TAG_FILESERVER, "Double buffer alloc failed, sending sequentially");
+        goto fallback;
+    }
+
+    dl_chunk_t c = { .buf = scratch, .len = 0 };
+    xQueueSend(ctx.free_q, &c, 0);
+    c.buf = second;
+    xQueueSend(ctx.free_q, &c, 0);
+
+    /* Clear any stale notification before we rely on it */
+    ulTaskNotifyTake(pdTRUE, 0);
+
+    if (xTaskCreate(dl_reader_task, "dl_reader", DL_READER_STACK_SIZE, &ctx,
+                    uxTaskPriorityGet(NULL), NULL) != pdPASS) {
+        ESP_LOGW(TAG_FILESERVER, "Reader task create failed, sending sequentially");
+        goto fallback;
+    }
+
+    esp_err_t ret = ESP_OK;
+    for (;;) {
+        xQueueReceive(ctx.full_q, &c, portMAX_DELAY);
+        if (c.len <= 0) {
+            if (c.len < 0) {
+                ESP_LOGE(TAG_FILESERVER, "SD read error during download");
+                ret = ESP_FAIL;
+            }
+            break;
+        }
+        if (ret == ESP_OK && httpd_resp_send_chunk(req, c.buf, c.len) != ESP_OK) {
+            ret = ESP_FAIL;
+            ctx.abort = true;   /* reader stops at its next buffer */
+        }
+        xQueueSend(ctx.free_q, &c, 0);
+    }
+
+    /* Wait until the reader has posted its last message and is about to exit */
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    vQueueDelete(ctx.free_q);
+    vQueueDelete(ctx.full_q);
+    free(second);
+    return ret;
+
+fallback:
+    if (ctx.free_q) vQueueDelete(ctx.free_q);
+    if (ctx.full_q) vQueueDelete(ctx.full_q);
+    free(second);
+    return send_file_sequential(req, fd, scratch);
+}
+
 /* Handler to download a file kept on the server */
 esp_err_t download_get_handler(httpd_req_t *req)
 {
@@ -399,34 +539,21 @@ esp_err_t download_get_handler(httpd_req_t *req)
     #endif
     set_content_type_from_file(req, filename);
 
-    /* Retrieve the pointer to scratch buffer for temporary storage */
-    char *chunk = ((struct file_server_data *)req->user_ctx)->scratch;
-    size_t chunksize;
-    do {
-        /* Read file in chunks into the scratch buffer */
-        chunksize = fread(chunk, 1, SCRATCH_BUFSIZE, fd);
-        // Yield to the scheduler to allow higher priority tasks to run
-        vTaskDelay(pdMS_TO_TICKS(0));
-        if (chunksize > 0) {
-            /* Send the buffer contents as HTTP response chunk */
-            if (httpd_resp_send_chunk(req, chunk, chunksize) != ESP_OK) {
-                fclose(fd);
-                ESP_LOGE(TAG_FILESERVER, "File sending failed!");
-                /* Abort sending file */
-                httpd_resp_sendstr_chunk(req, NULL);
-                /* Respond with 500 Internal Server Error */
-                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
-               return ESP_FAIL;
-           }
-        }
-        // Yield to the scheduler to allow higher priority tasks to run
-        vTaskDelay(pdMS_TO_TICKS(0));
-        
-        /* Keep looping till the whole file is sent */
-    } while (chunksize != 0);
+    /* Stream the file: SD reads (reader task) overlap with Wi-Fi sends */
+    char *scratch = ((struct file_server_data *)req->user_ctx)->scratch;
+    esp_err_t send_ret = send_file_double_buffered(req, fd, scratch);
 
-    /* Close file after sending complete */
+    /* Close file after sending complete (reader task has finished with it) */
     fclose(fd);
+
+    if (send_ret != ESP_OK) {
+        ESP_LOGE(TAG_FILESERVER, "File sending failed!");
+        /* Abort sending file */
+        httpd_resp_sendstr_chunk(req, NULL);
+        /* Respond with 500 Internal Server Error */
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send file");
+        return ESP_FAIL;
+    }
 
     // esp_sd_card_unmount();
     #ifdef DEBUG_FILESERVER
