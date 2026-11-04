@@ -113,9 +113,17 @@ function accumulateReadings(data) {
   if (!data || !data["READINGS"] || typeof data["TIMESTAMP"] == "undefined") return;
   var ts = data["TIMESTAMP"];
   var keys = [], unknown = false;
+  // bit i set: the NTC on AIN(i+1) reads open / shorted (its value is null)
+  var ntcOpen = Number(data["NTC_OPEN"]) || 0, ntcShort = Number(data["NTC_SHORT"]) || 0;
   $.each(data["READINGS"], function (category, category_values) {
     $.each(category_values["VALUES"], function (label, channel_value) {
       var channel = channelForLabel(category, label);
+      if (channel && category === "TEMPERATURE" && channel_value === null) {
+        // keep the reason with the sample, so the legend can name it (see liveview.js)
+        var bit = 1 << (Number(channel.slice(3)) - 1);
+        if (ntcOpen & bit) channel_value = "open";
+        else if (ntcShort & bit) channel_value = "short";
+      }
       if (channel) {
         storeDataPoint(category, channel, ts, channel_value);
         keys.push(category + "." + channel);

@@ -289,6 +289,7 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
         "{\"TIMESTAMP\":%.0f,\"READINGS\":{", (double)live_data.timestamp);
 
     // --- TEMPERATURE ---
+    uint32_t ntc_open = 0, ntc_short = 0;  // bit i: AIN(i+1) NTC reads open / shorted
     pos += snprintf(buf + pos, sizeof(buf) - pos,
         "\"TEMPERATURE\":{\"UNITS\":\"DEG C\",\"VALUES\":{");
     first = 1;
@@ -297,7 +298,13 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
             settings_get_adc_channel_type(settings, i)) {
             settings_get_ain_chan_label(i, label);
             if (live_data.temperatureData[i] == NTC_TEMP_INVALID) {
-                // sensor open, shorted or out of range: the web UI shows a gap
+                // sensor open, shorted or out of range: the web UI shows a gap.
+                // The NTC sits below a pull-up, so an open input reads near full
+                // scale (or the sensor is below -40 degC) and a short near zero
+                // (or above 120 degC). The web UI names the reason in the legend.
+                const uint32_t half_scale = (settings_get_resolution() == ADC_16_BITS) ? 32768 : 2048;
+                if (live_data.analogDataRaw[i] >= half_scale) ntc_open |= 1u << i;
+                else                                          ntc_short |= 1u << i;
                 pos += snprintf(buf + pos, sizeof(buf) - pos,
                     "%s\"%s\":null", first ? "" : ",", label);
             } else {
@@ -350,10 +357,12 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
     pos += snprintf(buf + pos, sizeof(buf) - pos,
         "\"LOGGER_STATE\":%u,\"ERRORCODE\":%u,"
         "\"FW_VERSION\":\"%s\","
-        "\"SD_CARD_FREE_SPACE\":%u,\"SD_CARD_TOTAL_SPACE\":%u,\"SD_CARD_STATUS\":%d,",
+        "\"SD_CARD_FREE_SPACE\":%u,\"SD_CARD_TOTAL_SPACE\":%u,\"SD_CARD_STATUS\":%d,"
+        "\"NTC_OPEN\":%u,\"NTC_SHORT\":%u,",
         (unsigned)logger_state, (unsigned)Logger_getError(),
         sysinfo_get_fw_version(),
-        (unsigned)Logger_getLastFreeSpace(), (unsigned)esp_sd_card_get_total_space(), (int)esp_sd_card_get_state());
+        (unsigned)Logger_getLastFreeSpace(), (unsigned)esp_sd_card_get_total_space(), (int)esp_sd_card_get_state(),
+        (unsigned)ntc_open, (unsigned)ntc_short);
 
     // --- WiFi ---
     uint8_t wifi_state = 0;

@@ -91,6 +91,9 @@ function updatePinLabel(t) {
 }
 
 // ---------------------------------------------------------------- live chart
+// Legend text for an NTC sample without a valid reading (stored by generic.js).
+var NTC_FAULT_TEXT = { open: "not connected", short: "short circuit" };
+
 var CATEGORY_ORDER = { TEMPERATURE: 0, ANALOG: 0, DIGITAL: 1 };
 
 // Turn the shared dataPoints buffer into a column dataset for the chart.
@@ -115,11 +118,18 @@ function buildLiveDataset() {
     t[r] = longest[i2].getTime() / 1000;
     rowOf[i2] = r++;
   }
-  var D = { n: n, t: t, cols: [], scales: [], decimals: [], names: [], types: [], pyramids: [], gaps: null, gapCount: 0 };
+  var D = { n: n, t: t, cols: [], scales: [], decimals: [], names: [], types: [], pyramids: [], notes: [], gaps: null, gapCount: 0 };
   keys.forEach(function (k) {
     var dot = k.indexOf("."), category = k.slice(0, dot), channel = k.slice(dot + 1);
-    var y = dataPoints[k].y, col = new Float64Array(n).fill(NaN), off = n0 - y.length;
-    for (var j = 0; j < y.length; j++) col[rowOf[off + j]] = y[j] === null ? NaN : Number(y[j]); // null = invalid reading: gap
+    var y = dataPoints[k].y, col = new Float64Array(n).fill(NaN), off = n0 - y.length, notes = null;
+    for (var j = 0; j < y.length; j++) {
+      var v = y[j];
+      if (v === null || typeof v === "string") {
+        // invalid reading: a gap in the chart; an NTC fault is named in the legend
+        col[rowOf[off + j]] = NaN;
+        if (NTC_FAULT_TEXT[v]) (notes = notes || [])[rowOf[off + j]] = NTC_FAULT_TEXT[v];
+      } else col[rowOf[off + j]] = Number(v);
+    }
     var type = category === "DIGITAL" ? "digital" : category === "TEMPERATURE" ? "temp" : "volt";
     D.cols.push(col);
     D.scales.push(1);
@@ -127,6 +137,7 @@ function buildLiveDataset() {
     D.names.push(typeof channelDisplayLabel === "function" ? channelDisplayLabel(category, channel) : channel);
     D.types.push(type);
     D.pyramids.push([]);
+    D.notes.push(notes);
   });
   return D;
 }

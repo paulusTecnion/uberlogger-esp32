@@ -10,7 +10,8 @@
  *
  * A dataset is { n, t: Float64Array (unix seconds), cols: [Int32Array|Float64Array],
  * scales: [divisor per column], decimals: [...], names: [...], types: ["volt"|"temp"|"digital"],
- * pyramids: [[{B, mn, mx}]], gaps: Float64Array (pairs), gapCount }.
+ * pyramids: [[{B, mn, mx}]], gaps: Float64Array (pairs), gapCount,
+ * notes (optional): [per column null | sparse array of legend texts for missing samples] }.
  * Needs uPlot (js/uplot-*.min.js).
  */
 (function (global) {
@@ -300,7 +301,9 @@
   function valueText(D, k, i) {
     var v = D.cols[k][i];
     if (D.cols[k] instanceof Int32Array) return fmtFixed(v, D.decimals[k]);
-    return v === v ? v.toFixed(D.decimals[k]) : "—";
+    if (v === v) return v.toFixed(D.decimals[k]);
+    // no value: the live view may say why (D.notes[k][i], e.g. "not connected")
+    return (D.notes && D.notes[k] && D.notes[k][i]) || "—";
   }
 
   // ---------------------------------------------------------------- chart view
