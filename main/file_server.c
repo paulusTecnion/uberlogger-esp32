@@ -323,7 +323,8 @@ static const char* get_path_from_uri(char *dest, const char *base_path, const ch
  * full_q (filled, owned by sender). A chunk with len == 0 marks EOF, len < 0
  * a read error; after posting it the reader never touches the context again. */
 
-#define DL_READER_STACK_SIZE 4096
+/* Measured high-water mark: ~1.4 KB used of 4 KB (HW R05, 2026-11-04) */
+#define DL_READER_STACK_SIZE 2560
 #define DL_NUM_BUFFERS       2
 
 typedef struct {

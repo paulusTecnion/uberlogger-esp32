@@ -133,7 +133,9 @@ esp_err_t fileman_open_file()
     }
 
 
-    if (setvbuf(f, NULL, _IOFBF, 8192) != 0)
+    // 4 KiB is plenty: SD writes run at ~1 MB/s vs tens of KB/s of log data,
+    // and this buffer is heap that the network stack needs under load.
+    if (setvbuf(f, NULL, _IOFBF, 4096) != 0)
     {
         ESP_LOGE(TAG_FILE, "setvbuf failed");
         perror ("The following error occurred");
@@ -348,7 +350,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio, const s_d
                                     dataGpio[i], &date_time_ptr[i],
                                     ADC_MULT_FACTOR_16B_TEMP, ADC_MULT_FACTOR_60V, ADC_MULT_FACTOR_10V);
 
-        // No per-row fflush: let the 8 KiB stdio buffer (setvbuf) batch rows into
+        // No per-row fflush: let the 4 KiB stdio buffer (setvbuf) batch rows into
         // large SD writes. The caller flushes once per batch.
         if (fwrite(filestrbuffer, 1, len, f) != len)
         {

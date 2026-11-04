@@ -15,3 +15,11 @@ CONFIG_PARTITION_TABLE_FILENAME="partitions_example.csv"
 # mounted volume and per open file vs 4096).
 CONFIG_FATFS_SECTOR_512=y
 CONFIG_WL_SECTOR_SIZE_512=y
+
+# Cap Wi-Fi TX buffers: no throughput loss measured at 16 vs 32, and it
+# limits how much heap the Wi-Fi driver can take during downloads.
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=16
+
+# Cap Wi-Fi RX buffers: under a request flood, queued RX frames could take
+# the whole heap and wedge the network stack while logging.
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16

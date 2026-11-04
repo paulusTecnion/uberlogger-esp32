@@ -1330,7 +1330,7 @@ esp_err_t Logger_check_sdcard_free_space()
 
 #define SD_WRITER_NUM_UNITS     2       // total units incl. the one being filled
 #define SD_WRITER_PRIORITY      20      // below task_logging (24) and WiFi (23), above lwIP (18) and httpd (5)
-#define SD_WRITER_STACK_SIZE    5120
+#define SD_WRITER_STACK_SIZE    3072    // measured: ~1.9 KB used (HW R05, CSV 250 Hz)
 #define SD_WRITER_WAIT_WARN_MS  1000    // log/flag if task_logging waits this long for a free unit
 
 static QueueHandle_t sd_free_q = NULL;
