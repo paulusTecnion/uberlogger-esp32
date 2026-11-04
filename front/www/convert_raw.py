@@ -232,6 +232,11 @@ def decode_file_header(header_data):
 
     return settings, adc_offsets, adc_channel_labels, dio_channel_labels
 
+def c_div(a, b):
+    """Integer division truncating toward zero, like C (Python's // floors)."""
+    q = abs(a) // abs(b)
+    return q if (a < 0) == (b < 0) else -q
+
 def convert_adc(settings, adc_offsets, adc_data, data_len):
     adc_channel_range, adc_channel_type = settings[1], settings[2]
     converted_values = []
@@ -251,7 +256,17 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
             
         is_ntc = (adc_channel_type >> channel) & 1
 
-
+        # Same steps as Logger_raw_to_fixedpt() in the firmware: compensate
+        # the calibrated offset on the raw ADC count first, clip, then scale.
+        if settings[4] == 12:  # ADC_12_BITS
+            adc_value = adc_value + (2048 - adc_offsets[channel])
+            adc_max = 4095
+            adc_steps = 4095
+        else:  # ADC_16_BITS
+            adc_value = adc_value + (32760 - adc_offsets[channel])  # 32760 = 0xFFF0/2
+            adc_max = 0xFFF0
+            adc_steps = 65520  # 16-bit ADC max (STM32G030 datasheet)
+        adc_value = min(max(adc_value, 0), adc_max)
 
         if is_ntc:  # NTC input
             # if in 16 bits, reduce to 12 bits
@@ -259,16 +274,11 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
                 adc_value = adc_value >> 4
             p1 = NTC_table[adc_value >> 2]
             p2 = NTC_table[(adc_value >> 2) + 1]
-            temperature = p1 - ((p1 - p2) * (adc_value & 0x0003)) // 4
+            temperature = p1 - c_div((p1 - p2) * (adc_value & 0x0003), 4)
             converted_values.append(temperature/10.0)
         else:  # Voltage input
             t1 = adc_value * (-1 * range_value)  # Note the minus for inverted input
-            if settings[4] == 12:  # ADC_12_BITS
-                t2 = (t1+(2048-adc_offsets[channel])) / 4095  
-            else:  # ADC_16_BITS
-                # 65520 is ADC max for 16 bits
-                t2 = (t1+(32760-adc_offsets[channel])) / 65520  
-            voltage = round(t2 + offset, 0)
+            voltage = c_div(t1, adc_steps) + offset
             converted_values.append(voltage)
 
     return converted_values
@@ -475,7 +485,7 @@ gpio_channel_enabled = decoded_settings[6]
 file_decimal_char = "." if decoded_settings[7] == 0 else ","
 file_separator_char = "," if decoded_settings[8] == 0 else ";"
 
-with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
+with open(file_path, 'rb') as file, open(csv_file_path, 'w+', newline='\r\n') as fcsv:
     # Skip the header
     file.seek(header_length)
 
@@ -488,7 +498,7 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
     # Go back to the data section
     file.seek(header_length)
     # Write the CSV header with labels
-    fcsv.write(generate_header(adc_channel_enabled, gpio_channel_enabled, adc_channel_labels, dio_channel_labels, file_separator_char) + '\r')
+    fcsv.write(generate_header(adc_channel_enabled, gpio_channel_enabled, adc_channel_labels, dio_channel_labels, file_separator_char) + '\n')
 
     message_type = 1  # Start with spi_msg_1
     while True:
