@@ -7,6 +7,7 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include "tempsensor.h"
 #include "file_server.h"
 #include "rest_server.h"
 #include "config.h"
@@ -295,9 +296,15 @@ static esp_err_t logger_getValues_handler(httpd_req_t *req)
         if (settings_get_adc_channel_enabled(settings, i) &&
             settings_get_adc_channel_type(settings, i)) {
             settings_get_ain_chan_label(i, label);
-            pos += snprintf(buf + pos, sizeof(buf) - pos,
-                "%s\"%s\":%.1f", first ? "" : ",",
-                label, (double)live_data.temperatureData[i] / 10.0);
+            if (live_data.temperatureData[i] == NTC_TEMP_INVALID) {
+                // sensor open, shorted or out of range: the web UI shows a gap
+                pos += snprintf(buf + pos, sizeof(buf) - pos,
+                    "%s\"%s\":null", first ? "" : ",", label);
+            } else {
+                pos += snprintf(buf + pos, sizeof(buf) - pos,
+                    "%s\"%s\":%.1f", first ? "" : ",",
+                    label, (double)live_data.temperatureData[i] / 10.0);
+            }
             first = 0;
         }
     }

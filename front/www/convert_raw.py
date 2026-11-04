@@ -237,6 +237,28 @@ def c_div(a, b):
     q = abs(a) // abs(b)
     return q if (a < 0) == (b < 0) else -q
 
+# Valid range of the NTC table in 0.1 degC; outside it the sensor is open,
+# shorted or out of spec, and the CSV field is left empty (as the firmware does).
+NTC_TEMP_MIN = -400
+NTC_TEMP_MAX = 1200
+
+def ntc_temperature(adc_value, resolution_bits):
+    """Same as NTC_ADC2Temperature() in the firmware: degC, or None if invalid.
+    adc_value is offset-compensated and clipped. The table has 1024 steps over
+    the ADC range, so 12-bit values have 2 bits below the index, 16-bit 6."""
+    frac_bits = 6 if resolution_bits == 16 else 2
+    adc_max = 0xFFF0 if resolution_bits == 16 else 4095
+    if adc_value < 0 or adc_value > adc_max:
+        return None
+    idx = adc_value >> frac_bits
+    frac = adc_value & ((1 << frac_bits) - 1)
+    p1 = NTC_table[idx]
+    p2 = NTC_table[idx + 1]
+    t = p1 - c_div((p1 - p2) * frac, 1 << frac_bits)
+    if t < NTC_TEMP_MIN or t > NTC_TEMP_MAX:
+        return None
+    return t / 10.0
+
 def convert_adc(settings, adc_offsets, adc_data, data_len):
     adc_channel_range, adc_channel_type = settings[1], settings[2]
     converted_values = []
@@ -269,13 +291,7 @@ def convert_adc(settings, adc_offsets, adc_data, data_len):
         adc_value = min(max(adc_value, 0), adc_max)
 
         if is_ntc:  # NTC input
-            # if in 16 bits, reduce to 12 bits
-            if settings[4] == 16:
-                adc_value = adc_value >> 4
-            p1 = NTC_table[adc_value >> 2]
-            p2 = NTC_table[(adc_value >> 2) + 1]
-            temperature = p1 - c_div((p1 - p2) * (adc_value & 0x0003), 4)
-            converted_values.append(temperature/10.0)
+            converted_values.append(ntc_temperature(adc_value, settings[4]))
         else:  # Voltage input
             t1 = adc_value * (-1 * range_value)  # Note the minus for inverted input
             voltage = c_div(t1, adc_steps) + offset
@@ -317,7 +333,8 @@ def csv_write(dataAdc, dataGpio, date_time_list, data_len, adc_channel_type,
                 # Determine if a comma should follow based on whether this is the last item overall
                 add_comma = x != last_enabled_adc or last_enabled_gpio != -1
                 if adc_channel_type & (1 << x):  # Temperature sensor
-                    filestrbuffer += f"{adc_value}{separator_char if add_comma else ''}"
+                    value_text = "" if adc_value is None else f"{adc_value}"  # empty = invalid reading
+                    filestrbuffer += f"{value_text}{separator_char if add_comma else ''}"
                 elif adc_channel_range & (1 << x):  # Range is 60V
                     filestrbuffer += f"{adc_value / ADC_MULT_FACTOR_60V:.6f}{separator_char if add_comma else ''}"
                 else:  # Range is 10V

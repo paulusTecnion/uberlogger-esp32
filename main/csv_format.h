@@ -19,6 +19,10 @@
 // 6 * (sep + 1) + "\r\n" + '\0' < 240.
 #define CSV_ROW_MAX_LEN 240
 
+// An NTC value equal to this is written as an empty field (sensor open,
+// shorted or out of range). Same value as NTC_TEMP_INVALID in tempsensor.h.
+#define CSV_INVALID_VALUE INT32_MIN
+
 typedef struct {
     uint8_t adc_enabled;   // bit x: analog channel x enabled
     uint8_t adc_ntc;       // bit x: analog channel x is an NTC (temperature)
@@ -89,7 +93,10 @@ static inline size_t csv_format_row(char *out, const csv_row_format_t *fmt,
             continue;
         *p++ = fmt->separator;
         if (fmt->adc_ntc & (1 << x))
-            p = csv_put_fixed(p, adc[x], factor_temp, 1, fmt->decimal);  // 1 decimal for temperature
+        {
+            if (adc[x] != CSV_INVALID_VALUE)  // invalid: leave the field empty
+                p = csv_put_fixed(p, adc[x], factor_temp, 1, fmt->decimal);  // 1 decimal for temperature
+        }
         else if (fmt->adc_range60 & (1 << x))
             p = csv_put_fixed(p, adc[x], factor_60v, 6, fmt->decimal);   // 6 decimals for +/-60V
         else

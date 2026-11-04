@@ -119,7 +119,7 @@ function buildLiveDataset() {
   keys.forEach(function (k) {
     var dot = k.indexOf("."), category = k.slice(0, dot), channel = k.slice(dot + 1);
     var y = dataPoints[k].y, col = new Float64Array(n).fill(NaN), off = n0 - y.length;
-    for (var j = 0; j < y.length; j++) col[rowOf[off + j]] = Number(y[j]);
+    for (var j = 0; j < y.length; j++) col[rowOf[off + j]] = y[j] === null ? NaN : Number(y[j]); // null = invalid reading: gap
     var type = category === "DIGITAL" ? "digital" : category === "TEMPERATURE" ? "temp" : "volt";
     D.cols.push(col);
     D.scales.push(1);

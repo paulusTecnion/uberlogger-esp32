@@ -48,7 +48,11 @@ static int ref_row(char *filestrbuffer, size_t buffer_size, const csv_row_format
             ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr, "%s", separator_char);
             writeptr += ret;
         }
-        if ((fmt->adc_ntc & (1 << x)))
+        if ((fmt->adc_ntc & (1 << x)) && dataAdc[i * NUM_ADC_CHANNELS + x] == INT32_MIN)
+        {
+            ret = 0;  // invalid NTC reading (CSV_INVALID_VALUE): empty field
+        }
+        else if ((fmt->adc_ntc & (1 << x)))
         {
             ret = snprintf(filestrbuffer + writeptr, buffer_size - writeptr, "%s%d%s%01d",
                            (dataAdc[i * NUM_ADC_CHANNELS + x] < 0) ? "-" : "",

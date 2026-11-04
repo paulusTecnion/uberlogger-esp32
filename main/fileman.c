@@ -11,6 +11,8 @@
 #include "settings.h"
 #include "config.h"
 #include "csv_format.h"
+#include "tempsensor.h"
+_Static_assert(CSV_INVALID_VALUE == NTC_TEMP_INVALID, "CSV and NTC invalid markers must match");
 
 
 #define MOUNT_POINT "/sdcard"

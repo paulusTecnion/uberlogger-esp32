@@ -616,11 +616,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
         if (settings_get_adc_channel_type(settings_get(),j) )
         {
-            if (settings_get_resolution() == ADC_16_BITS)
-            {
-                adcVal = adcVal >> 4;
-            } 
-            dataOutput->temperatureData[j] = NTC_ADC2Temperature(adcVal);
+            dataOutput->temperatureData[j] = NTC_ADC2Temperature(adcVal, settings_get_resolution());
         } else {
                 // if range is 60V...
                 dataOutput->analogData[j] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
@@ -1212,7 +1208,7 @@ uint8_t Logger_raw_to_fixedpt(int32_t *dst, const uint16_t * adcData, size_t dat
             // Detect type of sensor and conver accordingly
             if (settings_get_adc_channel_type(settings_get(), x))
             {
-                int32_t temp = NTC_ADC2Temperature(adcVal);
+                int32_t temp = NTC_ADC2Temperature(adcVal, 12);
                 // ESP_LOGI(TAG_LOG,"temp %d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
                 dst[writeptr] = temp;
             } else {
@@ -1254,8 +1250,7 @@ uint8_t Logger_raw_to_fixedpt(int32_t *dst, const uint16_t * adcData, size_t dat
             // Detect type of sensor and conver accordingly
             if (settings_get_adc_channel_type(settings_get(), x))
             {
-                // No lookup table for 16 bit! So we down covert it to 12 bit and use the LUT
-                filtered_value = NTC_ADC2Temperature(adcVal >> 4);
+                filtered_value = NTC_ADC2Temperature(adcVal, 16);
             } else {
                 filtered_value = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);    
             }
