@@ -9,3 +9,9 @@ CONFIG_PARTITION_TABLE_FILENAME="partitions_example.csv"
 
 # Wi-Fi light-sleep code in IRAM is unused (power save is off: WIFI_PS_NONE)
 # CONFIG_ESP_WIFI_SLP_IRAM_OPT is not set
+
+# SD cards use 512-byte sectors and there is no wear-levelled FAT partition
+# in flash, so keep FATFS sector buffers at 512 bytes (saves ~3.5 KB per
+# mounted volume and per open file vs 4096).
+CONFIG_FATFS_SECTOR_512=y
+CONFIG_WL_SECTOR_SIZE_512=y
