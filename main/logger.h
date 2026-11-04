@@ -130,8 +130,6 @@ typedef struct {
     uint8_t numSpiMessages;
     uint32_t msgSize;
     uint64_t timestamp;     // live_data timestamp at hand-off, used to name split files
-    // CSV mode: converted fixed-point ADC values, same layout as spi_data
-    int32_t adc_fixed_point[ADC_VALUES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH];
 } sdcard_data_t;
 
 

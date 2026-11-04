@@ -36,13 +36,13 @@ static size_t calculateMessageSizeForMsg2(const spi_msg_2_t *msg);
 static bool shouldLogRaw(size_t dataLen);
 static void copyDataToSdCard(const void *msg, size_t msgSize, int type);
 static esp_err_t asyncCopyDataToSdCard(const void *src, size_t size);
-static void updateSdCardData(size_t dataLen, int logCounter, uint16_t *adcData16);
+static void updateSdCardData(size_t dataLen);
 static void updateLiveBuffer(void);
 static void setExpectedMessagePart(uint8_t part);
 static void updateSdCardRows(size_t dataLen);
 static bool isValidStartByte(uint8_t *bytes, uint8_t byte1, uint8_t byte2);
 static bool isValidStopByte(uint8_t *bytes, uint8_t byte1, uint8_t byte2);
-uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, size_t dataRows);
+uint8_t Logger_raw_to_fixedpt(int32_t *dst, const uint16_t * adcData, size_t dataRows);
 
 
 static const char* TAG_LOG = "LOGGER";
@@ -110,6 +110,9 @@ static sdcard_data_t *sd_fill = &sd_unit0;
 // Rows written to the current file; owned by whoever writes (writer task, or
 // task_logging once the writer is drained).
 static uint64_t sd_total_datarows = 0;
+// CSV mode: fixed-point values of the unit being written. Only the writer
+// (or task_logging in synchronous mode) uses it, one unit at a time.
+static int32_t sd_csv_fixed_point[ADC_VALUES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH];
 int32_t adc_calibration_values[NUM_ADC_CHANNELS];
 
 char strbuffer[16];
@@ -275,13 +278,11 @@ static esp_err_t asyncCopyDataToSdCard(const void *src, size_t size)
     return ESP_OK;
 }
 
-static void updateSdCardData(size_t dataLen, int logCounter, uint16_t *adcData16)
+// CSV fixed-point conversion is done by the SD writer (sd_write_unit), from
+// the ADC values stored in the unit, so CSV and raw always log the same samples.
+static void updateSdCardData(size_t dataLen)
 {
     sd_fill->datarows += dataLen;
-    if (settings_get_logmode() == LOGMODE_CSV)
-    {
-        Logger_raw_to_fixedpt(logCounter, adcData16, dataLen);
-    }
 }
 
 static void updateLiveBuffer(void)
@@ -384,39 +385,40 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
             (sampleRate == ADC_SAMPLE_RATE_EVERY_10S && iirFilterSecondsCounter >= 10))
             {
                
-                spi_msg_2_t *msg2 = (spi_msg_2_t *)msg;
-                    
-                // Create a new spi_msg_slow_freq_1_t structure
+                // Build a single-row message from the frame that triggered this
+                // log point (either msg1 or msg2 layout). Previously tempMsg1 was
+                // only filled for msg2 frames and logged uninitialised for msg1.
                 spi_msg_1_t tempMsg1;
-
-                // Now we need to create a message and copy it into the sdcard buffer if the msgType = 1 (spi_msg_2_t)
-                if (msgType == 1)
-                {
-                    // copy data from msgType 2 to msgType 1. 
-                    // Assuming msg is of type spi_msg_slow_freq_2_t
-                    tempMsg1.startByte[0] = 0xFA;
-                    tempMsg1.startByte[1] = 0xFB;
-                    tempMsg1.dataLen = 1;
-                    tempMsg1.timeData[0] = msg2->timeData[msg2->dataLen-1];
-                    // Either we take the sampled point or the filtered value (average) from the iir filter depending on the user setting
-                    if (settings_get_averageSample())
-                    {
-                        memcpy(tempMsg1.adcData16, y_state, sizeof(y_state));
-                    } else {
-                        memcpy(tempMsg1.adcData16, msg2->adcData+((msg2->dataLen - 1)*8*2), 8*2);
-                    }
-
-                    // for (int i = 0; i< msg2->dataLen; i++)
-                    // {
-                    //     ESP_LOGI(TAG_LOG, "msg2.gpiodata[%d] %d", i, msg2->gpioData[i]);
-                    // }
-
-                    tempMsg1.gpioData[0] = msg2->gpioData[msg2->dataLen-1];
-                    // Update msg pointer to the new tempMsg1
-                    msg = &tempMsg1;
-                    msgSize = calculateMessageSizeForMsg1(&tempMsg1);
-                    msgType = 0; // Update msgType to reflect the change
+                memset(&tempMsg1, 0, sizeof(tempMsg1));
+                const s_date_time_t *srcTime;
+                const uint8_t *srcGpio;
+                const uint16_t *srcAdc16;
+                uint16_t srcLen;
+                if (msgType == 1) {
+                    spi_msg_2_t *m = (spi_msg_2_t *)msg;
+                    srcLen = m->dataLen; srcTime = m->timeData; srcGpio = m->gpioData; srcAdc16 = m->adcData16;
+                } else {
+                    spi_msg_1_t *m = (spi_msg_1_t *)msg;
+                    srcLen = m->dataLen; srcTime = m->timeData; srcGpio = m->gpioData; srcAdc16 = m->adcData16;
                 }
+                if (srcLen == 0) srcLen = 1; // defensive: never index -1
+
+                tempMsg1.startByte[0] = 0xFA;
+                tempMsg1.startByte[1] = 0xFB;
+                tempMsg1.dataLen = 1;
+                tempMsg1.timeData[0] = srcTime[srcLen - 1];
+                tempMsg1.gpioData[0] = srcGpio[srcLen - 1];
+                // Either the averaged value (IIR filter) or the last sample, per the
+                // user setting. CSV and raw both log exactly this value.
+                if (settings_get_averageSample())
+                {
+                    memcpy(tempMsg1.adcData16, y_state, sizeof(y_state));
+                } else {
+                    memcpy(tempMsg1.adcData16, srcAdc16 + (srcLen - 1) * 8, 8 * sizeof(uint16_t));
+                }
+                msg = &tempMsg1;
+                msgSize = calculateMessageSizeForMsg1(&tempMsg1);
+                msgType = 0;
 
                 // ESP_LOGI(TAG_LOG, "tempMsg1.gpioData[0]: %d, msgSize: %d", tempMsg1.gpioData[0], msgSize);
                 if (shouldLogRaw(msgSize)) {
@@ -428,7 +430,7 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
                     }
                 }
                 
-                updateSdCardData(tempMsg1.dataLen, log_counter, y_state);
+                updateSdCardData(tempMsg1.dataLen);
                 log_counter++;
                 sd_fill->numSpiMessages = log_counter;
                 
@@ -441,11 +443,9 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
         if (msgType == 0) {
             spi_msg_1_t* msgT = (spi_msg_1_t*)msg;
             dataLen = msgT->dataLen;
-            adcData16 = msgT->adcData16;
         } else {
             spi_msg_2_t* msgT = (spi_msg_2_t*)msg;
             dataLen = msgT->dataLen;
-            adcData16 = msgT->adcData16;
         }
 
         // Log raw or asynchronously copy data to SD card
@@ -460,7 +460,7 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
             }
         }
 
-        updateSdCardData(dataLen, log_counter, adcData16);
+        updateSdCardData(dataLen);
         log_counter++; // Increment log counter
         sd_fill->numSpiMessages = log_counter;
     }
@@ -1167,7 +1167,7 @@ esp_err_t Logger_calibrate()
 }
 
 // uint8_t Logger_raw_to_fixedpt(uint8_t * buffer, size_t size, uint8_t log_counter)
-uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, size_t dataRows)
+uint8_t Logger_raw_to_fixedpt(int32_t *dst, const uint16_t * adcData, size_t dataRows)
 {
      
     int j,x=0;
@@ -1176,7 +1176,7 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, siz
     int32_t filtered_value=0;
     int32_t adcVal = 0;
     #ifdef DEBUG_SDCARD
-    ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
+    ESP_LOGI(TAG_LOG, "raw_to_csv %u rows", (unsigned)dataRows);
     #endif
     uint32_t length = 0;
     // Looping the ADC buffer is determined by dataRows as length = dataRows * 8 analog channels * 2 bytes
@@ -1214,9 +1214,9 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, siz
             {
                 int32_t temp = NTC_ADC2Temperature(adcVal);
                 // ESP_LOGI(TAG_LOG,"temp %d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
-                sd_fill->adc_fixed_point[writeptr+(log_counter*ADC_VALUES_PER_SPI_TRANSACTION)] = temp;
+                dst[writeptr] = temp;
             } else {
-                sd_fill->adc_fixed_point[writeptr+(log_counter*ADC_VALUES_PER_SPI_TRANSACTION)] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);   
+                dst[writeptr] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);   
             }
         
 
@@ -1260,7 +1260,7 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, siz
                 filtered_value = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);    
             }
             
-            sd_fill->adc_fixed_point[writeptr+(log_counter*ADC_VALUES_PER_SPI_TRANSACTION)] = filtered_value;
+            dst[writeptr] = filtered_value;
             
             x++;
             x = x % 8;
@@ -1357,7 +1357,26 @@ static esp_err_t sd_write_unit(sdcard_data_t *u)
         #ifdef DEBUG_SDCARD
         ESP_LOGI(TAG_LOG, "Flushing buffer");
         #endif
-        if (fileman_csv_write_spi_msg(u, u->adc_fixed_point) != ESP_OK)
+        // Convert the stored ADC values to fixed point here (writer task), into
+        // one shared array, instead of keeping a converted copy in every unit.
+        // Message i uses the msg1 layout for even i and msg2 for odd i, the same
+        // rule fileman_csv_write_spi_msg() uses to read the rows.
+        for (uint8_t i = 0; i < u->numSpiMessages; i++)
+        {
+            const uint8_t *m = u->spi_data + i * sizeof(spi_msg_1_t);
+            const uint16_t *adc16;
+            uint16_t rows;
+            if (i % 2 != 0) {
+                adc16 = ((const spi_msg_2_t *)m)->adcData16;
+                rows  = ((const spi_msg_2_t *)m)->dataLen;
+            } else {
+                adc16 = ((const spi_msg_1_t *)m)->adcData16;
+                rows  = ((const spi_msg_1_t *)m)->dataLen;
+            }
+            if (rows > DATA_LINES_PER_SPI_TRANSACTION) rows = DATA_LINES_PER_SPI_TRANSACTION;
+            Logger_raw_to_fixedpt(sd_csv_fixed_point + i * ADC_VALUES_PER_SPI_TRANSACTION, adc16, rows);
+        }
+        if (fileman_csv_write_spi_msg(u, sd_csv_fixed_point) != ESP_OK)
         {
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
             goto error;
