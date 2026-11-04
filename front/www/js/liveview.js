@@ -157,12 +157,36 @@ function plotLive() {
 }
 
 function pauseFollow() {
-  if (lvMode === "live" && followLive) { followLive = false; updatePlotModeLabel(); }
+  if (lvMode === "live" && followLive) {
+    followLive = false;
+    updatePlotModeLabel();
+    // wait a moment: the first click of a double-click (= resume) also pauses
+    setTimeout(function () { if (!followLive) showResumeHintOnce(); }, 400);
+  }
+}
+
+// One-time hint (remembered in this browser) that a paused chart can resume.
+var RESUME_HINT_KEY = "ul-hint-resume-shown";
+function showResumeHintOnce() {
+  try { if (localStorage.getItem(RESUME_HINT_KEY)) return; localStorage.setItem(RESUME_HINT_KEY, "1"); }
+  catch (e) { /* no storage: still show it, once per page load */ if (showResumeHintOnce.done) return; }
+  showResumeHintOnce.done = true;
+  var el = document.createElement("div");
+  el.className = "toast";
+  el.setAttribute("role", "status");
+  el.innerHTML = "<span>Chart paused. <b>Double-click</b> the chart or press <b>&#9654; Resume</b> to follow the live data again.</span>" +
+    '<button type="button" class="toast-close" aria-label="Close">&times;</button>';
+  document.body.appendChild(el);
+  var close = function () { el.classList.remove("show"); setTimeout(function () { el.remove(); }, 300); };
+  el.querySelector("button").addEventListener("click", close);
+  requestAnimationFrame(function () { el.classList.add("show"); });
+  setTimeout(close, 8000);
 }
 
 function setLiveWindow(ms) {
   liveWindowMs = ms;
   followLive = true;
+  $(".toast").remove();   // resumed: the "chart paused" hint has done its job
   if (lvView) lvView.setPin(null);   // back to live releases a pinned moment
   $("#lv-windows button").removeClass("active").filter('[data-ms="' + ms + '"]').addClass("active");
   if (lvMode === "csv") backToLive();
@@ -170,8 +194,8 @@ function setLiveWindow(ms) {
   updatePlotModeLabel();
 }
 
-// The follow button doubles as status: "● Live" (following, inactive), "▶ Back to live"
-// (zoomed/panned, click to follow the newest data again) or "Connection lost".
+// The follow button doubles as status: "● Live" (following, inactive), "▶ Resume"
+// (paused by a click, zoom or pan; click to follow the newest data again) or "Connection lost".
 function updatePlotModeLabel() {
   var el = document.getElementById("lv-follow");
   if (!el) return;
@@ -182,7 +206,7 @@ function updatePlotModeLabel() {
   el.disabled = state !== "paused";
   el.innerHTML = state === "lost" ? '<span class="dot bad"></span>Connection lost'
     : state === "live" ? '<span class="dot ok"></span>Live'
-    : "&#9654; Back to live";
+    : "&#9654; Resume";
 }
 
 // Empty the history buffer + saved snapshot, then re-seed with the latest

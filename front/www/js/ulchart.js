@@ -391,6 +391,13 @@
     this.digitalEl.style.display = digital.length ? "" : "none";
 
     var muted = cssVar(this.el, "--ul-muted", "#5d6676"), grid = cssVar(this.el, "--ul-grid", "#e7eaf0");
+    // y tick labels with as many decimals as the tick step needs (uPlot's default
+    // rounds to 3, so a 0.0005 V step showed 0.005, 0.005, 0.006, ...)
+    var yValues = function (u, splits, axisIdx, space, incr) {
+      var d = 0;
+      while (d < 6 && Math.abs(incr * POW10[d] - Math.round(incr * POW10[d])) > 1e-6 * incr * POW10[d]) d++;
+      return splits.map(function (v) { return v == null ? "" : v.toFixed(d); });
+    };
     var axisStyle = function () { return { stroke: muted, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid, width: 1 } }; };
     var sync = uPlot.sync("ul-" + Math.random().toString(36).slice(2));
     var tzDate = utc ? function (ts) { return uPlot.tzDate(new Date(ts * 1e3), "Etc/UTC"); } : function (ts) { return new Date(ts * 1e3); };
@@ -406,8 +413,9 @@
         [0.001, ":{ss}.{fff}", "\n{HH}:{mm}", null, "\n{MM}-{DD} {HH}:{mm}", null, "\n{HH}:{mm}", null, 1],
       ],
     });
-    // Legend values: the sample under the cursor, else the pinned sample, else
-    // (live view) the latest sample. Always the raw value, not a decimated one.
+    // Legend values (see legendIdx): the pinned (clicked) sample, else in the
+    // live view the latest sample, else (CSV) the sample under the cursor.
+    // Always the raw value, not a decimated one.
     var xSeries = {
       label: utc ? "Time (UTC)" : "Time",
       value: function (u) { var i = self.legendIdx(u); return i >= 0 ? fmtTime(self.D.t[i], utc) : "—"; },
@@ -435,10 +443,10 @@
     var w = this.width();
     if (analog.length) {
       var scales = { x: { time: true, auto: false } }, axes = [xAxis];
-      if (hasVolt) { scales.V = { auto: false }; axes.push(Object.assign(axisStyle(), { scale: "V", label: vLabel, size: leftSize })); }
+      if (hasVolt) { scales.V = { auto: false }; axes.push(Object.assign(axisStyle(), { scale: "V", label: vLabel, size: leftSize, values: yValues })); }
       if (hasTemp) {
         scales.C = { auto: false };
-        axes.push(Object.assign(axisStyle(), { scale: "C", label: cLabel, side: hasVolt ? 1 : 3, size: hasVolt ? rightSize : leftSize, grid: { show: !hasVolt, stroke: grid } }));
+        axes.push(Object.assign(axisStyle(), { scale: "C", label: cLabel, values: yValues, side: hasVolt ? 1 : 3, size: hasVolt ? rightSize : leftSize, grid: { show: !hasVolt, stroke: grid } }));
       }
       var o = Object.assign(common(), {
         width: w,
@@ -573,15 +581,18 @@
   View.prototype.legendIdx = function (u) {
     var D = this.D;
     if (!D || !D.n) return -1;
+    if (this.pinned !== null) return this.indexAt(this.pinned);   // a clicked moment holds
+    if (this.opts.liveLegend) return D.n - 1;                       // live: always the latest
     if (u.cursor.left >= 0) return this.indexAt(u.posToVal(u.cursor.left, "x"));
-    if (this.pinned !== null) return this.indexAt(this.pinned);
-    return this.opts.liveLegend ? D.n - 1 : -1;
+    return -1;
   };
 
   // re-evaluate legend values of charts the mouse is not over (live updates, pin changes)
   View.prototype.updateLegends = function () {
     var self = this;
-    this.charts.forEach(function (u) { if (u.cursor.left < 0) { u.setLegend({ idx: 0 }, false); self.markNotes(u); } });
+    // the legend follows the cursor only for a CSV without a pin: leave hovered charts alone then
+    var hoverDriven = !this.opts.liveLegend && this.pinned === null;
+    this.charts.forEach(function (u) { if (!hoverDriven || u.cursor.left < 0) { u.setLegend({ idx: 0 }, false); self.markNotes(u); } });
   };
 
   // flag legend values that are a note (e.g. "not connected") so CSS can colour them
