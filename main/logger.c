@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include "esp_log.h"
 #include "esp_async_memcpy.h"
+#include "esp_heap_caps.h"
+#include "freertos/queue.h"
 #include "errorcodes.h"
 #include "fileman.h"
 #include "freertos/FreeRTOS.h"
@@ -34,13 +36,13 @@ static size_t calculateMessageSizeForMsg2(const spi_msg_2_t *msg);
 static bool shouldLogRaw(size_t dataLen);
 static void copyDataToSdCard(const void *msg, size_t msgSize, int type);
 static esp_err_t asyncCopyDataToSdCard(const void *src, size_t size);
-static void updateSdCardData(size_t dataLen, int logCounter, uint16_t *adcData16);
+static void updateSdCardData(size_t dataLen);
 static void updateLiveBuffer(void);
 static void setExpectedMessagePart(uint8_t part);
 static void updateSdCardRows(size_t dataLen);
 static bool isValidStartByte(uint8_t *bytes, uint8_t byte1, uint8_t byte2);
 static bool isValidStopByte(uint8_t *bytes, uint8_t byte1, uint8_t byte2);
-uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, size_t dataRows);
+uint8_t Logger_raw_to_fixedpt(int32_t *dst, const uint16_t * adcData, size_t dataRows);
 
 
 static const char* TAG_LOG = "LOGGER";
@@ -99,11 +101,18 @@ uint8_t msg_part = 0, expected_msg_part = 0;
 // Make a buffer of 4 times the size of spi_msg_1_t
 
 
-sdcard_data_t sdcard_data;
-
-
-// Same size as SPI buffer but then int32 size. 
-int32_t adc_buffer_fixed_point[(ADC_VALUES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH)];
+// SD flush units. sd_fill is the unit task_logging is currently filling; the
+// others circulate through the SD writer task (see "SD writer task" below).
+// Unit 0 is static so logging always works even if the heap units can't be
+// allocated (then writes fall back to synchronous, as before).
+static sdcard_data_t sd_unit0 __attribute__((aligned(4)));
+static sdcard_data_t *sd_fill = &sd_unit0;
+// Rows written to the current file; owned by whoever writes (writer task, or
+// task_logging once the writer is drained).
+static uint64_t sd_total_datarows = 0;
+// CSV mode: fixed-point values of the unit being written. Only the writer
+// (or task_logging in synchronous mode) uses it, one unit at a time.
+static int32_t sd_csv_fixed_point[ADC_VALUES_PER_SPI_TRANSACTION*DATA_TRANSACTIONS_PER_SD_FLUSH];
 int32_t adc_calibration_values[NUM_ADC_CHANNELS];
 
 char strbuffer[16];
@@ -197,29 +206,29 @@ static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
 {
     // const uint8_t *src = (const uint8_t *)msg;
     size_t spiMsgSize = msgSize;
-    // memcpy(sdcard_data.spi_data + spiMsgSize * log_counter, src, msgSize);
+    // memcpy(sd_fill->spi_data + spiMsgSize * log_counter, src, msgSize);
 
     if (type == 0)
     {
         spi_msg_1_t * msgT = (spi_msg_1_t*)msg;
         // Copy startbytes and length
-        memcpy(sdcard_data.spi_data + spiMsgSize*log_counter, msgT->startByte, 2); 
-        memcpy(sdcard_data.spi_data + spiMsgSize*log_counter + 2, &(msgT->dataLen), 2);
+        memcpy(sd_fill->spi_data + spiMsgSize*log_counter, msgT->startByte, 2); 
+        memcpy(sd_fill->spi_data + spiMsgSize*log_counter + 2, &(msgT->dataLen), 2);
         // Calculate the base offset for the current log entry
         size_t baseOffset = spiMsgSize * log_counter + 4; // +4 to skip over the startBytes and dataLen which have already been copied
 
         // Copy time data block
-        memcpy(sdcard_data.spi_data + baseOffset, msgT->timeData, sizeof(s_date_time_t) * msgT->dataLen);
+        memcpy(sd_fill->spi_data + baseOffset, msgT->timeData, sizeof(s_date_time_t) * msgT->dataLen);
         
         //ESP_LOGI("SPI MSG 1", "Time %d %d", spi_msg_slow_freq_1_ptr->timeData->minutes, spi_msg_slow_freq_1_ptr->timeData->seconds);
         // Copy gpio data block
         size_t gpioDataOffset = baseOffset + sizeof(s_date_time_t) * msgT->dataLen;
         // ESP_LOGI(TAG_LOG, "msgT->gpioData[0]: %d, msgT->dataLen: %d", msgT->gpioData[0], msgT->dataLen);
-        memcpy(sdcard_data.spi_data + gpioDataOffset, msgT->gpioData, msgT->dataLen);
+        memcpy(sd_fill->spi_data + gpioDataOffset, msgT->gpioData, msgT->dataLen);
 
         // Copy adc data block
         size_t adcDataOffset = gpioDataOffset + msgT->dataLen;
-        memcpy(sdcard_data.spi_data + adcDataOffset, msgT->adcData, msgT->dataLen * 2 * 8);
+        memcpy(sd_fill->spi_data + adcDataOffset, msgT->adcData, msgT->dataLen * 2 * 8);
         
     }
     else if (type == 1)
@@ -228,23 +237,23 @@ static void copyDataToSdCard(const void *msg, size_t msgSize, int type)
         size_t baseOffset = spiMsgSize * log_counter; 
 
             // Copy adc data block
-        memcpy(sdcard_data.spi_data + baseOffset, msgT->adcData, msgT->dataLen * 2 * 8);
+        memcpy(sd_fill->spi_data + baseOffset, msgT->adcData, msgT->dataLen * 2 * 8);
 
             // Copy gpio data block
         size_t gpioDataOffset = baseOffset + msgT->dataLen * 2 * 8;
-        memcpy(sdcard_data.spi_data + gpioDataOffset, msgT->gpioData, msgT->dataLen);
+        memcpy(sd_fill->spi_data + gpioDataOffset, msgT->gpioData, msgT->dataLen);
         
         size_t timeDataOffset = gpioDataOffset + msgT->dataLen;
         // Copy time data block
-        memcpy(sdcard_data.spi_data + timeDataOffset, msgT->timeData, sizeof(s_date_time_t) * msgT->dataLen);
+        memcpy(sd_fill->spi_data + timeDataOffset, msgT->timeData, sizeof(s_date_time_t) * msgT->dataLen);
         //ESP_LOGI("SPI MSG 2", "Time %d %d", spi_msg_slow_freq_2_ptr->timeData->minutes, spi_msg_slow_freq_2_ptr->timeData->seconds);
         size_t dataLenOffset = timeDataOffset + sizeof(s_date_time_t) * msgT->dataLen;
         // Copy stopbytes and length
-        memcpy(sdcard_data.spi_data + dataLenOffset, &(msgT->dataLen), 2);
-        memcpy(sdcard_data.spi_data + dataLenOffset + 2, spi_msg_slow_freq_2_ptr->stopByte, 2); 
+        memcpy(sd_fill->spi_data + dataLenOffset, &(msgT->dataLen), 2);
+        memcpy(sd_fill->spi_data + dataLenOffset + 2, spi_msg_slow_freq_2_ptr->stopByte, 2); 
     }
 
-    sdcard_data.msgSize = spiMsgSize;
+    sd_fill->msgSize = spiMsgSize;
 }
 
 static esp_err_t asyncCopyDataToSdCard(const void *src, size_t size)
@@ -256,26 +265,24 @@ static esp_err_t asyncCopyDataToSdCard(const void *src, size_t size)
 
     // ESP_LOGI(TAG_LOG, "inMsg.gpioData[0]: %d", inMsg->gpioData[0]);
 
-    // tmsg =  (spi_msg_1_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t));
+    // tmsg =  (spi_msg_1_t *)(sd_fill->spi_data + log_counter * sizeof(spi_msg_1_t));
     // ESP_LOGI(TAG_LOG, "log_counter: %d, tmsg.gpiodata[0]: %d", log_counter, tmsg->gpioData[0]) ;
 
-    ESP_ERROR_CHECK(esp_async_memcpy(driver, sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t), (void*)src, size, async_memcpy_cb, NULL));
-    sdcard_data.msgSize = sizeof(spi_msg_1_t);
+    ESP_ERROR_CHECK(esp_async_memcpy(driver, sd_fill->spi_data + log_counter * sizeof(spi_msg_1_t), (void*)src, size, async_memcpy_cb, NULL));
+    sd_fill->msgSize = sizeof(spi_msg_1_t);
     xSemaphoreTake(copy_done_sem, portMAX_DELAY);
-    // tmsg =  (spi_msg_1_t *)(sdcard_data.spi_data + log_counter * sizeof(spi_msg_1_t));
+    // tmsg =  (spi_msg_1_t *)(sd_fill->spi_data + log_counter * sizeof(spi_msg_1_t));
     // ESP_LOGI(TAG_LOG, "tmsg.gpiodata[0]: %d", tmsg->gpioData[0]) ;
 
 
     return ESP_OK;
 }
 
-static void updateSdCardData(size_t dataLen, int logCounter, uint16_t *adcData16)
+// CSV fixed-point conversion is done by the SD writer (sd_write_unit), from
+// the ADC values stored in the unit, so CSV and raw always log the same samples.
+static void updateSdCardData(size_t dataLen)
 {
-    sdcard_data.datarows += dataLen;
-    if (settings_get_logmode() == LOGMODE_CSV)
-    {
-        Logger_raw_to_fixedpt(logCounter, adcData16, dataLen);
-    }
+    sd_fill->datarows += dataLen;
 }
 
 static void updateLiveBuffer(void)
@@ -301,8 +308,8 @@ static void setExpectedMessagePart(uint8_t part)
 
 static void updateSdCardRows(size_t dataLen)
 {
-    sdcard_data.datarows += dataLen;
-    ESP_LOGI("LOGGER", "Data rows: %lu", sdcard_data.datarows);
+    sd_fill->datarows += dataLen;
+    ESP_LOGI("LOGGER", "Data rows: %lu", sd_fill->datarows);
 }
 
 
@@ -378,39 +385,40 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
             (sampleRate == ADC_SAMPLE_RATE_EVERY_10S && iirFilterSecondsCounter >= 10))
             {
                
-                spi_msg_2_t *msg2 = (spi_msg_2_t *)msg;
-                    
-                // Create a new spi_msg_slow_freq_1_t structure
+                // Build a single-row message from the frame that triggered this
+                // log point (either msg1 or msg2 layout). Previously tempMsg1 was
+                // only filled for msg2 frames and logged uninitialised for msg1.
                 spi_msg_1_t tempMsg1;
-
-                // Now we need to create a message and copy it into the sdcard buffer if the msgType = 1 (spi_msg_2_t)
-                if (msgType == 1)
-                {
-                    // copy data from msgType 2 to msgType 1. 
-                    // Assuming msg is of type spi_msg_slow_freq_2_t
-                    tempMsg1.startByte[0] = 0xFA;
-                    tempMsg1.startByte[1] = 0xFB;
-                    tempMsg1.dataLen = 1;
-                    tempMsg1.timeData[0] = msg2->timeData[msg2->dataLen-1];
-                    // Either we take the sampled point or the filtered value (average) from the iir filter depending on the user setting
-                    if (settings_get_averageSample())
-                    {
-                        memcpy(tempMsg1.adcData16, y_state, sizeof(y_state));
-                    } else {
-                        memcpy(tempMsg1.adcData16, msg2->adcData+((msg2->dataLen - 1)*8*2), 8*2);
-                    }
-
-                    // for (int i = 0; i< msg2->dataLen; i++)
-                    // {
-                    //     ESP_LOGI(TAG_LOG, "msg2.gpiodata[%d] %d", i, msg2->gpioData[i]);
-                    // }
-
-                    tempMsg1.gpioData[0] = msg2->gpioData[msg2->dataLen-1];
-                    // Update msg pointer to the new tempMsg1
-                    msg = &tempMsg1;
-                    msgSize = calculateMessageSizeForMsg1(&tempMsg1);
-                    msgType = 0; // Update msgType to reflect the change
+                memset(&tempMsg1, 0, sizeof(tempMsg1));
+                const s_date_time_t *srcTime;
+                const uint8_t *srcGpio;
+                const uint16_t *srcAdc16;
+                uint16_t srcLen;
+                if (msgType == 1) {
+                    spi_msg_2_t *m = (spi_msg_2_t *)msg;
+                    srcLen = m->dataLen; srcTime = m->timeData; srcGpio = m->gpioData; srcAdc16 = m->adcData16;
+                } else {
+                    spi_msg_1_t *m = (spi_msg_1_t *)msg;
+                    srcLen = m->dataLen; srcTime = m->timeData; srcGpio = m->gpioData; srcAdc16 = m->adcData16;
                 }
+                if (srcLen == 0) srcLen = 1; // defensive: never index -1
+
+                tempMsg1.startByte[0] = 0xFA;
+                tempMsg1.startByte[1] = 0xFB;
+                tempMsg1.dataLen = 1;
+                tempMsg1.timeData[0] = srcTime[srcLen - 1];
+                tempMsg1.gpioData[0] = srcGpio[srcLen - 1];
+                // Either the averaged value (IIR filter) or the last sample, per the
+                // user setting. CSV and raw both log exactly this value.
+                if (settings_get_averageSample())
+                {
+                    memcpy(tempMsg1.adcData16, y_state, sizeof(y_state));
+                } else {
+                    memcpy(tempMsg1.adcData16, srcAdc16 + (srcLen - 1) * 8, 8 * sizeof(uint16_t));
+                }
+                msg = &tempMsg1;
+                msgSize = calculateMessageSizeForMsg1(&tempMsg1);
+                msgType = 0;
 
                 // ESP_LOGI(TAG_LOG, "tempMsg1.gpioData[0]: %d, msgSize: %d", tempMsg1.gpioData[0], msgSize);
                 if (shouldLogRaw(msgSize)) {
@@ -422,9 +430,9 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
                     }
                 }
                 
-                updateSdCardData(tempMsg1.dataLen, log_counter, y_state);
+                updateSdCardData(tempMsg1.dataLen);
                 log_counter++;
-                sdcard_data.numSpiMessages = log_counter;
+                sd_fill->numSpiMessages = log_counter;
                 
                 ESP_LOGI("MAIN", "%s: %ld seconds passed.", __func__, iirFilterSecondsCounter);
                 iirFilterSecondsCounter = 0;
@@ -435,11 +443,9 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
         if (msgType == 0) {
             spi_msg_1_t* msgT = (spi_msg_1_t*)msg;
             dataLen = msgT->dataLen;
-            adcData16 = msgT->adcData16;
         } else {
             spi_msg_2_t* msgT = (spi_msg_2_t*)msg;
             dataLen = msgT->dataLen;
-            adcData16 = msgT->adcData16;
         }
 
         // Log raw or asynchronously copy data to SD card
@@ -454,9 +460,9 @@ static void handleFilteringAndLogging(uint8_t msgType, size_t msgSize, void *msg
             }
         }
 
-        updateSdCardData(dataLen, log_counter, adcData16);
+        updateSdCardData(dataLen);
         log_counter++; // Increment log counter
-        sdcard_data.numSpiMessages = log_counter;
+        sd_fill->numSpiMessages = log_counter;
     }
     
 }
@@ -610,11 +616,7 @@ void Logger_GetSingleConversion(converted_reading_t * dataOutput)
 
         if (settings_get_adc_channel_type(settings_get(),j) )
         {
-            if (settings_get_resolution() == ADC_16_BITS)
-            {
-                adcVal = adcVal >> 4;
-            } 
-            dataOutput->temperatureData[j] = NTC_ADC2Temperature(adcVal);
+            dataOutput->temperatureData[j] = NTC_ADC2Temperature(adcVal, settings_get_resolution());
         } else {
                 // if range is 60V...
                 dataOutput->analogData[j] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);
@@ -1161,7 +1163,7 @@ esp_err_t Logger_calibrate()
 }
 
 // uint8_t Logger_raw_to_fixedpt(uint8_t * buffer, size_t size, uint8_t log_counter)
-uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, size_t dataRows)
+uint8_t Logger_raw_to_fixedpt(int32_t *dst, const uint16_t * adcData, size_t dataRows)
 {
      
     int j,x=0;
@@ -1170,7 +1172,7 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, siz
     int32_t filtered_value=0;
     int32_t adcVal = 0;
     #ifdef DEBUG_SDCARD
-    ESP_LOGI(TAG_LOG, "raw_to_csv log_counter %d", log_counter);
+    ESP_LOGI(TAG_LOG, "raw_to_csv %u rows", (unsigned)dataRows);
     #endif
     uint32_t length = 0;
     // Looping the ADC buffer is determined by dataRows as length = dataRows * 8 analog channels * 2 bytes
@@ -1206,11 +1208,11 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, siz
             // Detect type of sensor and conver accordingly
             if (settings_get_adc_channel_type(settings_get(), x))
             {
-                int32_t temp = NTC_ADC2Temperature(adcVal);
+                int32_t temp = NTC_ADC2Temperature(adcVal, 12);
                 // ESP_LOGI(TAG_LOG,"temp %d, %ld", ((uint16_t)adcData[j] | ((uint16_t)adcData[j+1] << 8)), temp);
-                adc_buffer_fixed_point[writeptr+(log_counter*ADC_VALUES_PER_SPI_TRANSACTION)] = temp;
+                dst[writeptr] = temp;
             } else {
-                adc_buffer_fixed_point[writeptr+(log_counter*ADC_VALUES_PER_SPI_TRANSACTION)] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);   
+                dst[writeptr] = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);   
             }
         
 
@@ -1248,13 +1250,12 @@ uint8_t Logger_raw_to_fixedpt(uint8_t log_counter, const uint16_t * adcData, siz
             // Detect type of sensor and conver accordingly
             if (settings_get_adc_channel_type(settings_get(), x))
             {
-                // No lookup table for 16 bit! So we down covert it to 12 bit and use the LUT
-                filtered_value = NTC_ADC2Temperature(adcVal >> 4);
+                filtered_value = NTC_ADC2Temperature(adcVal, 16);
             } else {
                 filtered_value = Logger_convertAdcFixedPoint(adcVal, channel_range, channel_offset);    
             }
             
-            adc_buffer_fixed_point[writeptr+(log_counter*ADC_VALUES_PER_SPI_TRANSACTION)] = filtered_value;
+            dst[writeptr] = filtered_value;
             
             x++;
             x = x % 8;
@@ -1307,89 +1308,231 @@ esp_err_t Logger_check_sdcard_free_space()
     return ESP_OK;
 }
 
-esp_err_t Logger_flush_to_sdcard()
+/* ---- SD writer task ----
+ * task_logging (priority 24) must drain each STM32 frame within 70 sample
+ * periods (the STM32 only double-buffers one frame), e.g. 280 ms at 250 Hz and
+ * 70 ms at 1 kHz. SD cards occasionally stall for tens to hundreds of ms on a
+ * write, and CSV formatting also costs CPU, so writing inline in task_logging
+ * risks missing frames. Instead, task_logging fills a unit and hands it to this
+ * lower-priority writer task, then continues with a free unit.
+ *
+ * Units circulate between sd_free_q (empty) and sd_full_q (to be written).
+ * task_logging always holds exactly one unit (sd_fill). With N units, the
+ * writer has (N-1) full flush periods to finish a write before task_logging
+ * would have to wait; it then blocks (as the old inline write did) rather than
+ * dropping data. If the units/queues/task can't be allocated, writes happen
+ * synchronously in task_logging exactly like before. */
+
+#define SD_WRITER_NUM_UNITS     2       // total units incl. the one being filled
+#define SD_WRITER_PRIORITY      20      // below task_logging (24) and WiFi (23), above lwIP (18) and httpd (5)
+#define SD_WRITER_STACK_SIZE    4096    // measured ~1.9 KB in normal CSV writes; file-split path (header fprintf) needs more
+#define SD_WRITER_WAIT_WARN_MS  1000    // log/flag if task_logging waits this long for a free unit
+
+static QueueHandle_t sd_free_q = NULL;
+static QueueHandle_t sd_full_q = NULL;
+static uint8_t sd_num_units = 1;
+static bool sd_writer_async = false;
+static volatile bool sd_writer_failed = false;
+
+/* Write one unit to the SD card: data, file split, free-space check.
+ * Runs in the writer task (or in task_logging in synchronous mode / once the
+ * writer is drained). */
+static esp_err_t sd_write_unit(sdcard_data_t *u)
 {
-
-
-    if (xSemaphoreTake(sdcard_semaphore, 600 / portTICK_PERIOD_MS) != pdTRUE) 
+    if (xSemaphoreTake(sdcard_semaphore, 600 / portTICK_PERIOD_MS) != pdTRUE)
     {
         // did not get the sdcard write semaphore. Something really wrong!
         ESP_LOGE(TAG_LOG, "Error getting sdcard semaphore");
-        goto error;
+        SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
+        return ESP_FAIL;
     }
-    
-
-
 
     if (settings_get_logmode() == LOGMODE_CSV)
     {
-        // ESP_LOGI(TAG_LOG, "ADC fixed p %d, %d, %d", adc_buffer_fixed_point[0], adc_buffer_fixed_point[1], adc_buffer_fixed_point[2]);
-        //             ESP_LOGI(TAG_LOG, "GPIO %d, %d, %d", sdcard_data.gpioData[0], sdcard_data.gpioData[1], sdcard_data.gpioData[2]);
-        //             ESP_LOGI(TAG_LOG, "Sizes: %d, %d, %d", sizeof(adc_buffer_fixed_point), sizeof(sdcard_data.gpioData), sizeof(sdcard_data.timeData));
         #ifdef DEBUG_SDCARD
-        ESP_LOGI(TAG_LOG, "Flusing buffer");
+        ESP_LOGI(TAG_LOG, "Flushing buffer");
         #endif
-        ESP_LOGI(TAG_LOG, "Flusing buffer");
-        if (fileman_csv_write_spi_msg(&sdcard_data, adc_buffer_fixed_point) != ESP_OK)
+        // Convert the stored ADC values to fixed point here (writer task), into
+        // one shared array, instead of keeping a converted copy in every unit.
+        // Message i uses the msg1 layout for even i and msg2 for odd i, the same
+        // rule fileman_csv_write_spi_msg() uses to read the rows.
+        for (uint8_t i = 0; i < u->numSpiMessages; i++)
+        {
+            const uint8_t *m = u->spi_data + i * sizeof(spi_msg_1_t);
+            const uint16_t *adc16;
+            uint16_t rows;
+            if (i % 2 != 0) {
+                adc16 = ((const spi_msg_2_t *)m)->adcData16;
+                rows  = ((const spi_msg_2_t *)m)->dataLen;
+            } else {
+                adc16 = ((const spi_msg_1_t *)m)->adcData16;
+                rows  = ((const spi_msg_1_t *)m)->dataLen;
+            }
+            if (rows > DATA_LINES_PER_SPI_TRANSACTION) rows = DATA_LINES_PER_SPI_TRANSACTION;
+            Logger_raw_to_fixedpt(sd_csv_fixed_point + i * ADC_VALUES_PER_SPI_TRANSACTION, adc16, rows);
+        }
+        if (fileman_csv_write_spi_msg(u, sd_csv_fixed_point) != ESP_OK)
         {
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
             goto error;
         }
     } else {
-        
-        size_t len = Logger_flush_buffer_to_sd_card_uint8(sdcard_data.spi_data, sdcard_data.msgSize*sdcard_data.numSpiMessages);
-        // if (len != SD_BUFFERSIZE)
+
+        size_t len = Logger_flush_buffer_to_sd_card_uint8(u->spi_data, u->msgSize*u->numSpiMessages);
         if (len != 1)
         {
             ESP_LOGE(TAG_LOG, "Raw write error. Returned: %d", len);
             SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_WRITE_ERROR);
             goto error;
         } else {
-            sdcard_data.total_datarows += sdcard_data.datarows;
+            sd_total_datarows += u->datarows;
         }
     }
 
-    // Check for file size and stop if we reached the limit
-    
+    // Check for file size and start a new file if we reached the limit
     if (fileman_check_current_file_size(settings_get_file_split_size()))
     {
         ESP_LOGI(TAG_LOG, "Reached max file size. Closing file and reopening new...");
         // write final row data bytes to partial files
-        fileman_write(&(sdcard_data.total_datarows), sizeof(sdcard_data.total_datarows));
+        fileman_write(&sd_total_datarows, sizeof(sd_total_datarows));
         fileman_close_file();
-       
-        fileman_set_prefix(settings_get_file_prefix(), live_data.timestamp, 1);
-        // Set the total_datarows to 0.
-        sdcard_data.total_datarows = 0;
+
+        fileman_set_prefix(settings_get_file_prefix(), u->timestamp, 1);
+        sd_total_datarows = 0;
         fileman_open_file();
         if (settings_get_logmode() == LOGMODE_CSV)
         {
             fileman_csv_write_header();
-        } else 
+        } else
         {
             fileman_raw_write_header();
         }
-        
-        //SET_ERROR(_errorCode, ERR_LOGGER_SDCARD_MAX_FILE_SIZE_REACHED);
-        //goto error;
-    } 
+    }
 
     // check if there's still space left (instead of doing this before every write)
-
     if (Logger_check_sdcard_free_space() != ESP_OK)
     {
         goto error;
     }
 
-
     xSemaphoreGive(sdcard_semaphore);
-
     return ESP_OK;
 
     error:
         xSemaphoreGive(sdcard_semaphore);
         return ESP_FAIL;
-   
+}
+
+static void sd_writer_task(void *arg)
+{
+    sdcard_data_t *u;
+    for (;;)
+    {
+        xQueueReceive(sd_full_q, &u, portMAX_DELAY);
+        if (sd_write_unit(u) != ESP_OK)
+        {
+            sd_writer_failed = true;
+        }
+        u->numSpiMessages = 0;
+        u->datarows = 0;
+        xQueueSend(sd_free_q, &u, portMAX_DELAY);
+    }
+}
+
+/* Called once from task_logging init. Falls back to synchronous writes on any failure. */
+static void sd_writer_init(void)
+{
+    sdcard_data_t *units[SD_WRITER_NUM_UNITS] = { &sd_unit0 };
+    uint8_t n = 1;
+
+    for (; n < SD_WRITER_NUM_UNITS; n++)
+    {
+        units[n] = heap_caps_malloc(sizeof(sdcard_data_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        if (units[n] == NULL)
+        {
+            break;
+        }
+        memset(units[n], 0, sizeof(sdcard_data_t));
+    }
+
+    if (n >= 2)
+    {
+        sd_free_q = xQueueCreate(n, sizeof(sdcard_data_t *));
+        sd_full_q = xQueueCreate(n, sizeof(sdcard_data_t *));
+    }
+
+    if (n < 2 || !sd_free_q || !sd_full_q ||
+        xTaskCreate(sd_writer_task, "sd_writer", SD_WRITER_STACK_SIZE, NULL, SD_WRITER_PRIORITY, NULL) != pdPASS)
+    {
+        ESP_LOGE(TAG_LOG, "SD writer task unavailable (units: %u); writing synchronously", n);
+        for (uint8_t i = 1; i < n; i++)
+        {
+            free(units[i]);
+        }
+        if (sd_free_q) { vQueueDelete(sd_free_q); sd_free_q = NULL; }
+        if (sd_full_q) { vQueueDelete(sd_full_q); sd_full_q = NULL; }
+        sd_num_units = 1;
+        sd_writer_async = false;
+        return;
+    }
+
+    for (uint8_t i = 1; i < n; i++)
+    {
+        xQueueSend(sd_free_q, &units[i], 0);
+    }
+    sd_num_units = n;
+    sd_writer_async = true;
+    ESP_LOGI(TAG_LOG, "SD writer task started with %u units (%u bytes each). Free heap: %u",
+             n, (unsigned)sizeof(sdcard_data_t), (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT));
+}
+
+/* Block until every handed-off unit has been written. After this, task_logging
+ * may touch the file directly (final row count, close). */
+static void sd_writer_drain(void)
+{
+    if (!sd_writer_async)
+    {
+        return;
+    }
+    while (uxQueueMessagesWaiting(sd_free_q) < (UBaseType_t)(sd_num_units - 1))
+    {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+/* Hand the current unit to the writer and continue with a free one.
+ * Returns ESP_FAIL if any write since logging started has failed (writes are
+ * asynchronous, so a failure is reported on the next hand-off). */
+esp_err_t Logger_flush_to_sdcard()
+{
+    if (sd_fill->numSpiMessages == 0)
+    {
+        // Nothing to write (e.g. final flush right after a full flush)
+        return sd_writer_failed ? ESP_FAIL : ESP_OK;
+    }
+
+    sd_fill->timestamp = live_data.timestamp;
+
+    if (!sd_writer_async)
+    {
+        esp_err_t ret = sd_write_unit(sd_fill);
+        sd_fill->numSpiMessages = 0;
+        sd_fill->datarows = 0;
+        return ret;
+    }
+
+    xQueueSend(sd_full_q, &sd_fill, portMAX_DELAY);   // never blocks: queue holds all units
+
+    if (xQueueReceive(sd_free_q, &sd_fill, pdMS_TO_TICKS(SD_WRITER_WAIT_WARN_MS)) != pdTRUE)
+    {
+        // The SD card has been slower than (N-1) flush periods plus this wait.
+        // Keep waiting, same as the old inline write would have. If STM32
+        // frames get lost meanwhile, the frame-sequence check reports it.
+        ESP_LOGW(TAG_LOG, "SD writer slow: waited > %d ms for a free buffer", SD_WRITER_WAIT_WARN_MS);
+        xQueueReceive(sd_free_q, &sd_fill, portMAX_DELAY);
+    }
+
+    return sd_writer_failed ? ESP_FAIL : ESP_OK;
 }
 
 esp_err_t Logger_startFWupdate()
@@ -1442,8 +1585,10 @@ void LogTask_resetCounter()
     #endif
 
     log_counter = 0;
-    sdcard_data.datarows = 0;
-    sdcard_data.total_datarows = 0;
+    sd_fill->datarows = 0;
+    sd_fill->numSpiMessages = 0;
+    sd_total_datarows = 0;
+    sd_writer_failed = false;
     expected_msg_part = 0;
     msg_part = 0;
     iirFilterSecondsCounter = 0;
@@ -2060,8 +2205,8 @@ void Logtask_logging()
                     } 
         
                     log_counter = 0;
-                    sdcard_data.datarows = 0;
-                    sdcard_data.numSpiMessages = 0;
+                    sd_fill->datarows = 0;
+                    sd_fill->numSpiMessages = 0;
                 }
 
                 // Keep in mind we are talking about _currentLoggingState here, not _CurrentLogTaskState!
@@ -2116,10 +2261,13 @@ void Logtask_logging()
                 } else if (finalwrite) {
                     ESP_LOGI(TAG_LOG, "Finalwrite == 1");
                     Logger_flush_to_sdcard();
+                    // Wait for the writer to finish all queued units before
+                    // touching the file from this task.
+                    sd_writer_drain();
                     if (settings_get_logmode() == LOGMODE_RAW)
                     {
                         // Write total number of rows at the end of the file
-                        fileman_write(&(sdcard_data.total_datarows), sizeof(sdcard_data.total_datarows));
+                        fileman_write(&sd_total_datarows, sizeof(sd_total_datarows));
                     }
                     fileman_close_file();
                     // esp_sd_card_unmount();
@@ -2295,6 +2443,9 @@ void task_logging(void * pvParameters)
     // immediately give semaphore
     xSemaphoreGive(sdcard_semaphore);
     xSemaphoreGive(idle_state);
+
+    // Start the SD writer task (decouples SD writes from SPI frame reception)
+    sd_writer_init();
 
     gpio_set_direction(GPIO_START_STOP_BUTTON, GPIO_MODE_INPUT);
     

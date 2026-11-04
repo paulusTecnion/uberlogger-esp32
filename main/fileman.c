@@ -11,6 +11,8 @@
 #include "settings.h"
 #include "config.h"
 #include "csv_format.h"
+#include "tempsensor.h"
+_Static_assert(CSV_INVALID_VALUE == NTC_TEMP_INVALID, "CSV and NTC invalid markers must match");
 
 
 #define MOUNT_POINT "/sdcard"
@@ -19,7 +21,8 @@ static uint32_t file_seq_num=0;
 static uint32_t file_seq_subnum=0;
 static FILE* f = NULL;
 char _file_name[120];
-char filestrbuffer[4900];
+// One CSV row (csv_format_row writes at most CSV_ROW_MAX_LEN bytes)
+static char filestrbuffer[CSV_ROW_MAX_LEN];
 char _prefix[105];
 uint32_t file_bytes_written = 0;
 uint8_t raw_file_format_version = RAW_FILE_FORMAT_VERSION;
@@ -132,7 +135,9 @@ esp_err_t fileman_open_file()
     }
 
 
-    if (setvbuf(f, NULL, _IOFBF, 8192) != 0)
+    // 4 KiB is plenty: SD writes run at ~1 MB/s vs tens of KB/s of log data,
+    // and this buffer is heap that the network stack needs under load.
+    if (setvbuf(f, NULL, _IOFBF, 4096) != 0)
     {
         ESP_LOGE(TAG_FILE, "setvbuf failed");
         perror ("The following error occurred");
@@ -347,7 +352,7 @@ int fileman_csv_write(const int32_t *dataAdc, const uint8_t *dataGpio, const s_d
                                     dataGpio[i], &date_time_ptr[i],
                                     ADC_MULT_FACTOR_16B_TEMP, ADC_MULT_FACTOR_60V, ADC_MULT_FACTOR_10V);
 
-        // No per-row fflush: let the 8 KiB stdio buffer (setvbuf) batch rows into
+        // No per-row fflush: let the 4 KiB stdio buffer (setvbuf) batch rows into
         // large SD writes. The caller flushes once per batch.
         if (fwrite(filestrbuffer, 1, len, f) != len)
         {

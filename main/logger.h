@@ -122,12 +122,14 @@ typedef struct {
 // END OF NO TOUCH
 // *********************************************************************************************************************
 
+/* One SD flush unit: filled by task_logging, written by the SD writer task.
+ * spi_data must stay first: it is an async-memcpy (DMA) destination. */
 typedef struct {
     uint8_t spi_data[sizeof(spi_msg_1_adc_only_t)*4];
     uint32_t datarows;
     uint8_t numSpiMessages;
     uint32_t msgSize;
-    uint64_t total_datarows;
+    uint64_t timestamp;     // live_data timestamp at hand-off, used to name split files
 } sdcard_data_t;
 
 

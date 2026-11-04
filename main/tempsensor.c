@@ -65,7 +65,8 @@ int32_t q_div(int32_t a, int32_t b);
 // Next table comes from following link
 // https://www.sebulli.com/ntc/index.php?lang=en&points=1024&unit=0.1&resolution=12+Bit&circuit=pullup&resistor=10000&r25=10000&beta=3950&test_resistance=10000&tmin=-40&tmax=120
 
-int NTC_table[1025] = {
+// const: lookup table lives in flash instead of being copied to RAM (4 KB)
+const int NTC_table[1025] = {
 4140, 3521, 2902, 2593, 2394, 2249, 2136,
 2045, 1969, 1903, 1846, 1795, 1750, 1709,
 1672, 1638, 1607, 1578, 1550, 1525, 1501,
@@ -276,16 +277,29 @@ int32_t interp( lut_t * c, int32_t x, int n ){
 //   }
 // }
 
-int NTC_ADC2Temperature(unsigned int adc_value){
- 
-  int p1,p2;
-  /* Estimate the interpolating point before and after the ADC value. */
-  p1 = NTC_table[ (adc_value >> 2)  ];
-  p2 = NTC_table[ (adc_value >> 2)+1];
- 
-  /* Interpolate between both points. */
-  return p1 - ( (p1-p2) * (adc_value & 0x0003) ) / 4;
-};
+int32_t NTC_ADC2Temperature(int32_t adc_value, uint8_t resolution_bits)
+{
+  /* The table has 1024 steps over the full ADC range: a 12-bit value has 2
+     bits below the table index, a 16-bit value (max 0xFFF0) has 6. Using all
+     of them keeps the 16-bit resolution instead of rounding down to 12 bits. */
+  const int frac_bits = (resolution_bits == 16) ? 6 : 2;
+  const int32_t adc_max = (resolution_bits == 16) ? 0xFFF0 : 4095;
+
+  if (adc_value < 0 || adc_value > adc_max)
+    return NTC_TEMP_INVALID;
+
+  const int32_t idx = adc_value >> frac_bits;
+  const int32_t frac = adc_value & ((1 << frac_bits) - 1);
+  const int32_t p1 = NTC_table[idx];
+  const int32_t p2 = NTC_table[idx + 1];
+
+  /* Interpolate between both points (the table never increases, so p1 >= p2). */
+  const int32_t t = p1 - ((p1 - p2) * frac) / (1 << frac_bits);
+
+  if (t < NTC_TEMP_MIN || t > NTC_TEMP_MAX)
+    return NTC_TEMP_INVALID;
+  return t;
+}
 
 // void calculateTemperatureFloat(float* T, float v_out, float v_in){
 //   // calculate temperature with 10k NTC with 10k pull-up from measured voltages v_out and v_in of resistor divider

@@ -91,6 +91,9 @@ function updatePinLabel(t) {
 }
 
 // ---------------------------------------------------------------- live chart
+// Legend text for an NTC sample without a valid reading (stored by generic.js).
+var NTC_FAULT_TEXT = { open: "not connected", short: "short circuit" };
+
 var CATEGORY_ORDER = { TEMPERATURE: 0, ANALOG: 0, DIGITAL: 1 };
 
 // Turn the shared dataPoints buffer into a column dataset for the chart.
@@ -115,11 +118,18 @@ function buildLiveDataset() {
     t[r] = longest[i2].getTime() / 1000;
     rowOf[i2] = r++;
   }
-  var D = { n: n, t: t, cols: [], scales: [], decimals: [], names: [], types: [], pyramids: [], gaps: null, gapCount: 0 };
+  var D = { n: n, t: t, cols: [], scales: [], decimals: [], names: [], types: [], pyramids: [], notes: [], gaps: null, gapCount: 0 };
   keys.forEach(function (k) {
     var dot = k.indexOf("."), category = k.slice(0, dot), channel = k.slice(dot + 1);
-    var y = dataPoints[k].y, col = new Float64Array(n).fill(NaN), off = n0 - y.length;
-    for (var j = 0; j < y.length; j++) col[rowOf[off + j]] = Number(y[j]);
+    var y = dataPoints[k].y, col = new Float64Array(n).fill(NaN), off = n0 - y.length, notes = null;
+    for (var j = 0; j < y.length; j++) {
+      var v = y[j];
+      if (v === null || typeof v === "string") {
+        // invalid reading: a gap in the chart; an NTC fault is named in the legend
+        col[rowOf[off + j]] = NaN;
+        if (NTC_FAULT_TEXT[v]) (notes = notes || [])[rowOf[off + j]] = NTC_FAULT_TEXT[v];
+      } else col[rowOf[off + j]] = Number(v);
+    }
     var type = category === "DIGITAL" ? "digital" : category === "TEMPERATURE" ? "temp" : "volt";
     D.cols.push(col);
     D.scales.push(1);
@@ -127,6 +137,7 @@ function buildLiveDataset() {
     D.names.push(typeof channelDisplayLabel === "function" ? channelDisplayLabel(category, channel) : channel);
     D.types.push(type);
     D.pyramids.push([]);
+    D.notes.push(notes);
   });
   return D;
 }
@@ -146,12 +157,36 @@ function plotLive() {
 }
 
 function pauseFollow() {
-  if (lvMode === "live" && followLive) { followLive = false; updatePlotModeLabel(); }
+  if (lvMode === "live" && followLive) {
+    followLive = false;
+    updatePlotModeLabel();
+    // wait a moment: the first click of a double-click (= resume) also pauses
+    setTimeout(function () { if (!followLive) showResumeHintOnce(); }, 400);
+  }
+}
+
+// One-time hint (remembered in this browser) that a paused chart can resume.
+var RESUME_HINT_KEY = "ul-hint-resume-shown";
+function showResumeHintOnce() {
+  try { if (localStorage.getItem(RESUME_HINT_KEY)) return; localStorage.setItem(RESUME_HINT_KEY, "1"); }
+  catch (e) { /* no storage: still show it, once per page load */ if (showResumeHintOnce.done) return; }
+  showResumeHintOnce.done = true;
+  var el = document.createElement("div");
+  el.className = "toast";
+  el.setAttribute("role", "status");
+  el.innerHTML = "<span>Chart paused. <b>Double-click</b> the chart or press <b>&#9654; Resume</b> to follow the live data again.</span>" +
+    '<button type="button" class="toast-close" aria-label="Close">&times;</button>';
+  document.body.appendChild(el);
+  var close = function () { el.classList.remove("show"); setTimeout(function () { el.remove(); }, 300); };
+  el.querySelector("button").addEventListener("click", close);
+  requestAnimationFrame(function () { el.classList.add("show"); });
+  setTimeout(close, 8000);
 }
 
 function setLiveWindow(ms) {
   liveWindowMs = ms;
   followLive = true;
+  $(".toast").remove();   // resumed: the "chart paused" hint has done its job
   if (lvView) lvView.setPin(null);   // back to live releases a pinned moment
   $("#lv-windows button").removeClass("active").filter('[data-ms="' + ms + '"]').addClass("active");
   if (lvMode === "csv") backToLive();
@@ -159,8 +194,8 @@ function setLiveWindow(ms) {
   updatePlotModeLabel();
 }
 
-// The follow button doubles as status: "● Live" (following, inactive), "▶ Back to live"
-// (zoomed/panned, click to follow the newest data again) or "Connection lost".
+// The follow button doubles as status: "● Live" (following, inactive), "▶ Resume"
+// (paused by a click, zoom or pan; click to follow the newest data again) or "Connection lost".
 function updatePlotModeLabel() {
   var el = document.getElementById("lv-follow");
   if (!el) return;
@@ -171,7 +206,7 @@ function updatePlotModeLabel() {
   el.disabled = state !== "paused";
   el.innerHTML = state === "lost" ? '<span class="dot bad"></span>Connection lost'
     : state === "live" ? '<span class="dot ok"></span>Live'
-    : "&#9654; Back to live";
+    : "&#9654; Resume";
 }
 
 // Empty the history buffer + saved snapshot, then re-seed with the latest

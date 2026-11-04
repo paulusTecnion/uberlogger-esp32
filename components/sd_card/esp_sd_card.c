@@ -103,8 +103,13 @@ esp_err_t esp_sd_card_mount()
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SDCARD_SPI_HOST;
-    // host.max_freq_khz = SDMMC_FREQ_DEFAULT;
-    
+    // Keep the SD clock at 20 MHz (default-speed mode). Anything above
+    // SDMMC_FREQ_DEFAULT makes the driver switch the card to high-speed mode;
+    // on this board that switch fails (send_csd -> 0x108, at 26 and 40 MHz)
+    // and leaves the card unresponsive (CMD CRC errors) until power-cycled.
+    // Tested on HW R05 with a 32 GB SDHC card, 2026-11-04.
+    host.max_freq_khz = SDMMC_FREQ_DEFAULT;
+
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_NUM_CS;
     slot_config.host_id = host.slot;
@@ -122,6 +127,7 @@ esp_err_t esp_sd_card_mount()
         return ret;
     } else {
         esp_sd_card_is_mounted = true;
+        ESP_LOGI(TAG, "SD card mounted at %d kHz", card->real_freq_khz);
         return ESP_OK;
     }
 
