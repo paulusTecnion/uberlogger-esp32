@@ -456,6 +456,7 @@ table.compact-table td select { width: 100%; min-width: 110px; }
 .u-inline:not(.u-live) .u-value { display: none; }
 .u-legend .u-value { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 650; min-width: 7ch; }
 .u-legend .u-series:first-child .u-value { min-width: 23ch; }
+.u-legend .u-value.u-note { color: var(--bad); }   /* e.g. NTC "not connected" */
 .u-series > * { padding: 4px; }
 .u-series th { cursor: pointer; }
 .u-legend .u-off > * { opacity: 0.3; }

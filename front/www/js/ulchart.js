@@ -427,6 +427,7 @@
           setScale: [function (u, key) { if (key === "x" && !self.updating) self.userView(u.scales.x.min, u.scales.x.max); }],
           setSeries: [function () { if (!self.updating) self.refresh(); }],
           draw: [function (u) { self.drawGaps(u); self.drawPin(u); }],
+          setLegend: [function (u) { self.markNotes(u); }],
         },
       };
     };
@@ -579,7 +580,19 @@
 
   // re-evaluate legend values of charts the mouse is not over (live updates, pin changes)
   View.prototype.updateLegends = function () {
-    this.charts.forEach(function (u) { if (u.cursor.left < 0) u.setLegend({ idx: 0 }, false); });
+    var self = this;
+    this.charts.forEach(function (u) { if (u.cursor.left < 0) { u.setLegend({ idx: 0 }, false); self.markNotes(u); } });
+  };
+
+  // flag legend values that are a note (e.g. "not connected") so CSS can colour them
+  View.prototype.markNotes = function (u) {
+    var D = this.D, cols = u._cols;
+    if (!D || !cols) return;
+    var i = this.legendIdx(u), rows = u.root.querySelectorAll(".u-legend .u-series");
+    for (var s = 1; s < rows.length && s <= cols.length; s++) {
+      var td = rows[s].querySelector(".u-value"), notes = D.notes && D.notes[cols[s - 1]];
+      if (td) td.classList.toggle("u-note", !!(i >= 0 && notes && notes[i] && !(D.cols[cols[s - 1]][i] === D.cols[cols[s - 1]][i])));
+    }
   };
 
   View.prototype.setPin = function (t) {
