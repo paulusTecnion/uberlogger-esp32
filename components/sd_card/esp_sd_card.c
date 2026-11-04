@@ -103,8 +103,11 @@ esp_err_t esp_sd_card_mount()
     esp_err_t ret;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SDCARD_SPI_HOST;
-    // host.max_freq_khz = SDMMC_FREQ_DEFAULT;
-    
+    // SD pins (CS=34, MOSI=35, CLK=36, MISO=37) are the ESP32-S2 FSPI IO_MUX
+    // pins, so 40 MHz is supported without GPIO-matrix input delay limits.
+    // The card negotiates down if it does not support high-speed mode.
+    host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_NUM_CS;
     slot_config.host_id = host.slot;
@@ -122,6 +125,7 @@ esp_err_t esp_sd_card_mount()
         return ret;
     } else {
         esp_sd_card_is_mounted = true;
+        ESP_LOGI(TAG, "SD card mounted at %d kHz", card->real_freq_khz);
         return ESP_OK;
     }
 
