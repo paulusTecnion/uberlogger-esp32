@@ -485,7 +485,7 @@ gpio_channel_enabled = decoded_settings[6]
 file_decimal_char = "." if decoded_settings[7] == 0 else ","
 file_separator_char = "," if decoded_settings[8] == 0 else ";"
 
-with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
+with open(file_path, 'rb') as file, open(csv_file_path, 'w+', newline='\r\n') as fcsv:
     # Skip the header
     file.seek(header_length)
 
@@ -498,7 +498,7 @@ with open(file_path, 'rb') as file, open(csv_file_path, 'w+') as fcsv:
     # Go back to the data section
     file.seek(header_length)
     # Write the CSV header with labels
-    fcsv.write(generate_header(adc_channel_enabled, gpio_channel_enabled, adc_channel_labels, dio_channel_labels, file_separator_char) + '\r')
+    fcsv.write(generate_header(adc_channel_enabled, gpio_channel_enabled, adc_channel_labels, dio_channel_labels, file_separator_char) + '\n')
 
     message_type = 1  # Start with spi_msg_1
     while True:
